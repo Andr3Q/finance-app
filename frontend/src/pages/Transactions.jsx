@@ -103,7 +103,7 @@ export default function Transactions() {
         </div>
 
         {/* Filtros */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
           {[
             { value: 'all',     label: '📋 Todas' },
             { value: 'expense', label: '🛍️ Gastos' },
