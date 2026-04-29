@@ -1,0 +1,75 @@
+// ═══════════════════════════════════════════════════════
+// 📐 prisma/schema.prisma — Modelo do Banco de Dados
+//
+// O Prisma lê este arquivo e cria as tabelas no PostgreSQL.
+// Cada "model" vira uma tabela. Cada campo vira uma coluna.
+// Ao alterar este arquivo, rode: npx prisma migrate dev
+// ═══════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Tabela: users ───────────────────────────────────────
+// Armazena os dados do usuário (apenas um neste caso)
+model User {
+  id              String        @id @default(uuid())
+  name            String
+  email           String        @unique
+  password        String
+  salary          Float         @default(0)
+  reportEmail     String?
+  createdAt       DateTime      @default(now())
+  // Controla o mês/ano do último lançamento automático de contas fixas
+  autoLaunchMonth Int?
+  autoLaunchYear  Int?
+
+  transactions    Transaction[]
+  budgets         Budget[]
+  categoryLimits  CategoryLimit[]
+}
+
+// ── Tabela: transactions ────────────────────────────────
+// Armazena cada gasto ou entrada registrada pelo usuário
+model Transaction {
+  id          String   @id @default(uuid())
+  description String                              // Ex: "Almoço no restaurante"
+  amount      Float                               // Valor em reais
+  type        String                              // "expense" (gasto) ou "income" (entrada)
+  category    String                              // "food", "shopping", "transport", etc.
+  date        DateTime @default(now())            // Data/hora do registro
+  archived    Boolean  @default(false)            // true = transação do mês fechado
+  month       Int                                 // Mês da transação (1-12)
+  year        Int                                 // Ano da transação
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+// ── Tabela: budgets ─────────────────────────────────────
+// Armazena as contas fixas mensais (aluguel, luz, etc.)
+model Budget {
+  id     String @id @default(uuid())
+  name   String                                   // Ex: "Aluguel", "Internet"
+  amount Float                                    // Valor mensal fixo
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+// ── Tabela: category_limits ────────────────────────────
+// Limite de gasto mensal por categoria (ex: máx R$300 em Alimentação)
+model CategoryLimit {
+  id       String @id @default(uuid())
+  category String  // "food", "shopping", "transport", etc.
+  amount   Float   // valor máximo permitido por mês
+  userId   String
+  user     User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, category]) // um limite por categoria por usuário
+}

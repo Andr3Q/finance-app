@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════════
+# 🐳 docker-compose.yml — FinançasPro
+#
+# Define os 3 "contêineres" que rodam juntos:
+#   db       → Banco de dados PostgreSQL (guarda seus dados)
+#   backend  → API Node.js (regras de negócio, e-mail, PDF)
+#   frontend → Interface React (o que você vê no navegador)
+#
+# Comandos úteis:
+#   docker compose up --build   → Inicia tudo (primeira vez)
+#   docker compose up           → Inicia sem rebuildar
+#   docker compose down         → Para tudo
+#   docker compose logs -f      → Ver logs em tempo real
+# ═══════════════════════════════════════════════════════
+
+services:
+
+  # ───────────────────────────────────────────────
+  # 🗄️  db — Banco de Dados PostgreSQL
+  #
+  # Responsável por: armazenar usuários, transações
+  # e contas fixas de forma segura e persistente.
+  # Os dados ficam no volume "postgres_data" e NÃO
+  # são perdidos quando você reinicia o container.
+  # ───────────────────────────────────────────────
+  db:
+    image: postgres:15-alpine          # Imagem oficial, versão leve (alpine)
+    container_name: financas_db
+    restart: unless-stopped            # Reinicia automaticamente se cair
+    environment:
+      POSTGRES_USER: financeuser       # Usuário do banco
+      POSTGRES_PASSWORD: financepass   # Senha do banco (só interna, não exposta)
+      POSTGRES_DB: financedb           # Nome do banco
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Persiste dados no disco
+    ports:
+      - "5432:5432"                    # Porta local:porta container
+    healthcheck:                       # Verifica se o banco está pronto antes de iniciar o backend
+      test: ["CMD-SHELL", "pg_isready -U financeuser -d financedb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ───────────────────────────────────────────────
+  # ⚙️  backend — API Node.js + Express
+  #
+  # Responsável por: processar requisições do frontend,
+  # calcular saldos, validar logins, gerar PDFs e
+  # enviar e-mails. É o "cérebro" do sistema.
+  # ───────────────────────────────────────────────
+  backend:
+    build: ./backend                   # Usa o Dockerfile em ./backend/
+    container_name: financas_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy     # Só inicia APÓS o banco estar saudável
+    env_file:
+      - .env                           # Carrega variáveis sensíveis do arquivo .env
+    environment:
+      DATABASE_URL: postgresql://financeuser:financepass@db:5432/financedb
+    ports:
+      - "3001:3001"                    # API acessível em http://localhost:3001
+    volumes:
+      - ./backend:/app                 # Monta o código local → hot reload funciona
+      - /app/node_modules              # Preserva node_modules do container
+
+  # ───────────────────────────────────────────────
+  # 🎨  frontend — React + Vite
+  #
+  # Responsável por: exibir a interface visual,
+  # atualizar o saldo em tempo real e comunicar
+  # com o backend via chamadas HTTP (fetch/axios).
+  # ───────────────────────────────────────────────
+  frontend:
+    build: ./frontend                  # Usa o Dockerfile em ./frontend/
+    container_name: financas_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"                    # App acessível em http://localhost:5173
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+# ───────────────────────────────────────────────────────
+# 💾 Volumes — Armazenamento persistente do Docker
+# Os dados do banco ficam aqui mesmo após "docker compose down"
+# ───────────────────────────────────────────────────────
+volumes:
+  postgres_data:
