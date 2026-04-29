@@ -327,7 +327,7 @@ select.input option { background: #1a1a3e; color: var(--text-primary); }
 
   /* Página com menos padding */
   .page { padding: 16px 14px !important; }
-  .page-with-nav { padding-top: 76px !important; }
+  .page.page-with-nav { padding-top: 86px !important; }
 
   /* Cards menores no mobile */
   .card { padding: 18px !important; }
@@ -353,6 +353,7 @@ select.input option { background: #1a1a3e; color: var(--text-primary); }
 
 @media (max-width: 480px) {
   .page { padding: 12px 10px !important; }
+  .page.page-with-nav { padding-top: 86px !important; }
   .card { padding: 14px !important; }
   /* Botões ficam em coluna no mobile bem pequeno */
   .btn { width: 100%; justify-content: center; }
