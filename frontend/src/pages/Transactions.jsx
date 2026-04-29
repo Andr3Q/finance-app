@@ -2,7 +2,7 @@
 // 📋 src/pages/Transactions.jsx — Histórico de Transações
 // ═══════════════════════════════════════════════════════
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { transactionsAPI }     from '../services/api.js'
 import Navbar          from '../components/Navbar.jsx'
 import TransactionForm from '../components/TransactionForm.jsx'
@@ -15,6 +15,26 @@ export default function Transactions() {
   const [loading,      setLoading]      = useState(true)
   const [showForm,     setShowForm]     = useState(false)
   const [filter,       setFilter]       = useState('all') // all | expense | income
+  const fileInputRef                    = useRef(null)
+
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      setLoading(true)
+      const res = await transactionsAPI.importCSV(formData)
+      alert(res.data.message)
+      fetchTransactions()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao importar arquivo CSV.')
+      setLoading(false)
+    }
+    e.target.value = null
+  }
 
   const fetchTransactions = async () => {
     try {
@@ -49,9 +69,21 @@ export default function Transactions() {
               {transactions.length} transação(ões) registrada(s)
             </p>
           </div>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            ＋ Nova Transação
-          </button>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <input 
+              type="file" 
+              accept=".csv" 
+              ref={fileInputRef} 
+              style={{ display: 'none' }} 
+              onChange={handleImportCSV} 
+            />
+            <button className="btn" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} onClick={() => fileInputRef.current?.click()}>
+              🏦 Importar CSV
+            </button>
+            <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+              ＋ Nova Transação
+            </button>
+          </div>
         </div>
 
         {/* Totais rápidos */}

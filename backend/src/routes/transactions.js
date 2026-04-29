@@ -13,6 +13,8 @@
 const express          = require('express')
 const { PrismaClient } = require('@prisma/client')
 const authMiddleware   = require('../middleware/auth')
+const multer           = require('multer')
+const { parse }        = require('csv-parse')
 
 const router = express.Router()
 const prisma = new PrismaClient()
@@ -202,6 +204,76 @@ router.post('/auto-launch', async (req, res) => {
   } catch (error) {
     console.error('Erro no auto-launch:', error)
     res.status(500).json({ error: 'Erro ao lançar contas fixas.' })
+  }
+})
+
+// ── POST /transactions/import ───────────────────────────
+// Importa transações de um arquivo CSV (ex: extrato bancário)
+const upload = multer({ storage: multer.memoryStorage() })
+
+router.post('/import', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
+    }
+
+    const fileContent = req.file.buffer.toString('utf-8')
+    
+    parse(fileContent, {
+      columns: true,
+      skip_empty_lines: true,
+      delimiter: [',', ';']
+    }, async (err, records) => {
+      if (err) {
+        return res.status(400).json({ error: 'Erro ao processar o arquivo CSV.' })
+      }
+
+      const transactions = []
+      const now = new Date()
+      const currentMonth = now.getMonth() + 1
+      const currentYear = now.getFullYear()
+
+      for (const record of records) {
+        // Tenta inferir os campos comuns em extratos (Data, Descrição, Valor)
+        const description = record['Descrição'] || record['Historico'] || record['description'] || record['HISTÓRICO'] || record['Detalhes'] || 'Importação'
+        let amountStr = record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0'
+        
+        // Tratar formato numérico do Brasil (ex: 1.500,00 -> 1500.00)
+        amountStr = amountStr.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
+        const amount = parseFloat(amountStr)
+
+        if (!isNaN(amount) && amount !== 0) {
+          const type = amount > 0 ? 'income' : 'expense'
+          
+          transactions.push({
+            description: description.substring(0, 255), // Limita tamanho da string
+            amount: Math.abs(amount),
+            type: type,
+            category: 'other', // Categoria padrão
+            month: currentMonth,
+            year: currentYear,
+            userId: req.userId
+          })
+        }
+      }
+
+      if (transactions.length === 0) {
+        return res.status(400).json({ error: 'Nenhuma transação válida encontrada no arquivo.' })
+      }
+
+      await prisma.transaction.createMany({
+        data: transactions
+      })
+
+      res.json({
+        message: `✅ ${transactions.length} transações importadas com sucesso!`,
+        count: transactions.length
+      })
+    })
+
+  } catch (error) {
+    console.error('Erro na importação:', error)
+    res.status(500).json({ error: 'Erro ao importar extrato.' })
   }
 })
 
