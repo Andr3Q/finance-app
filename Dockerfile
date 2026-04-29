@@ -13,7 +13,7 @@ WORKDIR /frontend
 
 # Instala dependências primeiro (melhor uso do cache Docker)
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 
 # Copia o código e compila para produção
 COPY frontend/ ./
@@ -31,7 +31,7 @@ WORKDIR /app
 
 # Instala dependências do backend (só as de produção)
 COPY backend/package*.json ./
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
 # Copia o código do backend
 COPY backend/ ./
