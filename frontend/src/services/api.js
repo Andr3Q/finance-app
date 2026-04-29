@@ -55,7 +55,8 @@ export const transactionsAPI = {
   summary:    ()     => api.get('/transactions/summary'),
   create:     (data) => api.post('/transactions', data),
   remove:     (id)   => api.delete(`/transactions/${id}`),
-  autoLaunch: ()     => api.post('/transactions/auto-launch')
+  autoLaunch: ()     => api.post('/transactions/auto-launch'),
+  importCSV:  (formData) => api.post('/transactions/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
 }
 
 // ── Funções de orçamento (contas fixas) ─────────────────
