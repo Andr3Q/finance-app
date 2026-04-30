@@ -191,14 +191,14 @@ export default function Settings() {
         {/* Salário */}
         <div className="card mb-16" style={{ marginBottom: 16 }}>
           <h3 style={{ fontWeight: 700, marginBottom: 16 }}>💰 Salário Mensal</h3>
-          <form onSubmit={handleSalary} style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1 }}>
+          <form onSubmit={handleSalary} className="form-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
               <label className="label">Valor em R$</label>
               <input className="input" type="number" value={salary} min="0" step="0.01"
                 onChange={e => setSalary(parseFloat(e.target.value) || 0)} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <button type="submit" className="btn btn-primary" disabled={savingSal}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', minWidth: 140 }}>
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={savingSal}>
                 {savingSal ? 'Salvando...' : '💾 Salvar'}
               </button>
             </div>
@@ -240,19 +240,19 @@ export default function Settings() {
           </div>
 
           {/* Adicionar nova conta */}
-          <form onSubmit={handleAddBudget} style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 2 }}>
+          <form onSubmit={handleAddBudget} className="form-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ flex: 2, minWidth: 180 }}>
               <label className="label">Nome</label>
               <input className="input" placeholder="Ex: Aluguel, Luz, Internet..."
                 value={newBudget.name} onChange={e => setNewBudget(p => ({ ...p, name: e.target.value }))} />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 120 }}>
               <label className="label">Valor (R$)</label>
               <input className="input" type="number" placeholder="500" min="0" step="0.01"
                 value={newBudget.amount} onChange={e => setNewBudget(p => ({ ...p, amount: e.target.value }))} />
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <button type="submit" className="btn btn-ghost">＋ Adicionar</button>
+            <div style={{ display: 'flex', alignItems: 'flex-end', minWidth: 120 }}>
+              <button type="submit" className="btn btn-ghost" style={{ width: '100%' }}>＋ Adicionar</button>
             </div>
           </form>
         </div>

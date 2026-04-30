@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { transactionsAPI, budgetAPI } from '../services/api.js'
 import Navbar            from '../components/Navbar.jsx'
+import DashboardHero     from '../components/DashboardHero.jsx'
 import AlertBanner       from '../components/AlertBanner.jsx'
 import SpendingChart     from '../components/SpendingChart.jsx'
 import TransactionForm   from '../components/TransactionForm.jsx'
@@ -93,20 +94,12 @@ export default function Dashboard() {
       <Navbar />
       <div className="page page-with-nav fade-in">
 
-        {/* Cabeçalho */}
-        <div className="flex-between mb-24">
-          <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800 }}>
-              Olá, {user.name?.split(' ')[0]} 👋
-            </h1>
-            <p className="text-muted" style={{ fontSize: 13, marginTop: 4 }}>
-              {MONTHS[now.getMonth()]} de {now.getFullYear()}
-            </p>
-          </div>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            ＋ Registrar Gasto
-          </button>
-        </div>
+        {/* Hero Header Premium */}
+        <DashboardHero
+          user={user}
+          summary={summary}
+          onAddTransaction={() => setShowForm(true)}
+        />
 
         {/* Lembrete de salário (5° dia útil) */}
         <SalaryReminder salary={summary?.salary} />
@@ -124,11 +117,11 @@ export default function Dashboard() {
         {summary && (
           <div className="card mb-16" style={{
             background: 'linear-gradient(135deg, rgba(0,208,132,0.08), rgba(79,142,247,0.05))',
-            border: '1px solid rgba(0,208,132,0.2)', padding: 32, marginBottom: 20
+            border: '1px solid rgba(0,208,132,0.2)', marginBottom: 20
           }}>
             <p className="label">Saldo Disponível</p>
             <div className="flex-between" style={{ marginTop: 8, flexWrap: 'wrap', gap: 12 }}>
-              <span style={{
+              <span className="balance-value" style={{
                 fontSize: 48, fontWeight: 800,
                 color: summary.currentBalance >= 0 ? 'var(--color-green)' : 'var(--color-red)'
               }}>
@@ -158,26 +151,6 @@ export default function Dashboard() {
                 R$ {summary.totalAvailable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
-          </div>
-        )}
-
-        {/* Cards de resumo */}
-        {summary && (
-          <div className="grid-4 mb-24" style={{ marginBottom: 24 }}>
-            {[
-              { label: 'Salário',       value: summary.salary,         icon: '💰', color: '#4f8ef7' },
-              { label: 'Contas Fixas',  value: summary.totalFixedCosts, icon: '📋', color: '#ff8c42' },
-              { label: 'Gasto no Mês',  value: summary.totalExpenses,   icon: '🛍️', color: '#ff4757' },
-              { label: 'Disponível',    value: summary.totalAvailable,  icon: '✅', color: '#00d084' }
-            ].map(({ label, value, icon, color }) => (
-              <div key={label} className="card" style={{ padding: '20px 24px' }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>
-                <p className="label">{label}</p>
-                <p style={{ fontSize: 20, fontWeight: 700, color, marginTop: 4 }}>
-                  R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            ))}
           </div>
         )}
 
@@ -246,6 +219,9 @@ export default function Dashboard() {
         <CategoryLimits limits={limits} transactions={transactions} />
 
       </div>
+
+      {/* FAB — só mobile */}
+      <button className="fab" onClick={() => setShowForm(true)} aria-label="Registrar gasto">＋</button>
 
       {/* Modal de registrar transação */}
       {showForm && (

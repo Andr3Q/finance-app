@@ -62,59 +62,66 @@ export default function Transactions() {
     <>
       <Navbar />
       <div className="page page-with-nav fade-in">
-        <div className="flex-between mb-24">
+
+        {/* Cabeçalho responsivo */}
+        <div className="page-header">
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800 }}>💳 Transações do Mês</h1>
             <p className="text-muted" style={{ fontSize: 13, marginTop: 4 }}>
               {transactions.length} transação(ões) registrada(s)
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <input 
-              type="file" 
-              accept=".csv" 
-              ref={fileInputRef} 
-              style={{ display: 'none' }} 
-              onChange={handleImportCSV} 
+          <div className="page-header-actions">
+            <input
+              type="file"
+              accept=".csv"
+              ref={fileInputRef}
+              style={{ display: 'none' }}
+              onChange={handleImportCSV}
             />
-            <button className="btn" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }} onClick={() => fileInputRef.current?.click()}>
+            <button
+              className="btn"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+              onClick={() => fileInputRef.current?.click()}
+            >
               🏦 Importar CSV
             </button>
-            <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+            <button className="btn btn-primary btn-hide-mobile" onClick={() => setShowForm(true)}>
               ＋ Nova Transação
             </button>
           </div>
         </div>
 
         {/* Totais rápidos */}
-        <div className="grid-2 mb-24" style={{ marginBottom: 24 }}>
-          <div className="card" style={{ padding: '20px 24px', borderColor: 'rgba(255,71,87,0.2)' }}>
+        <div className="grid-2" style={{ marginBottom: 24 }}>
+          <div className="card" style={{ borderColor: 'rgba(255,71,87,0.2)' }}>
             <p className="label">Total de Gastos</p>
-            <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-red)', marginTop: 4 }}>
+            <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--color-red)', marginTop: 4 }}>
               - R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="card" style={{ padding: '20px 24px', borderColor: 'rgba(0,208,132,0.2)' }}>
+          <div className="card" style={{ borderColor: 'rgba(0,208,132,0.2)' }}>
             <p className="label">Total de Entradas</p>
-            <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-green)', marginTop: 4 }}>
+            <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--color-green)', marginTop: 4 }}>
               + R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
+        {/* Filtros com scroll horizontal no mobile */}
+        <div className="filter-chips" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {[
             { value: 'all',     label: '📋 Todas' },
             { value: 'expense', label: '🛍️ Gastos' },
             { value: 'income',  label: '💰 Entradas' }
           ].map(f => (
             <button key={f.value} onClick={() => setFilter(f.value)} style={{
-              padding: '8px 18px', border: '1px solid',
+              padding: '8px 18px', border: '1px solid', whiteSpace: 'nowrap',
               borderColor: filter === f.value ? 'var(--color-green)' : 'var(--border)',
               borderRadius: 20, background: filter === f.value ? 'rgba(0,208,132,0.1)' : 'var(--bg-card)',
               color: filter === f.value ? 'var(--color-green)' : 'var(--text-secondary)',
-              cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all 0.2s'
+              cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
+              flexShrink: 0,
             }}>
               {f.label}
             </button>
@@ -134,7 +141,7 @@ export default function Transactions() {
             </div>
           ) : filtered.map((t, i) => (
             <div key={t.id} style={{
-              display: 'flex', alignItems: 'center', gap: 16, padding: '16px 24px',
+              display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
               borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
               transition: 'background 0.2s'
             }}
@@ -143,7 +150,7 @@ export default function Transactions() {
             >
               {/* Ícone da categoria */}
               <div style={{
-                width: 44, height: 44, borderRadius: 12, fontSize: 20,
+                width: 40, height: 40, borderRadius: 10, fontSize: 18,
                 background: t.type === 'income' ? 'rgba(0,208,132,0.12)' : 'rgba(255,71,87,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
               }}>
@@ -151,18 +158,18 @@ export default function Transactions() {
               </div>
 
               {/* Info */}
-              <div style={{ flex: 1 }}>
-                <p style={{ fontWeight: 600, fontSize: 14 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {t.description || CATEGORY_LABELS[t.category] || t.category}
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {CATEGORY_LABELS[t.category]} • {new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                <p className="tx-date-detail" style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {CATEGORY_LABELS[t.category]} • {new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                 </p>
               </div>
 
-              {/* Valor */}
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontWeight: 800, fontSize: 16, color: t.type === 'income' ? 'var(--color-green)' : 'var(--color-red)' }}>
+              {/* Valor + Remover */}
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p className="tx-item-amount" style={{ fontWeight: 800, fontSize: 15, color: t.type === 'income' ? 'var(--color-green)' : 'var(--color-red)' }}>
                   {t.type === 'income' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
                 <button onClick={() => handleDelete(t.id)} style={{
@@ -180,6 +187,9 @@ export default function Transactions() {
           ))}
         </div>
       </div>
+
+      {/* FAB — só mobile */}
+      <button className="fab" onClick={() => setShowForm(true)} aria-label="Nova transação">＋</button>
 
       {showForm && (
         <TransactionForm
