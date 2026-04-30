@@ -35,16 +35,16 @@ export default function CategoryLimits({ limits, transactions }) {
 
           return (
             <div key={limit.category}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontWeight: 500, fontSize: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontWeight: 500, fontSize: 14, flexShrink: 0 }}>
                   {CATEGORY_ICONS[limit.category]} {CATEGORY_LABELS[limit.category]}
                 </span>
-                <span style={{ fontSize: 13, color: over ? 'var(--color-red)' : 'var(--text-secondary)' }}>
+                <span style={{ fontSize: 13, color: over ? 'var(--color-red)' : 'var(--text-secondary)', textAlign: 'right' }}>
                   <strong style={{ color: over ? 'var(--color-red)' : 'var(--text-primary)' }}>
                     R$ {spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </strong>
                   {' / R$ '}{limit.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  {over && <span style={{ color: 'var(--color-red)', marginLeft: 6 }}>⚠️ Limite!</span>}
+                  {over && <span style={{ color: 'var(--color-red)', marginLeft: 6 }}>⚠️</span>}
                 </span>
               </div>
               {/* Barra de progresso */}
