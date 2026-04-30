@@ -37,77 +37,63 @@ export default function Login({ isRegister = false }) {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center',
-      justifyContent: 'center', padding: '20px'
-    }}>
-      {/* Orbs decorativos de fundo */}
-      <div style={{
-        position: 'fixed', top: '10%', left: '15%', width: 400, height: 400,
-        background: 'radial-gradient(circle, rgba(0,208,132,0.06) 0%, transparent 70%)',
-        borderRadius: '50%', pointerEvents: 'none'
-      }} />
-      <div style={{
-        position: 'fixed', bottom: '10%', right: '10%', width: 500, height: 500,
-        background: 'radial-gradient(circle, rgba(79,142,247,0.06) 0%, transparent 70%)',
-        borderRadius: '50%', pointerEvents: 'none'
-      }} />
+    <div id="s-login" className="screen show">
+      <div className="lorba"></div>
+      <div className="lorbb"></div>
 
-      <div style={{ width: '100%', maxWidth: 440 }} className="fade-in">
-        {/* Logo */}
-        <div className="text-center mb-24">
-          <div style={{ fontSize: 48, marginBottom: 12 }}>💸</div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#f0f0ff' }}>FinançasPro</h1>
-          <p className="text-muted" style={{ marginTop: 6 }}>Controle suas finanças em tempo real</p>
+      <div className="lwrap">
+        <div className="lbrand">
+          <div className="lmark">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width: 32, height: 32, color: 'var(--c)'}}>
+              <rect x="2" y="6" width="20" height="12" rx="2"></rect>
+              <circle cx="12" cy="12" r="2"></circle>
+              <path d="M6 12h.01M18 12h.01"></path>
+            </svg>
+          </div>
+          <h1 className="ltitle">Finanças<span>Pro</span></h1>
+          <p className="lsub">Controle suas finanças em tempo real</p>
         </div>
 
-        {/* Card do formulário */}
-        <div className="card" style={{ padding: 32 }}>
-          {/* Tabs Login/Cadastro */}
-          <div style={{
-            display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)',
-            borderRadius: 12, padding: 4, marginBottom: 28
-          }}>
+        <div className="lcard">
+          <div className="tabs">
             {['login', 'register'].map(m => (
-              <button key={m} onClick={() => { setMode(m); setError('') }} style={{
-                flex: 1, padding: '10px', border: 'none', borderRadius: 10,
-                cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 600,
-                transition: 'all 0.2s',
-                background: mode === m ? 'rgba(0,208,132,0.15)' : 'transparent',
-                color: mode === m ? 'var(--color-green)' : 'var(--text-secondary)'
-              }}>
+              <div 
+                key={m} 
+                className={`tab ${mode === m ? 'on' : ''}`}
+                onClick={() => { setMode(m); setError('') }}
+              >
                 {m === 'login' ? '🔑 Entrar' : '✨ Cadastrar'}
-              </button>
+              </div>
             ))}
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form onSubmit={handleSubmit}>
             {mode === 'register' && (
-              <div>
-                <label className="label">Seu Nome</label>
-                <input className="input" name="name" placeholder="André Pereira"
+              <div className="fg">
+                <label className="lbl">Seu Nome</label>
+                <input className="inp" name="name" placeholder="André Pereira"
                   value={form.name} onChange={handleChange} required />
               </div>
             )}
 
-            <div>
-              <label className="label">E-mail</label>
-              <input className="input" name="email" type="email" placeholder="seu@email.com"
+            <div className="fg">
+              <label className="lbl">E-mail</label>
+              <input className="inp" name="email" type="email" placeholder="seu@email.com"
                 value={form.email} onChange={handleChange} required />
             </div>
 
-            <div>
-              <label className="label">Senha</label>
-              <input className="input" name="password" type="password" placeholder="••••••••"
+            <div className="fg">
+              <label className="lbl">Senha</label>
+              <input className="inp" name="password" type="password" placeholder="••••••••"
                 value={form.password} onChange={handleChange} required minLength={6} />
             </div>
 
             {mode === 'register' && (
-              <div>
-                <label className="label">Salário Mensal (R$)</label>
-                <input className="input" name="salary" type="number" placeholder="3000"
+              <div className="fg">
+                <label className="lbl">Salário Mensal (R$)</label>
+                <input className="inp" name="salary" type="number" placeholder="3000"
                   value={form.salary} onChange={handleChange} min="0" step="0.01" />
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                <p style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>
                   Pode ser alterado depois nas configurações
                 </p>
               </div>
@@ -116,18 +102,14 @@ export default function Login({ isRegister = false }) {
             {error && (
               <div style={{
                 background: 'rgba(255,71,87,0.12)', border: '1px solid rgba(255,71,87,0.3)',
-                borderRadius: 10, padding: '12px 16px', color: 'var(--color-red)', fontSize: 14
+                borderRadius: 10, padding: '12px 16px', color: 'var(--red)', fontSize: 14, marginBottom: 16
               }}>
                 ⚠️ {error}
               </div>
             )}
 
-            <button type="submit" className="btn btn-primary" disabled={loading}
-              style={{ width: '100%', justifyContent: 'center', marginTop: 8, padding: '14px' }}>
-              {loading ? (
-                <><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
-                Aguarde...</>
-              ) : mode === 'login' ? '🚀 Entrar' : '✨ Criar conta'}
+            <button type="submit" className="btn bp fxc" disabled={loading} style={{width: '100%'}}>
+              {loading ? 'Aguarde...' : mode === 'login' ? '🚀 Entrar' : '✨ Criar conta'}
             </button>
           </form>
         </div>
