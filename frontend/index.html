@@ -27,7 +27,14 @@
 
     <!-- Ícone do app (aparece na aba do navegador) -->
     <link rel="icon" href="/icon-192.png" type="image/png" />
-    
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        });
+      }
+    </script>
   </head>
   <body>
     <!-- O React injeta todo o app dentro desta div -->

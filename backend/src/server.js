@@ -77,6 +77,13 @@ if (isProd) {
     immutable: true
   }))
 
+  app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript')
+    res.setHeader('Service-Worker-Allowed', '/')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.sendFile(path.join(publicPath, 'sw.js'))
+  })
+
   app.use(express.static(publicPath, { maxAge: 0 }))
 
   app.get('*', (req, res) => {
