@@ -47,6 +47,8 @@ router.get('/summary', async (req, res) => {
     const totalIncome     = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
     const totalFixedCosts = budgets.reduce((sum, b) => sum + b.amount, 0)
 
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
     // Se as contas já foram lançadas como transações este mês,
     // não deduç os orçamentos novamente (evita dupla contagem)
     const autoLaunched = user.autoLaunchMonth === month && user.autoLaunchYear === year
@@ -100,11 +102,14 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { description, amount, type, category } = req.body
+    const parsedAmount = parseFloat(amount)
 
-    if (!amount || !type || !category) {
-      return res.status(400).json({ error: 'Valor, tipo e categoria são obrigatórios.' })
+    if (!isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Valor deve ser um número maior que zero.' })
     }
-
+    if (!type || !category) {
+      return res.status(400).json({ error: 'Tipo e categoria são obrigatórios.' })
+    }
     if (!['expense', 'income'].includes(type)) {
       return res.status(400).json({ error: 'Tipo deve ser "expense" ou "income".' })
     }
@@ -114,7 +119,7 @@ router.post('/', async (req, res) => {
     const transaction = await prisma.transaction.create({
       data: {
         description: description || '',
-        amount:      parseFloat(amount),
+        amount:      parsedAmount,
         type,
         category,
         month:       now.getMonth() + 1,
