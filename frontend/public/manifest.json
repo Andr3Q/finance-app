@@ -1,16 +1,18 @@
 {
   "name": "FinançasPro",
   "short_name": "FinançasPro",
-  "description": "Controle suas finanças em tempo real",
+  "id": "/",
+  "description": "Controle suas finanças em tempo real com saldo automático, contas fixas e relatórios mensais.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#020d10",
   "theme_color": "#020d10",
   "orientation": "portrait-primary",
   "lang": "pt-BR",
+  "dir": "ltr",
   "categories": ["finance", "productivity"],
-  "screenshots": [],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -36,5 +38,6 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "screenshots": []
 }
