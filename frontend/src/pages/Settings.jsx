@@ -1,83 +1,35 @@
-// ═══════════════════════════════════════════════════════
-// ⚙️  src/pages/Settings.jsx — Configurações
-// ═══════════════════════════════════════════════════════
-
 import { useState, useEffect } from 'react'
 import { budgetAPI, reportsAPI } from '../services/api.js'
 import Navbar from '../components/Navbar.jsx'
 
-// Botão de exclusão com confirmação inline (sem window.confirm)
-function DeleteBudgetButton({ id, onDeleted, onError }) {
-  const [confirm,  setConfirm]  = useState(false) // true = mostrando "Tem certeza?"
-  const [deleting, setDeleting] = useState(false)
-
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await budgetAPI.remove(id)
-      onDeleted()
-    } catch (err) {
-      onError(err.response?.data?.error || 'Erro ao remover conta fixa.')
-      setConfirm(false)
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  if (deleting) return <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>removendo...</span>
-
-  if (confirm) return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ fontSize: 12, color: 'var(--color-red)' }}>Tem certeza?</span>
-      <button onClick={handleDelete} style={{
-        background: 'var(--color-red)', border: 'none', color: '#fff',
-        borderRadius: 6, padding: '3px 10px', cursor: 'pointer',
-        fontFamily: 'inherit', fontSize: 12, fontWeight: 600
-      }}>Sim</button>
-      <button onClick={() => setConfirm(false)} style={{
-        background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)',
-        borderRadius: 6, padding: '3px 10px', cursor: 'pointer',
-        fontFamily: 'inherit', fontSize: 12
-      }}>Não</button>
-    </div>
-  )
-
-  return (
-    <button onClick={() => setConfirm(true)} style={{
-      background: 'none', border: 'none', color: 'var(--text-muted)',
-      cursor: 'pointer', fontSize: 18, padding: '2px 6px', transition: 'color 0.2s',
-      lineHeight: 1
-    }}
-      title="Remover conta fixa"
-      onMouseEnter={e => e.currentTarget.style.color = 'var(--color-red)'}
-      onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-    >✕</button>
-  )
-}
-
-// Categorias disponíveis para limites
 const CATEGORIES = [
-  { key: 'food',       label: '🍔 Alimentação'  },
-  { key: 'shopping',  label: '🛍️ Shopping'      },
-  { key: 'transport', label: '🚗 Transporte'    },
-  { key: 'health',    label: '💊 Saúde'         },
-  { key: 'leisure',   label: '🎮 Lazer'         },
-  { key: 'education', label: '📚 Educação'      },
-  { key: 'home',      label: '🏠 Casa'          },
-  { key: 'other',     label: '📦 Outros'        },
+  { key: 'food',      label: 'Alimentação' },
+  { key: 'shopping',  label: 'Shopping'    },
+  { key: 'transport', label: 'Transporte'  },
+  { key: 'health',    label: 'Saúde'       },
+  { key: 'leisure',   label: 'Lazer'       },
+  { key: 'education', label: 'Educação'    },
+  { key: 'home',      label: 'Casa'        },
+  { key: 'other',     label: 'Outros'      },
 ]
 
 export default function Settings() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const [salary,     setSalary]     = useState(user.salary || 0)
-  const [budgets,    setBudgets]    = useState([])
-  const [limits,     setLimits]     = useState([]) // limites por categoria
-  const [newBudget,  setNewBudget]  = useState({ name: '', amount: '' })
-  const [newLimit,   setNewLimit]   = useState({ category: 'food', amount: '' })
-  const [savingSal,  setSavingSal]  = useState(false)
-  const [closing,    setClosing]    = useState(false)
-  const [msg,        setMsg]        = useState('')
-  const [msgType,    setMsgType]    = useState('') // 'success' | 'error'
+  let user = {}
+  try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
+  const [salary,    setSalary]    = useState(user.salary || 0)
+  const [salaryDisplay, setSalaryDisplay] = useState(
+    user.salary > 0
+      ? user.salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+      : ''
+  )
+  const [budgets,   setBudgets]   = useState([])
+  const [limits,    setLimits]    = useState([])
+  const [newBudget, setNewBudget] = useState({ name: '', amount: '' })
+  const [newLimit,  setNewLimit]  = useState({ category: 'food', amount: '' })
+  const [savingSal, setSavingSal] = useState(false)
+  const [closing,   setClosing]   = useState(false)
+  const [msg,       setMsg]       = useState('')
+  const [msgType,   setMsgType]   = useState('success')
 
   const showMsg = (text, type = 'success') => {
     setMsg(text); setMsgType(type)
@@ -85,39 +37,15 @@ export default function Settings() {
   }
 
   const fetchBudgets = async () => {
-    try {
-      const res = await budgetAPI.list()
-      setBudgets(res.data)
-    } catch (err) { console.error(err) }
+    try { const res = await budgetAPI.list(); setBudgets(res.data) }
+    catch (err) { console.error(err) }
   }
-
   const fetchLimits = async () => {
-    try {
-      const res = await budgetAPI.getLimits()
-      setLimits(res.data)
-    } catch (err) { console.error(err) }
+    try { const res = await budgetAPI.getLimits(); setLimits(res.data) }
+    catch (err) { console.error(err) }
   }
 
   useEffect(() => { fetchBudgets(); fetchLimits() }, [])
-
-  const handleSaveLimit = async (e) => {
-    e.preventDefault()
-    if (!newLimit.amount) return
-    try {
-      await budgetAPI.setLimit({ category: newLimit.category, amount: parseFloat(newLimit.amount) })
-      setNewLimit(p => ({ ...p, amount: '' }))
-      fetchLimits()
-      showMsg('✅ Limite salvo!')
-    } catch (err) { showMsg(err.response?.data?.error || 'Erro ao salvar limite.', 'error') }
-  }
-
-  const handleRemoveLimit = async (category) => {
-    try {
-      await budgetAPI.removeLimit(category)
-      fetchLimits()
-      showMsg('🗑️ Limite removido.')
-    } catch (err) { showMsg('Erro ao remover limite.', 'error') }
-  }
 
   const handleSalary = async (e) => {
     e.preventDefault(); setSavingSal(true)
@@ -125,7 +53,7 @@ export default function Settings() {
       await budgetAPI.updateSalary(salary)
       const stored = JSON.parse(localStorage.getItem('user') || '{}')
       localStorage.setItem('user', JSON.stringify({ ...stored, salary }))
-      showMsg('✅ Salário atualizado com sucesso!')
+      showMsg('Salário atualizado com sucesso')
     } catch { showMsg('Erro ao salvar salário.', 'error') }
     finally  { setSavingSal(false) }
   }
@@ -137,7 +65,7 @@ export default function Settings() {
       await budgetAPI.create(newBudget)
       setNewBudget({ name: '', amount: '' })
       fetchBudgets()
-      showMsg('✅ Conta fixa adicionada!')
+      showMsg('Conta fixa adicionada!')
     } catch { showMsg('Erro ao adicionar conta fixa.', 'error') }
   }
 
@@ -145,26 +73,37 @@ export default function Settings() {
     try {
       await budgetAPI.remove(id)
       fetchBudgets()
-      showMsg('🗑️ Conta fixa removida.')
-    } catch (err) {
-      showMsg(err.response?.data?.error || 'Erro ao remover conta fixa.', 'error')
-    }
+      showMsg('Conta fixa removida.')
+    } catch (err) { showMsg(err.response?.data?.error || 'Erro ao remover.', 'error') }
+  }
+
+  const handleSaveLimit = async (e) => {
+    e.preventDefault()
+    if (!newLimit.amount) return
+    try {
+      await budgetAPI.setLimit({ category: newLimit.category, amount: parseFloat(newLimit.amount) })
+      setNewLimit(p => ({ ...p, amount: '' }))
+      fetchLimits()
+      showMsg('Limite salvo!')
+    } catch (err) { showMsg(err.response?.data?.error || 'Erro ao salvar limite.', 'error') }
+  }
+
+  const handleRemoveLimit = async (category) => {
+    try {
+      await budgetAPI.removeLimit(category)
+      fetchLimits()
+      showMsg('Limite removido.')
+    } catch { showMsg('Erro ao remover limite.', 'error') }
   }
 
   const handleMonthlyClose = async () => {
-    if (!window.confirm(
-      '⚠️ Isso vai gerar o relatório em PDF, enviar para o seu e-mail e zerar os gastos do mês atual.\n\nDeseja continuar?'
-    )) return
-
+    if (!window.confirm('Isso vai gerar o PDF, enviar para o seu e-mail e zerar os gastos do mês.\n\nDeseja continuar?')) return
     setClosing(true)
     try {
       const res = await reportsAPI.monthlyClose()
-      showMsg(`📧 ${res.data.message}`)
-    } catch (err) {
-      showMsg(err.response?.data?.error || 'Erro ao fechar o mês.', 'error')
-    } finally {
-      setClosing(false)
-    }
+      showMsg(res.data.message)
+    } catch (err) { showMsg(err.response?.data?.error || 'Erro ao fechar o mês.', 'error') }
+    finally { setClosing(false) }
   }
 
   const totalFixed = budgets.reduce((s, b) => s + b.amount, 0)
@@ -172,166 +111,170 @@ export default function Settings() {
   return (
     <>
       <Navbar />
-      <div className="page page-with-nav fade-in" style={{ maxWidth: 700 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>⚙️ Configurações</h1>
-        <p className="text-muted mb-24" style={{ marginBottom: 28 }}>Gerencie seu salário, contas fixas e e-mail de relatórios</p>
+      <div className="page pwnav fade-in" style={{ maxWidth: 740 }}>
 
-        {/* Mensagem de feedback */}
+        {/* Header */}
+        <div className="pgh">
+          <div>
+            <div className="pgt">Configurações</div>
+            <div className="pgs">Gerencie seu perfil e preferências</div>
+          </div>
+        </div>
+
+        {/* Toast de feedback */}
         {msg && (
-          <div style={{
-            padding: '14px 18px', borderRadius: 12, marginBottom: 20, fontSize: 14, fontWeight: 500,
-            background: msgType === 'error' ? 'rgba(255,71,87,0.12)' : 'rgba(0,208,132,0.12)',
-            border: `1px solid ${msgType === 'error' ? 'rgba(255,71,87,0.3)' : 'rgba(0,208,132,0.3)'}`,
-            color: msgType === 'error' ? 'var(--color-red)' : 'var(--color-green)'
-          }}>
+          <div className={`toast ${msgType === 'error' ? 'terr' : 'tok'} mb16`}>
+            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+              {msgType === 'error'
+                ? <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                : <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+              }
+            </svg>
             {msg}
           </div>
         )}
 
         {/* Salário */}
-        <div className="card mb-16" style={{ marginBottom: 16 }}>
-          <h3 style={{ fontWeight: 700, marginBottom: 16 }}>💰 Salário Mensal</h3>
-          <form onSubmit={handleSalary} className="form-row" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <label className="label">Valor em R$</label>
-              <input className="input" type="number" value={salary} min="0" step="0.01"
-                onChange={e => setSalary(parseFloat(e.target.value) || 0)} />
+        <div className="card mb16">
+          <div className="sct" style={{ marginBottom: 14 }}>Salário Mensal</div>
+          <form onSubmit={handleSalary} className="sfrow">
+            <div className="inp-prefix-wrap" style={{ flex: 1, minWidth: 180 }}>
+              <span className="inp-prefix">R$</span>
+              <input
+                className="inp inp-prefixed"
+                type="text"
+                inputMode="decimal"
+                value={salaryDisplay}
+                placeholder="0,00"
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^0-9,]/g, '')
+                  setSalaryDisplay(raw)
+                  setSalary(parseFloat(raw.replace(',', '.')) || 0)
+                }}
+                onBlur={() => {
+                  if (salary > 0) setSalaryDisplay(salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }))
+                  else setSalaryDisplay('')
+                }}
+              />
             </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', minWidth: 140 }}>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={savingSal}>
-                {savingSal ? 'Salvando...' : '💾 Salvar'}
-              </button>
-            </div>
+            <button type="submit" className="btn bp" style={{ minWidth: 130, justifyContent: 'center' }} disabled={savingSal}>
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z"/>
+              </svg>
+              {savingSal ? 'Salvando...' : 'Salvar'}
+            </button>
           </form>
         </div>
 
         {/* Contas Fixas */}
-        <div className="card mb-16" style={{ marginBottom: 16 }}>
-          <div className="flex-between mb-16">
-            <h3 style={{ fontWeight: 700 }}>📋 Contas Fixas</h3>
-            <span className="badge badge-orange">
-              Total: R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </span>
+        <div className="card mb16">
+          <div className="sct" style={{ marginBottom: 14 }}>
+            Contas Fixas
+            <span className="bdg borange">Total: R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
           </div>
 
-          {/* Lista de contas */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-            {budgets.length === 0 ? (
-              <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Nenhuma conta fixa cadastrada ainda.</p>
-            ) : budgets.map(b => (
-              <div key={b.id} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 16px', background: 'rgba(255,255,255,0.03)',
-                borderRadius: 10, border: '1px solid var(--border)'
-              }}>
-                <span style={{ fontWeight: 500 }}>📌 {b.name}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <span style={{ color: 'var(--color-orange)', fontWeight: 700 }}>
-                    R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                  <DeleteBudgetButton
-                    id={b.id}
-                    onDeleted={() => { fetchBudgets(); showMsg('🗑️ Conta fixa removida.') }}
-                    onError={(msg) => showMsg(msg, 'error')}
-                  />
-                </div>
+          {budgets.length === 0 ? (
+            <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 14 }}>Nenhuma conta fixa cadastrada.</p>
+          ) : budgets.map(b => (
+            <div key={b.id} className="fxi">
+              <span className="fxn">{b.name}</span>
+              <div className="fx g8">
+                <span className="fxv">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                <button
+                  className="btn bg txrm"
+                  style={{ padding: '5px 10px', fontSize: 12, color: 'var(--red)', borderColor: 'rgba(255,71,87,.2)' }}
+                  onClick={() => handleDeleteBudget(b.id)}
+                >
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                  </svg>
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
 
-          {/* Adicionar nova conta */}
-          <form onSubmit={handleAddBudget} className="form-row" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ flex: 2, minWidth: 180 }}>
-              <label className="label">Nome</label>
-              <input className="input" placeholder="Ex: Aluguel, Luz, Internet..."
-                value={newBudget.name} onChange={e => setNewBudget(p => ({ ...p, name: e.target.value }))} />
-            </div>
-            <div style={{ flex: 1, minWidth: 120 }}>
-              <label className="label">Valor (R$)</label>
-              <input className="input" type="number" placeholder="500" min="0" step="0.01"
-                value={newBudget.amount} onChange={e => setNewBudget(p => ({ ...p, amount: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', minWidth: 120 }}>
-              <button type="submit" className="btn btn-ghost" style={{ width: '100%' }}>＋ Adicionar</button>
-            </div>
+          <form onSubmit={handleAddBudget} className="sfrow" style={{ marginTop: 14 }}>
+            <input className="inp" type="text" placeholder="Nome da conta" style={{ flex: 2, minWidth: 160 }}
+              value={newBudget.name} onChange={e => setNewBudget(p => ({ ...p, name: e.target.value }))} />
+            <input className="inp" type="number" placeholder="R$ valor" style={{ flex: 1, minWidth: 110 }}
+              value={newBudget.amount} min="0" step="0.01"
+              onChange={e => setNewBudget(p => ({ ...p, amount: e.target.value }))} />
+            <button type="submit" className="btn bg" style={{ minWidth: 110, justifyContent: 'center' }}>
+              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
+              </svg>
+              Adicionar
+            </button>
           </form>
         </div>
 
         {/* Limites por Categoria */}
-        <div className="card mb-16" style={{ marginBottom: 16 }}>
-          <h3 style={{ fontWeight: 700, marginBottom: 6 }}>🏷️ Limites por Categoria</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
-            Defina quanto você pode gastar por mês em cada categoria. O Dashboard vai alertar quando estiver chegando no limite.
+        <div className="card mb16">
+          <div className="sct" style={{ marginBottom: 6 }}>Limites por Categoria</div>
+          <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 14 }}>
+            Defina teto de gasto por categoria para alertas automáticos.
           </p>
 
-          {/* Lista de limites existentes */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-            {limits.length === 0
-              ? <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Nenhum limite definido ainda.</p>
-              : limits.map(l => {
-                  const cat = CATEGORIES.find(c => c.key === l.category)
-                  return (
-                    <div key={l.category} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 16px', background: 'rgba(255,255,255,0.03)',
-                      borderRadius: 10, border: '1px solid var(--border)'
-                    }}>
-                      <span style={{ fontWeight: 500 }}>{cat?.label || l.category}</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        <span style={{ color: 'var(--color-green)', fontWeight: 700 }}>
-                          R$ {l.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês
-                        </span>
-                        <button onClick={() => handleRemoveLimit(l.category)} style={{
-                          background: 'none', border: 'none', color: 'var(--text-muted)',
-                          cursor: 'pointer', fontSize: 18, lineHeight: 1,
-                          transition: 'color 0.2s'
-                        }}
-                          onMouseEnter={e => e.currentTarget.style.color = 'var(--color-red)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                          title="Remover limite"
-                        >✕</button>
-                      </div>
-                    </div>
-                  )
-                })
-            }
-          </div>
+          {limits.length === 0 ? (
+            <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 14 }}>Nenhum limite definido.</p>
+          ) : limits.map(l => {
+            const cat = CATEGORIES.find(c => c.key === l.category)
+            return (
+              <div key={l.category} className="fxi" style={{ marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>
+                  {cat?.label || l.category}
+                </span>
+                <div className="fx g8">
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c)' }}>
+                    R$ {l.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </span>
+                  <button className="txrm" onClick={() => handleRemoveLimit(l.category)}>
+                    <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )
+          })}
 
-          {/* Formulário para adicionar/atualizar limite */}
-          <form onSubmit={handleSaveLimit} style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ flex: 2, minWidth: 160 }}>
-              <label className="label">Categoria</label>
-              <select className="input" value={newLimit.category}
-                onChange={e => setNewLimit(p => ({ ...p, category: e.target.value }))}>
-                {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
-            </div>
-            <div style={{ flex: 1, minWidth: 120 }}>
-              <label className="label">Limite (R$)</label>
-              <input className="input" type="number" placeholder="500" min="1" step="0.01"
-                value={newLimit.amount} onChange={e => setNewLimit(p => ({ ...p, amount: e.target.value }))} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-              <button type="submit" className="btn btn-ghost">💾 Salvar</button>
-            </div>
+          <form onSubmit={handleSaveLimit} className="sfrow">
+            <select className="inp" style={{ flex: 1, minWidth: 150 }}
+              value={newLimit.category} onChange={e => setNewLimit(p => ({ ...p, category: e.target.value }))}>
+              {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+            <input className="inp" type="number" placeholder="R$ limite" style={{ flex: 1, minWidth: 110 }}
+              value={newLimit.amount} min="1" step="0.01"
+              onChange={e => setNewLimit(p => ({ ...p, amount: e.target.value }))} />
+            <button type="submit" className="btn bg" style={{ minWidth: 110, justifyContent: 'center' }}>
+              Salvar
+            </button>
           </form>
         </div>
 
-        {/* Fechamento Mensal */}
-        <div className="card" style={{ borderColor: 'rgba(255,71,87,0.2)' }}>
-          <h3 style={{ fontWeight: 700, marginBottom: 8 }}>📅 Fechar o Mês</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>
-            Gera um relatório PDF completo com todos os gastos e entradas do mês atual,
-            envia para o seu e-mail (<strong style={{ color: 'var(--text-primary)' }}>{user.email}</strong>) e
-            zera os registros para o próximo ciclo.
+        {/* Fechar Mês */}
+        <div className="card" style={{ borderColor: 'rgba(255,71,87,.15)' }}>
+          <div className="sct" style={{ marginBottom: 8 }}>Fechar o Mês</div>
+          <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 16 }}>
+            Gera PDF e envia para{' '}
+            <strong style={{ color: 'var(--t1)' }}>{user.email || user.reportEmail || 'seu e-mail'}</strong>.
+            {' '}Registros serão zerados.
           </p>
-          <button className="btn btn-danger" onClick={handleMonthlyClose} disabled={closing}>
-            {closing
-              ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Gerando relatório...</>
-              : '📧 Fechar Mês e Enviar Relatório'
-            }
+          <button className="btn bd" onClick={handleMonthlyClose} disabled={closing}>
+            {closing ? (
+              <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório...</>
+            ) : (
+              <>
+                <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                </svg>
+                Fechar Mês e Enviar Relatório
+              </>
+            )}
           </button>
         </div>
+
       </div>
     </>
   )
