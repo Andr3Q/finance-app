@@ -257,7 +257,7 @@ export default function Settings() {
           <div className="sct" style={{ marginBottom: 8 }}>Fechar o Mês</div>
           <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 16 }}>
             Gera PDF e envia para{' '}
-            <strong style={{ color: 'var(--t1)' }}>{user.email || user.reportEmail || 'seu e-mail'}</strong>.
+            <strong style={{ color: 'var(--t1)' }}>{user.reportEmail || user.email || 'seu e-mail'}</strong>.
             {' '}Registros serão zerados.
           </p>
           <button className="btn bd" onClick={handleMonthlyClose} disabled={closing}>

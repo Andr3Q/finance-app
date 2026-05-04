@@ -118,7 +118,7 @@ router.post('/', async (req, res) => {
 
     const transaction = await prisma.transaction.create({
       data: {
-        description: description || '',
+        description: (description || '').substring(0, 255),
         amount:      parsedAmount,
         type,
         category,
@@ -214,7 +214,7 @@ router.post('/auto-launch', async (req, res) => {
 
 // ── POST /transactions/import ───────────────────────────
 // Importa transações de um arquivo CSV (ex: extrato bancário)
-const upload = multer({ storage: multer.memoryStorage() })
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } })
 
 router.post('/import', upload.single('file'), async (req, res) => {
   try {
@@ -266,14 +266,16 @@ router.post('/import', upload.single('file'), async (req, res) => {
         return res.status(400).json({ error: 'Nenhuma transação válida encontrada no arquivo.' })
       }
 
-      await prisma.transaction.createMany({
-        data: transactions
-      })
-
-      res.json({
-        message: `✅ ${transactions.length} transações importadas com sucesso!`,
-        count: transactions.length
-      })
+      try {
+        await prisma.transaction.createMany({ data: transactions })
+        res.json({
+          message: `✅ ${transactions.length} transações importadas com sucesso!`,
+          count: transactions.length
+        })
+      } catch (saveError) {
+        console.error('Erro ao salvar transações do CSV:', saveError)
+        if (!res.headersSent) res.status(500).json({ error: 'Erro ao salvar transações.' })
+      }
     })
 
   } catch (error) {

@@ -30,6 +30,9 @@ router.post('/register', async (req, res) => {
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Nome, e-mail e senha são obrigatórios.' })
     }
+    if (password.length > 72) {
+      return res.status(400).json({ error: 'A senha deve ter no máximo 72 caracteres.' })
+    }
 
     // Verifica se o e-mail já está cadastrado
     const existing = await prisma.user.findUnique({ where: { email } })
@@ -56,7 +59,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary }
+      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail }
     })
   } catch (error) {
     console.error('Erro no register:', error)
@@ -72,6 +75,9 @@ router.post('/login', async (req, res) => {
 
     if (!email || !password) {
       return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' })
+    }
+    if (password.length > 72) {
+      return res.status(400).json({ error: 'A senha deve ter no máximo 72 caracteres.' })
     }
 
     // Busca usuário pelo e-mail
@@ -90,7 +96,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary }
+      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail }
     })
   } catch (error) {
     console.error('Erro no login:', error)
