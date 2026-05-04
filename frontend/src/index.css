@@ -733,6 +733,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .lp-nav {
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 40px;
+  padding-top: calc(18px + env(safe-area-inset-top, 0px));
   border-bottom: 1px solid rgba(0,255,204,.07);
   backdrop-filter: blur(16px);
   background: rgba(2,13,16,.75);
@@ -864,7 +865,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Landing mobile */
 @media (max-width: 640px) {
-  .lp-nav     { padding: 14px 18px; }
+  .lp-nav     { padding: 14px 18px; padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
   .lp-nav .btn { display: none; }
   .lp-nav .btn:last-child { display: inline-flex; }
   .lp-hero    { padding: 56px 18px 44px; gap: 18px; }
