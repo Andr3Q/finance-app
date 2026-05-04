@@ -13,6 +13,12 @@
   "lang": "pt-BR",
   "dir": "ltr",
   "categories": ["finance", "productivity"],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "iarc_rating_id": "",
+  "scope_extensions": [
+    { "origin": "https://myfinancepro.com.br" }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
