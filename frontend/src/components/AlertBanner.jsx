@@ -1,26 +1,23 @@
-// ─── src/components/AlertBanner.jsx ────────────────────
-// Exibe um alerta colorido baseado no percentual gasto
+import { IconAlert, IconInfo } from './icons.jsx'
 
-export default function AlertBanner({ percent, balance }) {
-  const getAlert = () => {
-    if (percent >= 100) return { color: '#ff4757', bg: 'rgba(255,71,87,0.1)',   border: 'rgba(255,71,87,0.3)',   icon: '🚨', msg: 'Limite ultrapassado! Revise seus gastos urgentemente.' }
-    if (percent >= 90)  return { color: '#ff8c42', bg: 'rgba(255,140,66,0.1)',  border: 'rgba(255,140,66,0.3)',  icon: '⚠️', msg: 'Cuidado! Você está com 90% do orçamento utilizado.' }
-    if (percent >= 70)  return { color: '#ffc107', bg: 'rgba(255,193,7,0.1)',   border: 'rgba(255,193,7,0.3)',   icon: '💛', msg: 'Atenção! Você está chegando no limite do orçamento.' }
-    if (percent >= 50)  return { color: '#4f8ef7', bg: 'rgba(79,142,247,0.1)', border: 'rgba(79,142,247,0.3)', icon: 'ℹ️', msg: 'Você já usou metade do seu orçamento mensal.' }
-    return null // Abaixo de 50% não mostra alerta
-  }
+export default function AlertBanner({ percent }) {
+  if (percent < 50) return null
 
-  const alert = getAlert()
-  if (!alert) return null
+  const cfg =
+    percent >= 100 ? { color: 'var(--red)',    bg: 'rgba(255,71,87,.08)',   border: 'rgba(255,71,87,.2)',   Icon: IconAlert, msg: 'Limite ultrapassado! Revise seus gastos urgentemente.' } :
+    percent >= 90  ? { color: 'var(--orange)',  bg: 'rgba(255,140,66,.08)',  border: 'rgba(255,140,66,.2)',  Icon: IconAlert, msg: 'Cuidado! Você está com 90% do orçamento utilizado.' } :
+    percent >= 70  ? { color: 'var(--yellow)',  bg: 'rgba(255,193,7,.07)',   border: 'rgba(255,193,7,.18)',  Icon: IconAlert, msg: 'Atenção! Você está chegando no limite do orçamento.' } :
+                     { color: 'var(--blue)',    bg: 'rgba(79,142,247,.07)',  border: 'rgba(79,142,247,.18)', Icon: IconInfo,  msg: 'Você já usou metade do seu orçamento mensal.' }
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12, padding: '14px 20px',
-      background: alert.bg, border: `1px solid ${alert.border}`,
-      borderRadius: 12, marginBottom: 20, animation: 'fadeIn 0.3s ease'
-    }}>
-      <span style={{ fontSize: 20 }}>{alert.icon}</span>
-      <p style={{ color: alert.color, fontWeight: 600, fontSize: 14 }}>{alert.msg}</p>
+    <div className="alt fu" style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color, marginBottom: 12 }}>
+      <cfg.Icon size={15} color={cfg.color} />
+      <span style={{ fontWeight: 500, fontSize: 13 }}>{cfg.msg}</span>
+      <button className="alx" onClick={e => e.currentTarget.closest('.alt').remove()}>
+        <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+        </svg>
+      </button>
     </div>
   )
 }

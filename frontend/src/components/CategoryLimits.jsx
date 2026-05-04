@@ -1,61 +1,52 @@
-// ─── src/components/CategoryLimits.jsx ─────────────────
-// Exibe barras de progresso por categoria comparando
-// quanto foi gasto vs o limite definido pelo usuário.
+import { CategoryIcon } from './icons.jsx'
+import { IconAlert } from './icons.jsx'
 
-const CATEGORY_ICONS = {
-  food:'🍔', shopping:'🛍️', transport:'🚗', health:'💊',
-  leisure:'🎮', education:'📚', home:'🏠', other:'📦'
-}
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',
   health:'Saúde', leisure:'Lazer', education:'Educação',
-  home:'Casa', other:'Outros'
+  home:'Casa', other:'Outros',
 }
 
 export default function CategoryLimits({ limits, transactions }) {
   if (!limits || limits.length === 0) return null
 
-  // Soma gastos por categoria no mês atual
   const spentByCategory = transactions
     .filter(t => t.type === 'expense')
-    .reduce((acc, t) => {
-      acc[t.category] = (acc[t.category] || 0) + t.amount
-      return acc
-    }, {})
+    .reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc }, {})
 
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <h3 style={{ fontWeight: 700, marginBottom: 20 }}>🏷️ Limites por Categoria</h3>
+      <div className="sct">Limites por Categoria</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {limits.map(limit => {
-          const spent   = spentByCategory[limit.category] || 0
-          const pct     = Math.min(Math.round((spent / limit.amount) * 100), 100)
-          const over    = spent > limit.amount
-          const barColor = pct < 70 ? '#00d084' : pct < 90 ? '#ffc107' : '#ff4757'
+          const spent    = spentByCategory[limit.category] || 0
+          const pct      = Math.min(Math.round((spent / limit.amount) * 100), 100)
+          const over     = spent > limit.amount
+          const barColor = pct < 70 ? 'var(--green)' : pct < 90 ? 'var(--yellow)' : 'var(--red)'
 
           return (
-            <div key={limit.category}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 500, fontSize: 14, flexShrink: 0 }}>
-                  {CATEGORY_ICONS[limit.category]} {CATEGORY_LABELS[limit.category]}
+            <div key={limit.category} className="lmi">
+              <div className="lmh">
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13, fontFamily: 'var(--fd)', color: 'var(--t1)' }}>
+                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(0,255,204,.06)', border: '1px solid var(--bdbd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <CategoryIcon category={limit.category} size={14} color="var(--c)" />
+                  </span>
+                  {CATEGORY_LABELS[limit.category]}
+                  {over && <IconAlert size={13} color="var(--red)" />}
                 </span>
-                <span style={{ fontSize: 13, color: over ? 'var(--color-red)' : 'var(--text-secondary)', textAlign: 'right' }}>
-                  <strong style={{ color: over ? 'var(--color-red)' : 'var(--text-primary)' }}>
+                <span style={{ fontSize: 12, color: over ? 'var(--red)' : 'var(--t2)', fontFamily: 'var(--fn)', fontVariantNumeric: 'tabular-nums' }}>
+                  <strong style={{ color: over ? 'var(--red)' : 'var(--t1)' }}>
                     R$ {spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </strong>
                   {' / R$ '}{limit.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  {over && <span style={{ color: 'var(--color-red)', marginLeft: 6 }}>⚠️</span>}
                 </span>
               </div>
-              {/* Barra de progresso */}
-              <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 4, overflow: 'hidden' }}>
-                <div style={{
-                  height: '100%', width: `${pct}%`,
-                  background: barColor, borderRadius: 4,
-                  transition: 'width 0.6s ease, background 0.3s'
-                }} />
+              <div className="pt">
+                <div className="pf" style={{ width: `${pct}%`, background: barColor }} />
               </div>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{pct}% do limite usado</p>
+              <div style={{ fontSize: 11, color: over ? 'var(--red)' : 'var(--t2)', marginTop: 4 }}>
+                {over ? 'Limite ultrapassado' : `${pct}% do limite usado`}
+              </div>
             </div>
           )
         })}

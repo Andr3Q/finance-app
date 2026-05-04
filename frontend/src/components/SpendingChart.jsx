@@ -1,41 +1,55 @@
-// ─── src/components/SpendingChart.jsx ──────────────────
-// Gráfico de pizza (Recharts) mostrando gastos por categoria
+import { IconEmpty } from './icons.jsx'
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
-
-const COLORS = ['#00d084','#4f8ef7','#ffc107','#ff8c42','#ff4757','#a855f7','#06b6d4','#84cc16']
-
-const CustomTooltip = ({ active, payload }) => {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{
-      background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.15)',
-      borderRadius: 10, padding: '10px 14px'
-    }}>
-      <p style={{ fontWeight: 700, fontSize: 13 }}>{payload[0].name}</p>
-      <p style={{ color: 'var(--color-green)', fontSize: 13 }}>
-        R$ {payload[0].value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-      </p>
-    </div>
-  )
-}
+const COLORS = ['#00ffcc','#00b4d8','#7b2fff','#ff6b9d','#ffc107','#ff8c42','#4f8ef7','#00d084']
 
 export default function SpendingChart({ data }) {
+  if (!data || data.length === 0) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 160, flexDirection: 'column', gap: 8, color: 'var(--t2)' }}>
+        <IconEmpty size={32} color="var(--t3)" />
+        <span style={{ fontSize: 13 }}>Nenhum gasto registrado</span>
+      </div>
+    )
+  }
+
+  const total = data.reduce((s, d) => s + d.value, 0)
+  const R     = 15.9
+  const CIRC  = 2 * Math.PI * R  // ≈ 99.9
+
+  let offset = 25
+  const slices = data.map((d, i) => {
+    const dash  = (d.value / total) * CIRC
+    const slice = { ...d, dash, offset: -offset, color: COLORS[i % COLORS.length] }
+    offset += dash
+    return slice
+  })
+
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <PieChart>
-        <Pie data={data} cx="50%" cy="50%" innerRadius={55} outerRadius={85}
-          paddingAngle={3} dataKey="value" stroke="none">
-          {data.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip content={<CustomTooltip />} />
-        <Legend
-          iconType="circle" iconSize={8}
-          formatter={(value) => <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{value}</span>}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="piw">
+      <svg width="110" height="110" viewBox="0 0 36 36">
+        <circle r={R} cx="18" cy="18" fill="none" stroke="rgba(0,255,204,0.07)" strokeWidth="3.8"/>
+        {slices.map((s) => (
+          <circle
+            key={s.name}
+            r={R} cx="18" cy="18"
+            fill="none"
+            stroke={s.color}
+            strokeWidth="3.8"
+            strokeDasharray={`${s.dash} ${CIRC - s.dash}`}
+            strokeDashoffset={s.offset}
+            transform="rotate(-90 18 18)"
+          />
+        ))}
+      </svg>
+
+      <div className="pleg">
+        {slices.map((s) => (
+          <div key={s.name} className="pli">
+            <div className="pld" style={{ background: s.color }} />
+            <span>{s.name} — R$ {s.value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }

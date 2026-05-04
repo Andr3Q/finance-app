@@ -4,6 +4,7 @@
 
 import { useState } from 'react'
 import { transactionsAPI } from '../services/api.js'
+import { IconAlert } from './icons.jsx'
 
 export default function AutoLaunchPrompt({ autoLaunched, onLaunched }) {
   const [loading,   setLoading]   = useState(false)
@@ -26,51 +27,29 @@ export default function AutoLaunchPrompt({ autoLaunched, onLaunched }) {
   }
 
   return (
-    <div style={{
-      padding: '16px 20px', borderRadius: 12, marginBottom: 16,
-      background: 'rgba(79,142,247,0.08)', border: '1px solid rgba(79,142,247,0.25)',
-      animation: 'fadeIn 0.3s ease'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontWeight: 700, fontSize: 15, color: '#f0f0ff', marginBottom: 4 }}>
-            🔁 Lançar contas fixas do mês?
-          </p>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-            Suas contas fixas ainda não foram lançadas este mês.
-            Clique para registrá-las automaticamente como gastos no histórico.
-          </p>
-
-          {error && (
-            <p style={{ color: 'var(--color-red)', fontSize: 13, marginBottom: 10 }}>⚠️ {error}</p>
-          )}
-
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button
-              onClick={handleLaunch}
-              disabled={loading}
-              className="btn btn-primary"
-              style={{ padding: '8px 20px', fontSize: 13 }}
-            >
-              {loading
-                ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Lançando...</>
-                : '✅ Lançar agora'
-              }
-            </button>
-            <button
-              onClick={() => setDismissed(true)}
-              className="btn btn-ghost"
-              style={{ padding: '8px 16px', fontSize: 13 }}
-            >
-              Agora não
-            </button>
-          </div>
-        </div>
-
-        <button onClick={() => setDismissed(true)} style={{
-          background: 'none', border: 'none', color: 'var(--text-muted)',
-          cursor: 'pointer', fontSize: 18, lineHeight: 1, flexShrink: 0
-        }}>✕</button>
+    <div className="alc fu d2">
+      <div>
+        <h4>Lançar contas fixas do mês?</h4>
+        <p>Suas contas fixas ainda não foram lançadas este mês.</p>
+        {error && (
+          <p style={{ color: 'var(--red)', fontSize: 13, marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}><IconAlert size={13} color="var(--red)" /> {error}</p>
+        )}
+      </div>
+      <div className="alc-acts">
+        <button onClick={handleLaunch} disabled={loading} className="btn bp" style={{ padding: '8px 14px', fontSize: 13 }}>
+          {loading
+            ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Lançando...</>
+            : <>
+                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                </svg>
+                Lançar agora
+              </>
+          }
+        </button>
+        <button onClick={() => setDismissed(true)} className="btn bg" style={{ padding: '8px 14px', fontSize: 13 }}>
+          Agora não
+        </button>
       </div>
     </div>
   )
