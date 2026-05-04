@@ -44,9 +44,11 @@ api.interceptors.response.use(
 
 // ── Funções de autenticação ─────────────────────────────
 export const authAPI = {
-  login:    (data) => api.post('/auth/login', data),
-  register: (data) => api.post('/auth/register', data),
-  me:       ()     => api.get('/auth/me')
+  login:         (data)            => api.post('/auth/login', data),
+  register:      (data)            => api.post('/auth/register', data),
+  me:            ()                => api.get('/auth/me'),
+  forgotPassword: (email)          => api.post('/auth/forgot-password', { email }),
+  resetPassword:  (token, password) => api.post('/auth/reset-password', { token, password })
 }
 
 // ── Funções de transações ───────────────────────────────
