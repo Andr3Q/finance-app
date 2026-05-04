@@ -12,8 +12,10 @@
 const express       = require('express')
 const bcrypt        = require('bcryptjs')
 const jwt           = require('jsonwebtoken')
+const crypto        = require('crypto')
 const { PrismaClient } = require('@prisma/client')
 const authMiddleware   = require('../middleware/auth')
+const { sendResetEmail } = require('../services/emailService')
 
 const router = express.Router()
 const prisma = new PrismaClient()
@@ -108,6 +110,69 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.json(user)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar usuário.' })
+  }
+})
+
+// ── POST /auth/forgot-password ──────────────────────────
+// Gera token de reset e envia link por e-mail
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ error: 'E-mail é obrigatório.' })
+
+    const user = await prisma.user.findUnique({ where: { email } })
+    // Responde igual mesmo se não encontrar (evita descobrir e-mails cadastrados)
+    if (!user) return res.json({ message: 'Se este e-mail existir, você receberá o link em breve.' })
+
+    const rawToken  = crypto.randomBytes(32).toString('hex')
+    const hash      = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const expiry    = new Date(Date.now() + 60 * 60 * 1000) // 1 hora
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { resetToken: hash, resetTokenExpiry: expiry }
+    })
+
+    const appUrl    = process.env.APP_URL || 'https://financaspro-1042158013294.southamerica-east1.run.app'
+    const resetLink = `${appUrl}/reset-password?token=${rawToken}`
+
+    await sendResetEmail(user.email, user.name, resetLink)
+
+    res.json({ message: 'Se este e-mail existir, você receberá o link em breve.' })
+  } catch (error) {
+    console.error('Erro no forgot-password:', error)
+    res.status(500).json({ error: 'Erro ao processar solicitação.' })
+  }
+})
+
+// ── POST /auth/reset-password ───────────────────────────
+// Valida token e salva nova senha
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body
+    if (!token || !password) return res.status(400).json({ error: 'Token e nova senha são obrigatórios.' })
+    if (password.length < 6)  return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' })
+
+    const hash = crypto.createHash('sha256').update(token).digest('hex')
+    const user = await prisma.user.findFirst({
+      where: {
+        resetToken:       hash,
+        resetTokenExpiry: { gt: new Date() } // token ainda válido
+      }
+    })
+
+    if (!user) return res.status(400).json({ error: 'Link inválido ou expirado. Solicite um novo.' })
+
+    const hashedPassword = await bcrypt.hash(password, 10)
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null }
+    })
+
+    res.json({ message: 'Senha redefinida com sucesso! Faça login com a nova senha.' })
+  } catch (error) {
+    console.error('Erro no reset-password:', error)
+    res.status(500).json({ error: 'Erro ao redefinir senha.' })
   }
 })
 
