@@ -2,10 +2,10 @@
   "name": "FinançasPro",
   "short_name": "FinançasPro",
   "description": "Controle suas finanças em tempo real",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#08081a",
-  "theme_color": "#08081a",
+  "background_color": "#020d10",
+  "theme_color": "#020d10",
   "orientation": "portrait-primary",
   "icons": [
     {
