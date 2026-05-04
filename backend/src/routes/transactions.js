@@ -10,14 +10,13 @@
 //   DELETE /transactions/:id     → Remove uma transação
 // ═══════════════════════════════════════════════════════
 
-const express          = require('express')
-const { PrismaClient } = require('@prisma/client')
-const authMiddleware   = require('../middleware/auth')
-const multer           = require('multer')
-const { parse }        = require('csv-parse')
+const express        = require('express')
+const prisma         = require('../lib/prisma')
+const authMiddleware = require('../middleware/auth')
+const multer         = require('multer')
+const { parse }      = require('csv-parse')
 
 const router = express.Router()
-const prisma = new PrismaClient()
 
 // Aplica autenticação em TODAS as rotas deste arquivo
 router.use(authMiddleware)

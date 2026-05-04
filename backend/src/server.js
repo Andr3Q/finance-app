@@ -4,10 +4,11 @@
 
 require('dotenv').config()
 
-const express  = require('express')
-const cors     = require('cors')
-const helmet   = require('helmet')
-const path     = require('path')
+const express      = require('express')
+const cors         = require('cors')
+const helmet       = require('helmet')
+const compression  = require('compression')
+const path         = require('path')
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimiter')
 const authRoutes        = require('./routes/auth')
@@ -18,6 +19,9 @@ const reportRoutes      = require('./routes/reports')
 const app    = express()
 const PORT   = process.env.PORT || 3001
 const isProd = process.env.NODE_ENV === 'production'
+
+// ── Compressão gzip/brotli — reduz tamanho das respostas ─
+app.use(compression())
 
 // ── Segurança: Headers HTTP via Helmet ──────────────────
 app.use(helmet({
