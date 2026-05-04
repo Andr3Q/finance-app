@@ -42,6 +42,19 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Nome e valor são obrigatórios.' })
     }
 
+    // Limite do plano Free: máximo 3 contas fixas
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
+    if (user.plan === 'free') {
+      const count = await prisma.budget.count({ where: { userId: req.userId } })
+      if (count >= 3) {
+        return res.status(403).json({
+          error: 'Limite de 3 contas fixas atingido no plano Gratuito.',
+          limitReached: true,
+          plan: 'free'
+        })
+      }
+    }
+
     const budget = await prisma.budget.create({
       data: { name, amount: parseFloat(amount), userId: req.userId }
     })
@@ -123,6 +136,16 @@ router.post('/category-limits', async (req, res) => {
     const { category, amount } = req.body
     if (!category || !amount) {
       return res.status(400).json({ error: 'Categoria e valor são obrigatórios.' })
+    }
+
+    // Limites por categoria são exclusivos do plano Pro
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
+    if (user.plan === 'free') {
+      return res.status(403).json({
+        error: 'Limites por categoria são exclusivos do plano Pro.',
+        limitReached: true,
+        plan: 'free'
+      })
     }
     // upsert = cria se não existe, atualiza se já existe
     const limit = await prisma.categoryLimit.upsert({

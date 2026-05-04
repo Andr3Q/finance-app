@@ -10,6 +10,7 @@ const ResetPassword  = lazy(() => import('./pages/ResetPassword.jsx'))
 const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
+const Planos         = lazy(() => import('./pages/Planos.jsx'))
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/dashboard"    element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
           <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
+          <Route path="/planos"       element={<PrivateRoute><Planos /></PrivateRoute>} />
         </Routes>
       </Suspense>
     </BrowserRouter>

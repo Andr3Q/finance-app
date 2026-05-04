@@ -40,6 +40,7 @@ export default function Navbar() {
   const initials = user.name
     ? user.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
     : '?'
+  const isPro = user.plan === 'pro'
 
   return (
     <>
@@ -72,6 +73,10 @@ export default function Navbar() {
         <div className="nbuser">
           <div className="navav" title={user.name}>{initials}</div>
           <span className="navnm">{user.name?.split(' ')[0]}</span>
+          {isPro
+            ? <span style={{ fontSize: 11, fontWeight: 700, color: '#020d10', background: 'var(--c)', padding: '2px 8px', borderRadius: 20 }}>PRO ✨</span>
+            : <button className="btn bg" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => navigate('/planos')}>⚡ Upgrade</button>
+          }
           <button className="btnout" onClick={logout}>Sair</button>
         </div>
       </nav>

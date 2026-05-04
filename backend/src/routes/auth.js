@@ -58,7 +58,7 @@ router.post('/register', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail }
+      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan }
     })
   } catch (error) {
     console.error('Erro no register:', error)
@@ -95,7 +95,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail }
+      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan }
     })
   } catch (error) {
     console.error('Erro no login:', error)
@@ -109,7 +109,7 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true }
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true }
     })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
     res.json(user)
@@ -178,6 +178,36 @@ router.post('/reset-password', async (req, res) => {
   } catch (error) {
     console.error('Erro no reset-password:', error)
     res.status(500).json({ error: 'Erro ao redefinir senha.' })
+  }
+})
+
+// ── POST /auth/upgrade ──────────────────────────────────
+// Ativa o plano Pro (será chamado pelo webhook do Mercado Pago futuramente)
+router.post('/upgrade', authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data:  { plan: 'pro' },
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true }
+    })
+    res.json({ message: 'Plano atualizado para Pro!', user })
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar plano.' })
+  }
+})
+
+// ── POST /auth/downgrade ────────────────────────────────
+// Volta para o plano Free (cancelamento)
+router.post('/downgrade', authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data:  { plan: 'free' },
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true }
+    })
+    res.json({ message: 'Plano alterado para Free.', user })
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao atualizar plano.' })
   }
 })
 
