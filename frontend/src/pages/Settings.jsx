@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { budgetAPI, reportsAPI } from '../services/api.js'
 import Navbar from '../components/Navbar.jsx'
+import UpgradeModal from '../components/UpgradeModal.jsx'
 
 const CATEGORIES = [
   { key: 'food',      label: 'Alimentação' },
@@ -14,22 +16,25 @@ const CATEGORIES = [
 ]
 
 export default function Settings() {
+  const navigate = useNavigate()
   let user = {}
   try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
+  const isPro = user.plan === 'pro'
   const [salary,    setSalary]    = useState(user.salary || 0)
   const [salaryDisplay, setSalaryDisplay] = useState(
     user.salary > 0
       ? user.salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
       : ''
   )
-  const [budgets,   setBudgets]   = useState([])
-  const [limits,    setLimits]    = useState([])
-  const [newBudget, setNewBudget] = useState({ name: '', amount: '' })
-  const [newLimit,  setNewLimit]  = useState({ category: 'food', amount: '' })
-  const [savingSal, setSavingSal] = useState(false)
-  const [closing,   setClosing]   = useState(false)
-  const [msg,       setMsg]       = useState('')
-  const [msgType,   setMsgType]   = useState('success')
+  const [budgets,      setBudgets]      = useState([])
+  const [limits,       setLimits]       = useState([])
+  const [newBudget,    setNewBudget]     = useState({ name: '', amount: '' })
+  const [newLimit,     setNewLimit]      = useState({ category: 'food', amount: '' })
+  const [savingSal,    setSavingSal]     = useState(false)
+  const [closing,      setClosing]       = useState(false)
+  const [msg,          setMsg]           = useState('')
+  const [msgType,      setMsgType]       = useState('success')
+  const [upgradeModal, setUpgradeModal]  = useState(null)
 
   const showMsg = (text, type = 'success') => {
     setMsg(text); setMsgType(type)
@@ -208,74 +213,107 @@ export default function Settings() {
           </form>
         </div>
 
-        {/* Limites por Categoria */}
-        <div className="card mb16">
-          <div className="sct" style={{ marginBottom: 6 }}>Limites por Categoria</div>
+        {/* Limites por Categoria — exclusivo Pro */}
+        <div className="card mb16" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div className="sct" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Limites por Categoria
+            {!isPro && <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--c)', color: '#020d10', padding: '2px 7px', borderRadius: 20 }}>PRO</span>}
+          </div>
           <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 14 }}>
             Defina teto de gasto por categoria para alertas automáticos.
           </p>
 
-          {limits.length === 0 ? (
-            <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 14 }}>Nenhum limite definido.</p>
-          ) : limits.map(l => {
-            const cat = CATEGORIES.find(c => c.key === l.category)
-            return (
-              <div key={l.category} className="fxi" style={{ marginBottom: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>
-                  {cat?.label || l.category}
-                </span>
-                <div className="fx g8">
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c)' }}>
-                    R$ {l.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </span>
-                  <button className="txrm" onClick={() => handleRemoveLimit(l.category)}>
-                    <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-
-          <form onSubmit={handleSaveLimit} className="sfrow">
-            <select className="inp" style={{ flex: 1, minWidth: 150 }}
-              value={newLimit.category} onChange={e => setNewLimit(p => ({ ...p, category: e.target.value }))}>
-              {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-            </select>
-            <input className="inp" type="number" placeholder="R$ limite" style={{ flex: 1, minWidth: 110 }}
-              value={newLimit.amount} min="1" step="0.01"
-              onChange={e => setNewLimit(p => ({ ...p, amount: e.target.value }))} />
-            <button type="submit" className="btn bg" style={{ minWidth: 110, justifyContent: 'center' }}>
-              Salvar
-            </button>
-          </form>
+          {!isPro ? (
+            <div
+              onClick={() => setUpgradeModal('Limites por categoria são exclusivos do plano Pro.')}
+              style={{ cursor: 'pointer', padding: '16px', background: 'rgba(0,255,204,.04)', border: '1px dashed rgba(0,255,204,.2)', borderRadius: 10, textAlign: 'center' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 6 }}>🔒</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c)', marginBottom: 4 }}>Recurso Pro</div>
+              <div style={{ fontSize: 12, color: 'var(--t2)' }}>Clique para fazer upgrade e desbloquear</div>
+            </div>
+          ) : (
+            <>
+              {limits.length === 0 ? (
+                <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 14 }}>Nenhum limite definido.</p>
+              ) : limits.map(l => {
+                const cat = CATEGORIES.find(c => c.key === l.category)
+                return (
+                  <div key={l.category} className="fxi" style={{ marginBottom: 10 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>
+                      {cat?.label || l.category}
+                    </span>
+                    <div className="fx g8">
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c)' }}>
+                        R$ {l.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                      <button className="txrm" onClick={() => handleRemoveLimit(l.category)}>
+                        <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+              <form onSubmit={handleSaveLimit} className="sfrow">
+                <select className="inp" style={{ flex: 1, minWidth: 150 }}
+                  value={newLimit.category} onChange={e => setNewLimit(p => ({ ...p, category: e.target.value }))}>
+                  {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </select>
+                <input className="inp" type="number" placeholder="R$ limite" style={{ flex: 1, minWidth: 110 }}
+                  value={newLimit.amount} min="1" step="0.01"
+                  onChange={e => setNewLimit(p => ({ ...p, amount: e.target.value }))} />
+                <button type="submit" className="btn bg" style={{ minWidth: 110, justifyContent: 'center' }}>Salvar</button>
+              </form>
+            </>
+          )}
         </div>
 
-        {/* Fechar Mês */}
-        <div className="card" style={{ borderColor: 'rgba(255,71,87,.15)' }}>
-          <div className="sct" style={{ marginBottom: 8 }}>Fechar o Mês</div>
-          <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 16 }}>
-            Gera PDF e envia para{' '}
-            <strong style={{ color: 'var(--t1)' }}>{user.reportEmail || user.email || 'seu e-mail'}</strong>.
-            {' '}Registros serão zerados.
-          </p>
-          <button className="btn bd" onClick={handleMonthlyClose} disabled={closing}>
-            {closing ? (
-              <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório...</>
-            ) : (
-              <>
-                <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                </svg>
-                Fechar Mês e Enviar Relatório
-              </>
-            )}
-          </button>
+        {/* Fechar Mês — exclusivo Pro */}
+        <div className="card" style={{ borderColor: isPro ? 'rgba(255,71,87,.15)' : 'rgba(0,255,204,.15)' }}>
+          <div className="sct" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+            Fechar o Mês
+            {!isPro && <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--c)', color: '#020d10', padding: '2px 7px', borderRadius: 20 }}>PRO</span>}
+          </div>
+          {!isPro ? (
+            <div
+              onClick={() => setUpgradeModal('O relatório PDF mensal é exclusivo do plano Pro.')}
+              style={{ cursor: 'pointer', padding: '16px', background: 'rgba(0,255,204,.04)', border: '1px dashed rgba(0,255,204,.2)', borderRadius: 10, textAlign: 'center' }}
+            >
+              <div style={{ fontSize: 22, marginBottom: 6 }}>🔒</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c)', marginBottom: 4 }}>Recurso Pro</div>
+              <div style={{ fontSize: 12, color: 'var(--t2)' }}>Gere relatórios PDF mensais e receba por e-mail</div>
+            </div>
+          ) : (
+            <>
+              <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 16 }}>
+                Gera PDF e envia para{' '}
+                <strong style={{ color: 'var(--t1)' }}>{user.reportEmail || user.email || 'seu e-mail'}</strong>.
+                {' '}Registros serão zerados.
+              </p>
+              <button className="btn bd" onClick={handleMonthlyClose} disabled={closing}>
+                {closing ? (
+                  <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório...</>
+                ) : (
+                  <>
+                    <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                    </svg>
+                    Fechar Mês e Enviar Relatório
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </div>
 
       </div>
+
+      {upgradeModal && (
+        <UpgradeModal reason={upgradeModal} onClose={() => { setUpgradeModal(null); navigate('/planos') }} />
+      )}
     </>
   )
 }

@@ -113,6 +113,22 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Tipo deve ser "expense" ou "income".' })
     }
 
+    // Limite do plano Free: 30 transações por mês
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
+    if (user.plan === 'free') {
+      const now = new Date()
+      const count = await prisma.transaction.count({
+        where: { userId: req.userId, month: now.getMonth() + 1, year: now.getFullYear(), archived: false }
+      })
+      if (count >= 30) {
+        return res.status(403).json({
+          error: 'Limite de 30 transações por mês atingido no plano Gratuito.',
+          limitReached: true,
+          plan: 'free'
+        })
+      }
+    }
+
     const now = new Date()
 
     const transaction = await prisma.transaction.create({

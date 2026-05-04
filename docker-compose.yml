@@ -16,30 +16,27 @@
 services:
 
   # ───────────────────────────────────────────────
-  # 🗄️  db — Banco de Dados PostgreSQL
+  # 🗄️  db — PostgreSQL local (desativado)
   #
-  # Responsável por: armazenar usuários, transações
-  # e contas fixas de forma segura e persistente.
-  # Os dados ficam no volume "postgres_data" e NÃO
-  # são perdidos quando você reinicia o container.
+  # O banco agora é o Neon (nuvem), configurado em .env.
+  # Tanto o docker-compose local quanto o Cloud Run usam
+  # o mesmo banco → dados sempre sincronizados.
+  #
+  # Para reativar banco local: descomente o bloco abaixo
+  # e adicione "depends_on: db" no serviço backend.
   # ───────────────────────────────────────────────
-  db:
-    image: postgres:15-alpine          # Imagem oficial, versão leve (alpine)
-    container_name: financas_db
-    restart: unless-stopped            # Reinicia automaticamente se cair
-    environment:
-      POSTGRES_USER: financeuser       # Usuário do banco
-      POSTGRES_PASSWORD: financepass   # Senha do banco (só interna, não exposta)
-      POSTGRES_DB: financedb           # Nome do banco
-    volumes:
-      - postgres_data:/var/lib/postgresql/data  # Persiste dados no disco
-    ports:
-      - "5432:5432"                    # Porta local:porta container
-    healthcheck:                       # Verifica se o banco está pronto antes de iniciar o backend
-      test: ["CMD-SHELL", "pg_isready -U financeuser -d financedb"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+  # db:
+  #   image: postgres:15-alpine
+  #   container_name: financas_db
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_USER: financeuser
+  #     POSTGRES_PASSWORD: financepass
+  #     POSTGRES_DB: financedb
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
 
   # ───────────────────────────────────────────────
   # ⚙️  backend — API Node.js + Express
@@ -52,13 +49,8 @@ services:
     build: ./backend                   # Usa o Dockerfile em ./backend/
     container_name: financas_backend
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy     # Só inicia APÓS o banco estar saudável
     env_file:
-      - .env                           # Carrega variáveis sensíveis do arquivo .env
-    environment:
-      DATABASE_URL: postgresql://financeuser:financepass@db:5432/financedb
+      - .env                           # DATABASE_URL, JWT_SECRET, EMAIL_* vêm do .env
     ports:
       - "3001:3001"                    # API acessível em http://localhost:3001
     volumes:

@@ -27,6 +27,16 @@ router.post('/monthly-close', async (req, res) => {
     const month = now.getMonth() + 1
     const year  = now.getFullYear()
 
+    // Relatório PDF é exclusivo do plano Pro
+    const userPlan = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
+    if (userPlan.plan === 'free') {
+      return res.status(403).json({
+        error: 'O relatório mensal em PDF é exclusivo do plano Pro.',
+        limitReached: true,
+        plan: 'free'
+      })
+    }
+
     // Busca dados necessários
     const [user, transactions, budgets] = await Promise.all([
       prisma.user.findUnique({ where: { id: req.userId } }),
