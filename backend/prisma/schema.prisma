@@ -30,6 +30,7 @@ model User {
   autoLaunchYear   Int?
   resetToken       String?
   resetTokenExpiry DateTime?
+  plan             String    @default("free")  // "free" ou "pro"
 
   transactions    Transaction[]
   budgets         Budget[]

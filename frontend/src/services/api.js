@@ -33,7 +33,9 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    const status = error.response?.status
+    const isAuthError = (status === 401) || (status === 403 && !error.response?.data?.limitReached)
+    if (isAuthError) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/login'
@@ -47,8 +49,10 @@ export const authAPI = {
   login:         (data)            => api.post('/auth/login', data),
   register:      (data)            => api.post('/auth/register', data),
   me:            ()                => api.get('/auth/me'),
-  forgotPassword: (email)          => api.post('/auth/forgot-password', { email }),
-  resetPassword:  (token, password) => api.post('/auth/reset-password', { token, password })
+  forgotPassword: (email)           => api.post('/auth/forgot-password', { email }),
+  resetPassword:  (token, password) => api.post('/auth/reset-password', { token, password }),
+  upgradePro:     ()                => api.post('/auth/upgrade'),
+  downgradeFree:  ()                => api.post('/auth/downgrade'),
 }
 
 // ── Funções de transações ───────────────────────────────
