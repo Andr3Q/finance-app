@@ -9,14 +9,13 @@
 //   5. Novo mês começa zerado
 // ═══════════════════════════════════════════════════════
 
-const express              = require('express')
-const { PrismaClient }     = require('@prisma/client')
-const authMiddleware        = require('../middleware/auth')
-const { sendMonthlyReport } = require('../services/emailService')
+const express                = require('express')
+const prisma                 = require('../lib/prisma')
+const authMiddleware         = require('../middleware/auth')
+const { sendMonthlyReport }  = require('../services/emailService')
 const { generateMonthlyPDF } = require('../services/pdfService')
 
 const router = express.Router()
-const prisma = new PrismaClient()
 
 router.use(authMiddleware)
 
