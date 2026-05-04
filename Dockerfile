@@ -52,4 +52,4 @@ EXPOSE 8080
 # Inicialização:
 # 1. Sincroniza o schema com o banco (cria tabelas se não existirem)
 # 2. Inicia o servidor Express
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && node src/server.js"]
+CMD ["sh", "-c", "npx prisma db push && node src/server.js"]

@@ -42,7 +42,12 @@ router.post('/monthly-close', async (req, res) => {
     const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
     const totalIncome     = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
     const totalFixedCosts = budgets.reduce((s, b) => s + b.amount, 0)
-    const totalAvailable  = user.salary + totalIncome - totalFixedCosts
+    // Se as contas fixas já foram lançadas como transações (auto-launch), elas já estão
+    // em totalExpenses — não subtrair novamente para evitar dupla contagem
+    const autoLaunched   = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const totalAvailable = autoLaunched
+      ? user.salary + totalIncome
+      : user.salary + totalIncome - totalFixedCosts
     const currentBalance  = totalAvailable - totalExpenses
     const percentUsed     = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
 
@@ -70,7 +75,7 @@ router.post('/monthly-close', async (req, res) => {
     })
   } catch (error) {
     console.error('Erro no fechamento mensal:', error)
-    res.status(500).json({ error: `Erro ao fechar o mês: ${error.message}` })
+    res.status(500).json({ error: 'Erro ao fechar o mês. Tente novamente.' })
   }
 })
 
