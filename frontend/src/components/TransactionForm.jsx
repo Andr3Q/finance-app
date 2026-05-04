@@ -1,22 +1,20 @@
-// ─── src/components/TransactionForm.jsx ────────────────
-// Modal para registrar novo gasto ou entrada de dinheiro
-
 import { useState } from 'react'
 import { transactionsAPI } from '../services/api.js'
 
 const CATEGORIES = [
-  { value: 'food',      label: '🍔 Alimentação' },
-  { value: 'shopping',  label: '🛍️ Shopping'    },
-  { value: 'transport', label: '🚗 Transporte'   },
-  { value: 'health',    label: '💊 Saúde'        },
-  { value: 'leisure',   label: '🎮 Lazer'        },
-  { value: 'education', label: '📚 Educação'     },
-  { value: 'home',      label: '🏠 Casa'         },
-  { value: 'other',     label: '📦 Outros'       }
+  { value: 'food',      label: 'Alimentação' },
+  { value: 'shopping',  label: 'Shopping'    },
+  { value: 'transport', label: 'Transporte'  },
+  { value: 'health',    label: 'Saúde'       },
+  { value: 'leisure',   label: 'Lazer'       },
+  { value: 'education', label: 'Educação'    },
+  { value: 'home',      label: 'Casa'        },
+  { value: 'other',     label: 'Outros'      },
 ]
 
 export default function TransactionForm({ onClose, onSuccess }) {
-  const [form,    setForm]    = useState({ description: '', amount: '', type: 'expense', category: 'food' })
+  const [type,    setType]    = useState('expense')
+  const [form,    setForm]    = useState({ description: '', amount: '', category: 'food' })
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
 
@@ -29,72 +27,79 @@ export default function TransactionForm({ onClose, onSuccess }) {
       return
     }
     setLoading(true)
+    setError('')
     try {
       await transactionsAPI.create({
-        ...form,
-        amount: parseFloat(form.amount),
-        // Entrada de dinheiro usa categoria "income", gastos usam a selecionada
-        category: form.type === 'income' ? 'income' : form.category
+        description: form.description,
+        amount:      parseFloat(form.amount),
+        type,
+        category: type === 'income' ? 'income' : form.category,
       })
       onSuccess()
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao registrar.')
-    } finally {
       setLoading(false)
     }
   }
 
+  const isExp = type === 'expense'
+
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+    <div
+      className="modal-overlay movl"
+      style={{ display: 'flex' }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
       <div className="modal">
-        <div className="flex-between mb-24">
-          <h2 style={{ fontWeight: 800, fontSize: 20 }}>
-            {form.type === 'expense' ? '🛍️ Registrar Gasto' : '💰 Registrar Entrada'}
-          </h2>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', color: 'var(--text-muted)',
-            fontSize: 20, cursor: 'pointer', lineHeight: 1
-          }}>✕</button>
-        </div>
-
-        {/* Tipo: Gasto ou Entrada */}
-        <div style={{
-          display: 'flex', gap: 4, background: 'rgba(255,255,255,0.04)',
-          borderRadius: 12, padding: 4, marginBottom: 20
-        }}>
-          {[
-            { value: 'expense', label: '🛍️ Gasto'   },
-            { value: 'income',  label: '💰 Entrada'  }
-          ].map(t => (
-            <button key={t.value} onClick={() => setForm(f => ({ ...f, type: t.value }))} style={{
-              flex: 1, padding: '10px', border: 'none', borderRadius: 10, cursor: 'pointer',
-              fontFamily: 'inherit', fontSize: 14, fontWeight: 600, transition: 'all 0.2s',
-              background: form.type === t.value
-                ? (t.value === 'expense' ? 'rgba(255,71,87,0.15)' : 'rgba(0,208,132,0.15)')
-                : 'transparent',
-              color: form.type === t.value
-                ? (t.value === 'expense' ? 'var(--color-red)' : 'var(--color-green)')
-                : 'var(--text-secondary)'
-            }}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Valor */}
-          <div>
-            <label className="label">Valor (R$)</label>
-            <input className="input" name="amount" type="number" placeholder="0,00"
-              min="0.01" step="0.01" value={form.amount} onChange={handleChange}
-              autoFocus required style={{ fontSize: 20, fontWeight: 700 }} />
+        {/* Header */}
+        <div className="mhdr">
+          <div className="mtitle">
+            {isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
           </div>
+          <button className="mcls" onClick={onClose}>
+            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+            </svg>
+          </button>
+        </div>
 
-          {/* Categoria (só para gastos) */}
-          {form.type === 'expense' && (
-            <div>
-              <label className="label">Categoria</label>
-              <select className="input" name="category" value={form.category} onChange={handleChange}>
+        {/* Tabs Gasto / Entrada */}
+        <div className="mtabs">
+          <div
+            className={`mtab exp${isExp ? ' on' : ''}`}
+            onClick={() => { setType('expense'); setError('') }}
+          >
+            Gasto
+          </div>
+          <div
+            className={`mtab inc${!isExp ? ' on' : ''}`}
+            onClick={() => { setType('income'); setError('') }}
+          >
+            Entrada
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          {/* Input de valor em destaque */}
+          <input
+            className="amtinp"
+            name="amount"
+            type="number"
+            placeholder="0,00"
+            min="0.01"
+            step="0.01"
+            value={form.amount}
+            onChange={handleChange}
+            autoFocus
+            required
+            style={{ color: isExp ? 'var(--red)' : 'var(--c)' }}
+          />
+
+          {/* Categoria (só gastos) */}
+          {isExp && (
+            <div className="fg">
+              <label className="lbl">Categoria</label>
+              <select className="inp" name="category" value={form.category} onChange={handleChange}>
                 {CATEGORIES.map(c => (
                   <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
@@ -103,26 +108,50 @@ export default function TransactionForm({ onClose, onSuccess }) {
           )}
 
           {/* Descrição */}
-          <div>
-            <label className="label">Descrição <span style={{ color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none' }}>(opcional)</span></label>
-            <input className="input" name="description" placeholder={
-              form.type === 'expense' ? 'Ex: Almoço no shopping, Uber...' : 'Ex: Freelance, 13° salário...'
-            } value={form.description} onChange={handleChange} />
+          <div className="fg">
+            <label className="lbl">Descrição (opcional)</label>
+            <input
+              className="inp"
+              name="description"
+              type="text"
+              placeholder={isExp ? 'Ex: Almoço no restaurante' : 'Ex: Freelance, 13° salário'}
+              value={form.description}
+              onChange={handleChange}
+            />
           </div>
 
           {error && (
-            <p style={{ color: 'var(--color-red)', fontSize: 13 }}>⚠️ {error}</p>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: 'rgba(255,71,87,.07)', border: '1px solid rgba(255,71,87,.2)',
+              borderRadius: 'var(--rmd)', padding: '10px 14px',
+              color: 'var(--red)', fontSize: 13, marginBottom: 14,
+            }}>
+              {error}
+            </div>
           )}
 
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose} style={{ flex: 1 }}>
+          {/* Ações */}
+          <div className="macts">
+            <button type="button" className="btn bg" onClick={onClose} style={{ flex: 1, justifyContent: 'center' }}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary" disabled={loading} style={{ flex: 2, justifyContent: 'center' }}>
-              {loading
-                ? <><span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> Salvando...</>
-                : form.type === 'expense' ? '✅ Registrar Gasto' : '✅ Registrar Entrada'
-              }
+            <button
+              type="submit"
+              className={`btn ${isExp ? 'bd' : 'bp'}`}
+              disabled={loading}
+              style={{ flex: 2, justifyContent: 'center' }}
+            >
+              {loading ? (
+                <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Salvando...</>
+              ) : (
+                <>
+                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                  </svg>
+                  {isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
+                </>
+              )}
             </button>
           </div>
         </form>

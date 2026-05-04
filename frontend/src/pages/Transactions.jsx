@@ -1,195 +1,161 @@
-// ═══════════════════════════════════════════════════════
-// 📋 src/pages/Transactions.jsx — Histórico de Transações
-// ═══════════════════════════════════════════════════════
-
 import { useState, useEffect, useRef } from 'react'
-import { transactionsAPI }     from '../services/api.js'
-import Navbar          from '../components/Navbar.jsx'
-import TransactionForm from '../components/TransactionForm.jsx'
+import { transactionsAPI } from '../services/api.js'
+import Navbar           from '../components/Navbar.jsx'
+import TransactionForm  from '../components/TransactionForm.jsx'
+import { CategoryIcon, IconEmpty } from '../components/icons.jsx'
 
-const CATEGORY_ICONS  = { food:'🍔', shopping:'🛍️', transport:'🚗', health:'💊', leisure:'🎮', education:'📚', home:'🏠', income:'💰', other:'📦' }
 const CATEGORY_LABELS = { food:'Alimentação', shopping:'Shopping', transport:'Transporte', health:'Saúde', leisure:'Lazer', education:'Educação', home:'Casa', income:'Entrada Extra', other:'Outros' }
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
 export default function Transactions() {
   const [transactions, setTransactions] = useState([])
   const [loading,      setLoading]      = useState(true)
   const [showForm,     setShowForm]     = useState(false)
-  const [filter,       setFilter]       = useState('all') // all | expense | income
+  const [filter,       setFilter]       = useState('all')
   const fileInputRef                    = useRef(null)
-
-  const handleImportCSV = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    const formData = new FormData()
-    formData.append('file', file)
-
-    try {
-      setLoading(true)
-      const res = await transactionsAPI.importCSV(formData)
-      alert(res.data.message)
-      fetchTransactions()
-    } catch (err) {
-      alert(err.response?.data?.error || 'Erro ao importar arquivo CSV.')
-      setLoading(false)
-    }
-    e.target.value = null
-  }
+  const now                             = new Date()
 
   const fetchTransactions = async () => {
     try {
       const res = await transactionsAPI.list()
       setTransactions(res.data)
     } catch (err) { console.error(err) }
-    finally      { setLoading(false) }
+    finally { setLoading(false) }
   }
 
   useEffect(() => { fetchTransactions() }, [])
+
+  const handleImportCSV = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const formData = new FormData()
+    formData.append('file', file)
+    try {
+      setLoading(true)
+      const res = await transactionsAPI.importCSV(formData)
+      alert(res.data.message)
+      fetchTransactions()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erro ao importar CSV.')
+      setLoading(false)
+    }
+    e.target.value = null
+  }
 
   const handleDelete = async (id) => {
     if (!window.confirm('Remover esta transação?')) return
     try {
       await transactionsAPI.remove(id)
       fetchTransactions()
-    } catch (err) { alert('Erro ao remover.') }
+    } catch { alert('Erro ao remover.') }
   }
 
-  const filtered = transactions.filter(t => filter === 'all' || t.type === filter)
+  const filtered      = transactions.filter(t => filter === 'all' || t.type === filter)
   const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const totalIncome   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
 
   return (
     <>
       <Navbar />
-      <div className="page page-with-nav fade-in">
+      <div className="page pwnav fade-in">
 
-        {/* Cabeçalho responsivo */}
-        <div className="page-header">
+        {/* Cabeçalho */}
+        <div className="pgh">
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800 }}>💳 Transações do Mês</h1>
-            <p className="text-muted" style={{ fontSize: 13, marginTop: 4 }}>
-              {transactions.length} transação(ões) registrada(s)
-            </p>
+            <div className="pgt">Transações do Mês</div>
+            <div className="pgs">{transactions.length} transação(ões) em {MONTHS[now.getMonth()]}</div>
           </div>
-          <div className="page-header-actions">
-            <input
-              type="file"
-              accept=".csv"
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-              onChange={handleImportCSV}
-            />
-            <button
-              className="btn"
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              🏦 Importar CSV
+          <div className="pgh-acts">
+            <input type="file" accept=".csv" ref={fileInputRef} style={{ display: 'none' }} onChange={handleImportCSV} />
+            <button className="btn bg" onClick={() => fileInputRef.current?.click()}>
+              <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd"/>
+              </svg>
+              Importar CSV
             </button>
-            <button className="btn btn-primary btn-hide-mobile" onClick={() => setShowForm(true)}>
-              ＋ Nova Transação
+            <button className="btn bp" onClick={() => setShowForm(true)}>
+              <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
+              </svg>
+              Nova Transação
             </button>
           </div>
         </div>
 
-        {/* Totais rápidos */}
-        <div className="grid-2" style={{ marginBottom: 24 }}>
-          <div className="card" style={{ borderColor: 'rgba(255,71,87,0.2)' }}>
-            <p className="label">Total de Gastos</p>
-            <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--color-red)', marginTop: 4 }}>
-              - R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
+        {/* Totais */}
+        <div className="g2 mb16">
+          <div className="card" style={{ borderColor: 'rgba(255,71,87,.15)' }}>
+            <div className="lbl">Total de Gastos</div>
+            <div style={{ fontFamily: 'var(--fn)', fontSize: 26, fontWeight: 700, color: 'var(--red)', marginTop: 4, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
+              −R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </div>
           </div>
-          <div className="card" style={{ borderColor: 'rgba(0,208,132,0.2)' }}>
-            <p className="label">Total de Entradas</p>
-            <p style={{ fontSize: 26, fontWeight: 800, color: 'var(--color-green)', marginTop: 4 }}>
-              + R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
+          <div className="card" style={{ borderColor: 'rgba(0,255,204,.18)' }}>
+            <div className="lbl">Total de Entradas</div>
+            <div style={{ fontFamily: 'var(--fn)', fontSize: 26, fontWeight: 700, color: 'var(--c)', marginTop: 4, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
+              +R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </div>
           </div>
         </div>
 
-        {/* Filtros com scroll horizontal no mobile */}
-        <div className="filter-chips" style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {/* Chips filtro */}
+        <div className="chips">
           {[
-            { value: 'all',     label: '📋 Todas' },
-            { value: 'expense', label: '🛍️ Gastos' },
-            { value: 'income',  label: '💰 Entradas' }
+            { value: 'all',     label: 'Todas'    },
+            { value: 'expense', label: 'Gastos'   },
+            { value: 'income',  label: 'Entradas' },
           ].map(f => (
-            <button key={f.value} onClick={() => setFilter(f.value)} style={{
-              padding: '8px 18px', border: '1px solid', whiteSpace: 'nowrap',
-              borderColor: filter === f.value ? 'var(--color-green)' : 'var(--border)',
-              borderRadius: 20, background: filter === f.value ? 'rgba(0,208,132,0.1)' : 'var(--bg-card)',
-              color: filter === f.value ? 'var(--color-green)' : 'var(--text-secondary)',
-              cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
-              flexShrink: 0,
-            }}>
+            <div key={f.value} className={`chip${filter === f.value ? ' on' : ''}`} onClick={() => setFilter(f.value)}>
               {f.label}
-            </button>
+            </div>
           ))}
         </div>
 
-        {/* Lista de transações */}
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Lista */}
+        <div className="card" style={{ padding: 0 }}>
           {loading ? (
-            <div className="flex-center" style={{ padding: 60 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60 }}>
               <div className="spinner" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="flex-center" style={{ padding: 60, flexDirection: 'column', gap: 12 }}>
-              <span style={{ fontSize: 40 }}>📭</span>
-              <p className="text-muted">Nenhuma transação encontrada</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 60, flexDirection: 'column', gap: 12, color: 'var(--t2)' }}>
+              <IconEmpty size={40} color="var(--t3)" />
+              <span style={{ fontSize: 13 }}>Nenhuma transação encontrada</span>
             </div>
-          ) : filtered.map((t, i) => (
-            <div key={t.id} style={{
-              display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
-              borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
-              transition: 'background 0.2s'
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              {/* Ícone da categoria */}
-              <div style={{
-                width: 40, height: 40, borderRadius: 10, fontSize: 18,
-                background: t.type === 'income' ? 'rgba(0,208,132,0.12)' : 'rgba(255,71,87,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-              }}>
-                {CATEGORY_ICONS[t.category] || '📦'}
-              </div>
-
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {t.description || CATEGORY_LABELS[t.category] || t.category}
-                </p>
-                <p className="tx-date-detail" style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {CATEGORY_LABELS[t.category]} • {new Date(t.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                </p>
-              </div>
-
-              {/* Valor + Remover */}
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p className="tx-item-amount" style={{ fontWeight: 800, fontSize: 15, color: t.type === 'income' ? 'var(--color-green)' : 'var(--color-red)' }}>
-                  {t.type === 'income' ? '+' : '-'} R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <button onClick={() => handleDelete(t.id)} style={{
-                  background: 'none', border: 'none', color: 'var(--text-muted)',
-                  cursor: 'pointer', fontSize: 12, padding: '2px 0', marginTop: 2,
-                  fontFamily: 'inherit', transition: 'color 0.2s'
-                }}
-                  onMouseEnter={e => e.currentTarget.style.color = 'var(--color-red)'}
-                  onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                >
-                  ✕ remover
-                </button>
-              </div>
+          ) : (
+            <div style={{ padding: '0 8px' }}>
+              {filtered.map((t) => (
+                <div key={t.id} className="txi" style={{ padding: '14px 12px' }}>
+                  <div className={`txic ${t.type === 'income' ? 'inc' : 'exp'}`}>
+                    <CategoryIcon category={t.category} size={16} color={t.type === 'income' ? 'var(--green)' : 'var(--red)'} />
+                  </div>
+                  <div className="txin">
+                    <div className="txd">{t.description || CATEGORY_LABELS[t.category]}</div>
+                    <div className="txm">
+                      {CATEGORY_LABELS[t.category]} · {new Date(t.date).toLocaleDateString('pt-BR')}
+                    </div>
+                  </div>
+                  <div className={`txv ${t.type === 'income' ? 'inc' : 'exp'}`}>
+                    {t.type === 'income' ? '+' : '−'}R$ {t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </div>
+                  <button className="txrm" onClick={() => handleDelete(t.id)}>
+                    <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                    </svg>
+                  </button>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
         </div>
       </div>
 
-      {/* FAB — só mobile */}
-      <button className="fab" onClick={() => setShowForm(true)} aria-label="Nova transação">＋</button>
+      {/* FAB mobile */}
+      <button className="fab" onClick={() => setShowForm(true)} aria-label="Nova transação">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
+          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
+        </svg>
+      </button>
 
       {showForm && (
         <TransactionForm
