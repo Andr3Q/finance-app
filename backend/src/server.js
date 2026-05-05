@@ -24,13 +24,21 @@ const publicPath = path.join(__dirname, '../public')
 // ── Compressão ──────────────────────────────────────────
 app.use(compression())
 
-// ── Arquivos estáticos ANTES do CORS ────────────────────
-// Módulos ES (<script type="module">) enviam header Origin mesmo sendo
-// same-origin. Servir antes do CORS evita que sejam bloqueados.
+// ── Segurança: Headers HTTP ─────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}))
+
+// ── Arquivos estáticos com CORS aberto ──────────────────
+// Vite gera <script type="module" crossorigin> — o browser exige
+// Access-Control-Allow-Origin mesmo em same-origin. Solução: cors(*)
+// nos assets (são arquivos públicos, sem credenciais).
 if (isProd) {
-  app.use('/assets', express.static(path.join(publicPath, 'assets'), {
-    maxAge: '1y', immutable: true,
-  }))
+  app.use('/assets',
+    cors({ origin: '*' }),
+    express.static(path.join(publicPath, 'assets'), { maxAge: '1y', immutable: true })
+  )
 
   app.get('/sw.js', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript')
@@ -42,18 +50,12 @@ if (isProd) {
   app.use(express.static(publicPath, { maxAge: 0 }))
 }
 
-// ── Segurança: Headers HTTP ─────────────────────────────
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-}))
-
-// ── CORS — apenas para chamadas de API ──────────────────
+// ── CORS restrito apenas para rotas de API ──────────────
 const allowedOrigins = [
   'https://finance-app-1042158013294.southamerica-east1.run.app',
 ]
 
-app.use(cors({
+app.use('/api/', cors({
   origin: isProd
     ? (origin, callback) => {
         if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
