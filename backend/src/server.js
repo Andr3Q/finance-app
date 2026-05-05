@@ -43,7 +43,7 @@ if (isProd) {
   app.get('/sw.js', (req, res) => {
     res.setHeader('Content-Type', 'application/javascript')
     res.setHeader('Service-Worker-Allowed', '/')
-    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
     res.sendFile(path.join(publicPath, 'sw.js'))
   })
 
