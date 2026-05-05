@@ -625,6 +625,68 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* ── Auto-launch prompt actions ──────────────────────────── */
 .alc-acts { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* ── UPGRADE BANNER (Dashboard) ─────────────────────────── */
+.upg-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, rgba(0,255,204,.08) 0%, rgba(0,180,216,.05) 50%, rgba(123,47,255,.06) 100%);
+  border: 1px solid rgba(0,255,204,.22);
+  border-radius: var(--rlg); padding: 14px 16px;
+  margin-bottom: 12px; cursor: pointer;
+  position: relative; overflow: hidden;
+  transition: var(--tr);
+}
+.upg-banner::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,255,204,.5), transparent);
+}
+.upg-banner:hover { border-color: rgba(0,255,204,.4); transform: translateY(-1px); box-shadow: 0 8px 32px rgba(0,255,204,.1); }
+.upg-glow {
+  position: absolute; right: -30px; top: -30px;
+  width: 120px; height: 120px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,255,204,.1), transparent 70%);
+  pointer-events: none;
+}
+.upg-icon {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  background: rgba(0,255,204,.12); border: 1px solid rgba(0,255,204,.25);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--c);
+  box-shadow: 0 0 16px rgba(0,255,204,.2);
+}
+.upg-text { flex: 1; min-width: 0; }
+.upg-title { font-family: var(--fd); font-size: 14px; font-weight: 800; color: var(--c); margin-bottom: 2px; }
+.upg-sub   { font-size: 11px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.upg-cta {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(0,255,204,.1); border: 1px solid rgba(0,255,204,.25);
+  color: var(--c); font-size: 12px; font-weight: 700;
+  padding: 7px 13px; border-radius: 20px; flex-shrink: 0;
+  cursor: pointer; transition: var(--tr); white-space: nowrap;
+  font-family: var(--fd);
+}
+.upg-cta:hover { background: rgba(0,255,204,.18); border-color: rgba(0,255,204,.4); }
+
+/* ── PLANOS — Cards mobile-first ─────────────────────────── */
+.plan-pro-card {
+  background: linear-gradient(155deg, rgba(0,255,204,.09) 0%, rgba(0,180,216,.05) 50%, rgba(123,47,255,.07) 100%);
+  border: 1.5px solid rgba(0,255,204,.3);
+  border-radius: var(--rxl); padding: 24px 20px;
+  margin-bottom: 12px; position: relative; overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0,255,204,.08), 0 0 0 1px rgba(0,255,204,.05);
+}
+.plan-pro-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,255,204,.6), transparent);
+}
+.plan-free-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(0,255,204,.1);
+  border-radius: var(--rlg); padding: 20px;
+  margin-bottom: 12px; position: relative; overflow: hidden;
+  opacity: 0.85;
+}
+.plan-free-card:hover { opacity: 1; }
+
 /* ── RESPONSIVIDADE ──────────────────────────────────────── */
 @media (max-width: 900px) {
   .grid-4 { grid-template-columns: 1fr 1fr; }
@@ -896,4 +958,26 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .hsl    { font-size: 8px; }
   .hsv    { font-size: 13px; }
   .piw    { align-items: center; }
+  .plan-pro-card  { padding: 18px 16px; }
+  .plan-free-card { padding: 14px; }
+}
+
+/* ── Plan cards (Planos page) ──────────────────────────── */
+.plan-pro-card {
+  background: linear-gradient(160deg, rgba(0,255,204,.07) 0%, rgba(0,180,216,.03) 55%, transparent 100%);
+  border: 1.5px solid rgba(0,255,204,.3);
+  border-radius: var(--rxl); padding: 26px;
+  margin-bottom: 16px; position: relative; overflow: hidden;
+  transition: var(--tr);
+}
+.plan-pro-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0,255,204,.6), transparent);
+}
+
+.plan-free-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(0,255,204,.1);
+  border-radius: var(--rlg); padding: 22px;
+  margin-bottom: 24px; transition: var(--tr);
 }

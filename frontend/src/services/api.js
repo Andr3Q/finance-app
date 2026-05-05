@@ -13,7 +13,8 @@ import axios from 'axios'
 
 // URL base da API — usa o proxy do Vite (/api → http://backend:3001)
 const api = axios.create({
-  baseURL: '/api'
+  baseURL: '/api',
+  timeout: 15000,
 })
 
 // Interceptor de requisição:
@@ -33,7 +34,8 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
-    const status = error.response?.status
+    if (!error.response) return Promise.reject(error) // rede/timeout
+    const status = error.response.status
     const isAuthError = (status === 401) || (status === 403 && !error.response?.data?.limitReached)
     if (isAuthError) {
       localStorage.removeItem('token')

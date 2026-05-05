@@ -8,6 +8,7 @@ import TransactionForm  from '../components/TransactionForm.jsx'
 import SalaryReminder   from '../components/SalaryReminder.jsx'
 import AutoLaunchPrompt from '../components/AutoLaunchPrompt.jsx'
 import CategoryLimits   from '../components/CategoryLimits.jsx'
+import UpgradeBanner    from '../components/UpgradeBanner.jsx'
 import { CategoryIcon, IconWallet } from '../components/icons.jsx'
 
 const CATEGORY_LABELS = {
@@ -24,6 +25,12 @@ export default function Dashboard() {
   const [limits,       setLimits]       = useState([])
   const [loading,      setLoading]      = useState(true)
   const [showForm,     setShowForm]     = useState(false)
+  const [toast,        setToast]        = useState(null)
+
+  const showToast = (msg, ok = true) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 4000)
+  }
 
   const fetchData = useCallback(async () => {
     try {
@@ -37,6 +44,7 @@ export default function Dashboard() {
       setLimits(limRes.data)
     } catch (err) {
       console.error(err)
+      showToast('Erro ao carregar dados. Tente novamente.', false)
     } finally {
       setLoading(false)
     }
@@ -50,7 +58,7 @@ export default function Dashboard() {
       await transactionsAPI.remove(id)
       fetchData()
     } catch {
-      alert('Erro ao remover transação.')
+      showToast('Erro ao remover transação.', false)
     }
   }
 
@@ -80,10 +88,18 @@ export default function Dashboard() {
   return (
     <>
       <Navbar />
+      {toast && (
+        <div className={`toast ${toast.ok ? 'tok' : 'terr'}`}>
+          {toast.msg}
+        </div>
+      )}
 
       <div className="page pwnav fade-in">
         {/* Hero */}
         <DashboardHero user={user} summary={summary} onAddTransaction={() => setShowForm(true)} />
+
+        {/* Banner de upgrade Pro */}
+        <UpgradeBanner />
 
         {/* Lembrete salário + auto-launch */}
         <SalaryReminder salary={summary?.salary} />
