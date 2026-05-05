@@ -107,6 +107,19 @@ export default function Navbar() {
             )
           })}
 
+          {!isPro && (
+            <button
+              className="pit pill-nav-item"
+              style={{ color: 'var(--c)' }}
+              onClick={() => navigate('/planos')}
+            >
+              <svg width={20} height={20} viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd"/>
+              </svg>
+              <span className="pill-nav-label">Upgrade</span>
+            </button>
+          )}
+
           <button className="pit pill-nav-item pout pill-nav-item--logout" onClick={logout}>
             <LogoutIcon size={20} />
             <span className="pill-nav-label">Sair</span>
