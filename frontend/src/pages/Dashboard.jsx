@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { transactionsAPI, budgetAPI } from '../services/api.js'
 import Navbar           from '../components/Navbar.jsx'
 import DashboardHero    from '../components/DashboardHero.jsx'
@@ -18,10 +17,8 @@ const CATEGORY_LABELS = {
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate()
   let user = {}
   try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
-  const isPro = user.plan === 'pro'
   const [summary,      setSummary]      = useState(null)
   const [transactions, setTransactions] = useState([])
   const [limits,       setLimits]       = useState([])
@@ -87,28 +84,6 @@ export default function Dashboard() {
       <div className="page pwnav fade-in">
         {/* Hero */}
         <DashboardHero user={user} summary={summary} onAddTransaction={() => setShowForm(true)} />
-
-        {/* Banner upgrade — só aparece para usuários Free */}
-        {!isPro && (
-          <div
-            onClick={() => navigate('/planos')}
-            style={{
-              cursor: 'pointer', marginBottom: 16, padding: '12px 16px',
-              background: 'linear-gradient(135deg, rgba(0,255,204,.08) 0%, rgba(0,255,204,.03) 100%)',
-              border: '1px solid rgba(0,255,204,.2)', borderRadius: 12,
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 18 }}>⚡</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c)' }}>Upgrade para Pro</div>
-                <div style={{ fontSize: 12, color: 'var(--t2)' }}>Transações ilimitadas, PDF mensal, limites por categoria e mais</div>
-              </div>
-            </div>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--c)', whiteSpace: 'nowrap' }}>Ver planos →</span>
-          </div>
-        )}
 
         {/* Lembrete salário + auto-launch */}
         <SalaryReminder salary={summary?.salary} />
