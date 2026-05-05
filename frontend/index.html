@@ -31,7 +31,12 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js', { scope: '/' });
+          navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
+            .then(function(reg) { reg.update(); });
+          // Quando um novo SW assume o controle, recarrega para pegar os arquivos novos
+          navigator.serviceWorker.addEventListener('controllerchange', function() {
+            window.location.reload();
+          });
         });
       }
     </script>
