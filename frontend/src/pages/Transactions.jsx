@@ -12,8 +12,14 @@ export default function Transactions() {
   const [loading,      setLoading]      = useState(true)
   const [showForm,     setShowForm]     = useState(false)
   const [filter,       setFilter]       = useState('all')
+  const [toast,        setToast]        = useState(null) // { msg, ok }
   const fileInputRef                    = useRef(null)
   const now                             = new Date()
+
+  const showToast = (msg, ok = true) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 4000)
+  }
 
   const fetchTransactions = async () => {
     try {
@@ -33,10 +39,10 @@ export default function Transactions() {
     try {
       setLoading(true)
       const res = await transactionsAPI.importCSV(formData)
-      alert(res.data.message)
+      showToast(res.data.message)
       fetchTransactions()
     } catch (err) {
-      alert(err.response?.data?.error || 'Erro ao importar CSV.')
+      showToast(err.response?.data?.error || 'Erro ao importar CSV.', false)
       setLoading(false)
     }
     e.target.value = null
@@ -47,7 +53,7 @@ export default function Transactions() {
     try {
       await transactionsAPI.remove(id)
       fetchTransactions()
-    } catch { alert('Erro ao remover.') }
+    } catch { showToast('Erro ao remover.', false) }
   }
 
   const filtered      = transactions.filter(t => filter === 'all' || t.type === filter)
@@ -57,6 +63,11 @@ export default function Transactions() {
   return (
     <>
       <Navbar />
+      {toast && (
+        <div className={`toast ${toast.ok ? 'tok' : 'terr'}`}>
+          {toast.msg}
+        </div>
+      )}
       <div className="page pwnav fade-in">
 
         {/* Cabeçalho */}
