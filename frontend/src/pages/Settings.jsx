@@ -120,58 +120,64 @@ export default function Settings() {
   }
 
   const handleToggleNotifications = async () => {
-    if (notifStatus === 'unsupported') return
+    if (notifStatus === 'unsupported' || notifLoading) return
 
     if (notifStatus === 'denied') {
-      showMsg('Notificações bloqueadas. Vá em Configurações do celular > FinançasPro > Notificações e habilite.', 'error')
+      showMsg('Bloqueado — Ajustes > FinançasPro > Notificações', 'error')
       return
     }
 
-    // iOS: push só funciona no PWA instalado (não no Safari normal)
     const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone
     if (isIOS && !isStandalone) {
-      showMsg('No iPhone, adicione o app à tela inicial e abra de lá para ativar notificações.', 'error')
+      showMsg('Adicione o app à tela inicial e abra de lá para ativar notificações.', 'error')
       return
     }
 
+    if (notifStatus === 'granted') {
+      // Desativar — vira na hora, async em background
+      setNotifStatus('default')
+      showMsg('Notificações desativadas.')
+      navigator.serviceWorker.ready
+        .then(reg => reg.pushManager.getSubscription())
+        .then(sub => {
+          if (!sub) return
+          notificationsAPI.unsubscribe({ endpoint: sub.endpoint }).catch(() => {})
+          sub.unsubscribe().catch(() => {})
+        })
+      return
+    }
+
+    // Ativar — só precisa aguardar a permissão do sistema
     setNotifLoading(true)
     try {
-      if (notifStatus === 'granted') {
-        const reg = await navigator.serviceWorker.ready
-        const sub = await reg.pushManager.getSubscription()
-        if (sub) {
-          await notificationsAPI.unsubscribe({ endpoint: sub.endpoint })
-          await sub.unsubscribe()
-        }
-        setNotifStatus('default')
-        showMsg('Notificações desativadas.')
-      } else {
-        // requestPermission deve ser o primeiro await — mantém o user gesture no iOS
-        const permission = await Notification.requestPermission()
-        if (permission !== 'granted') {
-          setNotifStatus(permission)
-          if (permission === 'denied') showMsg('Permissão negada nas configurações do celular.', 'error')
-          return
-        }
-
-        const [{ data }, reg] = await Promise.all([
-          notificationsAPI.getVapidKey(),
-          navigator.serviceWorker.ready,
-        ])
-        if (!data.key) throw new Error('Chave VAPID não configurada no servidor.')
-
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(data.key),
-        })
-        await notificationsAPI.subscribe(sub.toJSON())
-        setNotifStatus('granted')
-        showMsg('Notificações ativadas! Você receberá avisos a cada transação.')
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        setNotifStatus(permission)
+        if (permission === 'denied') showMsg('Permissão negada. Ajustes > FinançasPro > Notificações.', 'error')
+        return
       }
+
+      // Permissão concedida — vira o toggle imediatamente
+      setNotifStatus('granted')
+      setNotifLoading(false)
+      showMsg('Notificações ativadas!')
+
+      // Registra assinatura em background (não bloqueia a UI)
+      const [{ data }, reg] = await Promise.all([
+        notificationsAPI.getVapidKey(),
+        navigator.serviceWorker.ready,
+      ])
+      if (!data.key) return
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(data.key),
+      })
+      await notificationsAPI.subscribe(sub.toJSON())
     } catch (err) {
       console.error('Push error:', err)
-      showMsg(err.message || 'Erro ao configurar notificações.', 'error')
+      setNotifStatus('default')
+      showMsg(err.message || 'Erro ao ativar notificações.', 'error')
     } finally {
       setNotifLoading(false)
     }
@@ -234,21 +240,29 @@ export default function Settings() {
             {notifStatus !== 'unsupported' && notifStatus !== 'loading' && (
               <button
                 onClick={handleToggleNotifications}
-                disabled={notifLoading || notifStatus === 'denied'}
+                disabled={notifStatus === 'denied'}
                 style={{
                   flexShrink: 0,
-                  width: 48, height: 28, borderRadius: 14, border: 'none', cursor: notifStatus === 'denied' ? 'not-allowed' : 'pointer',
-                  background: notifStatus === 'granted' ? 'var(--c)' : 'rgba(255,255,255,.1)',
-                  transition: 'background .2s', position: 'relative',
+                  width: 48, height: 28, borderRadius: 14, border: 'none',
+                  cursor: notifStatus === 'denied' ? 'not-allowed' : 'pointer',
+                  background: notifStatus === 'granted' ? 'var(--c)' : 'rgba(255,255,255,.12)',
+                  transition: 'background .12s, transform .08s',
+                  position: 'relative', outline: 'none',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(.93)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                onTouchStart={e => e.currentTarget.style.transform = 'scale(.93)'}
+                onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
                 aria-label="Toggle notificações"
               >
                 <span style={{
                   position: 'absolute', top: 4,
                   left: notifStatus === 'granted' ? 24 : 4,
                   width: 20, height: 20, borderRadius: '50%',
-                  background: notifStatus === 'granted' ? '#020d10' : 'var(--t2)',
-                  transition: 'left .2s',
+                  background: notifStatus === 'granted' ? '#020d10' : 'rgba(255,255,255,.5)',
+                  transition: 'left .12s, background .12s',
+                  boxShadow: '0 1px 4px rgba(0,0,0,.3)',
                 }} />
               </button>
             )}
