@@ -83,6 +83,48 @@ router.get('/summary', async (req, res) => {
   }
 })
 
+// ── GET /transactions/dashboard ────────────────────────
+// Endpoint unificado: retorna summary + transactions + limits em 1 chamada
+// Substitui as 3 chamadas separadas do Dashboard (3 round trips → 1)
+router.get('/dashboard', async (req, res) => {
+  try {
+    const now   = new Date()
+    const month = now.getMonth() + 1
+    const year  = now.getFullYear()
+
+    const [transactions, budgets, user, limits] = await Promise.all([
+      prisma.transaction.findMany({
+        where: { userId: req.userId, month, year, archived: false },
+        orderBy: { date: 'desc' }
+      }),
+      prisma.budget.findMany({ where: { userId: req.userId } }),
+      prisma.user.findUnique({ where: { id: req.userId } }),
+      prisma.categoryLimit.findMany({ where: { userId: req.userId } }),
+    ])
+
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+    const totalIncome     = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+    const totalFixedCosts = budgets.reduce((s, b) => s + b.amount, 0)
+    const autoLaunched    = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const totalAvailable  = autoLaunched
+      ? user.salary + totalIncome
+      : user.salary + totalIncome - totalFixedCosts
+    const currentBalance  = totalAvailable - totalExpenses
+    const percentUsed     = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
+
+    res.json({
+      summary: { salary: user.salary, totalIncome, totalFixedCosts, totalExpenses, totalAvailable, currentBalance, percentUsed, autoLaunched, month, year },
+      transactions,
+      limits,
+    })
+  } catch (err) {
+    console.error('Erro no dashboard:', err)
+    res.status(500).json({ error: 'Erro ao carregar dashboard.' })
+  }
+})
+
 // ── GET /transactions ───────────────────────────────────
 // Lista todas as transações do mês atual (não arquivadas)
 router.get('/', async (req, res) => {

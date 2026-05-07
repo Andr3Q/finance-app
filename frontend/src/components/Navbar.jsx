@@ -21,6 +21,14 @@ export default function Navbar() {
     navigate('/login')
   }
 
+  const prefetchMap = {
+    '/dashboard':    () => import('../pages/Dashboard.jsx'),
+    '/transactions': () => import('../pages/Transactions.jsx'),
+    '/settings':     () => import('../pages/Settings.jsx'),
+    '/planos':       () => import('../pages/Planos.jsx'),
+  }
+  const prefetch = (path) => prefetchMap[path]?.()
+
   const links = [
     { path: '/dashboard',    label: 'Dashboard',  Icon: HomeIcon },
     { path: '/transactions', label: 'Transações', Icon: WalletIcon },
@@ -63,6 +71,7 @@ export default function Navbar() {
               key={path}
               className={`nl${isActive(path) ? ' on' : ''}`}
               onClick={() => navigate(path)}
+              onMouseEnter={() => prefetch(path)}
             >
               <Icon size={15} />
               {label}
@@ -96,6 +105,7 @@ export default function Navbar() {
                 key={path}
                 className={`pit pill-nav-item${active ? ' on pill-nav-item--active' : ''}`}
                 onClick={(e) => handlePillClick(path, e)}
+                onTouchStart={() => prefetch(path)}
               >
                 {ripple?.path === path && (
                   <span className="pill-ripple" style={{ left: ripple.x, top: ripple.y }} />

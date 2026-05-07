@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { transactionsAPI, budgetAPI } from '../services/api.js'
+import { transactionsAPI } from '../services/api.js'
+import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar           from '../components/Navbar.jsx'
 import DashboardHero    from '../components/DashboardHero.jsx'
 import AlertBanner      from '../components/AlertBanner.jsx'
@@ -32,19 +33,27 @@ export default function Dashboard() {
     setTimeout(() => setToast(null), 4000)
   }
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (invalidate = false) => {
+    if (invalidate) invalidateCache('dashboard')
+
+    // Mostra dados em cache imediatamente (stale-while-revalidate)
+    const cached = getCache('dashboard')
+    if (cached) {
+      setSummary(cached.summary)
+      setTransactions(cached.transactions)
+      setLimits(cached.limits)
+      setLoading(false)
+    }
+
     try {
-      const [sumRes, txRes, limRes] = await Promise.all([
-        transactionsAPI.summary(),
-        transactionsAPI.list(),
-        budgetAPI.getLimits(),
-      ])
-      setSummary(sumRes.data)
-      setTransactions(txRes.data)
-      setLimits(limRes.data)
+      const { data } = await transactionsAPI.dashboard()
+      setSummary(data.summary)
+      setTransactions(data.transactions)
+      setLimits(data.limits)
+      setCache('dashboard', data)
     } catch (err) {
       console.error(err)
-      showToast('Erro ao carregar dados. Tente novamente.', false)
+      if (!cached) showToast('Erro ao carregar dados. Tente novamente.', false)
     } finally {
       setLoading(false)
     }
@@ -56,7 +65,7 @@ export default function Dashboard() {
     if (!window.confirm('Remover esta transação?')) return
     try {
       await transactionsAPI.remove(id)
-      fetchData()
+      fetchData(true)
     } catch {
       showToast('Erro ao remover transação.', false)
     }
@@ -187,7 +196,7 @@ export default function Dashboard() {
       </button>
 
       {showForm && (
-        <TransactionForm onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); fetchData() }} />
+        <TransactionForm onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); fetchData(true) }} />
       )}
     </>
   )
