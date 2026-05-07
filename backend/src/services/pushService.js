@@ -2,14 +2,22 @@ const webpush    = require('web-push')
 const { PrismaClient } = require('@prisma/client')
 const prisma = new PrismaClient()
 
-webpush.setVapidDetails(
-  `mailto:${process.env.EMAIL_USER || 'app@financaspro.com.br'}`,
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-)
+let vapidConfigured = false
+
+function ensureVapid() {
+  if (vapidConfigured) return true
+  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return false
+  webpush.setVapidDetails(
+    `mailto:${process.env.EMAIL_USER || 'app@financaspro.com.br'}`,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  )
+  vapidConfigured = true
+  return true
+}
 
 async function sendPushToUser(userId, payload) {
-  if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return
+  if (!ensureVapid()) return
 
   const subs = await prisma.pushSubscription.findMany({ where: { userId } })
   if (!subs.length) return
