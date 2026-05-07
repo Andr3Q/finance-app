@@ -1,33 +1,29 @@
 import { useState, useEffect } from 'react'
+import { getInstallPrompt, clearInstallPrompt, isInstalled } from '../services/installPrompt.js'
 
 const DISMISS_KEY  = 'install-banner-dismissed'
 const DISMISS_DAYS = 7
 
 export default function InstallBanner() {
-  const [deferredPrompt, setDeferredPrompt] = useState(null)
-  const [visible,   setVisible]   = useState(false)
-  const [hiding,    setHiding]    = useState(false)
-  const [mode,      setMode]      = useState('install') // 'install' | 'installing' | 'fallback'
-  const [isMobile,  setIsMobile]  = useState(false)
+  const [visible,  setVisible]  = useState(false)
+  const [hiding,   setHiding]   = useState(false)
+  const [mode,     setMode]     = useState('install') // 'install' | 'installing' | 'fallback'
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     setIsMobile(window.innerWidth <= 768)
 
-    if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return
+    // Já instalado → nunca mostrar
+    if (isInstalled()) return
 
+    // Fechado recentemente → aguardar
     const dismissed = localStorage.getItem(DISMISS_KEY)
     if (dismissed && (Date.now() - Number(dismissed)) / 86400000 < DISMISS_DAYS) return
 
-    const handler = (e) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-      setMode('install')
-      setVisible(true)
-    }
+    // Mostrar imediatamente — não depende do beforeinstallprompt
+    setVisible(true)
 
-    window.addEventListener('beforeinstallprompt', handler)
     window.addEventListener('appinstalled', () => animateHide())
-    return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
   const animateHide = () => {
@@ -35,27 +31,22 @@ export default function InstallBanner() {
     setTimeout(() => { setVisible(false); setHiding(false); setMode('install') }, 300)
   }
 
-  // × fechado pelo usuário → salva 7 dias
   const handleClose = () => {
     localStorage.setItem(DISMISS_KEY, String(Date.now()))
     animateHide()
   }
 
   const handleInstall = async () => {
-    if (!deferredPrompt) {
-      setMode('fallback')
-      return
-    }
+    const prompt = getInstallPrompt()
+    if (!prompt) { setMode('fallback'); return }
     setMode('installing')
     try {
-      deferredPrompt.prompt()
-      const { outcome } = await deferredPrompt.userChoice
-      setDeferredPrompt(null)
-
+      prompt.prompt()
+      const { outcome } = await prompt.userChoice
+      clearInstallPrompt()
       if (outcome === 'accepted') {
         animateHide()
       } else {
-        // Cancelou o diálogo nativo — mostra instrução manual, SEM salvar 7 dias
         setMode('fallback')
       }
     } catch {
@@ -78,7 +69,10 @@ export default function InstallBanner() {
   return (
     <div style={isMobile ? posMobile : posDesktop}>
       <div style={anim}>
-        {isMobile ? <MobileBanner mode={mode} onInstall={handleInstall} onClose={handleClose} /> : <DesktopBanner mode={mode} onInstall={handleInstall} onClose={handleClose} />}
+        {isMobile
+          ? <MobileBanner mode={mode} onInstall={handleInstall} onClose={handleClose} />
+          : <DesktopBanner mode={mode} onInstall={handleInstall} onClose={handleClose} />
+        }
       </div>
     </div>
   )
@@ -104,9 +98,7 @@ function MobileBanner({ mode, onInstall, onClose }) {
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 4, flexShrink: 0 }} aria-label="Fechar">
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-            </svg>
+            <XIcon />
           </button>
         </div>
       ) : (
@@ -139,9 +131,7 @@ function MobileBanner({ mode, onInstall, onClose }) {
             }
           </button>
           <button onClick={onClose} style={{ flexShrink: 0, background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 4, WebkitTapHighlightColor: 'transparent' }} aria-label="Fechar">
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-            </svg>
+            <XIcon />
           </button>
         </div>
       )}
@@ -167,15 +157,13 @@ function DesktopBanner({ mode, onInstall, onClose }) {
           </div>
           <div style={{ fontSize: 11, color: mode === 'fallback' ? 'var(--t1)' : 'var(--t2)', marginTop: 2, lineHeight: 1.5 }}>
             {mode === 'fallback'
-              ? <>Menu <strong>⋮</strong> do Chrome → <strong style={{ color: 'var(--c)' }}>"Instalar app"</ strong></>
+              ? <>Menu <strong>⋮</strong> do Chrome → <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong></>
               : 'Acesso rápido na tela inicial'
             }
           </div>
         </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 2, flexShrink: 0 }} aria-label="Fechar">
-          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-          </svg>
+          <XIcon size={14} />
         </button>
       </div>
       {mode !== 'fallback' && (
@@ -200,5 +188,13 @@ function DesktopBanner({ mode, onInstall, onClose }) {
         </button>
       )}
     </div>
+  )
+}
+
+function XIcon({ size = 16 }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" width={size} height={size}>
+      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+    </svg>
   )
 }
