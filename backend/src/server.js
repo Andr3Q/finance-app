@@ -11,10 +11,11 @@ const compression  = require('compression')
 const path         = require('path')
 
 const { apiLimiter, authLimiter } = require('./middleware/rateLimiter')
-const authRoutes        = require('./routes/auth')
-const transactionRoutes = require('./routes/transactions')
-const budgetRoutes      = require('./routes/budget')
-const reportRoutes      = require('./routes/reports')
+const authRoutes          = require('./routes/auth')
+const transactionRoutes   = require('./routes/transactions')
+const budgetRoutes        = require('./routes/budget')
+const reportRoutes        = require('./routes/reports')
+const notificationRoutes  = require('./routes/notifications')
 
 const app        = express()
 const PORT       = process.env.PORT || 3001
@@ -71,10 +72,11 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }))
 app.use('/api/', apiLimiter)
 
 // ── Rotas da API ────────────────────────────────────────
-app.use('/api/auth',         authLimiter, authRoutes)
-app.use('/api/transactions', transactionRoutes)
-app.use('/api/budget',       budgetRoutes)
-app.use('/api/reports',      reportRoutes)
+app.use('/api/auth',          authLimiter, authRoutes)
+app.use('/api/transactions',  transactionRoutes)
+app.use('/api/budget',        budgetRoutes)
+app.use('/api/reports',       reportRoutes)
+app.use('/api/notifications', notificationRoutes)
 
 // ── Health Check ────────────────────────────────────────
 app.get('/health', (req, res) => {

@@ -86,4 +86,11 @@ export const reportsAPI = {
   history:      () => api.get('/reports/history')
 }
 
+// ── Funções de notificações push ────────────────────────
+export const notificationsAPI = {
+  getVapidKey: ()     => api.get('/notifications/vapid-public-key'),
+  subscribe:   (data) => api.post('/notifications/subscribe', data),
+  unsubscribe: (data) => api.post('/notifications/unsubscribe', data),
+}
+
 export default api

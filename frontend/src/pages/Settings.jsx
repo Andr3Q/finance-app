@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { budgetAPI, reportsAPI } from '../services/api.js'
+import { budgetAPI, reportsAPI, notificationsAPI } from '../services/api.js'
 import Navbar from '../components/Navbar.jsx'
 import UpgradeModal from '../components/UpgradeModal.jsx'
 
@@ -14,6 +14,13 @@ const CATEGORIES = [
   { key: 'home',      label: 'Casa'        },
   { key: 'other',     label: 'Outros'      },
 ]
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw     = atob(base64)
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
+}
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -35,6 +42,8 @@ export default function Settings() {
   const [msg,          setMsg]           = useState('')
   const [msgType,      setMsgType]       = useState('success')
   const [upgradeModal, setUpgradeModal]  = useState(null)
+  const [notifStatus,  setNotifStatus]   = useState('loading') // loading | unsupported | default | granted | denied
+  const [notifLoading, setNotifLoading]  = useState(false)
 
   const showMsg = (text, type = 'success') => {
     setMsg(text); setMsgType(type)
@@ -50,7 +59,16 @@ export default function Settings() {
     catch (err) { console.error(err) }
   }
 
-  useEffect(() => { fetchBudgets(); fetchLimits() }, [])
+  useEffect(() => {
+    fetchBudgets()
+    fetchLimits()
+    // Checa suporte e status atual de notificações
+    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setNotifStatus('unsupported')
+    } else {
+      setNotifStatus(Notification.permission) // 'default' | 'granted' | 'denied'
+    }
+  }, [])
 
   const handleSalary = async (e) => {
     e.preventDefault(); setSavingSal(true)
@@ -101,6 +119,49 @@ export default function Settings() {
     } catch { showMsg('Erro ao remover limite.', 'error') }
   }
 
+  const handleToggleNotifications = async () => {
+    if (notifStatus === 'denied') {
+      showMsg('Notificações bloqueadas. Habilite nas configurações do seu navegador/celular.', 'error')
+      return
+    }
+    if (notifStatus === 'unsupported') return
+    setNotifLoading(true)
+    try {
+      if (notifStatus === 'granted') {
+        // Desativar: remove a assinatura do backend
+        const reg  = await navigator.serviceWorker.ready
+        const sub  = await reg.pushManager.getSubscription()
+        if (sub) {
+          await notificationsAPI.unsubscribe({ endpoint: sub.endpoint })
+          await sub.unsubscribe()
+        }
+        setNotifStatus('default')
+        showMsg('Notificações desativadas.')
+      } else {
+        // Ativar: pede permissão, cria assinatura e salva no backend
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') { setNotifStatus(permission); return }
+
+        const { data } = await notificationsAPI.getVapidKey()
+        if (!data.key) throw new Error('Chave VAPID não disponível.')
+
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(data.key),
+        })
+        await notificationsAPI.subscribe(sub.toJSON())
+        setNotifStatus('granted')
+        showMsg('Notificações ativadas! Você receberá avisos de transações.')
+      }
+    } catch (err) {
+      console.error(err)
+      showMsg('Erro ao configurar notificações.', 'error')
+    } finally {
+      setNotifLoading(false)
+    }
+  }
+
   const handleMonthlyClose = async () => {
     if (!window.confirm('Isso vai gerar o PDF, enviar para o seu e-mail e zerar os gastos do mês.\n\nDeseja continuar?')) return
     setClosing(true)
@@ -138,6 +199,46 @@ export default function Settings() {
             {msg}
           </div>
         )}
+
+        {/* Notificações Push */}
+        <div className="card mb16">
+          <div className="sct" style={{ marginBottom: 14 }}>Notificações</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 3 }}>
+                Avisos de transações
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--t2)' }}>
+                {notifStatus === 'unsupported' && 'Não suportado neste dispositivo/navegador.'}
+                {notifStatus === 'denied'      && 'Bloqueado. Habilite nas configurações do celular.'}
+                {notifStatus === 'granted'     && 'Ativo — você recebe avisos de gastos e saldo.'}
+                {notifStatus === 'default'     && 'Receba uma notificação a cada transação registrada.'}
+                {notifStatus === 'loading'     && 'Verificando...'}
+              </div>
+            </div>
+            {notifStatus !== 'unsupported' && notifStatus !== 'loading' && (
+              <button
+                onClick={handleToggleNotifications}
+                disabled={notifLoading || notifStatus === 'denied'}
+                style={{
+                  flexShrink: 0,
+                  width: 48, height: 28, borderRadius: 14, border: 'none', cursor: notifStatus === 'denied' ? 'not-allowed' : 'pointer',
+                  background: notifStatus === 'granted' ? 'var(--c)' : 'rgba(255,255,255,.1)',
+                  transition: 'background .2s', position: 'relative',
+                }}
+                aria-label="Toggle notificações"
+              >
+                <span style={{
+                  position: 'absolute', top: 4,
+                  left: notifStatus === 'granted' ? 24 : 4,
+                  width: 20, height: 20, borderRadius: '50%',
+                  background: notifStatus === 'granted' ? '#020d10' : 'var(--t2)',
+                  transition: 'left .2s',
+                }} />
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Salário */}
         <div className="card mb16">

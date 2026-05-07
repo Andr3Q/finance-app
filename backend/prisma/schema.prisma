@@ -32,9 +32,10 @@ model User {
   resetTokenExpiry DateTime?
   plan             String    @default("free")  // "free" ou "pro"
 
-  transactions    Transaction[]
-  budgets         Budget[]
-  categoryLimits  CategoryLimit[]
+  transactions      Transaction[]
+  budgets           Budget[]
+  categoryLimits    CategoryLimit[]
+  pushSubscriptions PushSubscription[]
 }
 
 // ── Tabela: transactions ────────────────────────────────
@@ -69,10 +70,22 @@ model Budget {
 // Limite de gasto mensal por categoria (ex: máx R$300 em Alimentação)
 model CategoryLimit {
   id       String @id @default(uuid())
-  category String  // "food", "shopping", "transport", etc.
-  amount   Float   // valor máximo permitido por mês
+  category String
+  amount   Float
   userId   String
   user     User   @relation(fields: [userId], references: [id])
 
-  @@unique([userId, category]) // um limite por categoria por usuário
+  @@unique([userId, category])
+}
+
+// ── Tabela: push_subscriptions ──────────────────────────
+// Armazena as assinaturas Web Push de cada usuário
+model PushSubscription {
+  id        String   @id @default(uuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
 }
