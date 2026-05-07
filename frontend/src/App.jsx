@@ -1,7 +1,8 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import WaveBackground from './components/WaveBackground.jsx'
 import InstallBanner from './components/InstallBanner.jsx'
+import { setInstallPrompt } from './services/installPrompt.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazy(() => import('./pages/Landing.jsx'))
@@ -32,6 +33,12 @@ function PageLoader() {
 }
 
 export default function App() {
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setInstallPrompt(e) }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
   return (
     <BrowserRouter>
       <WaveBackground />
