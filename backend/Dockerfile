@@ -38,4 +38,4 @@ EXPOSE 3001
 # 2. Inicia o servidor com nodemon (reinicia automaticamente ao salvar)
 # prisma db push → cria as tabelas direto do schema.prisma (não precisa de migrations)
 # nodemon → reinicia o servidor automaticamente quando você editar algum arquivo
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npx nodemon src/server.js"]
+CMD ["node", "src/server.js"]
