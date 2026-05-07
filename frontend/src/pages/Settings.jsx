@@ -60,8 +60,7 @@ export default function Settings() {
   }
 
   useEffect(() => {
-    fetchBudgets()
-    fetchLimits()
+    Promise.all([fetchBudgets(), fetchLimits()])
     // Checa suporte e status atual de notificações
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       setNotifStatus('unsupported')

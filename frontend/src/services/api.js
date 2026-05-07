@@ -59,6 +59,7 @@ export const authAPI = {
 
 // ── Funções de transações ───────────────────────────────
 export const transactionsAPI = {
+  dashboard:  ()     => api.get('/transactions/dashboard'),
   list:       ()     => api.get('/transactions'),
   summary:    ()     => api.get('/transactions/summary'),
   create:     (data) => api.post('/transactions', data),
