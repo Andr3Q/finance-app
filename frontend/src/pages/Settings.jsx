@@ -120,17 +120,26 @@ export default function Settings() {
   }
 
   const handleToggleNotifications = async () => {
+    if (notifStatus === 'unsupported') return
+
     if (notifStatus === 'denied') {
-      showMsg('Notificações bloqueadas. Habilite nas configurações do seu navegador/celular.', 'error')
+      showMsg('Notificações bloqueadas. Vá em Configurações do celular > FinançasPro > Notificações e habilite.', 'error')
       return
     }
-    if (notifStatus === 'unsupported') return
+
+    // iOS: push só funciona no PWA instalado (não no Safari normal)
+    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone
+    if (isIOS && !isStandalone) {
+      showMsg('No iPhone, adicione o app à tela inicial e abra de lá para ativar notificações.', 'error')
+      return
+    }
+
     setNotifLoading(true)
     try {
       if (notifStatus === 'granted') {
-        // Desativar: remove a assinatura do backend
-        const reg  = await navigator.serviceWorker.ready
-        const sub  = await reg.pushManager.getSubscription()
+        const reg = await navigator.serviceWorker.ready
+        const sub = await reg.pushManager.getSubscription()
         if (sub) {
           await notificationsAPI.unsubscribe({ endpoint: sub.endpoint })
           await sub.unsubscribe()
@@ -138,25 +147,31 @@ export default function Settings() {
         setNotifStatus('default')
         showMsg('Notificações desativadas.')
       } else {
-        // Ativar: pede permissão, cria assinatura e salva no backend
+        // requestPermission deve ser o primeiro await — mantém o user gesture no iOS
         const permission = await Notification.requestPermission()
-        if (permission !== 'granted') { setNotifStatus(permission); return }
+        if (permission !== 'granted') {
+          setNotifStatus(permission)
+          if (permission === 'denied') showMsg('Permissão negada nas configurações do celular.', 'error')
+          return
+        }
 
-        const { data } = await notificationsAPI.getVapidKey()
-        if (!data.key) throw new Error('Chave VAPID não disponível.')
+        const [{ data }, reg] = await Promise.all([
+          notificationsAPI.getVapidKey(),
+          navigator.serviceWorker.ready,
+        ])
+        if (!data.key) throw new Error('Chave VAPID não configurada no servidor.')
 
-        const reg = await navigator.serviceWorker.ready
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(data.key),
         })
         await notificationsAPI.subscribe(sub.toJSON())
         setNotifStatus('granted')
-        showMsg('Notificações ativadas! Você receberá avisos de transações.')
+        showMsg('Notificações ativadas! Você receberá avisos a cada transação.')
       }
     } catch (err) {
-      console.error(err)
-      showMsg('Erro ao configurar notificações.', 'error')
+      console.error('Push error:', err)
+      showMsg(err.message || 'Erro ao configurar notificações.', 'error')
     } finally {
       setNotifLoading(false)
     }
@@ -208,11 +223,11 @@ export default function Settings() {
               <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 3 }}>
                 Avisos de transações
               </div>
-              <div style={{ fontSize: 12, color: 'var(--t2)' }}>
-                {notifStatus === 'unsupported' && 'Não suportado neste dispositivo/navegador.'}
-                {notifStatus === 'denied'      && 'Bloqueado. Habilite nas configurações do celular.'}
-                {notifStatus === 'granted'     && 'Ativo — você recebe avisos de gastos e saldo.'}
-                {notifStatus === 'default'     && 'Receba uma notificação a cada transação registrada.'}
+              <div style={{ fontSize: 12, color: notifStatus === 'granted' ? 'var(--green)' : notifStatus === 'denied' ? 'var(--red)' : 'var(--t2)' }}>
+                {notifStatus === 'unsupported' && 'Instale o app na tela inicial para usar notificações.'}
+                {notifStatus === 'denied'      && 'Bloqueado — habilite em Configurações > FinançasPro.'}
+                {notifStatus === 'granted'     && '✓ Ativo — você recebe avisos de gastos e saldo.'}
+                {notifStatus === 'default'     && 'Receba avisos a cada transação registrada.'}
                 {notifStatus === 'loading'     && 'Verificando...'}
               </div>
             </div>
