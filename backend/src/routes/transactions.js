@@ -15,6 +15,13 @@ const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const multer         = require('multer')
 const { parse }      = require('csv-parse')
+const { sendPushToUser } = require('../services/pushService')
+
+const CATEGORY_LABELS = {
+  food:'Alimentação', shopping:'Shopping', transport:'Transporte',
+  health:'Saúde', leisure:'Lazer', education:'Educação',
+  home:'Casa', income:'Entrada Extra', other:'Outros',
+}
 
 const router = express.Router()
 
@@ -141,6 +148,32 @@ router.post('/', async (req, res) => {
         year:        now.getFullYear(),
         userId:      req.userId
       }
+    })
+
+    // Envia push notification (não bloqueia a resposta)
+    setImmediate(async () => {
+      try {
+        const [expenses, incomes, user, budgets] = await Promise.all([
+          prisma.transaction.aggregate({ where: { userId: req.userId, type: 'expense', month: now.getMonth()+1, year: now.getFullYear(), archived: false }, _sum: { amount: true } }),
+          prisma.transaction.aggregate({ where: { userId: req.userId, type: 'income',  month: now.getMonth()+1, year: now.getFullYear(), archived: false }, _sum: { amount: true } }),
+          prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true } }),
+          prisma.budget.aggregate({ where: { userId: req.userId }, _sum: { amount: true } }),
+        ])
+        const totalExpenses  = expenses._sum.amount || 0
+        const totalIncomes   = incomes._sum.amount  || 0
+        const totalFixed     = budgets._sum.amount  || 0
+        const balance        = (user.salary + totalIncomes) - totalFixed - totalExpenses
+        const balanceFmt     = balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+        const amountFmt      = parsedAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+        const catLabel       = CATEGORY_LABELS[category] || category
+        const descLabel      = description ? ` — ${description}` : ''
+
+        await sendPushToUser(req.userId, {
+          title: type === 'income' ? '💰 Entrada registrada' : '💸 Gasto registrado',
+          body:  `${type === 'income' ? '+' : '−'}R$ ${amountFmt} em ${catLabel}${descLabel}\nSaldo: R$ ${balanceFmt}`,
+          url:   '/dashboard',
+        })
+      } catch (e) { console.error('Push error:', e.message) }
     })
 
     res.status(201).json(transaction)
