@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { budgetAPI, reportsAPI, notificationsAPI } from '../services/api.js'
+import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../services/installPrompt.js'
 import Navbar from '../components/Navbar.jsx'
 import UpgradeModal from '../components/UpgradeModal.jsx'
 
@@ -44,6 +45,8 @@ export default function Settings() {
   const [upgradeModal, setUpgradeModal]  = useState(null)
   const [notifStatus,  setNotifStatus]   = useState('loading') // loading | unsupported | default | granted | denied
   const [notifLoading, setNotifLoading]  = useState(false)
+  const [appInstalled, setAppInstalled]  = useState(() => isInstalled())
+  const [installMode,  setInstallMode]   = useState('idle') // idle | installing | fallback
 
   const showMsg = (text, type = 'success') => {
     setMsg(text); setMsgType(type)
@@ -61,13 +64,34 @@ export default function Settings() {
 
   useEffect(() => {
     Promise.all([fetchBudgets(), fetchLimits()])
-    // Checa suporte e status atual de notificações
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       setNotifStatus('unsupported')
     } else {
-      setNotifStatus(Notification.permission) // 'default' | 'granted' | 'denied'
+      setNotifStatus(Notification.permission)
     }
+    const onInstalled = () => setAppInstalled(true)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => window.removeEventListener('appinstalled', onInstalled)
   }, [])
+
+  const handleInstall = async () => {
+    const prompt = getInstallPrompt()
+    if (!prompt) { setInstallMode('fallback'); return }
+    setInstallMode('installing')
+    try {
+      prompt.prompt()
+      const { outcome } = await prompt.userChoice
+      clearInstallPrompt()
+      if (outcome === 'accepted') {
+        setAppInstalled(true)
+        setInstallMode('idle')
+      } else {
+        setInstallMode('fallback')
+      }
+    } catch {
+      setInstallMode('fallback')
+    }
+  }
 
   const handleSalary = async (e) => {
     e.preventDefault(); setSavingSal(true)
@@ -267,6 +291,53 @@ export default function Settings() {
             )}
           </div>
         </div>
+
+        {/* Instalar App */}
+        {!appInstalled && (
+          <div className="card mb16">
+            <div className="sct" style={{ marginBottom: 14 }}>Instalar Aplicativo</div>
+            {installMode === 'fallback' ? (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span style={{ fontSize: 22, flexShrink: 0 }}>📲</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>
+                    Como instalar manualmente
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+                    Toque no menu <strong style={{ color: 'var(--t1)' }}>⋮</strong> do Chrome
+                    {' '}→ <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 3 }}>
+                    Adicionar à tela inicial
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--t2)' }}>
+                    Acesse o app com um toque, sem abrir o navegador.
+                  </div>
+                </div>
+                <button
+                  onClick={handleInstall}
+                  disabled={installMode === 'installing'}
+                  className="btn bp"
+                  style={{ flexShrink: 0, minWidth: 110, justifyContent: 'center' }}
+                  onMouseDown={e => e.currentTarget.style.transform = 'scale(.96)'}
+                  onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                  onTouchStart={e => e.currentTarget.style.transform = 'scale(.96)'}
+                  onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  {installMode === 'installing'
+                    ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> Aguarde</>
+                    : '⚡ Instalar'
+                  }
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Salário */}
         <div className="card mb16">
