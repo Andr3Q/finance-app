@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import WaveBackground from './components/WaveBackground.jsx'
+import InstallBanner from './components/InstallBanner.jsx'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazy(() => import('./pages/Landing.jsx'))
@@ -34,6 +35,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <WaveBackground />
+      <InstallBanner />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/"                element={<HomeRoute />} />
