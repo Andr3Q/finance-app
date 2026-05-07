@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financaspro-v3'
+const CACHE_NAME = 'financaspro-v4'
 const STATIC_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', e => {
@@ -19,12 +19,26 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url)
 
-  // Requisições de API sempre vão para a rede (nunca do cache)
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) {
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return
+
+  // Assets com hash (JS/CSS do Vite): cache-first — nunca mudam com o mesmo nome
+  if (url.pathname.startsWith('/assets/')) {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if (cached) return cached
+        return fetch(e.request).then(res => {
+          if (res && res.status === 200) {
+            const clone = res.clone()
+            caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone))
+          }
+          return res
+        })
+      })
+    )
     return
   }
 
-  // App shell: tenta rede primeiro, cai no cache se offline
+  // App shell e outras rotas: network-first, cache como fallback offline
   e.respondWith(
     fetch(e.request)
       .then(res => {
