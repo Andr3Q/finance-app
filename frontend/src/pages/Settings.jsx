@@ -76,8 +76,13 @@ export default function Settings() {
       setNotifStatus(Notification.permission)
     }
     const onInstalled = () => setAppInstalled(true)
+    const onPrompt = (e) => { e.preventDefault(); window.__installPrompt = e; setInstallMode('idle') }
     window.addEventListener('appinstalled', onInstalled)
-    return () => window.removeEventListener('appinstalled', onInstalled)
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    return () => {
+      window.removeEventListener('appinstalled', onInstalled)
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+    }
   }, [])
 
   const handleInstall = async () => {
