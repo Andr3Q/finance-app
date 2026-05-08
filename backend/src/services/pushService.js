@@ -1,6 +1,5 @@
-const webpush    = require('web-push')
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const webpush = require('web-push')
+const prisma  = require('../lib/prisma')
 
 let vapidConfigured = false
 

@@ -1,20 +1,22 @@
 const { PrismaClient } = require('@prisma/client')
 
-// Singleton — uma única conexão compartilhada por todas as rotas.
-// Evita múltiplos pools de conexão que esgotam o limite do PostgreSQL no Cloud Run.
+const buildUrl = () => {
+  const base = process.env.DATABASE_URL || ''
+  const sep  = base.includes('?') ? '&' : '?'
+  if (base.includes('connection_limit')) return base
+  return `${base}${sep}connection_limit=3&pool_timeout=15&connect_timeout=15`
+}
+
 const prisma = new PrismaClient({
-  log: ['error'],
-  datasources: {
-    db: {
-      url: (() => {
-        const base = process.env.DATABASE_URL || ''
-        // Adiciona parâmetros de pool se ainda não existirem
-        const sep = base.includes('?') ? '&' : '?'
-        if (base.includes('connection_limit')) return base
-        return `${base}${sep}connection_limit=3&pool_timeout=15&connect_timeout=15`
-      })()
-    }
-  }
+  log: [{ emit: 'event', level: 'error' }],
+  datasources: { db: { url: buildUrl() } },
+})
+
+// Neon termina conexões ociosas (E57P01) — Prisma reconecta automaticamente.
+// Suprime esse log esperado para não poluir o terminal.
+prisma.$on('error', (e) => {
+  if (e.message?.includes('terminating connection due to administrator command')) return
+  console.error('[Prisma]', e.message)
 })
 
 module.exports = prisma
