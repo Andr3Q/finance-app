@@ -30,11 +30,19 @@
     <link rel="icon" href="/icon-192.png" type="image/png" />
 
     <script>
+      // Captura beforeinstallprompt o mais cedo possível — antes do React montar.
+      // O evento pode disparar durante o carregamento inicial da página, antes
+      // do useEffect do App.jsx ter chance de registrar o listener.
+      window.__installPrompt = null;
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.__installPrompt = e;
+      });
+
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
             .then(function(reg) { reg.update(); });
-          // Quando um novo SW assume o controle, recarrega para pegar os arquivos novos
           navigator.serviceWorker.addEventListener('controllerchange', function() {
             window.location.reload();
           });
