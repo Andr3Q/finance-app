@@ -63,6 +63,7 @@ export default function InstallBanner() {
       const { outcome } = await prompt.userChoice
       clearInstallPrompt()
       if (outcome === 'accepted') animateHide()
+      else setHasNativePrompt(false)
     } finally {
       setInstalling(false)
     }
