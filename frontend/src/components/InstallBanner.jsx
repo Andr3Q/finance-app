@@ -30,10 +30,14 @@ export default function InstallBanner() {
 
     setVisible(true)
 
-    const handler = (e) => { e.preventDefault(); window.__installPrompt = e; setHasNativePrompt(true) }
-    window.addEventListener('beforeinstallprompt', handler)
-    window.addEventListener('appinstalled', () => animateHide())
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    const onPrompt = (e) => { e.preventDefault(); window.__installPrompt = e; setHasNativePrompt(true) }
+    const onInstalled = () => animateHide()
+    window.addEventListener('beforeinstallprompt', onPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
   }, [])
 
   const animateHide = () => {
@@ -48,7 +52,7 @@ export default function InstallBanner() {
 
   const handleInstall = async () => {
     const prompt = getInstallPrompt()
-    if (!prompt) return
+    if (!prompt) { setHasNativePrompt(false); return }
     setInstalling(true)
     try {
       prompt.prompt()
