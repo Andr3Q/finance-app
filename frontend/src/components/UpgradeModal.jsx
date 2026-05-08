@@ -70,7 +70,7 @@ export default function UpgradeModal({ onClose, reason }) {
 
         {/* Preço */}
         <div style={{ marginBottom: 20, padding: '12px 16px', background: 'rgba(0,255,204,.05)', borderRadius: 10, border: '1px solid rgba(0,255,204,.15)' }}>
-          <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--c)', fontFamily: 'var(--fd)' }}>R$ 14,90</span>
+          <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--c)', fontFamily: 'var(--fd)' }}>R$ 19,90</span>
           <span style={{ fontSize: 13, color: 'var(--t2)' }}>/mês</span>
         </div>
 

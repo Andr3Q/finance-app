@@ -116,7 +116,7 @@ export default function Planos() {
           {/* Preço */}
           <div style={{ marginBottom: 6, display: 'flex', alignItems: 'flex-end', gap: 4 }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t2)', paddingBottom: 4 }}>R$</span>
-            <span style={{ fontSize: 52, fontWeight: 800, color: 'var(--c)', lineHeight: 1, fontFamily: 'var(--fn)', letterSpacing: -2 }}>14</span>
+            <span style={{ fontSize: 52, fontWeight: 800, color: 'var(--c)', lineHeight: 1, fontFamily: 'var(--fn)', letterSpacing: -2 }}>19</span>
             <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--c)', paddingBottom: 2, fontFamily: 'var(--fn)' }}>,90</span>
             <span style={{ fontSize: 13, color: 'var(--t2)', paddingBottom: 6 }}>/mês</span>
           </div>
