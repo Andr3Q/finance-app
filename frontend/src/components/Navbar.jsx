@@ -153,18 +153,6 @@ export default function Navbar() {
             )
           })}
 
-          {!appInstalled && (
-            <button
-              className="pit pill-nav-item"
-              style={{ color: 'var(--c)' }}
-              onClick={handleInstallClick}
-              disabled={installing}
-            >
-              <InstallIcon size={20} />
-              <span className="pill-nav-label">{installing ? '...' : 'Instalar'}</span>
-            </button>
-          )}
-
           {!isPro && (
             <button
               className="pit pill-nav-item"
@@ -265,14 +253,6 @@ function Step({ n, text }) {
   )
 }
 
-function InstallIcon({ size = 20 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 16l-4-4h3V4h2v8h3l-4 4z"/>
-      <path d="M20 18H4v2h16v-2z"/>
-    </svg>
-  )
-}
 
 function HomeIcon({ size = 20 }) {
   return (
