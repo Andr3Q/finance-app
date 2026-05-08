@@ -4,15 +4,25 @@ import { getInstallPrompt, clearInstallPrompt, isInstalled } from '../services/i
 const DISMISS_KEY  = 'install-banner-dismissed'
 const DISMISS_DAYS = 7
 
+function detectPlatform() {
+  const ua = navigator.userAgent
+  const isIOS = /iPhone|iPad|iPod/.test(ua) ||
+    (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)) // iPadOS 13+
+  const isAndroid = /Android/.test(ua)
+  return { isIOS, isAndroid }
+}
+
 export default function InstallBanner() {
   const [visible,         setVisible]         = useState(false)
   const [hiding,          setHiding]          = useState(false)
   const [installing,      setInstalling]      = useState(false)
   const [hasNativePrompt, setHasNativePrompt] = useState(() => !!getInstallPrompt())
   const [isMobile,        setIsMobile]        = useState(false)
+  const [platform,        setPlatform]        = useState({ isIOS: false, isAndroid: false })
 
   useEffect(() => {
     setIsMobile(window.innerWidth <= 768)
+    setPlatform(detectPlatform())
     if (isInstalled()) return
 
     const dismissed = localStorage.getItem(DISMISS_KEY)
@@ -20,7 +30,6 @@ export default function InstallBanner() {
 
     setVisible(true)
 
-    // Se o beforeinstallprompt chegar depois do banner já estar visível
     const handler = (e) => { e.preventDefault(); window.__installPrompt = e; setHasNativePrompt(true) }
     window.addEventListener('beforeinstallprompt', handler)
     window.addEventListener('appinstalled', () => animateHide())
@@ -62,19 +71,35 @@ export default function InstallBanner() {
   }
   const anim = { animation: `${hiding ? 'bannerOut .28s' : 'bannerIn .32s cubic-bezier(.34,1.56,.64,1)'} forwards` }
 
+  const props = { hasPrompt: hasNativePrompt, installing, platform, onInstall: handleInstall, onClose: handleClose }
+
   return (
     <div style={isMobile ? posMobile : posDesktop}>
       <div style={anim}>
-        {isMobile
-          ? <MobileBanner hasPrompt={hasNativePrompt} installing={installing} onInstall={handleInstall} onClose={handleClose} />
-          : <DesktopBanner hasPrompt={hasNativePrompt} installing={installing} onInstall={handleInstall} onClose={handleClose} />
-        }
+        {isMobile ? <MobileBanner {...props} /> : <DesktopBanner {...props} />}
       </div>
     </div>
   )
 }
 
-function MobileBanner({ hasPrompt, installing, onInstall, onClose }) {
+function Instructions({ platform }) {
+  if (platform.isIOS) {
+    return (
+      <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.7 }}>
+        <span style={{ display: 'block' }}>1. Toque em <ShareIcon /> no Safari</span>
+        <span style={{ display: 'block' }}>2. Escolha <strong style={{ color: 'var(--c)' }}>"Adicionar à Tela de Início"</strong></span>
+      </div>
+    )
+  }
+  return (
+    <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.7 }}>
+      <span style={{ display: 'block' }}>1. Toque no menu <strong style={{ color: 'var(--t1)', fontSize: 15 }}>⋮</strong> do Chrome</span>
+      <span style={{ display: 'block' }}>2. Escolha <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong></span>
+    </div>
+  )
+}
+
+function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
   return (
     <div style={{
       background: 'linear-gradient(135deg, rgba(0,255,204,.1) 0%, rgba(0,180,216,.05) 100%)',
@@ -103,10 +128,7 @@ function MobileBanner({ hasPrompt, installing, onInstall, onClose }) {
             onTouchStart={e => { if (!installing) e.currentTarget.style.transform = 'scale(.93)' }}
             onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
           >
-            {installing
-              ? <><Spinner /> Aguarde</>
-              : 'Instalar'
-            }
+            {installing ? <><Spinner /> Aguarde</> : 'Instalar'}
           </button>
           <button onClick={onClose} style={{ flexShrink: 0, background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 4, WebkitTapHighlightColor: 'transparent' }} aria-label="Fechar">
             <XIcon />
@@ -116,11 +138,10 @@ function MobileBanner({ hasPrompt, installing, onInstall, onClose }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>📲</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 6 }}>Instalar FinançasPro</div>
-            <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.6 }}>
-              <span style={{ display: 'block', marginBottom: 2 }}>1. Toque no menu <strong style={{ color: 'var(--t1)', fontSize: 16 }}>⋮</strong> do Chrome</span>
-              <span style={{ display: 'block' }}>2. Escolha <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong></span>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 6 }}>
+              Instalar FinançasPro
             </div>
+            <Instructions platform={platform} />
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 4, flexShrink: 0 }} aria-label="Fechar">
             <XIcon />
@@ -131,7 +152,7 @@ function MobileBanner({ hasPrompt, installing, onInstall, onClose }) {
   )
 }
 
-function DesktopBanner({ hasPrompt, installing, onInstall, onClose }) {
+function DesktopBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
   return (
     <div style={{
       background: 'rgba(3,18,22,.96)', border: '1px solid rgba(0,255,204,.22)',
@@ -144,15 +165,13 @@ function DesktopBanner({ hasPrompt, installing, onInstall, onClose }) {
           : <span style={{ fontSize: 20 }}>📲</span>
         }
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: hasPrompt ? 2 : 6 }}>
             Instalar FinançasPro
           </div>
-          <div style={{ fontSize: 11, color: 'var(--t2)', marginTop: 2, lineHeight: 1.5 }}>
-            {hasPrompt
-              ? 'Acesso rápido na tela inicial'
-              : <>Menu <strong>⋮</strong> do Chrome → <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong></>
-            }
-          </div>
+          {hasPrompt
+            ? <div style={{ fontSize: 11, color: 'var(--t2)' }}>Acesso rápido na tela inicial</div>
+            : <Instructions platform={platform} />
+          }
         </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 2, flexShrink: 0 }} aria-label="Fechar">
           <XIcon size={14} />
@@ -172,13 +191,19 @@ function DesktopBanner({ hasPrompt, installing, onInstall, onClose }) {
           onMouseDown={e => { if (!installing) e.currentTarget.style.transform = 'scale(.97)' }}
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
-          {installing
-            ? <><Spinner /> Aguarde...</>
-            : '⚡ Instalar app'
-          }
+          {installing ? <><Spinner /> Aguarde...</> : '⚡ Instalar app'}
         </button>
       )}
     </div>
+  )
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14"
+      style={{ display: 'inline', verticalAlign: 'middle', margin: '0 2px', color: 'var(--c)' }}>
+      <path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>
+    </svg>
   )
 }
 
