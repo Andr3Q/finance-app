@@ -53,6 +53,7 @@ if (isProd) {
 
 // ── CORS restrito apenas para rotas de API ──────────────
 const allowedOrigins = [
+  'https://financaspro-1042158013294.southamerica-east1.run.app',
   'https://finance-app-1042158013294.southamerica-east1.run.app',
 ]
 
