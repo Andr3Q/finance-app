@@ -47,6 +47,12 @@ export default function Settings() {
   const [notifLoading, setNotifLoading]  = useState(false)
   const [appInstalled, setAppInstalled]  = useState(() => isInstalled())
   const [installMode,  setInstallMode]   = useState('idle') // idle | installing | fallback
+  const [platform] = useState(() => {
+    const ua = navigator.userAgent
+    const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua))
+    const isChrome = /Chrome/.test(ua) && !/Edg|OPR/.test(ua)
+    return { isIOS, isChrome }
+  })
 
   const showMsg = (text, type = 'success') => {
     setMsg(text); setMsgType(type)
@@ -294,47 +300,45 @@ export default function Settings() {
 
         {/* Instalar App */}
         {!appInstalled && (
-          <div className="card mb16">
-            <div className="sct" style={{ marginBottom: 14 }}>Instalar Aplicativo</div>
-            {installMode === 'fallback' ? (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                <span style={{ fontSize: 22, flexShrink: 0 }}>📲</span>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 4 }}>
-                    Como instalar manualmente
-                  </div>
-                  <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
-                    Toque no menu <strong style={{ color: 'var(--t1)' }}>⋮</strong> do Chrome
-                    {' '}→ <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong>
-                  </div>
-                </div>
+          <div className="card mb16" style={{ background: 'linear-gradient(135deg, rgba(0,255,204,.06) 0%, rgba(0,180,216,.03) 100%)', borderColor: 'rgba(0,255,204,.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <img src="/icon-192.png" alt="" style={{ width: 44, height: 44, borderRadius: 12, boxShadow: '0 2px 12px rgba(0,255,204,.2)' }} />
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>Instalar FinançasPro</div>
+                <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 2 }}>Acesse com um toque, sem abrir o navegador</div>
+              </div>
+            </div>
+
+            {platform.isIOS ? (
+              /* iOS Safari — não tem prompt nativo, mostra passos */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <InstallStep n="1" text={<>Toque no botão <strong style={{ color: 'var(--c)' }}>Compartilhar</strong> <ShareIcon /> na barra do Safari</>} />
+                <InstallStep n="2" text={<>Role e toque em <strong style={{ color: 'var(--c)' }}>"Adicionar à Tela de Início"</strong></>} />
+                <InstallStep n="3" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Adicionar"</strong> no canto superior direito</>} />
+              </div>
+            ) : installMode === 'fallback' ? (
+              /* Android sem prompt nativo */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <InstallStep n="1" text={<>Toque no menu <strong style={{ color: 'var(--c)', fontSize: 17 }}>⋮</strong> no canto superior direito do Chrome</>} />
+                <InstallStep n="2" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong> ou <strong style={{ color: 'var(--c)' }}>"Adicionar à tela inicial"</strong></>} />
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 3 }}>
-                    Adicionar à tela inicial
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--t2)' }}>
-                    Acesse o app com um toque, sem abrir o navegador.
-                  </div>
-                </div>
-                <button
-                  onClick={handleInstall}
-                  disabled={installMode === 'installing'}
-                  className="btn bp"
-                  style={{ flexShrink: 0, minWidth: 110, justifyContent: 'center' }}
-                  onMouseDown={e => e.currentTarget.style.transform = 'scale(.96)'}
-                  onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                  onTouchStart={e => e.currentTarget.style.transform = 'scale(.96)'}
-                  onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  {installMode === 'installing'
-                    ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> Aguarde</>
-                    : '⚡ Instalar'
-                  }
-                </button>
-              </div>
+              /* Android com prompt nativo */
+              <button
+                onClick={handleInstall}
+                disabled={installMode === 'installing'}
+                className="btn bp"
+                style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 14 }}
+                onTouchStart={e => e.currentTarget.style.transform = 'scale(.97)'}
+                onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(.97)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                {installMode === 'installing'
+                  ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Aguarde...</>
+                  : '⚡ Instalar agora'
+                }
+              </button>
             )}
           </div>
         )}
@@ -515,5 +519,28 @@ export default function Settings() {
         <UpgradeModal reason={upgradeModal} onClose={() => { setUpgradeModal(null); navigate('/planos') }} />
       )}
     </>
+  )
+}
+
+function InstallStep({ n, text }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{
+        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+        background: 'rgba(0,255,204,.12)', border: '1px solid rgba(0,255,204,.25)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, fontWeight: 700, color: 'var(--c)', fontFamily: 'var(--fd)',
+      }}>{n}</div>
+      <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.5 }}>{text}</div>
+    </div>
+  )
+}
+
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+      width="15" height="15" style={{ display: 'inline', verticalAlign: 'middle', margin: '0 2px', color: 'var(--c)' }}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+    </svg>
   )
 }
