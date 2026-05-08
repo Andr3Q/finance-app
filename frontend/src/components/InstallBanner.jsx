@@ -25,6 +25,10 @@ export default function InstallBanner() {
     setPlatform(detectPlatform())
     if (isInstalled()) return
 
+    // No iOS não há prompt nativo — o card em Configurações já cobre essa necessidade
+    const { isIOS } = detectPlatform()
+    if (isIOS) return
+
     const dismissed = localStorage.getItem(DISMISS_KEY)
     if (dismissed && (Date.now() - Number(dismissed)) / 86400000 < DISMISS_DAYS) return
 
