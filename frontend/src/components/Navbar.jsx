@@ -224,14 +224,14 @@ function InstallGuide({ onClose }) {
 
         {isIOS ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Step n="1" text={<>Toque no botão <strong style={{ color: 'var(--c)' }}>Compartilhar</strong> na barra do Safari</>} icon="⬆️" />
-            <Step n="2" text={<>Role para baixo e toque em <strong style={{ color: 'var(--c)' }}>"Adicionar à Tela de Início"</strong></>} icon="＋" />
-            <Step n="3" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Adicionar"</strong> no canto superior direito</>} icon="✓" />
+            <Step n="1" text={<>Toque no botão <strong style={{ color: 'var(--c)' }}>Compartilhar</strong> na barra do Safari</>} />
+            <Step n="2" text={<>Role para baixo e toque em <strong style={{ color: 'var(--c)' }}>"Adicionar à Tela de Início"</strong></>} />
+            <Step n="3" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Adicionar"</strong> no canto superior direito</>} />
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <Step n="1" text={<>Toque no menu <strong style={{ color: 'var(--c)' }}>⋮</strong> no canto superior direito do Chrome</>} icon="⋮" />
-            <Step n="2" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong> ou <strong style={{ color: 'var(--c)' }}>"Adicionar à tela inicial"</strong></>} icon="📲" />
+            <Step n="1" text={<>Toque no menu <strong style={{ color: 'var(--c)' }}>⋮</strong> no canto superior direito do Chrome</>} />
+            <Step n="2" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong> ou <strong style={{ color: 'var(--c)' }}>"Adicionar à tela inicial"</strong></>} />
           </div>
         )}
 
