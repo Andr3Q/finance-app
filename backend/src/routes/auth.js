@@ -182,8 +182,12 @@ router.post('/reset-password', async (req, res) => {
 })
 
 // ── POST /auth/upgrade ──────────────────────────────────
-// Ativa o plano Pro (será chamado pelo webhook do Mercado Pago futuramente)
+// Ativa o plano Pro — requer chave secreta do servidor (webhook do Mercado Pago)
 router.post('/upgrade', authMiddleware, async (req, res) => {
+  const { upgradeSecret } = req.body
+  if (!upgradeSecret || upgradeSecret !== process.env.UPGRADE_SECRET) {
+    return res.status(403).json({ error: 'Não autorizado.' })
+  }
   try {
     const user = await prisma.user.update({
       where: { id: req.userId },
