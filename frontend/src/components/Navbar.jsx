@@ -1,18 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../services/installPrompt.js'
 
 export default function Navbar() {
   const navigate  = useNavigate()
   const location  = useLocation()
   let user = {}
   try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
-  const [ripple,  setRipple]  = useState(null)
-  const [scrolled,setScrolled]= useState(false)
+
+  const [ripple,      setRipple]      = useState(null)
+  const [scrolled,    setScrolled]    = useState(false)
+  const [appInstalled,setAppInstalled]= useState(() => isInstalled())
+  const [installing,  setInstalling]  = useState(false)
+  const [showGuide,   setShowGuide]   = useState(false)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+
+    const onInstalled = () => setAppInstalled(true)
+    window.addEventListener('appinstalled', onInstalled)
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
   }, [])
 
   const logout = () => {
@@ -43,6 +55,23 @@ export default function Navbar() {
     setRipple({ path, x: e.clientX - rect.left, y: e.clientY - rect.top })
     setTimeout(() => setRipple(null), 500)
     navigate(path)
+  }
+
+  const handleInstallClick = async () => {
+    const prompt = getInstallPrompt()
+    if (prompt) {
+      setInstalling(true)
+      try {
+        prompt.prompt()
+        const { outcome } = await prompt.userChoice
+        clearInstallPrompt()
+        if (outcome === 'accepted') setAppInstalled(true)
+      } finally {
+        setInstalling(false)
+      }
+    } else {
+      setShowGuide(true)
+    }
   }
 
   const initials = user.name
@@ -86,14 +115,21 @@ export default function Navbar() {
             ? <span style={{ fontSize: 11, fontWeight: 700, color: '#020d10', background: 'var(--c)', padding: '2px 8px', borderRadius: 20 }}>PRO ✨</span>
             : <button className="btn bg" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => navigate('/planos')}>⚡ Upgrade</button>
           }
+          {!appInstalled && (
+            <button
+              className="btn bg"
+              style={{ fontSize: 11, padding: '3px 10px', color: 'var(--c)', borderColor: 'rgba(0,255,204,.3)' }}
+              onClick={handleInstallClick}
+              disabled={installing}
+            >
+              {installing ? '...' : '📲 Instalar'}
+            </button>
+          )}
           <button className="btnout" onClick={logout}>Sair</button>
         </div>
       </nav>
 
-      {/* Aurora stripe animada abaixo da navbar */}
-      <div className="nbline">
-        <div className="nblinei" />
-      </div>
+      <div className="nbline"><div className="nblinei" /></div>
 
       {/* ── Mobile pill nav ────────────────────────────── */}
       <nav className="bottom-pill-nav pillnav">
@@ -117,10 +153,22 @@ export default function Navbar() {
             )
           })}
 
-          {!isPro && (
+          {!appInstalled && (
             <button
               className="pit pill-nav-item"
               style={{ color: 'var(--c)' }}
+              onClick={handleInstallClick}
+              disabled={installing}
+            >
+              <InstallIcon size={20} />
+              <span className="pill-nav-label">{installing ? '...' : 'Instalar'}</span>
+            </button>
+          )}
+
+          {!isPro && (
+            <button
+              className="pit pill-nav-item"
+              style={{ color: 'rgba(0,255,204,.5)' }}
               onClick={() => navigate('/planos')}
             >
               <svg width={20} height={20} viewBox="0 0 20 20" fill="currentColor">
@@ -136,7 +184,93 @@ export default function Navbar() {
           </button>
         </div>
       </nav>
+
+      {/* ── Guia de instalação manual ─────────────────── */}
+      {showGuide && (
+        <InstallGuide onClose={() => setShowGuide(false)} />
+      )}
     </>
+  )
+}
+
+function InstallGuide({ onClose }) {
+  const ua = navigator.userAgent
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua))
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)',
+        zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        padding: '0 16px 24px',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'rgba(3,18,22,.98)', border: '1px solid rgba(0,255,204,.2)',
+          borderRadius: 20, padding: '24px 20px', width: '100%', maxWidth: 420,
+          animation: 'bannerIn .3s cubic-bezier(.34,1.56,.64,1) forwards',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+          <img src="/icon-192.png" alt="" style={{ width: 48, height: 48, borderRadius: 12 }} />
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>Instalar FinançasPro</div>
+            <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 2 }}>Siga os passos abaixo</div>
+          </div>
+        </div>
+
+        {isIOS ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Step n="1" text={<>Toque no botão <strong style={{ color: 'var(--c)' }}>Compartilhar</strong> na barra do Safari</>} icon="⬆️" />
+            <Step n="2" text={<>Role para baixo e toque em <strong style={{ color: 'var(--c)' }}>"Adicionar à Tela de Início"</strong></>} icon="＋" />
+            <Step n="3" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Adicionar"</strong> no canto superior direito</>} icon="✓" />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <Step n="1" text={<>Toque no menu <strong style={{ color: 'var(--c)' }}>⋮</strong> no canto superior direito do Chrome</>} icon="⋮" />
+            <Step n="2" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong> ou <strong style={{ color: 'var(--c)' }}>"Adicionar à tela inicial"</strong></>} icon="📲" />
+          </div>
+        )}
+
+        <button
+          onClick={onClose}
+          style={{
+            marginTop: 24, width: '100%', padding: '12px 0',
+            background: 'rgba(0,255,204,.1)', border: '1px solid rgba(0,255,204,.2)',
+            borderRadius: 12, color: 'var(--c)', fontSize: 14, fontWeight: 700,
+            fontFamily: 'var(--fd)', cursor: 'pointer',
+          }}
+        >
+          Entendi
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function Step({ n, text }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+        background: 'rgba(0,255,204,.1)', border: '1px solid rgba(0,255,204,.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 13, fontWeight: 700, color: 'var(--c)', fontFamily: 'var(--fd)',
+      }}>{n}</div>
+      <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.5 }}>{text}</div>
+    </div>
+  )
+}
+
+function InstallIcon({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 16l-4-4h3V4h2v8h3l-4 4z"/>
+      <path d="M20 18H4v2h16v-2z"/>
+    </svg>
   )
 }
 
