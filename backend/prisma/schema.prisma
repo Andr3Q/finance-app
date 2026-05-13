@@ -52,7 +52,7 @@ model Transaction {
   year        Int                                 // Ano da transação
 
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ── Tabela: budgets ─────────────────────────────────────
@@ -63,7 +63,7 @@ model Budget {
   amount Float                                    // Valor mensal fixo
 
   userId String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ── Tabela: category_limits ────────────────────────────
@@ -73,7 +73,7 @@ model CategoryLimit {
   category String
   amount   Float
   userId   String
-  user     User   @relation(fields: [userId], references: [id])
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, category])
 }
@@ -86,6 +86,6 @@ model PushSubscription {
   p256dh    String
   auth      String
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
