@@ -28,7 +28,7 @@ export default function CategoryLimits({ limits, transactions }) {
             <div key={limit.category} className="lmi">
               <div className="lmh">
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13, fontFamily: 'var(--fd)', color: 'var(--t1)' }}>
-                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(0,255,204,.06)', border: '1px solid var(--bdbd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(74,196,110,.06)', border: '1px solid var(--bdbd)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <CategoryIcon category={limit.category} size={14} color="var(--c)" />
                   </span>
                   {CATEGORY_LABELS[limit.category]}

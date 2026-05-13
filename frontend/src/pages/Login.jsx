@@ -43,11 +43,11 @@ export default function Login({ isRegister = false }) {
         <div className="lbrand">
           <div className="lmark">
             <svg viewBox="0 0 36 36" fill="none" width="36" height="36">
-              <circle cx="18" cy="18" r="15" stroke="#00ffcc" strokeWidth="1" opacity="0.3"/>
+              <circle cx="18" cy="18" r="15" stroke="#4ac46e" strokeWidth="1" opacity="0.3"/>
               <circle cx="18" cy="18" r="10" stroke="#00b4d8" strokeWidth="0.75" opacity="0.3"/>
-              <polyline points="7,26 12,18 17,21 23,13 29,9" stroke="#00ffcc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="29" cy="9" r="2.5" fill="#00ffcc"/>
-              <line x1="7" y1="28" x2="29" y2="28" stroke="#00ffcc" strokeWidth="0.75" opacity="0.3"/>
+              <polyline points="7,26 12,18 17,21 23,13 29,9" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="29" cy="9" r="2.5" fill="#4ac46e"/>
+              <line x1="7" y1="28" x2="29" y2="28" stroke="#4ac46e" strokeWidth="0.75" opacity="0.3"/>
             </svg>
           </div>
           <div className="ltitle"><span>Finanças</span>Pro</div>

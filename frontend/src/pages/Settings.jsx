@@ -305,9 +305,9 @@ export default function Settings() {
 
         {/* Instalar App */}
         {!appInstalled && (
-          <div className="card mb16" style={{ background: 'linear-gradient(135deg, rgba(0,255,204,.06) 0%, rgba(0,180,216,.03) 100%)', borderColor: 'rgba(0,255,204,.2)' }}>
+          <div className="card mb16" style={{ background: 'linear-gradient(135deg, rgba(74,196,110,.06) 0%, rgba(0,180,216,.03) 100%)', borderColor: 'rgba(74,196,110,.2)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <img src="/icon-192.png" alt="" style={{ width: 44, height: 44, borderRadius: 12, boxShadow: '0 2px 12px rgba(0,255,204,.2)' }} />
+              <img src="/icon-192.png" alt="" style={{ width: 44, height: 44, borderRadius: 12, boxShadow: '0 2px 12px rgba(74,196,110,.2)' }} />
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>Instalar FinançasPro</div>
                 <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 2 }}>Acesse com um toque, sem abrir o navegador</div>
@@ -435,7 +435,7 @@ export default function Settings() {
           {!isPro ? (
             <div
               onClick={() => setUpgradeModal('Limites por categoria são exclusivos do plano Pro.')}
-              style={{ cursor: 'pointer', padding: '16px', background: 'rgba(0,255,204,.04)', border: '1px dashed rgba(0,255,204,.2)', borderRadius: 10, textAlign: 'center' }}
+              style={{ cursor: 'pointer', padding: '16px', background: 'rgba(74,196,110,.04)', border: '1px dashed rgba(74,196,110,.2)', borderRadius: 10, textAlign: 'center' }}
             >
               <div style={{ fontSize: 22, marginBottom: 6 }}>🔒</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c)', marginBottom: 4 }}>Recurso Pro</div>
@@ -480,7 +480,7 @@ export default function Settings() {
         </div>
 
         {/* Fechar Mês — exclusivo Pro */}
-        <div className="card" style={{ borderColor: isPro ? 'rgba(255,71,87,.15)' : 'rgba(0,255,204,.15)' }}>
+        <div className="card" style={{ borderColor: isPro ? 'rgba(255,71,87,.15)' : 'rgba(74,196,110,.15)' }}>
           <div className="sct" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
             Fechar o Mês
             {!isPro && <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--c)', color: '#020d10', padding: '2px 7px', borderRadius: 20 }}>PRO</span>}
@@ -488,7 +488,7 @@ export default function Settings() {
           {!isPro ? (
             <div
               onClick={() => setUpgradeModal('O relatório PDF mensal é exclusivo do plano Pro.')}
-              style={{ cursor: 'pointer', padding: '16px', background: 'rgba(0,255,204,.04)', border: '1px dashed rgba(0,255,204,.2)', borderRadius: 10, textAlign: 'center' }}
+              style={{ cursor: 'pointer', padding: '16px', background: 'rgba(74,196,110,.04)', border: '1px dashed rgba(74,196,110,.2)', borderRadius: 10, textAlign: 'center' }}
             >
               <div style={{ fontSize: 22, marginBottom: 6 }}>🔒</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c)', marginBottom: 4 }}>Recurso Pro</div>
@@ -532,7 +532,7 @@ function InstallStep({ n, text }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <div style={{
         width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-        background: 'rgba(0,255,204,.12)', border: '1px solid rgba(0,255,204,.25)',
+        background: 'rgba(74,196,110,.12)', border: '1px solid rgba(74,196,110,.25)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 12, fontWeight: 700, color: 'var(--c)', fontFamily: 'var(--fd)',
       }}>{n}</div>
