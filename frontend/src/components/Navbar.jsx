@@ -86,9 +86,9 @@ export default function Navbar() {
         <button className="logow" onClick={() => navigate('/dashboard')}>
           <div className="logom">
             <svg viewBox="0 0 18 18" fill="none" width="18" height="18">
-              <circle cx="9" cy="9" r="7.5" stroke="#00ffcc" strokeWidth="1" opacity="0.4"/>
-              <polyline points="3,12 6.5,8 9.5,10 14,5" stroke="#00ffcc" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="14" cy="5" r="1.6" fill="#00ffcc"/>
+              <circle cx="9" cy="9" r="7.5" stroke="#4ac46e" strokeWidth="1" opacity="0.4"/>
+              <polyline points="3,12 6.5,8 9.5,10 14,5" stroke="#4ac46e" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="14" cy="5" r="1.6" fill="#4ac46e"/>
             </svg>
           </div>
           <div className="logt"><span>Finanças</span>Pro</div>
@@ -118,7 +118,7 @@ export default function Navbar() {
           {!appInstalled && (
             <button
               className="btn bg"
-              style={{ fontSize: 11, padding: '3px 10px', color: 'var(--c)', borderColor: 'rgba(0,255,204,.3)' }}
+              style={{ fontSize: 11, padding: '3px 10px', color: 'var(--c)', borderColor: 'rgba(74,196,110,.3)' }}
               onClick={handleInstallClick}
               disabled={installing}
             >
@@ -156,7 +156,7 @@ export default function Navbar() {
           {!isPro && (
             <button
               className="pit pill-nav-item"
-              style={{ color: 'rgba(0,255,204,.5)' }}
+              style={{ color: 'rgba(74,196,110,.6)' }}
               onClick={() => navigate('/planos')}
             >
               <svg width={20} height={20} viewBox="0 0 20 20" fill="currentColor">
@@ -197,7 +197,7 @@ function InstallGuide({ onClose }) {
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: 'rgba(3,18,22,.98)', border: '1px solid rgba(0,255,204,.2)',
+          background: '#1a1a1a', border: '1px solid rgba(255,255,255,.08)',
           borderRadius: 20, padding: '24px 20px', width: '100%', maxWidth: 420,
           animation: 'bannerIn .3s cubic-bezier(.34,1.56,.64,1) forwards',
         }}
@@ -227,7 +227,7 @@ function InstallGuide({ onClose }) {
           onClick={onClose}
           style={{
             marginTop: 24, width: '100%', padding: '12px 0',
-            background: 'rgba(0,255,204,.1)', border: '1px solid rgba(0,255,204,.2)',
+            background: 'rgba(74,196,110,.1)', border: '1px solid rgba(74,196,110,.2)',
             borderRadius: 12, color: 'var(--c)', fontSize: 14, fontWeight: 700,
             fontFamily: 'var(--fd)', cursor: 'pointer',
           }}
@@ -244,7 +244,7 @@ function Step({ n, text }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
       <div style={{
         width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-        background: 'rgba(0,255,204,.1)', border: '1px solid rgba(0,255,204,.2)',
+        background: 'rgba(74,196,110,.1)', border: '1px solid rgba(74,196,110,.2)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 13, fontWeight: 700, color: 'var(--c)', fontFamily: 'var(--fd)',
       }}>{n}</div>

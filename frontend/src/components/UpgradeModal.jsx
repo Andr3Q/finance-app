@@ -31,14 +31,14 @@ export default function UpgradeModal({ onClose, reason }) {
         {/* Ícone */}
         <div style={{
           width: 56, height: 56, borderRadius: '50%',
-          background: 'linear-gradient(135deg, rgba(0,255,204,.15), rgba(0,255,204,.05))',
-          border: '1px solid rgba(0,255,204,.3)',
+          background: 'linear-gradient(135deg, rgba(74,196,110,.15), rgba(74,196,110,.05))',
+          border: '1px solid rgba(74,196,110,.3)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 16px'
         }}>
           <svg viewBox="0 0 24 24" fill="none" width="26" height="26">
             <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-              stroke="#00ffcc" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="rgba(0,255,204,.1)"/>
+              stroke="#4ac46e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="rgba(74,196,110,.1)"/>
           </svg>
         </div>
 
@@ -60,7 +60,7 @@ export default function UpgradeModal({ onClose, reason }) {
         <div style={{ textAlign: 'left', marginBottom: 24 }}>
           {BENEFITS.map(b => (
             <div key={b} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ color: '#00ffcc', flexShrink: 0 }}>
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ color: '#4ac46e', flexShrink: 0 }}>
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
               </svg>
               <span style={{ fontSize: 13, color: 'var(--t1)' }}>{b}</span>
@@ -69,7 +69,7 @@ export default function UpgradeModal({ onClose, reason }) {
         </div>
 
         {/* Preço */}
-        <div style={{ marginBottom: 20, padding: '12px 16px', background: 'rgba(0,255,204,.05)', borderRadius: 10, border: '1px solid rgba(0,255,204,.15)' }}>
+        <div style={{ marginBottom: 20, padding: '12px 16px', background: 'rgba(74,196,110,.05)', borderRadius: 10, border: '1px solid rgba(74,196,110,.15)' }}>
           <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--c)', fontFamily: 'var(--fd)' }}>R$ 19,90</span>
           <span style={{ fontSize: 13, color: 'var(--t2)' }}>/mês</span>
         </div>

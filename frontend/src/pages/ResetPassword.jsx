@@ -38,10 +38,10 @@ export default function ResetPassword() {
         <div className="lbrand">
           <div className="lmark">
             <svg viewBox="0 0 36 36" fill="none" width="36" height="36">
-              <circle cx="18" cy="18" r="15" stroke="#00ffcc" strokeWidth="1" opacity="0.3"/>
+              <circle cx="18" cy="18" r="15" stroke="#4ac46e" strokeWidth="1" opacity="0.3"/>
               <circle cx="18" cy="18" r="10" stroke="#00b4d8" strokeWidth="0.75" opacity="0.3"/>
-              <polyline points="7,26 12,18 17,21 23,13 29,9" stroke="#00ffcc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="29" cy="9" r="2.5" fill="#00ffcc"/>
+              <polyline points="7,26 12,18 17,21 23,13 29,9" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="29" cy="9" r="2.5" fill="#4ac46e"/>
             </svg>
           </div>
           <div className="ltitle"><span>Finanças</span>Pro</div>
@@ -60,7 +60,7 @@ export default function ResetPassword() {
             </div>
           ) : done ? (
             <div style={{ textAlign: 'center', padding: '8px 0' }}>
-              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(0,255,204,.1)', border: '1px solid rgba(0,255,204,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(74,196,110,.1)', border: '1px solid rgba(74,196,110,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" strokeWidth="2.5" width="26" height="26">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
                 </svg>

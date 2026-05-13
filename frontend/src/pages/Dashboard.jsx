@@ -159,7 +159,7 @@ export default function Dashboard() {
             ) : (
               <div className="txl">
                 {transactions.slice(0, 6).map(t => (
-                  <div key={t.id} className="txi">
+                  <div key={t.id} className={`txi ${t.type}`}>
                     <div className={`txic ${t.type === 'income' ? 'inc' : 'exp'}`}>
                       <CategoryIcon category={t.category} size={16} color={t.type === 'income' ? 'var(--green)' : 'var(--red)'} />
                     </div>
