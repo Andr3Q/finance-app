@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import WaveBackground from './components/WaveBackground.jsx'
 import InstallBanner from './components/InstallBanner.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 
@@ -48,7 +47,6 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <WaveBackground />
       <InstallBanner />
       <Suspense fallback={<PageLoader />}>
         <Routes>
