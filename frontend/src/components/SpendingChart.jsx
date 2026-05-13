@@ -1,6 +1,6 @@
 import { IconEmpty } from './icons.jsx'
 
-const COLORS = ['#00ffcc','#00b4d8','#7b2fff','#ff6b9d','#ffc107','#ff8c42','#4f8ef7','#00d084']
+const COLORS = ['#4ac46e','#00b4d8','#7b2fff','#ff6b9d','#ffc107','#ff8c42','#4f8ef7','#00d084']
 
 export default function SpendingChart({ data }) {
   if (!data || data.length === 0) {
@@ -27,7 +27,7 @@ export default function SpendingChart({ data }) {
   return (
     <div className="piw">
       <svg width="110" height="110" viewBox="0 0 36 36">
-        <circle r={R} cx="18" cy="18" fill="none" stroke="rgba(0,255,204,0.07)" strokeWidth="3.8"/>
+        <circle r={R} cx="18" cy="18" fill="none" stroke="rgba(74,196,110,0.07)" strokeWidth="3.8"/>
         {slices.map((s) => (
           <circle
             key={s.name}

@@ -111,8 +111,8 @@ function Instructions({ platform }) {
 function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(0,255,204,.1) 0%, rgba(0,180,216,.05) 100%)',
-      border: '1px solid rgba(0,255,204,.25)', borderRadius: 20,
+      background: 'linear-gradient(135deg, rgba(74,196,110,.1) 0%, rgba(0,180,216,.05) 100%)',
+      border: '1px solid rgba(74,196,110,.25)', borderRadius: 20,
       padding: '14px 16px', backdropFilter: 'blur(20px)',
       boxShadow: '0 8px 32px rgba(0,0,0,.4)',
     }}>
@@ -127,8 +127,8 @@ function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
             onClick={onInstall} disabled={installing}
             style={{
               flexShrink: 0,
-              background: installing ? 'rgba(0,255,204,.3)' : 'linear-gradient(135deg, var(--c), #00a89a)',
-              color: '#021a14', border: 'none', borderRadius: 12,
+              background: installing ? 'rgba(74,196,110,.3)' : 'linear-gradient(135deg, var(--c), #32a05a)',
+              color: '#000000', border: 'none', borderRadius: 12,
               padding: '8px 14px', fontSize: 12, fontWeight: 800,
               fontFamily: 'var(--fd)', cursor: installing ? 'default' : 'pointer',
               WebkitTapHighlightColor: 'transparent', transition: 'transform .1s',
@@ -164,7 +164,7 @@ function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
 function DesktopBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
   return (
     <div style={{
-      background: 'rgba(3,18,22,.96)', border: '1px solid rgba(0,255,204,.22)',
+      background: 'rgba(17,17,17,.96)', border: '1px solid rgba(74,196,110,.22)',
       borderRadius: 16, padding: '14px 16px', backdropFilter: 'blur(20px)',
       boxShadow: '0 8px 32px rgba(0,0,0,.5)',
     }}>
@@ -191,8 +191,8 @@ function DesktopBanner({ hasPrompt, installing, platform, onInstall, onClose }) 
           onClick={onInstall} disabled={installing}
           style={{
             width: '100%',
-            background: installing ? 'rgba(0,255,204,.3)' : 'linear-gradient(135deg, var(--c), #00a89a)',
-            color: '#021a14', border: 'none', borderRadius: 10,
+            background: installing ? 'rgba(74,196,110,.3)' : 'linear-gradient(135deg, var(--c), #32a05a)',
+            color: '#000000', border: 'none', borderRadius: 10,
             padding: '9px 0', fontSize: 13, fontWeight: 800,
             fontFamily: 'var(--fd)', cursor: installing ? 'default' : 'pointer',
             transition: 'transform .1s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -217,7 +217,7 @@ function ShareIcon() {
 }
 
 function Spinner() {
-  return <span style={{ width: 10, height: 10, border: '2px solid #021a14', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite', display: 'inline-block' }} />
+  return <span style={{ width: 10, height: 10, border: '2px solid #000000', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin .7s linear infinite', display: 'inline-block' }} />
 }
 
 function XIcon({ size = 16 }) {

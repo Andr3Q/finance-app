@@ -101,7 +101,7 @@ export default function Transactions() {
               −R$ {totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
           </div>
-          <div className="card" style={{ borderColor: 'rgba(0,255,204,.18)' }}>
+          <div className="card" style={{ borderColor: 'rgba(74,196,110,.18)' }}>
             <div className="lbl">Total de Entradas</div>
             <div style={{ fontFamily: 'var(--fn)', fontSize: 26, fontWeight: 700, color: 'var(--c)', marginTop: 4, fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.5px' }}>
               +R$ {totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -136,7 +136,7 @@ export default function Transactions() {
           ) : (
             <div style={{ padding: '0 8px' }}>
               {filtered.map((t) => (
-                <div key={t.id} className="txi" style={{ padding: '14px 12px' }}>
+                <div key={t.id} className={`txi ${t.type}`} style={{ padding: '9px 10px 9px 14px' }}>
                   <div className={`txic ${t.type === 'income' ? 'inc' : 'exp'}`}>
                     <CategoryIcon category={t.category} size={16} color={t.type === 'income' ? 'var(--green)' : 'var(--red)'} />
                   </div>

@@ -19,7 +19,7 @@ const FAQ = [
 
 function Check() {
   return (
-    <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ color: '#00ffcc', flexShrink: 0 }}>
+    <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ color: '#4ac46e', flexShrink: 0 }}>
       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
     </svg>
   )
@@ -54,7 +54,7 @@ export default function Planos() {
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 7,
-            background: 'rgba(0,255,204,.07)', border: '1px solid rgba(0,255,204,.18)',
+            background: 'rgba(74,196,110,.07)', border: '1px solid rgba(74,196,110,.18)',
             borderRadius: 100, padding: '5px 14px', fontSize: 12,
             color: 'var(--c)', fontFamily: 'var(--fd)', fontWeight: 700,
             marginBottom: 14, letterSpacing: 0.5,
@@ -82,7 +82,7 @@ export default function Planos() {
           <div style={{
             position: 'absolute', top: -60, right: -60,
             width: 200, height: 200, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0,255,204,.12), transparent 70%)',
+            background: 'radial-gradient(circle, rgba(74,196,110,.12), transparent 70%)',
             pointerEvents: 'none',
           }} />
 
@@ -91,7 +91,7 @@ export default function Planos() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 10,
-                background: 'rgba(0,255,204,.12)', border: '1px solid rgba(0,255,204,.25)',
+                background: 'rgba(74,196,110,.12)', border: '1px solid rgba(74,196,110,.25)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
                 <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ color: 'var(--c)' }}>
@@ -105,11 +105,11 @@ export default function Planos() {
             </div>
 
             <span style={{
-              background: 'linear-gradient(135deg, var(--c), #00a89a)',
-              color: '#021a14', fontSize: 10, fontWeight: 800,
+              background: 'linear-gradient(135deg, var(--c), #32a05a)',
+              color: '#000000', fontSize: 10, fontWeight: 800,
               padding: '4px 12px', borderRadius: 20,
               letterSpacing: 0.5, fontFamily: 'var(--fd)',
-              boxShadow: '0 4px 16px rgba(0,255,204,.3)',
+              boxShadow: '0 4px 16px rgba(74,196,110,.3)',
             }}>⭐ RECOMENDADO</span>
           </div>
 
@@ -138,9 +138,9 @@ export default function Planos() {
           {isPro ? (
             <div style={{
               textAlign: 'center', padding: 14,
-              background: 'rgba(0,255,204,.08)', borderRadius: 14,
+              background: 'rgba(74,196,110,.08)', borderRadius: 14,
               fontSize: 14, fontWeight: 700, color: 'var(--c)',
-              border: '1px solid rgba(0,255,204,.18)',
+              border: '1px solid rgba(74,196,110,.18)',
             }}>✨ Você já é Pro!</div>
           ) : (
             <button
@@ -189,7 +189,7 @@ export default function Planos() {
             {FAQ.map(([q, a], i) => (
               <div
                 key={q}
-                style={{ borderBottom: i < FAQ.length - 1 ? '1px solid rgba(0,255,204,.07)' : 'none' }}
+                style={{ borderBottom: i < FAQ.length - 1 ? '1px solid rgba(74,196,110,.07)' : 'none' }}
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
@@ -217,7 +217,7 @@ export default function Planos() {
             ))}
           </div>
 
-          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--t2)', paddingTop: 16, borderTop: '1px solid rgba(0,255,204,.07)' }}>
+          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--t2)', paddingTop: 16, borderTop: '1px solid rgba(74,196,110,.07)' }}>
             Dúvidas? <span style={{ color: 'var(--c)', fontWeight: 600 }}>suporte@myfinancepro.com.br</span>
           </div>
         </div>
