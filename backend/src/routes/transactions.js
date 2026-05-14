@@ -343,6 +343,11 @@ router.post('/import', upload.single('file'), async (req, res) => {
         return res.status(400).json({ error: 'Erro ao processar o arquivo CSV.' })
       }
 
+      const MAX_CSV_ROWS = 500
+      if (records.length > MAX_CSV_ROWS) {
+        return res.status(400).json({ error: `O arquivo CSV deve ter no máximo ${MAX_CSV_ROWS} transações.` })
+      }
+
       const transactions = []
 
       for (const record of records) {

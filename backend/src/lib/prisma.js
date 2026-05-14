@@ -1,10 +1,11 @@
 const { PrismaClient } = require('@prisma/client')
 
 const buildUrl = () => {
-  const base = process.env.DATABASE_URL || ''
-  const sep  = base.includes('?') ? '&' : '?'
+  const base  = process.env.DATABASE_URL || ''
+  const sep   = base.includes('?') ? '&' : '?'
   if (base.includes('connection_limit')) return base
-  return `${base}${sep}connection_limit=3&pool_timeout=15&connect_timeout=15`
+  const limit = process.env.NODE_ENV === 'production' ? 10 : 5
+  return `${base}${sep}connection_limit=${limit}&pool_timeout=20&connect_timeout=15`
 }
 
 const prisma = new PrismaClient({
