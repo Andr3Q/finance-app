@@ -58,6 +58,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Inicialização:
-# 1. Sincroniza o schema com o banco (cria tabelas se não existirem)
+# 1. Aplica migrations pendentes (seguro para produção, não destrói dados)
 # 2. Inicia o servidor Express
-CMD ["sh", "-c", "npx prisma db push && node src/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
