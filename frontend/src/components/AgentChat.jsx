@@ -96,7 +96,7 @@ export default function AgentChat() {
             </div>
             <div>
               <div className="agent-header-title">Assistente IA</div>
-              <div className="agent-header-sub">FinançasPro · Claude</div>
+              <div className="agent-header-sub">Finance · Claude</div>
             </div>
             <div className="agent-header-dot" />
           </div>

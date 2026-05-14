@@ -117,7 +117,7 @@ export default function Navbar() {
   const timeStr   = clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const pageTitle = location.pathname === '/dashboard'
     ? `${greeting()}${firstName ? `, ${firstName}` : ''}`
-    : ROUTE_TITLES[location.pathname] || 'FinançasPro'
+    : ROUTE_TITLES[location.pathname] || 'Finance'
 
   const navLinks = [
     { path: '/dashboard',    label: 'Dashboard',      Icon: HomeIcon },
@@ -164,15 +164,8 @@ export default function Navbar() {
         <div className="dsb-s-inner">
           {/* Logo */}
           <button className="dsb-s-logo" onClick={() => navigate('/dashboard')}>
-            <div className="dsb-s-logo-ico">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <rect x="3.5" y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
-                <rect x="18"  y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
-                <path d="M 16.5 7 C 20.5 7 20.5 12 12 12 C 3.5 12 3.5 17 7.5 17"
-                      stroke="#4ac46e" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              </svg>
-            </div>
-            <span className="dsb-s-logo-name">Finanças<em>Pro</em></span>
+            <img src="/logo-icon.png" alt="Finance" style={{ width: 30, height: 30 }} />
+            <span className="dsb-s-logo-name">Finance</span>
           </button>
 
           {/* Nav links */}
@@ -337,7 +330,7 @@ function InstallGuide({ onClose }) {
         <div className="ig-header">
           <img src="/icon-192.png" alt="" className="ig-icon" />
           <div>
-            <div className="ig-title">Instalar FinançasPro</div>
+            <div className="ig-title">Instalar Finance</div>
             <div className="ig-sub">Siga os passos abaixo</div>
           </div>
         </div>

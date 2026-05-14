@@ -102,15 +102,8 @@ export default function Landing() {
       <nav className="lp2-nav">
         <div className="lp2-nav-inner">
           <Link to="/" className="lp2-logo">
-            <div className="lp2-logo-mark">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <rect x="3.5" y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
-                <rect x="18"  y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
-                <path d="M 16.5 7 C 20.5 7 20.5 12 12 12 C 3.5 12 3.5 17 7.5 17"
-                      stroke="#4ac46e" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              </svg>
-            </div>
-            <span className="lp2-logo-name">Finanças<span>Pro</span></span>
+            <img src="/logo-icon.png" alt="Finance" style={{ width: 32, height: 32 }} />
+            <span className="lp2-logo-name">Finance</span>
           </Link>
           <Link to="/register" className="lp2-nav-cta">Começar grátis</Link>
         </div>
@@ -275,17 +268,10 @@ export default function Landing() {
       <footer className="lp2-footer">
         <div className="lp2-footer-inner">
           <Link to="/" className="lp2-logo">
-            <div className="lp2-logo-mark">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <rect x="3.5" y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
-                <rect x="18"  y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
-                <path d="M 16.5 7 C 20.5 7 20.5 12 12 12 C 3.5 12 3.5 17 7.5 17"
-                      stroke="#4ac46e" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-              </svg>
-            </div>
-            <span className="lp2-logo-name" style={{ fontSize: 16 }}>Finanças<span>Pro</span></span>
+            <img src="/logo-icon.png" alt="Finance" style={{ width: 28, height: 28 }} />
+            <span className="lp2-logo-name" style={{ fontSize: 16 }}>Finance</span>
           </Link>
-          <p className="lp2-footer-note">© 2026 FinançasPro · Todos os direitos reservados</p>
+          <p className="lp2-footer-note">© 2026 Finance · Todos os direitos reservados</p>
         </div>
       </footer>
 

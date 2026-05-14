@@ -37,7 +37,7 @@ export default function ForgotPassword() {
               <circle cx="29" cy="9" r="2.5" fill="#4ac46e"/>
             </svg>
           </div>
-          <div className="ltitle"><span>Finanças</span>Pro</div>
+          <div className="ltitle">Finance</div>
           <div className="lsub">Recuperação de senha</div>
         </div>
 

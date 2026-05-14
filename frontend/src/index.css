@@ -1029,7 +1029,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   font-size: 17px; font-weight: 700; color: #fff;
   letter-spacing: -.3px; font-family: 'Sora', sans-serif;
 }
-.lp2-logo-name span { color: #4ac46e; }
+.lp2-logo-name span { color: inherit; }
 .lp2-nav-cta {
   font-size: 13px; font-weight: 600; color: #4ac46e;
   text-decoration: none; padding: 8px 16px;
@@ -1732,9 +1732,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   background: none; border: none; cursor: pointer; padding: 0;
 }
 .dsb-s-logo-ico {
-  width: 30px; height: 30px; border-radius: 9px;
-  background: rgba(74,196,110,.12); border: 1px solid rgba(74,196,110,.22);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: 8px;
+  flex-shrink: 0; object-fit: cover;
 }
 .dsb-s-logo-name {
   font-family: 'Sora', sans-serif;
