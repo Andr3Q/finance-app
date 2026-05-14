@@ -48,7 +48,7 @@ services:
   backend:
     build: ./backend                   # Usa o Dockerfile em ./backend/
     container_name: financas_backend
-    restart: unless-stopped
+    restart: on-failure
     env_file:
       - .env                           # DATABASE_URL, JWT_SECRET, EMAIL_* vêm do .env
     ports:
@@ -56,6 +56,17 @@ services:
     volumes:
       - ./backend:/app                 # Monta o código local → hot reload funciona
       - /app/node_modules              # Preserva node_modules do container
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
 
   # ───────────────────────────────────────────────
   # 🎨  frontend — React + Vite
@@ -67,9 +78,10 @@ services:
   frontend:
     build: ./frontend                  # Usa o Dockerfile em ./frontend/
     container_name: financas_frontend
-    restart: unless-stopped
+    restart: on-failure
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "5173:5173"                    # App acessível em http://localhost:5173
     volumes:
@@ -80,6 +92,11 @@ services:
       - VITE_HOST=0.0.0.0
     stdin_open: true                   # Mantém o container ativo (evita parada inesperada)
     tty: true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
 # ───────────────────────────────────────────────────────
 # 💾 Volumes — Armazenamento persistente do Docker

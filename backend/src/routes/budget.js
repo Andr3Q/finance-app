@@ -38,8 +38,15 @@ router.post('/', async (req, res) => {
   try {
     const { name, amount } = req.body
 
-    if (!name || !amount) {
-      return res.status(400).json({ error: 'Nome e valor são obrigatórios.' })
+    const parsedAmount = parseFloat(amount)
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Nome é obrigatório.' })
+    }
+    if (name.length > 100) {
+      return res.status(400).json({ error: 'Nome deve ter no máximo 100 caracteres.' })
+    }
+    if (!isFinite(parsedAmount) || parsedAmount <= 0) {
+      return res.status(400).json({ error: 'Valor deve ser maior que zero.' })
     }
 
     // Limite do plano Free: máximo 3 contas fixas
@@ -56,7 +63,7 @@ router.post('/', async (req, res) => {
     }
 
     const budget = await prisma.budget.create({
-      data: { name, amount: parseFloat(amount), userId: req.userId }
+      data: { name: name.trim(), amount: parsedAmount, userId: req.userId }
     })
     res.status(201).json(budget)
   } catch (error) {
@@ -93,10 +100,22 @@ router.put('/:id', async (req, res) => {
     const existing = await prisma.budget.findFirst({ where: { id, userId: req.userId } })
     if (!existing) return res.status(404).json({ error: 'Conta fixa não encontrada.' })
 
-    const budget = await prisma.budget.update({
-      where: { id },
-      data:  { name, amount: parseFloat(amount) }
-    })
+    const updateData = {}
+    if (name !== undefined) {
+      if (typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
+        return res.status(400).json({ error: 'Nome inválido.' })
+      }
+      updateData.name = name.trim()
+    }
+    if (amount !== undefined) {
+      const parsed = parseFloat(amount)
+      if (!isFinite(parsed) || parsed <= 0) {
+        return res.status(400).json({ error: 'Valor deve ser maior que zero.' })
+      }
+      updateData.amount = parsed
+    }
+
+    const budget = await prisma.budget.update({ where: { id }, data: updateData })
     res.json(budget)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar conta fixa.' })

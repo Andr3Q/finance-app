@@ -47,7 +47,15 @@ COPY --from=frontend-builder /frontend/dist ./public
 ENV NODE_ENV=production
 ENV PORT=8080
 
+# Usuário sem privilégios
+RUN addgroup -g 1001 -S appuser && adduser -S appuser -u 1001 -G appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Inicialização:
 # 1. Sincroniza o schema com o banco (cria tabelas se não existirem)

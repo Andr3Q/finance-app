@@ -10,6 +10,7 @@
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
+    "groq-sdk": "^0.9.0",
     "@prisma/client": "^5.10.0",
     "bcryptjs": "^2.4.3",
     "compression": "^1.8.1",

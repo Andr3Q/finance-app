@@ -4,18 +4,27 @@
 
 require('dotenv').config()
 
+// ── Validação de variáveis obrigatórias na inicialização ─
+const REQUIRED_ENV = ['JWT_SECRET', 'DATABASE_URL']
+const missing = REQUIRED_ENV.filter(k => !process.env[k])
+if (missing.length) {
+  console.error(`[FATAL] Variáveis de ambiente ausentes: ${missing.join(', ')}`)
+  process.exit(1)
+}
+
 const express      = require('express')
 const cors         = require('cors')
 const helmet       = require('helmet')
 const compression  = require('compression')
 const path         = require('path')
 
-const { apiLimiter, authLimiter } = require('./middleware/rateLimiter')
+const { apiLimiter, authLimiter, agentLimiter, forgotPasswordLimiter } = require('./middleware/rateLimiter')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
 const reportRoutes        = require('./routes/reports')
 const notificationRoutes  = require('./routes/notifications')
+const agentRoutes         = require('./routes/agent')
 
 const app        = express()
 const PORT       = process.env.PORT || 3001
@@ -78,11 +87,7 @@ app.use('/api/transactions',  transactionRoutes)
 app.use('/api/budget',        budgetRoutes)
 app.use('/api/reports',       reportRoutes)
 app.use('/api/notifications', notificationRoutes)
-
-// ── Health Check ────────────────────────────────────────
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: '✅ FinançasPro API rodando!', env: isProd ? 'production' : 'development' })
-})
+app.use('/api/agent',        agentLimiter, agentRoutes)
 
 // ── Handler de Erros Global ─────────────────────────────
 app.use((err, req, res, next) => {
@@ -102,7 +107,39 @@ if (isProd) {
   })
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+// ── Timeout por requisição (30s) ────────────────────────
+app.use((req, res, next) => {
+  res.setTimeout(30000, () => {
+    res.status(503).json({ error: 'Tempo de resposta esgotado.' })
+  })
+  next()
+})
+
+// ── Health Check com ping no banco ──────────────────────
+const prismaHealth = require('./lib/prisma')
+app.get('/health', async (req, res) => {
+  try {
+    await prismaHealth.$queryRaw`SELECT 1`
+    res.json({ status: 'ok', env: isProd ? 'production' : 'development' })
+  } catch {
+    res.status(503).json({ status: 'degraded', detail: 'database unreachable' })
+  }
+})
+
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Backend rodando em http://localhost:${PORT}`)
   console.log(`📋 Ambiente: ${isProd ? 'PRODUÇÃO ☁️' : 'desenvolvimento 🛠️'}`)
 })
+
+// ── Graceful shutdown ───────────────────────────────────
+const shutdown = (signal) => {
+  console.log(`[${signal}] Encerrando servidor...`)
+  server.close(async () => {
+    await prismaHealth.$disconnect()
+    console.log('Servidor encerrado.')
+    process.exit(0)
+  })
+  setTimeout(() => { console.error('Forçando encerramento.'); process.exit(1) }, 15000)
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+process.on('SIGINT',  () => shutdown('SIGINT'))

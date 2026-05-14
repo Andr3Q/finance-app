@@ -33,9 +33,12 @@ COPY . .
 # Expõe a porta 3001 para o Docker Compose
 EXPOSE 3001
 
-# Comando de inicialização:
-# 1. Roda as migrations do banco (cria as tabelas se não existirem)
-# 2. Inicia o servidor com nodemon (reinicia automaticamente ao salvar)
-# prisma db push → cria as tabelas direto do schema.prisma (não precisa de migrations)
-# nodemon → reinicia o servidor automaticamente quando você editar algum arquivo
+# Usuário sem privilégios — minimiza impacto de vulnerabilidades
+RUN addgroup -g 1001 -S appuser && adduser -S appuser -u 1001 -G appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+
 CMD ["node", "src/server.js"]
