@@ -94,4 +94,9 @@ export const notificationsAPI = {
   unsubscribe: (data) => api.post('/notifications/unsubscribe', data),
 }
 
+// ── Agente IA ───────────────────────────────────────────
+export const agentAPI = {
+  chat: (message, history) => api.post('/agent/chat', { message, history }),
+}
+
 export default api
