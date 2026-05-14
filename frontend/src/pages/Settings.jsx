@@ -167,7 +167,7 @@ export default function Settings() {
   const handleToggleNotifications = async () => {
     if (notifStatus === 'unsupported' || notifLoading) return
     if (notifStatus === 'denied') {
-      showMsg('Bloqueado — Ajustes > FinançasPro > Notificações', 'error'); return
+      showMsg('Bloqueado — Ajustes > Finance > Notificações', 'error'); return
     }
     const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone
@@ -191,7 +191,7 @@ export default function Settings() {
       const permission = await Notification.requestPermission()
       if (permission !== 'granted') {
         setNotifStatus(permission)
-        if (permission === 'denied') showMsg('Permissão negada. Ajustes > FinançasPro > Notificações.', 'error')
+        if (permission === 'denied') showMsg('Permissão negada. Ajustes > Finance > Notificações.', 'error')
         return
       }
       setNotifStatus('granted')
@@ -468,7 +468,7 @@ export default function Settings() {
                     <div className="cfg-notif-label">Avisos de transações</div>
                     <div className={`cfg-notif-desc${notifStatus === 'granted' ? ' on' : notifStatus === 'denied' ? ' err' : ''}`}>
                       {notifStatus === 'unsupported' && 'Instale o app na tela inicial para usar notificações.'}
-                      {notifStatus === 'denied'      && 'Bloqueado — habilite em Configurações > FinançasPro.'}
+                      {notifStatus === 'denied'      && 'Bloqueado — habilite em Configurações > Finance.'}
                       {notifStatus === 'granted'     && 'Ativo — você recebe avisos de gastos e saldo.'}
                       {notifStatus === 'default'     && 'Receba avisos a cada transação registrada.'}
                       {notifStatus === 'loading'     && 'Verificando...'}
@@ -634,7 +634,7 @@ export default function Settings() {
                 <div className="cfg-card-head">
                   <img src="/icon-192.png" alt="" className="cfg-app-ico" />
                   <div>
-                    <div className="cfg-ch-title">Instalar FinançasPro</div>
+                    <div className="cfg-ch-title">Instalar Finance</div>
                     <div className="cfg-ch-sub">Acesse com um toque, sem abrir o navegador</div>
                   </div>
                 </div>

@@ -120,7 +120,7 @@ function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img src="/icon-192.png" alt="" style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.3)' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 2 }}>Instalar FinançasPro</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 2 }}>Instalar Finance</div>
             <div style={{ fontSize: 11.5, color: 'var(--t2)' }}>Acesso rápido na tela inicial</div>
           </div>
           <button
@@ -148,7 +148,7 @@ function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
           <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>📲</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 6 }}>
-              Instalar FinançasPro
+              Instalar Finance
             </div>
             <Instructions platform={platform} />
           </div>
@@ -175,7 +175,7 @@ function DesktopBanner({ hasPrompt, installing, platform, onInstall, onClose }) 
         }
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: hasPrompt ? 2 : 6 }}>
-            Instalar FinançasPro
+            Instalar Finance
           </div>
           {hasPrompt
             ? <div style={{ fontSize: 11, color: 'var(--t2)' }}>Acesso rápido na tela inicial</div>
