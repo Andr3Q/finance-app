@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../services/installPrompt.js'
-import { useUser } from '../hooks/useUser.js'
-import { useTheme } from '../hooks/useTheme.js'
+import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../../services/installPrompt.js'
+import { useUser } from '../../hooks/useUser.js'
+import { useTheme } from '../../hooks/useTheme.js'
 
 const ROUTE_TITLES = {
   '/transactions': 'Transações',
