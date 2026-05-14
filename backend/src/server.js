@@ -89,6 +89,17 @@ app.use('/api/reports',       reportRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/agent',        agentLimiter, agentRoutes)
 
+// ── Health Check com ping no banco (antes do SPA catch-all) ─
+const prismaHealth = require('./lib/prisma')
+app.get('/health', async (req, res) => {
+  try {
+    await prismaHealth.$queryRaw`SELECT 1`
+    res.json({ status: 'ok', env: isProd ? 'production' : 'development' })
+  } catch {
+    res.status(503).json({ status: 'degraded', detail: 'database unreachable' })
+  }
+})
+
 // ── Handler de Erros Global ─────────────────────────────
 app.use((err, req, res, next) => {
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message)
@@ -113,17 +124,6 @@ app.use((req, res, next) => {
     res.status(503).json({ error: 'Tempo de resposta esgotado.' })
   })
   next()
-})
-
-// ── Health Check com ping no banco ──────────────────────
-const prismaHealth = require('./lib/prisma')
-app.get('/health', async (req, res) => {
-  try {
-    await prismaHealth.$queryRaw`SELECT 1`
-    res.json({ status: 'ok', env: isProd ? 'production' : 'development' })
-  } catch {
-    res.status(503).json({ status: 'degraded', detail: 'database unreachable' })
-  }
 })
 
 const server = app.listen(PORT, '0.0.0.0', () => {
