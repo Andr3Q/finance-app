@@ -166,9 +166,9 @@ export default function Navbar() {
           <button className="dsb-s-logo" onClick={() => navigate('/dashboard')}>
             <div className="dsb-s-logo-ico">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <rect x="2"   y="14" width="5" height="8" rx="1.5" fill="#4ac46e" opacity="0.55"/>
-                <rect x="9.5" y="9"  width="5" height="13" rx="1.5" fill="#4ac46e" opacity="0.8"/>
-                <rect x="17"  y="4"  width="5" height="18" rx="1.5" fill="#4ac46e"/>
+                <rect x="5"    y="3"   width="3.5" height="18"  rx="1.5" fill="#4ac46e"/>
+                <rect x="5"    y="3"   width="14"  height="4"   rx="1.5" fill="#4ac46e"/>
+                <rect x="5"    y="10.5" width="10"  height="3.5" rx="1.5" fill="#4ac46e" opacity="0.8"/>
               </svg>
             </div>
             <span className="dsb-s-logo-name">Finanças<em>Pro</em></span>

@@ -1345,6 +1345,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ── lp2 Responsive ── */
 @media (max-width: 768px) {
+  .lp2-accent-line { display: none; }
   .lp2-nav { padding-top: env(safe-area-inset-top, 0px); }
   .lp2-hero { padding: calc(110px + env(safe-area-inset-top, 0px)) 20px 60px; min-height: auto; align-items: flex-start; }
   .lp2-h1 { font-size: 38px; }
@@ -6905,15 +6906,17 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   .tx1-row { padding-right: 14px; }
 }
 
-/* ── Transactions: search full-width e pills rolável ── */
+/* ── Transactions: search + pills full-width ── */
 @media (max-width: 480px) {
   .tx1-search-wrap { flex: 1 1 100%; min-width: 0; }
   .tx1-pills {
+    flex: 1 1 100%; justify-content: space-between;
     overflow-x: auto; flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
   .tx1-pills::-webkit-scrollbar { display: none; }
+  .tx1-pill { flex: 1; text-align: center; }
   .tx1-toolbar-actions { gap: 6px; }
   .tx1-btn-ghost { padding: 8px 10px; }
 }
