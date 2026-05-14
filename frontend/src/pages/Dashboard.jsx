@@ -5,7 +5,6 @@ import { useUser } from '../hooks/useUser.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar           from '../components/Navbar.jsx'
 import TransactionForm  from '../components/TransactionForm.jsx'
-import SalaryReminder   from '../components/SalaryReminder.jsx'
 import AutoLaunchPrompt from '../components/AutoLaunchPrompt.jsx'
 import { CategoryIcon } from '../components/icons.jsx'
 
@@ -33,6 +32,7 @@ export default function Dashboard() {
   const [loading,      setLoading]      = useState(true)
   const [showForm,     setShowForm]     = useState(false)
   const [toast,        setToast]        = useState(null)
+  const [txFilter,     setTxFilter]     = useState('all')
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -88,11 +88,13 @@ export default function Dashboard() {
     pct < 70  ? '#ffc107' :
     pct < 90  ? '#ff8c42' : '#ff4757'
 
-  // Últimas transações para o painel
-  const recentTx = useMemo(() => transactions.slice(0, 5), [transactions])
+  const filteredTx = useMemo(() =>
+    txFilter === 'all' ? transactions : transactions.filter(t => t.type === txFilter)
+  , [transactions, txFilter])
 
-  // Gastos por categoria
-  const byCategory = useMemo(() => {
+  const totalExpenses = summary?.totalExpenses || 0
+
+  const topCategories = useMemo(() => {
     const map = {}
     transactions.filter(t => t.type === 'expense').forEach(t => {
       map[t.category] = (map[t.category] || 0) + Number(t.amount)
@@ -100,21 +102,36 @@ export default function Dashboard() {
     return Object.entries(map)
       .map(([cat, val]) => ({ cat, val, label: CATEGORY_LABELS[cat] || cat }))
       .sort((a, b) => b.val - a.val)
-      .slice(0, 4)
+      .slice(0, 5)
   }, [transactions])
 
-  const totalExpenses = summary?.totalExpenses || 0
+  const groupedTx = useMemo(() => {
+    const todayMs  = new Date().setHours(0,0,0,0)
+    const yestMs   = todayMs - 86400000
+    const groups   = new Map()
+    filteredTx.forEach(t => {
+      const dMs = new Date(t.date).setHours(0,0,0,0)
+      const key = dMs === todayMs ? 'Hoje' : dMs === yestMs ? 'Ontem'
+        : new Date(t.date).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(t)
+    })
+    return [...groups.entries()]
+  }, [filteredTx])
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh' }}>
       <div style={{ textAlign:'center' }}>
-        <div className="dsb-loader">
-          <div className="dsb-loader-ring" />
-        </div>
-        <p style={{ color:'var(--t2)', fontSize:13, marginTop:16, fontFamily:'var(--fb)' }}>Carregando suas finanças…</p>
+        <div className="dsb-loader"><div className="dsb-loader-ring" /></div>
+        <p style={{ color:'var(--t2)', fontSize:13, marginTop:16 }}>Carregando suas finanças…</p>
       </div>
     </div>
   )
+
+  const HB_COLORS  = ['#4ac46e','#00b4d8','#7b2fff','#ff6b9d','#ffc107','#ff8c42','#4f8ef7','#00d084']
+  const RING_R     = 58
+  const RING_CIRC  = 2 * Math.PI * RING_R
+  const ringOffset = RING_CIRC * (1 - Math.min(pct, 100) / 100)
 
   return (
     <>
@@ -127,296 +144,239 @@ export default function Dashboard() {
       )}
 
       <div className="pwnav fade-in">
-        <SalaryReminder salary={summary?.salary} />
         <AutoLaunchPrompt autoLaunched={summary?.autoLaunched} onLaunched={() => fetchData()} />
 
-        <div className="dsb-content">
+        <div className="hb-page">
 
-          {/* ══════════════════════════════════
-              LINHA 1 — Cards de métricas hero
-          ══════════════════════════════════ */}
-          <div className="dsh-metrics r1">
-
-            {/* Card principal — Saldo */}
-            <div className="dsh-card dsh-card-main">
-              <div className="dsh-card-glow" />
-              <div className="dsh-card-grid-lines" />
-              <div className="dsh-card-inner">
-                <div className="dsh-metric-label">
-                  <div className="dsh-metric-label-dot dsh-dot-green" />
-                  Saldo Disponível
-                </div>
-                <div className="dsh-metric-value dsh-value-xl">
-                  R$ {fmt(summary?.currentBalance)}
-                </div>
-                <div className="dsh-metric-row">
-                  <span className="dsh-badge dsh-badge-green">↑ {pct}% usado</span>
-                  <span className="dsh-badge dsh-badge-muted">{MONTHS[now.getMonth()]} {now.getFullYear()}</span>
-                </div>
-                {/* Barra de progresso */}
-                <div className="dsh-prog-wrap">
-                  <div className="dsh-prog-labels">
-                    <span>Orçamento — {pct}% usado</span>
-                    <span className="dsh-prog-max">R$ {fmt(summary?.totalAvailable)} total</span>
-                  </div>
-                  <div className="dsh-prog-track">
-                    <div
-                      className="dsh-prog-fill"
-                      style={{ width: `${Math.min(pct, 100)}%`, background: healthColor }}
-                    />
-                  </div>
-                </div>
+          {/* ── Linha de métricas (Stripe) ── */}
+          <div className="hb-metrics">
+            <div className="grad-particles" aria-hidden="true">
+              {[5,14,24,35,46,57,67,78,87,95].map((left, i) => (
+                <span key={i} className="grad-particle" style={{
+                  left:`${left}%`,
+                  width: `${2 + (i % 3)}px`,
+                  height: `${2 + (i % 3)}px`,
+                  animationDelay: `${(i * 0.5) % 3}s`,
+                  animationDuration: `${2 + (i % 4) * 0.65}s`,
+                  opacity: 0.25 + (i % 3) * 0.15,
+                }} />
+              ))}
+            </div>
+            <div className="hb-metric">
+              <div className="hb-metric-lbl">Saldo disponível</div>
+              <div className="hb-metric-val" style={{ color: summary?.currentBalance < 0 ? '#ff6b6b' : 'var(--t1)' }}>
+                R$ {fmt(summary?.currentBalance)}
               </div>
+              <span className="hb-metric-badge" style={{ background:`${healthColor}18`, color: healthColor, border:`1px solid ${healthColor}28` }}>{healthLabel}</span>
             </div>
 
-            {/* Card salário */}
-            <div className="dsh-card dsh-card-dark">
-              <div className="dsh-card-inner">
-                <div className="dsh-metric-label">
-                  <div className="dsh-metric-label-dot dsh-dot-muted" />
-                  Salário
-                </div>
-                <div className="dsh-metric-value">R$ {fmt(summary?.salary)}</div>
-                <div className="dsh-metric-row">
-                  <span className="dsh-badge dsh-badge-muted">Mês atual</span>
-                </div>
-                <div className="dsh-card-foot">
-                  <span className="dsh-foot-lbl">Entrada fixa</span>
-                  <span className="dsh-foot-ico dsh-foot-ico-salary">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-                    </svg>
-                  </span>
-                </div>
-              </div>
+            <div className="hb-metric-sep" />
+
+            <div className="hb-metric">
+              <div className="hb-metric-lbl">Salário + Entradas</div>
+              <div className="hb-metric-val" style={{ color:'#4ac46e' }}>R$ {fmt(summary?.totalAvailable)}</div>
+              {summary?.totalIncome > 0
+                ? <span className="hb-metric-hint">+R$ {fmtShort(summary?.totalIncome)} extras este mês</span>
+                : <span className="hb-metric-hint">Salário: R$ {fmt(summary?.salary)}</span>}
             </div>
 
-            {/* Card gastos */}
-            <div className="dsh-card dsh-card-dark">
-              <div className="dsh-card-inner">
-                <div className="dsh-metric-label">
-                  <div className="dsh-metric-label-dot dsh-dot-red" />
-                  Total Gasto
-                </div>
-                <div className="dsh-metric-value dsh-value-expense">R$ {fmt(summary?.totalExpenses)}</div>
-                <div className="dsh-metric-row">
-                  <span className="dsh-badge dsh-badge-muted">{pct}% do orçamento</span>
-                </div>
-                <div className="dsh-card-foot">
-                  <span className="dsh-foot-lbl" style={{ color: healthColor }}>{healthLabel}</span>
-                  <span className="dsh-foot-ico dsh-foot-ico-expense">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M6 2 3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-                      <line x1="3" y1="6" x2="21" y2="6"/>
-                      <path d="M16 10a4 4 0 01-8 0"/>
-                    </svg>
-                  </span>
-                </div>
-              </div>
+            <div className="hb-metric-sep" />
+
+            <div className="hb-metric">
+              <div className="hb-metric-lbl">Total gasto</div>
+              <div className="hb-metric-val" style={{ color:'#ff6b6b' }}>R$ {fmt(summary?.totalExpenses)}</div>
+              <span className="hb-metric-hint">{pct}% do orçamento · {MONTHS[now.getMonth()]}</span>
             </div>
 
+            <button className="hb-new-btn" onClick={() => setShowForm(true)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Nova Transação
+            </button>
           </div>
 
-          {/* ══════════════════════════════════
-              LINHA 2 — Grid principal
-          ══════════════════════════════════ */}
-          <div className="dsh-main-grid r2">
+          {/* ── Grid principal (Linear) ── */}
+          <div className="hb-grid">
 
-            {/* ── COLUNA ESQUERDA ── */}
-            <div className="dsh-left-col">
+            {/* ── Coluna esquerda ── */}
+            <div className="hb-left">
 
-              {/* Ações rápidas */}
-              <div className="dsh-actions-card">
-                <div className="dsh-actions-row">
-                  <button className="dsh-act-btn dsh-act-primary" onClick={() => setShowForm(true)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                    </svg>
-                    Nova Transação
-                  </button>
-                  <button className="dsh-act-btn dsh-act-ghost" onClick={() => navigate('/transactions')}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <rect x="2" y="3" width="20" height="14" rx="2"/>
-                    </svg>
-                    Ver Transações
-                  </button>
-                  <button className="dsh-act-btn dsh-act-ghost" onClick={() => navigate('/settings')}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="3"/>
-                      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33"/>
-                    </svg>
-                    Configurações
-                  </button>
+              {/* Ring hero (Monzo) */}
+              <div className="hb-ring-card">
+                <div className="hb-ring-glow-bg" />
+                <div className="hb-ring-particles" aria-hidden="true">
+                  {[
+                    { left:  5, size: 3, delay: 0,   dur: 2.8 },
+                    { left: 15, size: 4, delay: 1.1, dur: 3.2 },
+                    { left: 28, size: 3, delay: 0.5, dur: 2.5 },
+                    { left: 45, size: 5, delay: 1.7, dur: 3.5 },
+                    { left: 60, size: 3, delay: 0.3, dur: 2.9 },
+                    { left: 74, size: 4, delay: 1.3, dur: 3.1 },
+                    { left: 85, size: 3, delay: 0.8, dur: 2.6 },
+                    { left: 93, size: 4, delay: 1.9, dur: 3.3 },
+                  ].map((p, i) => (
+                    <span key={i} className="hb-ring-particle" style={{
+                      left: `${p.left}%`, width: p.size, height: p.size,
+                      animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s`,
+                    }} />
+                  ))}
+                </div>
+                <div className="hb-ring-wrap">
+                  <svg width="148" height="148" viewBox="0 0 148 148">
+                    <circle cx="74" cy="74" r={RING_R} fill="none" className="hb-ring-track" strokeWidth="9" />
+                    <circle
+                      cx="74" cy="74" r={RING_R} fill="none"
+                      stroke={healthColor} strokeWidth="9"
+                      strokeLinecap="round"
+                      strokeDasharray={RING_CIRC}
+                      strokeDashoffset={ringOffset}
+                      transform="rotate(-90 74 74)"
+                      style={{ transition:'stroke-dashoffset .8s cubic-bezier(.4,0,.2,1), stroke .4s' }}
+                    />
+                  </svg>
+                  <div className="hb-ring-inner">
+                    <div className="hb-ring-pct" style={{ color: healthColor }}>{pct}%</div>
+                    <div className="hb-ring-sub">usado</div>
+                  </div>
+                </div>
+                <div className="hb-ring-info">
+                  <div className="hb-ring-period">{MONTHS[now.getMonth()]} {now.getFullYear()}</div>
+                  <div className="hb-ring-title">Orçamento mensal</div>
+                  <div className="hb-ring-bar">
+                    <div className="hb-ring-bar-fill" style={{ width:`${Math.min(pct,100)}%`, background: healthColor }} />
+                  </div>
+                  <div className="hb-ring-bar-labels">
+                    <span>R$ {fmt(summary?.totalExpenses)} gasto</span>
+                    <span>de R$ {fmt(summary?.totalAvailable)}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Gastos por categoria */}
-              <div className="dsh-panel">
-                <div className="dsh-panel-head">
-                  <div>
-                    <div className="dsh-panel-title">Gastos por categoria</div>
-                    <div className="dsh-panel-sub">{MONTHS[now.getMonth()]} {now.getFullYear()}</div>
-                  </div>
-                  <button className="dsh-panel-link" onClick={() => navigate('/transactions')}>Ver detalhes →</button>
+              {/* Barras de categoria (Stripe) */}
+              <div className="hb-bars-card">
+                <div className="hb-card-head">
+                  <span className="hb-card-title">Gastos por categoria</span>
+                  <button className="hb-card-link" onClick={() => navigate('/transactions')}>Ver detalhes →</button>
                 </div>
-                <div className="dsh-panel-body">
-                  {byCategory.length === 0 ? (
-                    <div className="dsh-cat-empty">Nenhum gasto registrado ainda</div>
-                  ) : (
-                    byCategory.map(({ cat, val, label }) => {
-                      const pctCat = totalExpenses > 0 ? Math.round((val / totalExpenses) * 100) : 0
-                      return (
-                        <div key={cat} className="dsh-cat-item">
-                          <div className="dsh-cat-ico">
-                            <CategoryIcon category={cat} size={14} color="rgba(255,255,255,.5)" />
-                          </div>
-                          <div className="dsh-cat-info">
-                            <div className="dsh-cat-row">
-                              <span className="dsh-cat-name">{label}</span>
-                              <span className="dsh-cat-val">R$ {fmt(val)}</span>
-                            </div>
-                            <div className="dsh-cat-track">
-                              <div className="dsh-cat-fill" style={{ width: `${pctCat}%` }} />
-                            </div>
-                          </div>
-                          <span className="dsh-cat-pct">{pctCat}%</span>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-
-            </div>
-
-            {/* ── COLUNA DIREITA ── */}
-            <div className="dsh-right-col">
-
-              {/* Saldo e orçamento */}
-              <div className="dsh-panel">
-                <div className="dsh-panel-head">
-                  <div>
-                    <div className="dsh-panel-title">Saldo e orçamento</div>
-                    <div className="dsh-panel-sub">Mês atual</div>
-                  </div>
-                  <span className="dsh-health-badge" style={{ background: `${healthColor}18`, border: `1px solid ${healthColor}40`, color: healthColor }}>
-                    {healthLabel}
-                  </span>
-                </div>
-                <div className="dsh-panel-body">
-                  {summary && (
-                    <div className="dsh-bal-wrap">
-                      {/* Hero saldo */}
-                      <div className="dsh-bal-hero">
-                        <div className="dsh-bal-glow" />
-                        <div className="dsh-bal-hdr">
-                          <span className="dsh-bal-lbl">Saldo disponível</span>
-                          <span className="dsh-sh-chip" style={{ color: healthColor }}>{pct}% usado</span>
-                        </div>
-                        <div className="dsh-bal-val" style={{ color: summary.currentBalance < 0 ? '#ff4757' : '#fff' }}>
-                          R$ {fmt(Math.abs(summary.currentBalance))}
-                        </div>
-                        <div className="dsh-bal-track">
-                          <div className="dsh-bal-fill" style={{ width: `${Math.min(pct, 100)}%`, background: healthColor }} />
-                        </div>
-                        <div className="dsh-bal-range">
-                          <span>R$ 0</span>
-                          <span>R$ {fmt(summary.totalAvailable)}</span>
-                        </div>
+                {topCategories.length === 0 ? (
+                  <div className="hb-empty">Sem gastos registrados</div>
+                ) : topCategories.map((c, i) => {
+                  const barPct = totalExpenses > 0 ? (c.val / totalExpenses) * 100 : 0
+                  return (
+                    <div key={c.cat} className="hb-bar-row">
+                      <div className="hb-bar-dot" style={{ background: HB_COLORS[i % HB_COLORS.length] }} />
+                      <div className="hb-bar-name">{c.label}</div>
+                      <div className="hb-bar-track">
+                        <div className="hb-bar-fill" style={{ width:`${barPct}%`, background: HB_COLORS[i % HB_COLORS.length] }} />
                       </div>
-                      {/* Stats */}
-                      <div className="dsh-qs">
-                        <div className="dsh-qs-item">
-                          <div className="dsh-qs-lbl">Salário</div>
-                          <div className="dsh-qs-val">{fmt(summary.salary)}</div>
-                        </div>
-                        <div className="dsh-qs-sep" />
-                        <div className="dsh-qs-item">
-                          <div className="dsh-qs-lbl">Gastos</div>
-                          <div className="dsh-qs-val" style={{ color: '#ff4757' }}>{fmt(summary.totalExpenses)}</div>
-                        </div>
-                        <div className="dsh-qs-sep" />
-                        <div className="dsh-qs-item">
-                          <div className="dsh-qs-lbl">Saldo</div>
-                          <div className="dsh-qs-val" style={{ color: summary.currentBalance >= 0 ? '#4ac46e' : '#ff4757' }}>
-                            {fmt(Math.abs(summary.currentBalance))}
-                          </div>
-                        </div>
+                      <div className="hb-bar-right">
+                        <span className="hb-bar-val">R$ {fmtShort(c.val)}</span>
+                        <span className="hb-bar-pct">{Math.round(barPct)}%</span>
                       </div>
                     </div>
-                  )}
-                </div>
+                  )
+                })}
               </div>
 
-              {/* Últimas transações */}
-              <div className="dsh-panel">
-                <div className="dsh-panel-head">
-                  <div>
-                    <div className="dsh-panel-title">Últimas transações</div>
-                    <div className="dsh-panel-sub">{transactions.length} este mês</div>
-                  </div>
-                  <button className="dsh-panel-link" onClick={() => navigate('/transactions')}>Ver todas →</button>
-                </div>
-                <div className="dsh-tx-list">
-                  {recentTx.length === 0 ? (
-                    <div className="dsh-tx-empty">Nenhuma transação ainda</div>
-                  ) : (
-                    recentTx.map((t, i) => {
-                      const isInc = t.type === 'income'
-                      const desc = t.description || CATEGORY_LABELS[t.category] || t.category
-                      return (
-                        <div key={t.id} className="dsh-tx-row" style={{ animationDelay: `${i * 0.06}s` }}>
-                          <div className={`dsh-tx-stripe ${isInc ? 'inc' : 'exp'}`} />
-                          <div className={`dsh-tx-ico ${isInc ? 'inc' : 'exp'}`}>
-                            <CategoryIcon category={t.category} size={14} color={isInc ? '#4ac46e' : 'rgba(255,255,255,.4)'} />
-                          </div>
-                          <div className="dsh-tx-info">
-                            <div className="dsh-tx-name">{desc}</div>
-                            <div className="dsh-tx-meta">
-                              {CATEGORY_LABELS[t.category]} · {new Date(t.date).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })}
-                            </div>
-                          </div>
-                          <div className="dsh-tx-right">
-                            <div className={`dsh-tx-val ${isInc ? 'inc' : 'exp'}`}>
-                              {isInc ? '+' : '−'}R$ {fmt(t.amount)}
-                            </div>
-                            <button className="dsh-tx-del" onClick={() => handleDelete(t.id)} title="Remover">
-                              <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                              </svg>
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Upgrade card — apenas free */}
+              {/* Upgrade */}
               {!isPro && (
-                <div className="dsh-upgrade-card" onClick={() => navigate('/planos')} role="button" tabIndex={0}>
-                  <div className="dsh-upg-glow" />
-                  <div className="dsh-upg-ico">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
+                <div className="hb-upgrade" onClick={() => navigate('/planos')} role="button" tabIndex={0}>
+                  {/* partículas */}
+                  <div className="hb-upg-particles" aria-hidden="true">
+                    {[
+                      { left:  6, size: 4, delay: 0,   dur: 2.8 },
+                      { left: 18, size: 3, delay: 0.7, dur: 2.4 },
+                      { left: 32, size: 5, delay: 1.2, dur: 3.1 },
+                      { left: 50, size: 3, delay: 0.4, dur: 2.6 },
+                      { left: 65, size: 4, delay: 1.6, dur: 2.9 },
+                      { left: 78, size: 5, delay: 0.9, dur: 3.3 },
+                      { left: 90, size: 3, delay: 0.2, dur: 2.5 },
+                    ].map((p, i) => (
+                      <span key={i} className="hb-upg-particle" style={{
+                        left: `${p.left}%`, width: p.size, height: p.size,
+                        animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s`,
+                      }} />
+                    ))}
+                  </div>
+                  <div className="hb-upg-glow" />
+                  <div className="hb-upg-glow hb-upg-glow2" />
+                  <div className="hb-upg-ico">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
                       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                     </svg>
                   </div>
-                  <div className="dsh-upg-content">
-                    <div className="dsh-upg-title">Upgrade para Pro</div>
-                    <div className="dsh-upg-sub">Transações ilimitadas · PDF · CSV · Limites por categoria</div>
+                  <div className="hb-upg-body">
+                    <div className="hb-upg-title">Upgrade para Pro</div>
+                    <div className="hb-upg-sub">Ilimitado · PDF · CSV · Limites por categoria</div>
                   </div>
-                  <div className="dsh-upg-arrow">›</div>
+                  <div className="hb-upg-arrow">›</div>
                 </div>
               )}
+            </div>
 
+            {/* ── Coluna direita — feed por data (Linear + Monzo) ── */}
+            <div className="hb-right">
+              <div className="hb-feed-card">
+                <div className="hb-card-head">
+                  <span className="hb-card-title">Atividade</span>
+                  <div className="hb-feed-tabs">
+                    {[['all','Todos'],['expense','Gastos'],['income','Entradas']].map(([val, label]) => (
+                      <button key={val} className={`hb-feed-tab${txFilter === val ? ' active' : ''}`} onClick={() => setTxFilter(val)}>{label}</button>
+                    ))}
+                  </div>
+                  <button className="hb-card-link" onClick={() => navigate('/transactions')}>Ver tudo →</button>
+                </div>
+
+                {groupedTx.length === 0 ? (
+                  <div className="hb-empty">Nenhuma transação encontrada</div>
+                ) : (
+                  <div className="hb-feed">
+                    {groupedTx.map(([dateLabel, txs]) => (
+                      <div key={dateLabel}>
+                        <div className="hb-feed-date">{dateLabel}</div>
+                        {txs.map((t, i) => {
+                          const isInc  = t.type === 'income'
+                          const desc   = t.description || CATEGORY_LABELS[t.category] || t.category
+                          const isLast = i === txs.length - 1
+                          return (
+                            <div key={t.id} className="hb-feed-item">
+                              <div className="hb-feed-timeline">
+                                <div className={`hb-feed-dot ${isInc ? 'inc' : 'exp'}`} style={{
+                                  boxShadow: isInc ? '0 0 0 3px rgba(74,196,110,.15)' : 'none'
+                                }}>
+                                  <CategoryIcon category={t.category} size={13} color="currentColor" />
+                                </div>
+                                {!isLast && <div className="hb-feed-line" />}
+                              </div>
+                              <div className="hb-feed-body">
+                                <div className="hb-feed-row">
+                                  <span className="hb-feed-name">{desc}</span>
+                                  <span className={`hb-feed-amt ${isInc ? 'inc' : 'exp'}`}>{isInc ? '+' : '−'}R$ {fmt(t.amount)}</span>
+                                </div>
+                                <div className="hb-feed-meta">
+                                  <span className="hb-feed-cat">{CATEGORY_LABELS[t.category]}</span>
+                                </div>
+                                <button className="hb-feed-del" onClick={() => handleDelete(t.id)} title="Remover">
+                                  <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
         </div>
       </div>
 
-      {/* FAB mobile */}
       <button className="fab" onClick={() => setShowForm(true)} aria-label="Nova transação">
         <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
           <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
@@ -431,4 +391,5 @@ export default function Dashboard() {
       )}
     </>
   )
+
 }

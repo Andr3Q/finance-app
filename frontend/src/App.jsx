@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import InstallBanner from './components/InstallBanner.jsx'
+import AgentChat    from './components/AgentChat.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
@@ -15,7 +16,8 @@ const Planos         = lazy(() => import('./pages/Planos.jsx'))
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
-  return token ? children : <Navigate to="/login" replace />
+  if (!token) return <Navigate to="/login" replace />
+  return <>{children}<AgentChat /></>
 }
 
 function HomeRoute() {

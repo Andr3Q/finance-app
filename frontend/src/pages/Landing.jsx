@@ -103,9 +103,9 @@ export default function Landing() {
         <div className="lp2-nav-inner">
           <Link to="/" className="lp2-logo">
             <div className="lp2-logo-mark">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
-                <polyline points="16 7 22 7 22 13"/>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 21C12 21 4 17 4 10C4 5.5 7.5 2.5 12 3C16.5 2.5 20 5.5 20 10C20 17 12 21 12 21Z" fill="rgba(74,196,110,0.18)" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <polyline points="7,13 10,10 13,12 17,8" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
             <span className="lp2-logo-name">Finanças<span>Pro</span></span>
@@ -274,9 +274,9 @@ export default function Landing() {
         <div className="lp2-footer-inner">
           <Link to="/" className="lp2-logo">
             <div className="lp2-logo-mark">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
-                <polyline points="16 7 22 7 22 13"/>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path d="M12 21C12 21 4 17 4 10C4 5.5 7.5 2.5 12 3C16.5 2.5 20 5.5 20 10C20 17 12 21 12 21Z" fill="rgba(74,196,110,0.18)" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                <polyline points="7,13 10,10 13,12 17,8" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </div>
             <span className="lp2-logo-name" style={{ fontSize: 16 }}>Finanças<span>Pro</span></span>

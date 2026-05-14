@@ -4,7 +4,8 @@ import { budgetAPI, reportsAPI, notificationsAPI } from '../services/api.js'
 import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../services/installPrompt.js'
 import Navbar from '../components/Navbar.jsx'
 import UpgradeModal from '../components/UpgradeModal.jsx'
-import { useUser } from '../hooks/useUser.js'
+import { useUser, saveUser } from '../hooks/useUser.js'
+import { useTheme } from '../hooks/useTheme.js'
 
 const CATEGORIES = [
   { key: 'food',      label: 'Alimentação' },
@@ -27,6 +28,7 @@ function urlBase64ToUint8Array(base64String) {
 export default function Settings() {
   const navigate = useNavigate()
   const user = useUser()
+  const { theme, toggle: toggleTheme } = useTheme()
   const isPro = user.plan === 'pro'
 
   const nameParts  = (user.name || '').split(' ')
@@ -107,7 +109,7 @@ export default function Settings() {
     setSavingProfile(true)
     const fullName = [firstName, lastName].filter(Boolean).join(' ')
     const stored = JSON.parse(localStorage.getItem('user') || '{}')
-    localStorage.setItem('user', JSON.stringify({ ...stored, name: fullName, email: profileEmail }))
+    saveUser({ ...stored, name: fullName, email: profileEmail })
     setTimeout(() => {
       setSavingProfile(false)
       setProfileMsg('Perfil atualizado!')
@@ -120,7 +122,7 @@ export default function Settings() {
     try {
       await budgetAPI.updateSalary(salary)
       const stored = JSON.parse(localStorage.getItem('user') || '{}')
-      localStorage.setItem('user', JSON.stringify({ ...stored, salary }))
+      saveUser({ ...stored, salary })
       showMsg('Salário atualizado com sucesso!')
     } catch { showMsg('Erro ao salvar salário.', 'error') }
     finally  { setSavingSal(false) }
@@ -245,6 +247,25 @@ export default function Settings() {
 
             {/* ── Hero ── */}
             <div className="cfg-hero r1">
+              <div className="cfg-hero-glow-bg" />
+              <div className="cfg-hero-particles" aria-hidden="true">
+                {[
+                  { left:  4, size: 3, delay: 0,   dur: 2.8 },
+                  { left: 13, size: 4, delay: 0.9, dur: 3.2 },
+                  { left: 25, size: 3, delay: 1.5, dur: 2.5 },
+                  { left: 38, size: 5, delay: 0.4, dur: 3.5 },
+                  { left: 52, size: 3, delay: 1.1, dur: 2.9 },
+                  { left: 65, size: 4, delay: 0.7, dur: 3.1 },
+                  { left: 78, size: 3, delay: 1.8, dur: 2.6 },
+                  { left: 89, size: 4, delay: 0.3, dur: 3.3 },
+                  { left: 96, size: 3, delay: 1.3, dur: 2.7 },
+                ].map((p, i) => (
+                  <span key={i} className="cfg-hero-particle" style={{
+                    left: `${p.left}%`, width: p.size, height: p.size,
+                    animationDelay: `${p.delay}s`, animationDuration: `${p.dur}s`,
+                  }} />
+                ))}
+              </div>
               <div className="cfg-av">
                 {initials}
                 <div className="cfg-av-glow" />
@@ -397,6 +418,34 @@ export default function Settings() {
 
             {/* ── Preferências ── */}
             <div className="cfg-sec-title r7">Preferências</div>
+
+            {/* Aparência */}
+            <div className="cfg-card" style={{ marginBottom: 12 }}>
+              <div className="cfg-card-head">
+                <div className="cfg-ch-ico">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="cfg-ch-title">Aparência</div>
+                  <div className="cfg-ch-sub">Escolha entre modo claro e escuro</div>
+                </div>
+              </div>
+              <div className="cfg-notif-list">
+                <div className="cfg-notif-row">
+                  <div className="cfg-notif-info">
+                    <div className="cfg-notif-label">{theme === 'dark' ? 'Modo escuro' : 'Modo claro'}</div>
+                    <div className="cfg-notif-desc">{theme === 'dark' ? 'Interface em fundo escuro' : 'Interface em fundo claro'}</div>
+                  </div>
+                  <CfgToggle on={theme === 'dark'} onChange={toggleTheme} />
+                </div>
+              </div>
+            </div>
 
             {/* Notificações */}
             <div className="cfg-card r8">
