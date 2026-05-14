@@ -111,10 +111,10 @@ function Instructions({ platform }) {
 function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(74,196,110,.1) 0%, rgba(0,180,216,.05) 100%)',
-      border: '1px solid rgba(74,196,110,.25)', borderRadius: 20,
+      background: 'var(--bg-secondary)',
+      border: '1px solid rgba(74,196,110,.3)', borderRadius: 20,
       padding: '14px 16px', backdropFilter: 'blur(20px)',
-      boxShadow: '0 8px 32px rgba(0,0,0,.4)',
+      boxShadow: '0 8px 32px rgba(0,0,0,.18)',
     }}>
       {hasPrompt ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -164,9 +164,9 @@ function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
 function DesktopBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
   return (
     <div style={{
-      background: 'rgba(17,17,17,.96)', border: '1px solid rgba(74,196,110,.22)',
+      background: 'var(--bg-secondary)', border: '1px solid rgba(74,196,110,.3)',
       borderRadius: 16, padding: '14px 16px', backdropFilter: 'blur(20px)',
-      boxShadow: '0 8px 32px rgba(0,0,0,.5)',
+      boxShadow: '0 8px 32px rgba(0,0,0,.18)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: hasPrompt ? 12 : 0 }}>
         {hasPrompt
