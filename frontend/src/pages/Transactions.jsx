@@ -31,8 +31,8 @@ export default function Transactions() {
 
   const fetchTransactions = async () => {
     try {
-      const res = await transactionsAPI.list()
-      setTransactions(res.data)
+      const res = await transactionsAPI.list({ limit: 200 })
+      setTransactions(res.data.data ?? res.data)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }

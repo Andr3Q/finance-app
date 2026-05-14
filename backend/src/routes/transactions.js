@@ -126,19 +126,31 @@ router.get('/dashboard', async (req, res) => {
 })
 
 // ── GET /transactions ───────────────────────────────────
-// Lista todas as transações do mês atual (não arquivadas)
+// Lista transações do mês com suporte a paginação.
+// Query params: ?page=1&limit=100&month=5&year=2026
 router.get('/', async (req, res) => {
   try {
     const now   = new Date()
-    const month = now.getMonth() + 1
-    const year  = now.getFullYear()
+    const month = req.query.month ? parseInt(req.query.month) : now.getMonth() + 1
+    const year  = req.query.year  ? parseInt(req.query.year)  : now.getFullYear()
+    const page  = Math.max(1, parseInt(req.query.page)  || 1)
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 100))
+    const skip  = (page - 1) * limit
 
-    const transactions = await prisma.transaction.findMany({
-      where:   { userId: req.userId, month, year, archived: false },
-      orderBy: { date: 'desc' }  // Mais recentes primeiro
+    const where = { userId: req.userId, month, year, archived: false }
+
+    const [data, total] = await Promise.all([
+      prisma.transaction.findMany({ where, orderBy: { date: 'desc' }, skip, take: limit }),
+      prisma.transaction.count({ where }),
+    ])
+
+    res.json({
+      data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      hasMore: skip + data.length < total,
     })
-
-    res.json(transactions)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao listar transações.' })
   }
