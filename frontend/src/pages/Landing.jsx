@@ -1,14 +1,8 @@
 import { Link } from 'react-router-dom'
 
-const Check = () => (
-  <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15" style={{ flexShrink: 0 }}>
-    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-  </svg>
-)
-
-const LogoIcon = ({ size = 22 }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" strokeWidth="2" width={size} height={size}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941"/>
+const CheckIcon = () => (
+  <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+    <path d="M2 6l3 3 5-5" stroke="#4ac46e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 )
 
@@ -17,42 +11,62 @@ const FEATURES = [
     title: 'Dashboard em tempo real',
     desc: 'Veja seu saldo, gastos e entradas do mês em um painel limpo e intuitivo. Tudo atualizado na hora.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="26" height="26">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
       </svg>
     ),
   },
   {
     title: 'Categorias de gastos',
-    desc: 'Organize tudo por alimentação, transporte, saúde e mais. Saiba exatamente para onde vai cada centavo.',
+    desc: 'Organize cada transação por categoria e visualize exatamente para onde vai o seu dinheiro todo mês.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="26" height="26">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6 6h.008v.008H6V6z" />
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Relatório PDF mensal',
+    desc: 'Receba um resumo completo e detalhado do mês direto no seu e-mail, gerado automaticamente.',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
       </svg>
     ),
   },
   {
     title: 'Contas fixas automáticas',
-    desc: 'Cadastre aluguel, internet e academia. No início de cada mês elas são lançadas automaticamente.',
+    desc: 'Cadastre suas contas recorrentes uma vez e o app as lança automaticamente todo mês para você.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="26" height="26">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
     ),
   },
   {
-    title: 'Relatório mensal em PDF',
-    desc: 'Ao fechar o mês, receba um relatório completo por e-mail com todos os seus gastos organizados.',
+    title: 'Histórico de meses',
+    desc: 'Acesse e compare o histórico completo de todos os meses anteriores para entender sua evolução.',
     icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" width="26" height="26">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Exportação CSV',
+    desc: 'Exporte todas as suas transações em CSV para usar em planilhas ou outros sistemas financeiros.',
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
     ),
   },
 ]
 
-const FREE_FEATURES  = [
+const FREE_FEATURES = [
   'Dashboard com saldo do mês',
   'Até 30 transações por mês',
   'Categorias de gastos',
@@ -60,146 +74,201 @@ const FREE_FEATURES  = [
 ]
 
 const PRO_FEATURES = [
-  'Tudo do plano gratuito',
-  'Transações ilimitadas',
-  'Contas fixas automáticas',
-  'Limites por categoria',
-  'Importação via CSV',
-  'Suporte prioritário',
+  { text: <>Transações — <span className="lp2-feat-hi">Ilimitadas</span></> },
+  { text: <>Contas fixas — <span className="lp2-feat-hi">Ilimitadas</span></> },
+  { text: 'Limites por categoria' },
+  { text: 'Relatório PDF mensal' },
+  { text: 'Histórico de meses' },
+  { text: 'Exportação CSV' },
+  { text: 'Suporte prioritário' },
 ]
 
 export default function Landing() {
   return (
-    <div className="lp">
+    <div className="lp2">
 
-      {/* ── Nav ── */}
-      <nav className="lp-nav">
-        <div className="lp-logo">
-          <LogoIcon size={22} />
-          <span>FinançasPro</span>
-        </div>
-        <div className="lp-nav-acts">
-          <Link to="/login"    className="btn bg"  style={{ padding: '9px 20px' }}>Entrar</Link>
-          <Link to="/register" className="btn bp"  style={{ padding: '9px 20px' }}>Começar grátis</Link>
+      {/* Top accent line */}
+      <div className="lp2-accent-line" />
+
+      {/* ── Navbar ── */}
+      <nav className="lp2-nav">
+        <div className="lp2-nav-inner">
+          <Link to="/" className="lp2-logo">
+            <div className="lp2-logo-mark">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+                <polyline points="16 7 22 7 22 13"/>
+              </svg>
+            </div>
+            <span className="lp2-logo-name">Finanças<span>Pro</span></span>
+          </Link>
+          <Link to="/register" className="lp2-nav-cta">Começar grátis</Link>
         </div>
       </nav>
 
       {/* ── Hero ── */}
-      <section className="lp-hero">
-        <div className="lp-pill">
-          <span className="lp-pill-dot" />
-          Controle financeiro pessoal
+      <section className="lp2-hero">
+        <div className="lp2-geo" aria-hidden="true">
+          <div className="lp2-ring lp2-ring1" />
+          <div className="lp2-ring lp2-ring2" />
+          <div className="lp2-ring lp2-ring3" />
+          <div className="lp2-grid-lines" />
         </div>
 
-        <h1 className="lp-h1">
-          Seu dinheiro<br />
-          <span className="lp-h1-glow">sob controle.</span>
-        </h1>
+        <div className="lp2-hero-inner">
+          <div className="lp2-hero-content">
+            <div className="lp2-badge anim-1">
+              <span className="lp2-badge-dot" />
+              Controle financeiro pessoal
+            </div>
 
-        <p className="lp-sub">
-          Registre gastos, acompanhe entradas e receba<br className="lp-br" />
-          relatórios mensais automáticos em PDF.
-        </p>
+            <h1 className="lp2-h1 anim-2">
+              Seu dinheiro
+              <span className="lp2-h1-green"> sob controle.</span>
+            </h1>
 
-        <div className="lp-ctas">
-          <Link to="/register" className="btn bp lp-btn-lg">
+            <p className="lp2-sub anim-3">
+              Registre gastos, acompanhe entradas e receba relatórios mensais automáticos em PDF. Simples, rápido e 100% privado.
+            </p>
+
+            <div className="lp2-ctas anim-4">
+              <Link to="/register" className="lp2-btn-primary">
+                Criar conta grátis
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                </svg>
+              </Link>
+              <Link to="/login" className="lp2-btn-secondary">
+                Já tenho conta
+              </Link>
+            </div>
+
+            <div className="lp2-trust anim-5">
+              <div className="lp2-trust-item">
+                <div className="lp2-trust-val">Grátis</div>
+                <div className="lp2-trust-lbl">Para começar</div>
+              </div>
+              <div className="lp2-trust-item">
+                <div className="lp2-trust-val">100%</div>
+                <div className="lp2-trust-lbl">Privado</div>
+              </div>
+              <div className="lp2-trust-item">
+                <div className="lp2-trust-val">PDF</div>
+                <div className="lp2-trust-lbl">Relatório mensal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Funcionalidades ── */}
+      <section className="lp2-features">
+        <div className="lp2-section-inner">
+          <div className="lp2-eyebrow">Funcionalidades</div>
+          <h2 className="lp2-section-title">Tudo que você precisa</h2>
+          <p className="lp2-section-sub">Uma plataforma completa para organizar suas finanças pessoais do jeito certo.</p>
+
+          <div className="lp2-feat-grid">
+            {FEATURES.map(f => (
+              <div key={f.title} className="lp2-feat-card">
+                <div className="lp2-feat-icon">{f.icon}</div>
+                <div className="lp2-feat-title">{f.title}</div>
+                <div className="lp2-feat-desc">{f.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Planos ── */}
+      <section className="lp2-pricing">
+        <div className="lp2-section-inner">
+          <div className="lp2-eyebrow">Planos & Preços</div>
+          <h2 className="lp2-section-title">Escolha seu plano</h2>
+          <p className="lp2-section-sub">Controle total do seu dinheiro, no seu ritmo.</p>
+
+          <div className="lp2-plans-grid">
+            {/* Grátis */}
+            <div className="lp2-plan-card">
+              <div className="lp2-plan-header">
+                <div>
+                  <div className="lp2-plan-name">Grátis</div>
+                  <div className="lp2-plan-tagline">Ideal para começar</div>
+                </div>
+              </div>
+              <div className="lp2-plan-price">R$ 0<small>/mês</small></div>
+              <div className="lp2-plan-cancel">&nbsp;</div>
+              <ul className="lp2-plan-feats">
+                {FREE_FEATURES.map(f => (
+                  <li key={f} className="lp2-plan-feat">
+                    <div className="lp2-feat-check"><CheckIcon /></div>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/register" className="lp2-btn-ghost">Começar grátis</Link>
+            </div>
+
+            {/* Pro */}
+            <div className="lp2-plan-card lp2-plan-pro">
+              <div className="lp2-plan-header">
+                <div>
+                  <div className="lp2-plan-name lp2-plan-name-g">Pro</div>
+                  <div className="lp2-plan-tagline">Acesso completo</div>
+                </div>
+                <div className="lp2-plan-badge">★ Recomendado</div>
+              </div>
+              <div className="lp2-plan-price">R$ 19<small>,90/mês</small></div>
+              <div className="lp2-plan-cancel">Cancele quando quiser · Sem fidelidade</div>
+              <ul className="lp2-plan-feats">
+                {PRO_FEATURES.map((f, i) => (
+                  <li key={i} className="lp2-plan-feat">
+                    <div className="lp2-feat-check"><CheckIcon /></div>
+                    {f.text}
+                  </li>
+                ))}
+              </ul>
+              <button className="lp2-btn-plan-primary" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                Assinar Pro — Em breve
+              </button>
+              <div className="lp2-plan-note">Para começar, sem cartão de crédito</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Bottom CTA ── */}
+      <section className="lp2-bottom-cta">
+        <div className="lp2-bottom-cta-inner">
+          <h2 className="lp2-bottom-cta-title">Pronto para começar?</h2>
+          <p className="lp2-bottom-cta-sub">Crie sua conta gratuita agora e tenha controle total do seu dinheiro.</p>
+          <Link to="/register" className="lp2-btn-primary lp2-btn-cta-full">
             Criar conta grátis
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
             </svg>
           </Link>
-          <Link to="/login" className="btn bg lp-btn-lg">Já tenho conta</Link>
+          <div className="lp2-bottom-cta-note">Grátis para começar · Sem cartão de crédito</div>
         </div>
-
-        <div className="lp-stats">
-          <div className="lp-stat">
-            <span>Grátis</span>
-            <small>Para começar</small>
-          </div>
-          <div className="lp-stat-sep" />
-          <div className="lp-stat">
-            <span>100%</span>
-            <small>Privado</small>
-          </div>
-          <div className="lp-stat-sep" />
-          <div className="lp-stat">
-            <span>PDF</span>
-            <small>Relatório mensal</small>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features ── */}
-      <section className="lp-sec">
-        <div className="lp-sec-label">Funcionalidades</div>
-        <h2 className="lp-h2">Tudo que você precisa</h2>
-        <p className="lp-h2-sub">Uma plataforma completa para organizar suas finanças pessoais do jeito certo.</p>
-        <div className="lp-feat-grid">
-          {FEATURES.map(f => (
-            <div key={f.title} className="lp-feat-card">
-              <div className="lp-feat-icon">{f.icon}</div>
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Pricing ── */}
-      <section className="lp-sec">
-        <div className="lp-sec-label">Planos</div>
-        <h2 className="lp-h2">Simples e transparente</h2>
-        <p className="lp-h2-sub">Comece grátis. Quando precisar de mais, temos o plano certo para você.</p>
-
-        <div className="lp-price-grid">
-
-          <div className="lp-price-card">
-            <div className="lp-price-name">Grátis</div>
-            <div className="lp-price-val">R$0<span>/mês</span></div>
-            <div className="lp-price-desc">Ideal para começar</div>
-            <ul className="lp-price-list">
-              {FREE_FEATURES.map(f => <li key={f}><Check />{f}</li>)}
-            </ul>
-            <Link to="/register" className="btn bg" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}>
-              Começar grátis
-            </Link>
-          </div>
-
-          <div className="lp-price-card lp-price-pro">
-            <div className="lp-price-badge">Em breve</div>
-            <div className="lp-price-name">Pro</div>
-            <div className="lp-price-val">R$19,90<span>/mês</span></div>
-            <div className="lp-price-desc">Para quem quer mais controle</div>
-            <ul className="lp-price-list">
-              {PRO_FEATURES.map(f => <li key={f}><Check />{f}</li>)}
-            </ul>
-            <button className="btn bp" style={{ width: '100%', justifyContent: 'center', marginTop: 'auto', opacity: 0.45 }} disabled>
-              Em breve
-            </button>
-          </div>
-
-        </div>
-      </section>
-
-      {/* ── CTA Final ── */}
-      <section className="lp-cta-final">
-        <h2 className="lp-h2">Pronto para começar?</h2>
-        <p className="lp-h2-sub">Crie sua conta gratuita agora e tenha controle total do seu dinheiro.</p>
-        <Link to="/register" className="btn bp lp-btn-lg">
-          Criar conta grátis
-          <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd"/>
-          </svg>
-        </Link>
       </section>
 
       {/* ── Footer ── */}
-      <footer className="lp-footer">
-        <div className="lp-logo">
-          <LogoIcon size={18} />
-          <span>FinançasPro</span>
+      <footer className="lp2-footer">
+        <div className="lp2-footer-inner">
+          <Link to="/" className="lp2-logo">
+            <div className="lp2-logo-mark">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+                <polyline points="16 7 22 7 22 13"/>
+              </svg>
+            </div>
+            <span className="lp2-logo-name" style={{ fontSize: 16 }}>Finanças<span>Pro</span></span>
+          </Link>
+          <p className="lp2-footer-note">© 2026 FinançasPro · Todos os direitos reservados</p>
         </div>
-        <p>© 2026 FinançasPro. Todos os direitos reservados.</p>
       </footer>
 
     </div>

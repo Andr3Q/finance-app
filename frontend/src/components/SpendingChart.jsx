@@ -26,7 +26,7 @@ export default function SpendingChart({ data }) {
 
   return (
     <div className="piw">
-      <svg width="110" height="110" viewBox="0 0 36 36">
+      <svg width="140" height="140" viewBox="0 0 36 36">
         <circle r={R} cx="18" cy="18" fill="none" stroke="rgba(74,196,110,0.07)" strokeWidth="3.8"/>
         {slices.map((s) => (
           <circle

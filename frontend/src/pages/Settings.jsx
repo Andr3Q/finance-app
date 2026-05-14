@@ -28,30 +28,34 @@ export default function Settings() {
   let user = {}
   try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
   const isPro = user.plan === 'pro'
-  const [salary,    setSalary]    = useState(user.salary || 0)
+
+  const nameParts  = (user.name || '').split(' ')
+  const [firstName,     setFirstName]     = useState(nameParts[0] || '')
+  const [lastName,      setLastName]      = useState(nameParts.slice(1).join(' ') || '')
+  const [profileEmail,  setProfileEmail]  = useState(user.email || '')
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileMsg,    setProfileMsg]    = useState('')
+
+  const [salary,        setSalary]        = useState(user.salary || 0)
   const [salaryDisplay, setSalaryDisplay] = useState(
-    user.salary > 0
-      ? user.salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-      : ''
+    user.salary > 0 ? user.salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ''
   )
-  const [budgets,      setBudgets]      = useState([])
-  const [limits,       setLimits]       = useState([])
-  const [newBudget,    setNewBudget]     = useState({ name: '', amount: '' })
-  const [newLimit,     setNewLimit]      = useState({ category: 'food', amount: '' })
-  const [savingSal,    setSavingSal]     = useState(false)
-  const [closing,      setClosing]       = useState(false)
-  const [msg,          setMsg]           = useState('')
-  const [msgType,      setMsgType]       = useState('success')
-  const [upgradeModal, setUpgradeModal]  = useState(null)
-  const [notifStatus,  setNotifStatus]   = useState('loading') // loading | unsupported | default | granted | denied
-  const [notifLoading, setNotifLoading]  = useState(false)
-  const [appInstalled, setAppInstalled]  = useState(() => isInstalled())
-  const [installMode,  setInstallMode]   = useState('idle') // idle | installing | fallback
+  const [savingSal,  setSavingSal]  = useState(false)
+  const [budgets,    setBudgets]    = useState([])
+  const [newBudget,  setNewBudget]  = useState({ name: '', amount: '' })
+  const [limits,     setLimits]     = useState([])
+  const [newLimit,   setNewLimit]   = useState({ category: 'food', amount: '' })
+  const [closing,    setClosing]    = useState(false)
+  const [msg,        setMsg]        = useState('')
+  const [msgType,    setMsgType]    = useState('success')
+  const [upgradeModal, setUpgradeModal] = useState(null)
+  const [notifStatus,  setNotifStatus]  = useState('loading')
+  const [notifLoading, setNotifLoading] = useState(false)
+  const [appInstalled, setAppInstalled] = useState(() => isInstalled())
+  const [installMode,  setInstallMode]  = useState('idle')
   const [platform] = useState(() => {
     const ua = navigator.userAgent
-    const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua))
-    const isChrome = /Chrome/.test(ua) && !/Edg|OPR/.test(ua)
-    return { isIOS, isChrome }
+    return { isIOS: /iPhone|iPad|iPod/.test(ua) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(ua)) }
   })
 
   const showMsg = (text, type = 'success') => {
@@ -93,15 +97,22 @@ export default function Settings() {
       prompt.prompt()
       const { outcome } = await prompt.userChoice
       clearInstallPrompt()
-      if (outcome === 'accepted') {
-        setAppInstalled(true)
-        setInstallMode('idle')
-      } else {
-        setInstallMode('fallback')
-      }
-    } catch {
-      setInstallMode('fallback')
-    }
+      if (outcome === 'accepted') { setAppInstalled(true); setInstallMode('idle') }
+      else { setInstallMode('fallback') }
+    } catch { setInstallMode('fallback') }
+  }
+
+  const handleSaveProfile = (e) => {
+    e.preventDefault()
+    setSavingProfile(true)
+    const fullName = [firstName, lastName].filter(Boolean).join(' ')
+    const stored = JSON.parse(localStorage.getItem('user') || '{}')
+    localStorage.setItem('user', JSON.stringify({ ...stored, name: fullName, email: profileEmail }))
+    setTimeout(() => {
+      setSavingProfile(false)
+      setProfileMsg('Perfil atualizado!')
+      setTimeout(() => setProfileMsg(''), 3000)
+    }, 300)
   }
 
   const handleSalary = async (e) => {
@@ -110,7 +121,7 @@ export default function Settings() {
       await budgetAPI.updateSalary(salary)
       const stored = JSON.parse(localStorage.getItem('user') || '{}')
       localStorage.setItem('user', JSON.stringify({ ...stored, salary }))
-      showMsg('Salário atualizado com sucesso')
+      showMsg('Salário atualizado com sucesso!')
     } catch { showMsg('Erro ao salvar salário.', 'error') }
     finally  { setSavingSal(false) }
   }
@@ -130,7 +141,6 @@ export default function Settings() {
     try {
       await budgetAPI.remove(id)
       fetchBudgets()
-      showMsg('Conta fixa removida.')
     } catch (err) { showMsg(err.response?.data?.error || 'Erro ao remover.', 'error') }
   }
 
@@ -149,27 +159,20 @@ export default function Settings() {
     try {
       await budgetAPI.removeLimit(category)
       fetchLimits()
-      showMsg('Limite removido.')
     } catch { showMsg('Erro ao remover limite.', 'error') }
   }
 
   const handleToggleNotifications = async () => {
     if (notifStatus === 'unsupported' || notifLoading) return
-
     if (notifStatus === 'denied') {
-      showMsg('Bloqueado — Ajustes > FinançasPro > Notificações', 'error')
-      return
+      showMsg('Bloqueado — Ajustes > FinançasPro > Notificações', 'error'); return
     }
-
     const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone
     if (isIOS && !isStandalone) {
-      showMsg('Adicione o app à tela inicial e abra de lá para ativar notificações.', 'error')
-      return
+      showMsg('Adicione o app à tela inicial e abra de lá para ativar notificações.', 'error'); return
     }
-
     if (notifStatus === 'granted') {
-      // Desativar — vira na hora, async em background
       setNotifStatus('default')
       showMsg('Notificações desativadas.')
       navigator.serviceWorker.ready
@@ -181,8 +184,6 @@ export default function Settings() {
         })
       return
     }
-
-    // Ativar — só precisa aguardar a permissão do sistema
     setNotifLoading(true)
     try {
       const permission = await Notification.requestPermission()
@@ -191,13 +192,9 @@ export default function Settings() {
         if (permission === 'denied') showMsg('Permissão negada. Ajustes > FinançasPro > Notificações.', 'error')
         return
       }
-
-      // Permissão concedida — vira o toggle imediatamente
       setNotifStatus('granted')
       setNotifLoading(false)
       showMsg('Notificações ativadas!')
-
-      // Registra assinatura em background (não bloqueia a UI)
       const [{ data }, reg] = await Promise.all([
         notificationsAPI.getVapidKey(),
         navigator.serviceWorker.ready,
@@ -228,296 +225,394 @@ export default function Settings() {
   }
 
   const totalFixed = budgets.reduce((s, b) => s + b.amount, 0)
+  const initials   = user.name
+    ? user.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+    : '?'
 
   return (
     <>
       <Navbar />
-      <div className="page pwnav fade-in" style={{ maxWidth: 740 }}>
 
-        {/* Header */}
-        <div className="pgh">
-          <div>
-            <div className="pgt">Configurações</div>
-            <div className="pgs">Gerencie seu perfil e preferências</div>
-          </div>
+      {msg && (
+        <div className={`toast ${msgType === 'error' ? 'terr' : 'tok'}`} style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 400, whiteSpace: 'nowrap' }}>
+          {msg}
         </div>
+      )}
 
-        {/* Toast de feedback */}
-        {msg && (
-          <div className={`toast ${msgType === 'error' ? 'terr' : 'tok'} mb16`}>
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              {msgType === 'error'
-                ? <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-                : <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-              }
-            </svg>
-            {msg}
-          </div>
-        )}
+      <div className="pwnav fade-in">
+        <div className="dsb-content">
+          <div className="cfg-wrap">
 
-        {/* Notificações Push */}
-        <div className="card mb16">
-          <div className="sct" style={{ marginBottom: 14 }}>Notificações</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', marginBottom: 3 }}>
-                Avisos de transações
+            {/* ── Hero ── */}
+            <div className="cfg-hero r1">
+              <div className="cfg-av">
+                {initials}
+                <div className="cfg-av-glow" />
               </div>
-              <div style={{ fontSize: 12, color: notifStatus === 'granted' ? 'var(--green)' : notifStatus === 'denied' ? 'var(--red)' : 'var(--t2)' }}>
-                {notifStatus === 'unsupported' && 'Instale o app na tela inicial para usar notificações.'}
-                {notifStatus === 'denied'      && 'Bloqueado — habilite em Configurações > FinançasPro.'}
-                {notifStatus === 'granted'     && '✓ Ativo — você recebe avisos de gastos e saldo.'}
-                {notifStatus === 'default'     && 'Receba avisos a cada transação registrada.'}
-                {notifStatus === 'loading'     && 'Verificando...'}
-              </div>
-            </div>
-            {notifStatus !== 'unsupported' && notifStatus !== 'loading' && (
-              <button
-                onClick={handleToggleNotifications}
-                disabled={notifStatus === 'denied'}
-                style={{
-                  flexShrink: 0,
-                  width: 48, height: 28, borderRadius: 14, border: 'none',
-                  cursor: notifStatus === 'denied' ? 'not-allowed' : 'pointer',
-                  background: notifStatus === 'granted' ? 'var(--c)' : 'rgba(255,255,255,.12)',
-                  transition: 'background .12s, transform .08s',
-                  position: 'relative', outline: 'none',
-                  WebkitTapHighlightColor: 'transparent',
-                }}
-                onMouseDown={e => e.currentTarget.style.transform = 'scale(.93)'}
-                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                onTouchStart={e => e.currentTarget.style.transform = 'scale(.93)'}
-                onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
-                aria-label="Toggle notificações"
-              >
-                <span style={{
-                  position: 'absolute', top: 4,
-                  left: notifStatus === 'granted' ? 24 : 4,
-                  width: 20, height: 20, borderRadius: '50%',
-                  background: notifStatus === 'granted' ? '#020d10' : 'rgba(255,255,255,.5)',
-                  transition: 'left .12s, background .12s',
-                  boxShadow: '0 1px 4px rgba(0,0,0,.3)',
-                }} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Instalar App */}
-        {!appInstalled && (
-          <div className="card mb16" style={{ background: 'linear-gradient(135deg, rgba(74,196,110,.06) 0%, rgba(0,180,216,.03) 100%)', borderColor: 'rgba(74,196,110,.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <img src="/icon-192.png" alt="" style={{ width: 44, height: 44, borderRadius: 12, boxShadow: '0 2px 12px rgba(74,196,110,.2)' }} />
-              <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>Instalar FinançasPro</div>
-                <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 2 }}>Acesse com um toque, sem abrir o navegador</div>
+              <div className="cfg-hero-info">
+                <div className="cfg-hero-name">{user.name || 'Usuário'}</div>
+                <div className="cfg-hero-email">{user.email}</div>
+                <div className="cfg-hero-badges">
+                  <span className={`cfg-badge ${isPro ? 'pro' : 'free'}`}>{isPro ? 'Pro ✨' : 'Grátis'}</span>
+                </div>
               </div>
             </div>
 
-            {platform.isIOS ? (
-              /* iOS Safari — não tem prompt nativo, mostra passos */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <InstallStep n="1" text={<>Toque no botão <strong style={{ color: 'var(--c)' }}>Compartilhar</strong> <ShareIcon /> na barra do Safari</>} />
-                <InstallStep n="2" text={<>Role e toque em <strong style={{ color: 'var(--c)' }}>"Adicionar à Tela de Início"</strong></>} />
-                <InstallStep n="3" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Adicionar"</strong> no canto superior direito</>} />
-              </div>
-            ) : installMode === 'fallback' ? (
-              /* Android sem prompt nativo */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <InstallStep n="1" text={<>Toque no menu <strong style={{ color: 'var(--c)', fontSize: 17 }}>⋮</strong> no canto superior direito do Chrome</>} />
-                <InstallStep n="2" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong> ou <strong style={{ color: 'var(--c)' }}>"Adicionar à tela inicial"</strong></>} />
-              </div>
-            ) : (
-              /* Android com prompt nativo */
-              <button
-                onClick={handleInstall}
-                disabled={installMode === 'installing'}
-                className="btn bp"
-                style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 14 }}
-                onTouchStart={e => e.currentTarget.style.transform = 'scale(.97)'}
-                onTouchEnd={e => e.currentTarget.style.transform = 'scale(1)'}
-                onMouseDown={e => e.currentTarget.style.transform = 'scale(.97)'}
-                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                {installMode === 'installing'
-                  ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Aguarde...</>
-                  : '⚡ Instalar agora'
-                }
-              </button>
-            )}
-          </div>
-        )}
+            {/* ── Perfil ── */}
+            <div className="cfg-sec-title r2">Perfil</div>
 
-        {/* Salário */}
-        <div className="card mb16">
-          <div className="sct" style={{ marginBottom: 14 }}>Salário Mensal</div>
-          <form onSubmit={handleSalary} className="sfrow">
-            <div className="inp-prefix-wrap" style={{ flex: 1, minWidth: 180 }}>
-              <span className="inp-prefix">R$</span>
-              <input
-                className="inp inp-prefixed"
-                type="text"
-                inputMode="decimal"
-                value={salaryDisplay}
-                placeholder="0,00"
-                onChange={e => {
-                  const raw = e.target.value.replace(/[^0-9,]/g, '')
-                  setSalaryDisplay(raw)
-                  setSalary(parseFloat(raw.replace(',', '.')) || 0)
-                }}
-                onBlur={() => {
-                  if (salary > 0) setSalaryDisplay(salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }))
-                  else setSalaryDisplay('')
-                }}
-              />
-            </div>
-            <button type="submit" className="btn bp" style={{ minWidth: 130, justifyContent: 'center' }} disabled={savingSal}>
-              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z"/>
-              </svg>
-              {savingSal ? 'Salvando...' : 'Salvar'}
-            </button>
-          </form>
-        </div>
-
-        {/* Contas Fixas */}
-        <div className="card mb16">
-          <div className="sct" style={{ marginBottom: 14 }}>
-            Contas Fixas
-            <span className="bdg borange">Total: R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-          </div>
-
-          {budgets.length === 0 ? (
-            <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 14 }}>Nenhuma conta fixa cadastrada.</p>
-          ) : budgets.map(b => (
-            <div key={b.id} className="fxi">
-              <span className="fxn">{b.name}</span>
-              <div className="fx g8">
-                <span className="fxv">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                <button
-                  className="btn bg txrm"
-                  style={{ padding: '5px 10px', fontSize: 12, color: 'var(--red)', borderColor: 'rgba(255,71,87,.2)' }}
-                  onClick={() => handleDeleteBudget(b.id)}
-                >
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="12" height="12">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+            <div className="cfg-card r3">
+              <div className="cfg-card-head">
+                <div className="cfg-ch-ico">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
                   </svg>
-                </button>
+                </div>
+                <div>
+                  <div className="cfg-ch-title">Informações pessoais</div>
+                  <div className="cfg-ch-sub">Atualize seus dados de perfil</div>
+                </div>
               </div>
+              <form onSubmit={handleSaveProfile} className="cfg-card-body">
+                <div className="cfg-grid2">
+                  <div className="cfg-field">
+                    <label className="cfg-lbl">Nome</label>
+                    <input className="cfg-inp" type="text" value={firstName}
+                      onChange={e => setFirstName(e.target.value)} placeholder="André" />
+                  </div>
+                  <div className="cfg-field">
+                    <label className="cfg-lbl">Sobrenome</label>
+                    <input className="cfg-inp" type="text" value={lastName}
+                      onChange={e => setLastName(e.target.value)} placeholder="Pereira" />
+                  </div>
+                </div>
+                <div className="cfg-field" style={{ marginBottom: 0 }}>
+                  <label className="cfg-lbl">E-mail</label>
+                  <input className="cfg-inp" type="email" value={profileEmail}
+                    onChange={e => setProfileEmail(e.target.value)} placeholder="seu@email.com" />
+                </div>
+                <div className="cfg-form-footer">
+                  {profileMsg && <span className="cfg-inline-ok">{profileMsg}</span>}
+                  <button type="submit" className="cfg-btn-primary" disabled={savingProfile}>
+                    {savingProfile ? 'Salvando…' : 'Salvar alterações'}
+                  </button>
+                </div>
+              </form>
             </div>
-          ))}
 
-          <form onSubmit={handleAddBudget} className="sfrow" style={{ marginTop: 14 }}>
-            <input className="inp" type="text" placeholder="Nome da conta" style={{ flex: 2, minWidth: 160 }}
-              value={newBudget.name} onChange={e => setNewBudget(p => ({ ...p, name: e.target.value }))} />
-            <input className="inp" type="number" placeholder="R$ valor" style={{ flex: 1, minWidth: 110 }}
-              value={newBudget.amount} min="0" step="0.01"
-              onChange={e => setNewBudget(p => ({ ...p, amount: e.target.value }))} />
-            <button type="submit" className="btn bg" style={{ minWidth: 110, justifyContent: 'center' }}>
-              <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
-              </svg>
-              Adicionar
-            </button>
-          </form>
-        </div>
+            {/* ── Financeiro ── */}
+            <div className="cfg-sec-title r4">Financeiro</div>
 
-        {/* Limites por Categoria — exclusivo Pro */}
-        <div className="card mb16" style={{ position: 'relative', overflow: 'hidden' }}>
-          <div className="sct" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-            Limites por Categoria
-            {!isPro && <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--c)', color: '#020d10', padding: '2px 7px', borderRadius: 20 }}>PRO</span>}
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 14 }}>
-            Defina teto de gasto por categoria para alertas automáticos.
-          </p>
-
-          {!isPro ? (
-            <div
-              onClick={() => setUpgradeModal('Limites por categoria são exclusivos do plano Pro.')}
-              style={{ cursor: 'pointer', padding: '16px', background: 'rgba(74,196,110,.04)', border: '1px dashed rgba(74,196,110,.2)', borderRadius: 10, textAlign: 'center' }}
-            >
-              <div style={{ fontSize: 22, marginBottom: 6 }}>🔒</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c)', marginBottom: 4 }}>Recurso Pro</div>
-              <div style={{ fontSize: 12, color: 'var(--t2)' }}>Clique para fazer upgrade e desbloquear</div>
+            {/* Salário */}
+            <div className="cfg-card r5">
+              <div className="cfg-card-head">
+                <div className="cfg-ch-ico">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="cfg-ch-title">Salário mensal</div>
+                  <div className="cfg-ch-sub">Usado para calcular seu saldo disponível</div>
+                </div>
+              </div>
+              <form onSubmit={handleSalary} className="cfg-card-body">
+                <div className="cfg-inp-group">
+                  <span className="cfg-inp-prefix">R$</span>
+                  <input
+                    className="cfg-inp cfg-inp-prefixed"
+                    type="text"
+                    inputMode="decimal"
+                    value={salaryDisplay}
+                    placeholder="0,00"
+                    onChange={e => {
+                      const raw = e.target.value.replace(/[^0-9,]/g, '')
+                      setSalaryDisplay(raw)
+                      setSalary(parseFloat(raw.replace(',', '.')) || 0)
+                    }}
+                    onBlur={() => {
+                      if (salary > 0) setSalaryDisplay(salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }))
+                      else setSalaryDisplay('')
+                    }}
+                  />
+                  <button type="submit" className="cfg-btn-primary" disabled={savingSal} style={{ flexShrink: 0 }}>
+                    {savingSal ? 'Salvando…' : 'Salvar'}
+                  </button>
+                </div>
+              </form>
             </div>
-          ) : (
-            <>
-              {limits.length === 0 ? (
-                <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 14 }}>Nenhum limite definido.</p>
-              ) : limits.map(l => {
-                const cat = CATEGORIES.find(c => c.key === l.category)
-                return (
-                  <div key={l.category} className="fxi" style={{ marginBottom: 10 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>
-                      {cat?.label || l.category}
-                    </span>
-                    <div className="fx g8">
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c)' }}>
-                        R$ {l.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
-                      <button className="txrm" onClick={() => handleRemoveLimit(l.category)}>
-                        <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                        </svg>
-                      </button>
+
+            {/* Contas Fixas */}
+            <div className="cfg-card r6">
+              <div className="cfg-card-head">
+                <div className="cfg-ch-ico">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="cfg-ch-title">Contas fixas</div>
+                  <div className="cfg-ch-sub">Despesas recorrentes mensais</div>
+                </div>
+              </div>
+              <div className="cfg-card-body">
+                {budgets.length === 0 ? (
+                  <div className="cfg-empty-hint">Nenhuma conta fixa cadastrada.</div>
+                ) : (
+                  <div className="cfg-fixed-list">
+                    {budgets.map(b => (
+                      <div key={b.id} className="cfg-fixed-item">
+                        <span className="cfg-fixed-name">{b.name}</span>
+                        <div className="cfg-fixed-right">
+                          <span className="cfg-fixed-val">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <button className="cfg-del-btn" type="button" onClick={() => handleDeleteBudget(b.id)} aria-label="Remover">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="cfg-fixed-total">
+                      <span>Total mensal</span>
+                      <span>R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
-                )
-              })}
-              <form onSubmit={handleSaveLimit} className="sfrow">
-                <select className="inp" style={{ flex: 1, minWidth: 150 }}
-                  value={newLimit.category} onChange={e => setNewLimit(p => ({ ...p, category: e.target.value }))}>
-                  {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-                </select>
-                <input className="inp" type="number" placeholder="R$ limite" style={{ flex: 1, minWidth: 110 }}
-                  value={newLimit.amount} min="1" step="0.01"
-                  onChange={e => setNewLimit(p => ({ ...p, amount: e.target.value }))} />
-                <button type="submit" className="btn bg" style={{ minWidth: 110, justifyContent: 'center' }}>Salvar</button>
-              </form>
-            </>
-          )}
-        </div>
-
-        {/* Fechar Mês — exclusivo Pro */}
-        <div className="card" style={{ borderColor: isPro ? 'rgba(255,71,87,.15)' : 'rgba(74,196,110,.15)' }}>
-          <div className="sct" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-            Fechar o Mês
-            {!isPro && <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--c)', color: '#020d10', padding: '2px 7px', borderRadius: 20 }}>PRO</span>}
-          </div>
-          {!isPro ? (
-            <div
-              onClick={() => setUpgradeModal('O relatório PDF mensal é exclusivo do plano Pro.')}
-              style={{ cursor: 'pointer', padding: '16px', background: 'rgba(74,196,110,.04)', border: '1px dashed rgba(74,196,110,.2)', borderRadius: 10, textAlign: 'center' }}
-            >
-              <div style={{ fontSize: 22, marginBottom: 6 }}>🔒</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c)', marginBottom: 4 }}>Recurso Pro</div>
-              <div style={{ fontSize: 12, color: 'var(--t2)' }}>Gere relatórios PDF mensais e receba por e-mail</div>
+                )}
+                <form onSubmit={handleAddBudget} className="cfg-add-row">
+                  <input className="cfg-inp" type="text" placeholder="Nome da conta"
+                    value={newBudget.name} onChange={e => setNewBudget(p => ({ ...p, name: e.target.value }))} />
+                  <input className="cfg-inp cfg-inp-num" type="number" placeholder="Valor"
+                    min="0" step="0.01" value={newBudget.amount}
+                    onChange={e => setNewBudget(p => ({ ...p, amount: e.target.value }))} />
+                  <button type="submit" className="cfg-btn-ghost">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    Adicionar
+                  </button>
+                </form>
+              </div>
             </div>
-          ) : (
-            <>
-              <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 16 }}>
-                Gera PDF e envia para{' '}
-                <strong style={{ color: 'var(--t1)' }}>{user.reportEmail || user.email || 'seu e-mail'}</strong>.
-                {' '}Registros serão zerados.
-              </p>
-              <button className="btn bd" onClick={handleMonthlyClose} disabled={closing}>
-                {closing ? (
-                  <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório...</>
+
+            {/* ── Preferências ── */}
+            <div className="cfg-sec-title r7">Preferências</div>
+
+            {/* Notificações */}
+            <div className="cfg-card r8">
+              <div className="cfg-card-head">
+                <div className="cfg-ch-ico">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 01-3.46 0"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="cfg-ch-title">Notificações</div>
+                  <div className="cfg-ch-sub">Gerencie seus alertas</div>
+                </div>
+              </div>
+              <div className="cfg-notif-list">
+
+                <div className="cfg-notif-row">
+                  <div className="cfg-notif-info">
+                    <div className="cfg-notif-label">Avisos de transações</div>
+                    <div className={`cfg-notif-desc${notifStatus === 'granted' ? ' on' : notifStatus === 'denied' ? ' err' : ''}`}>
+                      {notifStatus === 'unsupported' && 'Instale o app na tela inicial para usar notificações.'}
+                      {notifStatus === 'denied'      && 'Bloqueado — habilite em Configurações > FinançasPro.'}
+                      {notifStatus === 'granted'     && 'Ativo — você recebe avisos de gastos e saldo.'}
+                      {notifStatus === 'default'     && 'Receba avisos a cada transação registrada.'}
+                      {notifStatus === 'loading'     && 'Verificando...'}
+                    </div>
+                  </div>
+                  {notifStatus !== 'unsupported' && notifStatus !== 'loading' && (
+                    <CfgToggle
+                      on={notifStatus === 'granted'}
+                      disabled={notifStatus === 'denied' || notifLoading}
+                      onChange={handleToggleNotifications}
+                    />
+                  )}
+                </div>
+
+                <div className="cfg-notif-row">
+                  <div className="cfg-notif-info">
+                    <div className="cfg-notif-label">Lembrete de contas fixas</div>
+                    <div className="cfg-notif-desc">Receba lembretes das suas despesas fixas.</div>
+                  </div>
+                  <CfgToggle on={false} onChange={() => {}} />
+                </div>
+
+                <div className="cfg-notif-row">
+                  <div className="cfg-notif-info">
+                    <div className="cfg-notif-label">Alerta de orçamento</div>
+                    <div className="cfg-notif-desc">Notificação ao atingir 80% do limite.</div>
+                  </div>
+                  <CfgToggle on={false} onChange={() => {}} />
+                </div>
+
+                <div className="cfg-notif-row" style={{ borderBottom: 'none' }}>
+                  <div className="cfg-notif-info">
+                    <div className="cfg-notif-label">Relatório PDF por e-mail</div>
+                    <div className="cfg-notif-desc">Receba o resumo mensal no seu e-mail.</div>
+                  </div>
+                  <CfgToggle
+                    on={isPro}
+                    onChange={() => { if (!isPro) setUpgradeModal('Receba relatórios PDF mensais. Recurso exclusivo do plano Pro.') }}
+                  />
+                </div>
+
+              </div>
+            </div>
+
+            {/* Limites por categoria — Pro */}
+            <div className="cfg-card r9">
+              <div className="cfg-card-head">
+                <div className="cfg-ch-ico">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                    <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="cfg-ch-title">
+                    Limites por categoria
+                    {!isPro && <span className="cfg-pro-badge">PRO</span>}
+                  </div>
+                  <div className="cfg-ch-sub">Defina teto de gasto por categoria</div>
+                </div>
+              </div>
+              <div className="cfg-card-body">
+                {!isPro ? (
+                  <div className="cfg-pro-lock" onClick={() => setUpgradeModal('Limites por categoria são exclusivos do plano Pro.')}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="1.5" strokeLinecap="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    <div className="cfg-pro-lock-title">Recurso Pro</div>
+                    <div className="cfg-pro-lock-sub">Clique para fazer upgrade e desbloquear</div>
+                  </div>
                 ) : (
                   <>
-                    <svg viewBox="0 0 20 20" fill="currentColor" width="15" height="15">
-                      <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                      <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                    </svg>
-                    Fechar Mês e Enviar Relatório
+                    {limits.length === 0 ? (
+                      <div className="cfg-empty-hint">Nenhum limite definido.</div>
+                    ) : (
+                      <div className="cfg-fixed-list">
+                        {limits.map(l => {
+                          const cat = CATEGORIES.find(c => c.key === l.category)
+                          return (
+                            <div key={l.category} className="cfg-fixed-item">
+                              <span className="cfg-fixed-name">{cat?.label || l.category}</span>
+                              <div className="cfg-fixed-right">
+                                <span className="cfg-fixed-val">R$ {l.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                <button className="cfg-del-btn" type="button" onClick={() => handleRemoveLimit(l.category)} aria-label="Remover">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <form onSubmit={handleSaveLimit} className="cfg-add-row">
+                      <select className="cfg-inp" value={newLimit.category}
+                        onChange={e => setNewLimit(p => ({ ...p, category: e.target.value }))}>
+                        {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+                      </select>
+                      <input className="cfg-inp cfg-inp-num" type="number" placeholder="R$ limite"
+                        min="1" step="0.01" value={newLimit.amount}
+                        onChange={e => setNewLimit(p => ({ ...p, amount: e.target.value }))} />
+                      <button type="submit" className="cfg-btn-ghost">Salvar</button>
+                    </form>
                   </>
                 )}
-              </button>
-            </>
-          )}
-        </div>
+              </div>
+            </div>
 
+            {/* Fechar mês — Pro */}
+            <div className="cfg-card r10">
+              <div className="cfg-card-head">
+                <div className="cfg-ch-ico">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                    <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                    <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                  </svg>
+                </div>
+                <div>
+                  <div className="cfg-ch-title">
+                    Fechar o mês
+                    {!isPro && <span className="cfg-pro-badge">PRO</span>}
+                  </div>
+                  <div className="cfg-ch-sub">Gera PDF e envia para seu e-mail</div>
+                </div>
+              </div>
+              <div className="cfg-card-body">
+                {!isPro ? (
+                  <div className="cfg-pro-lock" onClick={() => setUpgradeModal('O relatório PDF mensal é exclusivo do plano Pro.')}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="1.5" strokeLinecap="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    <div className="cfg-pro-lock-title">Recurso Pro</div>
+                    <div className="cfg-pro-lock-sub">Gere relatórios PDF mensais e receba por e-mail</div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="cfg-close-desc">
+                      Gera PDF e envia para{' '}
+                      <strong style={{ color: 'var(--t1)' }}>{user.reportEmail || user.email || 'seu e-mail'}</strong>.
+                      {' '}Os registros do mês serão zerados.
+                    </p>
+                    <button className="cfg-btn-danger" onClick={handleMonthlyClose} disabled={closing}>
+                      {closing ? (
+                        <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório...</>
+                      ) : (
+                        <>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
+                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
+                          </svg>
+                          Fechar mês e enviar relatório
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Instalar App */}
+            {!appInstalled && (
+              <div className="cfg-card cfg-install-card r11">
+                <div className="cfg-card-head">
+                  <img src="/icon-192.png" alt="" className="cfg-app-ico" />
+                  <div>
+                    <div className="cfg-ch-title">Instalar FinançasPro</div>
+                    <div className="cfg-ch-sub">Acesse com um toque, sem abrir o navegador</div>
+                  </div>
+                </div>
+                <div className="cfg-card-body">
+                  {platform.isIOS ? (
+                    <div className="cfg-install-steps">
+                      <CfgInstallStep n="1" text={<>Toque no botão <strong style={{ color: 'var(--c)' }}>Compartilhar</strong> na barra do Safari</>} />
+                      <CfgInstallStep n="2" text={<>Role e toque em <strong style={{ color: 'var(--c)' }}>"Adicionar à Tela de Início"</strong></>} />
+                      <CfgInstallStep n="3" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Adicionar"</strong> no canto superior direito</>} />
+                    </div>
+                  ) : installMode === 'fallback' ? (
+                    <div className="cfg-install-steps">
+                      <CfgInstallStep n="1" text={<>Toque no menu <strong style={{ color: 'var(--c)' }}>⋮</strong> no canto superior direito do Chrome</>} />
+                      <CfgInstallStep n="2" text={<>Toque em <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong> ou <strong style={{ color: 'var(--c)' }}>"Adicionar à tela inicial"</strong></>} />
+                    </div>
+                  ) : (
+                    <button className="cfg-btn-primary" style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={handleInstall} disabled={installMode === 'installing'}>
+                      {installMode === 'installing' ? 'Instalando…' : '⚡ Instalar agora'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
       </div>
 
       {upgradeModal && (
@@ -527,25 +622,25 @@ export default function Settings() {
   )
 }
 
-function InstallStep({ n, text }) {
+function CfgToggle({ on, disabled, onChange }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-        background: 'rgba(74,196,110,.12)', border: '1px solid rgba(74,196,110,.25)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 12, fontWeight: 700, color: 'var(--c)', fontFamily: 'var(--fd)',
-      }}>{n}</div>
-      <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.5 }}>{text}</div>
-    </div>
+    <button
+      type="button"
+      className={`cfg-toggle${on ? ' on' : ''}`}
+      onClick={onChange}
+      disabled={disabled}
+      aria-label="Toggle"
+    >
+      <span className="cfg-toggle-thumb" />
+    </button>
   )
 }
 
-function ShareIcon() {
+function CfgInstallStep({ n, text }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-      width="15" height="15" style={{ display: 'inline', verticalAlign: 'middle', margin: '0 2px', color: 'var(--c)' }}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
-    </svg>
+    <div className="cfg-install-step">
+      <div className="cfg-step-n">{n}</div>
+      <div className="cfg-step-text">{text}</div>
+    </div>
   )
 }
