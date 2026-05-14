@@ -20,15 +20,23 @@
 
     <title>FinançasPro 💸</title>
 
-    <!-- Fontes: Playfair Display (headings) + Inter (body) — Noir + Verde -->
+    <!-- Fonte: Sora -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" /></noscript>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" /></noscript>
 
     <!-- Ícone do app (aparece na aba do navegador) -->
-    <link rel="icon" href="/icon-192.png" type="image/png" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
 
+    <script>
+      // Aplica o tema antes do React montar para evitar flash
+      (function() {
+        var t = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
     <script>
       // Captura beforeinstallprompt o mais cedo possível — antes do React montar.
       // O evento pode disparar durante o carregamento inicial da página, antes
