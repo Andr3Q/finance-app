@@ -97,179 +97,160 @@ export default function Planos() {
       <Navbar />
 
       {toast && (
-        <div className="toast tok" style={{ left: 'calc(50% + 120px)' }}>
+        <div className="toast tok" style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:400, whiteSpace:'nowrap' }}>
           Em breve! Você será notificado quando o Pro estiver disponível.
         </div>
       )}
 
       <div className="pwnav fade-in">
-        <div className="dsb-content">
+        <div className="pp1-page">
 
           {/* ── Hero ── */}
-          <div className="plp-hero r1">
-            <div className="plp-eyebrow">
-              <span className="plp-hero-dot" />
+          <div className="pp1-hero">
+            <div className="pp1-eyebrow">
+              <span className="pp1-eyebrow-dot" />
               Escolha seu plano
             </div>
-            <h1 className="plp-title">
+            <h1 className="pp1-title">
               Controle total do<br />
-              <em>seu dinheiro.</em>
+              <span className="pp1-title-green">seu dinheiro.</span>
             </h1>
-            <p className="plp-sub">Comece grátis e faça upgrade quando precisar de mais poder.</p>
-
-            <div className="plp-billing-row">
-              <div className="plp-billing-toggle">
-                <button
-                  className={`plp-bt-btn${billing === 'mensal' ? ' on' : ''}`}
-                  onClick={() => setBilling('mensal')}
-                >Mensal</button>
-                <button
-                  className={`plp-bt-btn${billing === 'anual' ? ' on' : ''}`}
-                  onClick={() => setBilling('anual')}
-                >Anual</button>
+            <p className="pp1-sub">Comece grátis e faça upgrade quando precisar de mais poder.</p>
+            <div className="pp1-toggle-wrap">
+              <div className="pp1-toggle">
+                <button className={`pp1-toggle-btn${billing === 'mensal' ? ' on' : ''}`} onClick={() => setBilling('mensal')}>Mensal</button>
+                <button className={`pp1-toggle-btn${billing === 'anual' ? ' on' : ''}`} onClick={() => setBilling('anual')}>Anual</button>
               </div>
-              {billing === 'anual' && (
-                <span className="plp-bt-save">Economize 20%</span>
-              )}
+              {billing === 'anual' && <span className="pp1-save-badge">Economize 20%</span>}
             </div>
           </div>
 
           {/* ── Cards ── */}
-          <div className="plp-grid r2">
+          <div className="pp1-cards">
 
-            {/* FREE */}
-            <div className="plp-card plp-free">
-              <div className="plp-plan-top">
-                <div>
-                  <div className="plp-plan-name plp-name-free">Grátis</div>
-                  <div className="plp-plan-desc">Ideal para começar</div>
+            {/* GRÁTIS */}
+            <div className="pp1-card pp1-free">
+              <div className="pp1-card-tier">Grátis</div>
+              <div className="pp1-card-tagline">Ideal para começar</div>
+              {!isPro && <div className="pp1-current-badge">Plano atual</div>}
+
+              <div className="pp1-price-block">
+                <div className="pp1-price">
+                  <span className="pp1-price-cur">R$</span>
+                  <span className="pp1-price-num">0</span>
                 </div>
-                {!isPro && <div className="plp-badge plp-badge-free">Atual</div>}
+                <div className="pp1-price-note">Para sempre grátis</div>
               </div>
 
-              <div className="plp-price-wrap">
-                <div className="plp-price">
-                  <span className="plp-price-cur plp-cur-free">R$</span>
-                  <span className="plp-price-num">0</span>
-                </div>
-                <div className="plp-price-period">Para sempre grátis</div>
-              </div>
+              <div className="pp1-divider" />
 
-              <div className="plp-feats">
+              <ul className="pp1-feats">
                 {FREE_FEATS.map(f => (
-                  <div key={f} className="plp-feat">
-                    <div className="plp-feat-check plp-feat-check-free">
-                      <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2" strokeLinecap="round">
-                        <path d="M2 6l3 3 5-5"/>
-                      </svg>
+                  <li key={f} className="pp1-feat">
+                    <div className="pp1-feat-ico pp1-feat-ico-muted">
+                      <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
                     </div>
-                    <span className="plp-feat-text plp-feat-text-free">{f}</span>
-                  </div>
+                    <span className="pp1-feat-text pp1-feat-muted">{f}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
 
-              <div className="plp-cta">
-                <button className="plp-btn-cta plp-cta-ghost" disabled>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  Plano atual
-                </button>
-              </div>
+              <button className="pp1-cta-ghost" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Plano atual
+              </button>
             </div>
 
             {/* PRO */}
-            <div className="plp-card plp-pro">
-              <div className="plp-pro-grid" />
-
-              <div className="plp-plan-top">
-                <div>
-                  <div className="plp-plan-name plp-name-pro">Pro</div>
-                  <div className="plp-plan-desc plp-desc-pro">Para quem quer controle total</div>
-                </div>
-                <div className="plp-badge plp-badge-rec">
-                  <svg width="9" height="9" viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" strokeWidth="1">
-                    <polygon points="6 1 7.5 4.5 11 5 8.5 7.5 9 11 6 9.5 3 11 3.5 7.5 1 5 4.5 4.5"/>
-                  </svg>
-                  Recomendado
-                </div>
+            <div className="pp1-card pp1-pro">
+              {/* Gradiente + partículas */}
+              <div className="pp1-pro-glow" />
+              <div className="grad-particles" aria-hidden="true">
+                {[5,14,23,34,45,56,65,76,85,94].map((left, i) => (
+                  <span key={i} className="grad-particle" style={{
+                    left:`${left}%`,
+                    width:`${2+(i%3)}px`, height:`${2+(i%3)}px`,
+                    animationDelay:`${(i*0.52)%3}s`,
+                    animationDuration:`${2.2+(i%4)*0.6}s`,
+                    opacity: 0.3+(i%3)*0.15,
+                  }}/>
+                ))}
               </div>
 
-              <div className="plp-price-wrap">
-                <div className="plp-price">
-                  <span className="plp-price-cur">R$</span>
-                  <span className="plp-price-num">{proPrice}</span>
-                  <span className="plp-price-dec">,90</span>
-                </div>
-                <div className="plp-price-period plp-period-pro">{properiod}</div>
-                <div className="plp-price-cancel">Sem fidelidade · Sem cartão para testar</div>
+              <div className="pp1-rec-badge">
+                <svg width="9" height="9" viewBox="0 0 12 12" fill="currentColor"><polygon points="6 1 7.5 4.5 11 5 8.5 7.5 9 11 6 9.5 3 11 3.5 7.5 1 5 4.5 4.5"/></svg>
+                Recomendado
               </div>
 
-              <div className="plp-feats">
+              <div className="pp1-card-tier pp1-tier-pro">Pro</div>
+              <div className="pp1-card-tagline pp1-tagline-pro">Para quem quer controle total</div>
+
+              <div className="pp1-price-block">
+                <div className="pp1-price">
+                  <span className="pp1-price-cur pp1-cur-pro">R$</span>
+                  <span className="pp1-price-num pp1-num-pro">{proPrice}</span>
+                  <span className="pp1-price-dec">,90</span>
+                </div>
+                <div className="pp1-price-note pp1-note-pro">{properiod}</div>
+                <div className="pp1-price-cancel">Sem fidelidade · Sem cartão para testar</div>
+              </div>
+
+              <div className="pp1-divider pp1-divider-pro" />
+
+              <ul className="pp1-feats">
                 {PRO_FEATS.map((f, i) =>
-                  f === null
-                    ? <div key={i} className="plp-feat-sep" />
-                    : (
-                      <div key={i} className="plp-feat">
-                        <div className="plp-feat-check plp-feat-check-pro">
-                          <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
-                            <path d="M2 6l3 3 5-5"/>
-                          </svg>
-                        </div>
-                        <span className="plp-feat-text">
-                          {f.text}
-                          {f.hi && <> — <span className="plp-feat-hi">{f.hi}</span></>}
-                        </span>
+                  f === null ? <li key={i} className="pp1-feat-sep" /> : (
+                    <li key={i} className="pp1-feat">
+                      <div className="pp1-feat-ico pp1-feat-ico-pro">
+                        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#4ac46e" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
                       </div>
-                    )
+                      <span className="pp1-feat-text">
+                        {f.text}{f.hi && <> — <span className="pp1-feat-hi">{f.hi}</span></>}
+                      </span>
+                    </li>
+                  )
                 )}
-              </div>
+              </ul>
 
-              <div className="plp-cta">
-                {isPro ? (
-                  <div className="plp-btn-cta plp-cta-is-pro">✨ Você já é Pro!</div>
-                ) : (
-                  <button className="plp-btn-cta plp-cta-soon" onClick={handleAssinar}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                    </svg>
-                    Assinar Pro — Em breve
-                  </button>
-                )}
-                <div className="plp-plan-note">Para começar, sem cartão de crédito</div>
-              </div>
+              {isPro ? (
+                <div className="pp1-cta-is-pro">✨ Você já é Pro!</div>
+              ) : (
+                <button className="pp1-cta-pro" onClick={handleAssinar}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                  Assinar Pro — Em breve
+                </button>
+              )}
+              <div className="pp1-cta-note">Para começar, sem cartão de crédito</div>
             </div>
 
           </div>
 
-          {/* ── Comparison Table ── */}
-          <div className="plp-compare r3">
-            <div className="plp-compare-label">Comparativo detalhado</div>
-
-            <div className="plp-table">
-              <div className="plp-th-row">
-                <div className="plp-th plp-th-feat">Funcionalidade</div>
-                <div className="plp-th">Grátis</div>
-                <div className="plp-th plp-th-pro">Pro</div>
+          {/* ── Tabela comparativa ── */}
+          <div className="pp1-compare">
+            <div className="pp1-compare-title">Comparativo completo</div>
+            <div className="pp1-table">
+              <div className="pp1-table-head">
+                <div className="pp1-th-feat">Funcionalidade</div>
+                <div className="pp1-th">Grátis</div>
+                <div className="pp1-th pp1-th-pro">Pro</div>
               </div>
-
               {COMPARE_GROUPS.map(group => (
                 <div key={group.label}>
-                  <div className="plp-tr plp-tr-group">
-                    <div className="plp-group-label">{group.label}</div>
-                  </div>
+                  <div className="pp1-tr-group">{group.label}</div>
                   {group.rows.map(row => (
-                    <div key={row.feat} className="plp-tr">
-                      <div className="plp-td-feat">{row.feat}</div>
-                      <div className="plp-td-cell">
+                    <div key={row.feat} className="pp1-tr">
+                      <div className="pp1-td-feat">{row.feat}</div>
+                      <div className="pp1-td">
                         {row.free === true  ? <CheckYes /> :
                          row.free === false ? <CheckNo  /> :
-                         <span className="plp-ct-val">{row.free}</span>}
+                         <span className="pp1-td-val">{row.free}</span>}
                       </div>
-                      <div className="plp-td-cell">
+                      <div className="pp1-td pp1-td-pro-col">
                         {row.pro === true  ? <CheckYes /> :
                          row.pro === false ? <CheckNo  /> :
-                         <span className="plp-ct-val plp-ct-val-g">{row.pro}</span>}
+                         <span className="pp1-td-val pp1-td-val-g">{row.pro}</span>}
                       </div>
                     </div>
                   ))}
@@ -278,53 +259,52 @@ export default function Planos() {
             </div>
           </div>
 
-          {/* ── Bottom row ── */}
-          <div className="plp-bottom r4">
+          {/* ── Bottom: garantia + FAQ ── */}
+          <div className="pp1-bottom">
 
-            {/* Guarantee */}
-            <div className="plp-guarantee">
-              <div className="plp-guar-ico">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+            <div className="pp1-guarantee">
+              <div className="pp1-guar-glow" />
+              <div className="grad-particles" aria-hidden="true">
+                {[6,18,30,44,56,68,80,92].map((left, i) => (
+                  <span key={i} className="grad-particle" style={{
+                    left:`${left}%`,
+                    width:`${2+(i%2)}px`, height:`${2+(i%2)}px`,
+                    animationDelay:`${(i*0.6)%3}s`,
+                    animationDuration:`${2+(i%3)*0.7}s`,
+                    opacity: 0.2+(i%3)*0.12,
+                  }}/>
+                ))}
+              </div>
+              <div className="pp1-guar-ico">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
               </div>
-              <div className="plp-guar-title">Cancele quando quiser</div>
-              <div className="plp-guar-sub">
-                Sem contratos, sem fidelidade. Você pode cancelar sua assinatura Pro a qualquer momento, sem taxas ou complicações.
-              </div>
-              <div className="plp-guar-tags">
-                <span className="plp-guar-tag">Sem contrato</span>
-                <span className="plp-guar-tag">100% privado</span>
-                <span className="plp-guar-tag">Sem cartão agora</span>
+              <div className="pp1-guar-title">Cancele quando quiser</div>
+              <div className="pp1-guar-sub">Sem contratos, sem fidelidade. Cancele a qualquer momento, sem taxas ou complicações.</div>
+              <div className="pp1-guar-tags">
+                <span className="pp1-guar-tag">Sem contrato</span>
+                <span className="pp1-guar-tag">100% privado</span>
+                <span className="pp1-guar-tag">Sem cartão agora</span>
               </div>
             </div>
 
-            {/* FAQ */}
-            <div className="plp-faq">
-              <div className="plp-faq-head">
-                <div className="plp-faq-head-ico">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
-                </div>
-                <div className="plp-faq-head-title">Perguntas frequentes</div>
+            <div className="pp1-faq">
+              <div className="pp1-faq-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Perguntas frequentes
               </div>
-              <div className="plp-faq-list">
-                {FAQ.map(([q, a], i) => (
-                  <div
-                    key={q}
-                    className={`plp-faq-item${openFaq === i ? ' open' : ''}`}
-                    onClick={() => toggleFaq(i)}
-                  >
-                    <div className="plp-faq-q">
-                      <span className="plp-faq-question">{q}</span>
-                      <span className={`plp-faq-arrow${openFaq === i ? ' open' : ''}`}>↓</span>
-                    </div>
-                    <div className="plp-faq-answer">{a}</div>
+              {FAQ.map(([q, a], i) => (
+                <div key={q} className={`pp1-faq-item${openFaq === i ? ' open' : ''}`} onClick={() => toggleFaq(i)}>
+                  <div className="pp1-faq-q">
+                    <span>{q}</span>
+                    <span className={`pp1-faq-arrow${openFaq === i ? ' open' : ''}`}>›</span>
                   </div>
-                ))}
-              </div>
+                  <div className="pp1-faq-a">{a}</div>
+                </div>
+              ))}
             </div>
 
           </div>
