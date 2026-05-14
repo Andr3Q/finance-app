@@ -4,6 +4,7 @@ import { budgetAPI, reportsAPI, notificationsAPI } from '../services/api.js'
 import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../services/installPrompt.js'
 import Navbar from '../components/Navbar.jsx'
 import UpgradeModal from '../components/UpgradeModal.jsx'
+import { useUser } from '../hooks/useUser.js'
 
 const CATEGORIES = [
   { key: 'food',      label: 'Alimentação' },
@@ -25,8 +26,7 @@ function urlBase64ToUint8Array(base64String) {
 
 export default function Settings() {
   const navigate = useNavigate()
-  let user = {}
-  try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
+  const user = useUser()
   const isPro = user.plan === 'pro'
 
   const nameParts  = (user.name || '').split(' ')
@@ -73,7 +73,7 @@ export default function Settings() {
   }
 
   useEffect(() => {
-    Promise.all([fetchBudgets(), fetchLimits()])
+    ;(async () => { await Promise.all([fetchBudgets(), fetchLimits()]) })()
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       setNotifStatus('unsupported')
     } else {
