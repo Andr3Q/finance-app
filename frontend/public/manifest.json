@@ -1,8 +1,8 @@
 {
-  "name": "FinançasPro",
-  "short_name": "FinançasPro",
+  "name": "Finance",
+  "short_name": "Finance",
   "id": "/",
-  "description": "Controle suas finanças em tempo real com saldo automático, contas fixas e relatórios mensais.",
+  "description": "Finance — Seu gestor inteligente de finanças pessoais.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -30,21 +30,21 @@
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Dashboard — FinançasPro"
+      "label": "Dashboard — Finance"
     },
     {
       "src": "/screenshot-mobile-2.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Login — FinançasPro"
+      "label": "Login — Finance"
     },
     {
       "src": "/screenshot-desktop.png",
       "sizes": "1280x800",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Versão desktop — FinançasPro"
+      "label": "Versão desktop — Finance"
     }
   ]
 }
