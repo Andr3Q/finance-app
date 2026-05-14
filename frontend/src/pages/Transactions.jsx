@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { transactionsAPI } from '../services/api.js'
-import Navbar          from '../components/Navbar.jsx'
-import TransactionForm from '../components/TransactionForm.jsx'
-import { CategoryIcon } from '../components/icons.jsx'
+import Navbar from '../components/layout/Navbar.jsx'
+import TransactionForm from '../components/features/TransactionForm.jsx'
+import { CategoryIcon } from '../components/ui/icons.jsx'
 
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',

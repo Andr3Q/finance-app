@@ -3,7 +3,7 @@
 // quer lançar as contas fixas automaticamente como transações.
 
 import { useState } from 'react'
-import { transactionsAPI } from '../services/api.js'
+import { transactionsAPI } from '../../services/api.js'
 import { IconAlert } from './icons.jsx'
 
 export default function AutoLaunchPrompt({ autoLaunched, onLaunched }) {

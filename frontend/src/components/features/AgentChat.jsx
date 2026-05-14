@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { agentAPI } from '../services/api.js'
+import { agentAPI } from '../../services/api.js'
 
 const SUGGESTIONS = [
   'Quanto gastei esse mês?',

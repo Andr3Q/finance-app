@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getInstallPrompt, clearInstallPrompt, isInstalled } from '../services/installPrompt.js'
+import { getInstallPrompt, clearInstallPrompt, isInstalled } from '../../services/installPrompt.js'
 
 const DISMISS_KEY  = 'install-banner-dismissed'
 const DISMISS_DAYS = 7

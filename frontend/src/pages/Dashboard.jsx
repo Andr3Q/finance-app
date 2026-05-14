@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
-import Navbar           from '../components/Navbar.jsx'
-import TransactionForm  from '../components/TransactionForm.jsx'
-import AutoLaunchPrompt from '../components/AutoLaunchPrompt.jsx'
-import { CategoryIcon } from '../components/icons.jsx'
+import Navbar from '../components/layout/Navbar.jsx'
+import TransactionForm from '../components/features/TransactionForm.jsx'
+import AutoLaunchPrompt from '../components/features/AutoLaunchPrompt.jsx'
+import { CategoryIcon } from '../components/ui/icons.jsx'
 
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',

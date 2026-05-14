@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { transactionsAPI } from '../services/api.js'
+import { transactionsAPI } from '../../services/api.js'
 
 const CATEGORIES = [
   { value: 'food',      label: 'Alimentação' },
