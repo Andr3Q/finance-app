@@ -104,9 +104,10 @@ export default function Landing() {
           <Link to="/" className="lp2-logo">
             <div className="lp2-logo-mark">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <rect x="5"    y="3"   width="3.5" height="18"  rx="1.5" fill="#4ac46e"/>
-                <rect x="5"    y="3"   width="14"  height="4"   rx="1.5" fill="#4ac46e"/>
-                <rect x="5"    y="10.5" width="10"  height="3.5" rx="1.5" fill="#4ac46e" opacity="0.8"/>
+                <rect x="3.5" y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
+                <rect x="18"  y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
+                <path d="M 16.5 7 C 20.5 7 20.5 12 12 12 C 3.5 12 3.5 17 7.5 17"
+                      stroke="#4ac46e" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
               </svg>
             </div>
             <span className="lp2-logo-name">Finanças<span>Pro</span></span>
@@ -275,10 +276,11 @@ export default function Landing() {
         <div className="lp2-footer-inner">
           <Link to="/" className="lp2-logo">
             <div className="lp2-logo-mark">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <rect x="5"    y="3"   width="3.5" height="18"  rx="1.5" fill="#4ac46e"/>
-                <rect x="5"    y="3"   width="14"  height="4"   rx="1.5" fill="#4ac46e"/>
-                <rect x="5"    y="10.5" width="10"  height="3.5" rx="1.5" fill="#4ac46e" opacity="0.8"/>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <rect x="3.5" y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
+                <rect x="18"  y="4"  width="2.5" height="16" rx="1.25" fill="#4ac46e"/>
+                <path d="M 16.5 7 C 20.5 7 20.5 12 12 12 C 3.5 12 3.5 17 7.5 17"
+                      stroke="#4ac46e" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
               </svg>
             </div>
             <span className="lp2-logo-name" style={{ fontSize: 16 }}>Finanças<span>Pro</span></span>
