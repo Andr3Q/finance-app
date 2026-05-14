@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const CheckIcon = () => (
@@ -84,6 +85,13 @@ const PRO_FEATURES = [
 ]
 
 export default function Landing() {
+  const [toast, setToast] = useState(false)
+
+  const handleProClick = () => {
+    setToast(true)
+    setTimeout(() => setToast(false), 4000)
+  }
+
   return (
     <div className="lp2">
 
@@ -187,6 +195,12 @@ export default function Landing() {
           <h2 className="lp2-section-title">Escolha seu plano</h2>
           <p className="lp2-section-sub">Controle total do seu dinheiro, no seu ritmo.</p>
 
+          {toast && (
+            <div className="toast tok" style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 400, whiteSpace: 'nowrap' }}>
+              Em breve! Você será notificado quando o Pro estiver disponível.
+            </div>
+          )}
+
           <div className="lp2-plans-grid">
             {/* Grátis */}
             <div className="lp2-plan-card">
@@ -228,7 +242,7 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <button className="lp2-btn-plan-primary" disabled>
+              <button className="lp2-btn-plan-primary" onClick={handleProClick}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
