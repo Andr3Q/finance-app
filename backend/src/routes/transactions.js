@@ -313,7 +313,27 @@ router.post('/import', upload.single('file'), async (req, res) => {
     }
 
     const fileContent = req.file.buffer.toString('utf-8')
-    
+
+    // Plano Free: verifica o espaço restante antes de importar
+    const now = new Date()
+    const currentMonth = now.getMonth() + 1
+    const currentYear  = now.getFullYear()
+    const userPlan = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
+    let freeLimit = null
+    if (userPlan.plan === 'free') {
+      const count = await prisma.transaction.count({
+        where: { userId: req.userId, month: currentMonth, year: currentYear, archived: false }
+      })
+      if (count >= 30) {
+        return res.status(403).json({
+          error: 'Limite de 30 transações por mês atingido no plano Gratuito.',
+          limitReached: true,
+          plan: 'free'
+        })
+      }
+      freeLimit = 30 - count
+    }
+
     parse(fileContent, {
       columns: true,
       skip_empty_lines: true,
@@ -324,27 +344,22 @@ router.post('/import', upload.single('file'), async (req, res) => {
       }
 
       const transactions = []
-      const now = new Date()
-      const currentMonth = now.getMonth() + 1
-      const currentYear = now.getFullYear()
 
       for (const record of records) {
-        // Tenta inferir os campos comuns em extratos (Data, Descrição, Valor)
+        if (freeLimit !== null && transactions.length >= freeLimit) break
+
         const description = record['Descrição'] || record['Historico'] || record['description'] || record['HISTÓRICO'] || record['Detalhes'] || 'Importação'
         let amountStr = record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0'
-        
-        // Tratar formato numérico do Brasil (ex: 1.500,00 -> 1500.00)
+
         amountStr = amountStr.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
         const amount = parseFloat(amountStr)
 
         if (!isNaN(amount) && amount !== 0) {
-          const type = amount > 0 ? 'income' : 'expense'
-          
           transactions.push({
-            description: description.substring(0, 255), // Limita tamanho da string
+            description: description.substring(0, 255),
             amount: Math.abs(amount),
-            type: type,
-            category: 'other', // Categoria padrão
+            type: amount > 0 ? 'income' : 'expense',
+            category: 'other',
             month: currentMonth,
             year: currentYear,
             userId: req.userId
