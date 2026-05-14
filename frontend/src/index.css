@@ -1643,7 +1643,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 @media (max-width: 768px) {
   .lauth-split { grid-template-columns: 1fr; }
   .lauth-left {
-    padding: 32px 24px 28px;
+    padding: calc(32px + env(safe-area-inset-top, 0px)) 24px 28px;
     background: linear-gradient(175deg, #000 0%, #010e05 30%, #052e12 65%, #083d18 100%);
   }
   .lauth-logo { margin-bottom: 24px; }

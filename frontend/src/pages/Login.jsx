@@ -106,9 +106,10 @@ export default function Login({ isRegister = false }) {
         <div className="r1">
           <Link to="/" className="lauth-logo">
             <div className="lauth-logo-ico">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M12 21C12 21 4 17 4 10C4 5.5 7.5 2.5 12 3C16.5 2.5 20 5.5 20 10C20 17 12 21 12 21Z" fill="rgba(74,196,110,0.18)" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                <polyline points="7,13 10,10 13,12 17,8" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+                <rect x="2"   y="14" width="5" height="8" rx="1.5" fill="#4ac46e" opacity="0.55"/>
+                <rect x="9.5" y="9"  width="5" height="13" rx="1.5" fill="#4ac46e" opacity="0.8"/>
+                <rect x="17"  y="4"  width="5" height="18" rx="1.5" fill="#4ac46e"/>
               </svg>
             </div>
             <span className="lauth-logo-name">Finanças<em>Pro</em></span>
