@@ -1,0 +1,3 @@
+-- Baseline migration: schema já existe no banco de produção (criado via prisma db push).
+-- Este arquivo marca o estado atual como ponto de partida das migrations.
+-- Nenhum DDL é executado aqui — o schema já está correto.
