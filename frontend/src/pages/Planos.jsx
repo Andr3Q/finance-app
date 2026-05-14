@@ -1,227 +1,335 @@
 import { useState } from 'react'
 import Navbar from '../components/Navbar.jsx'
 
-const FEATURES = [
-  { label: 'Transações por mês',    free: 'Até 30',     pro: 'Ilimitadas' },
-  { label: 'Contas fixas',          free: 'Até 3',       pro: 'Ilimitadas' },
-  { label: 'Limites por categoria', free: false,         pro: true },
-  { label: 'Relatório PDF mensal',  free: false,         pro: true },
-  { label: 'Histórico de meses',    free: false,         pro: true },
-  { label: 'Exportação CSV',        free: false,         pro: true },
-  { label: 'Suporte prioritário',   free: false,         pro: true },
-]
-
 const FAQ = [
-  ['Posso cancelar quando quiser?', 'Sim. Sem fidelidade ou multa. Você cancela quando quiser e continua com acesso Pro até o final do período pago.'],
-  ['Como funciona o pagamento?', 'Via Mercado Pago — cartão de crédito, Pix ou boleto. Em breve disponível.'],
-  ['Meus dados ficam seguros se eu cancelar?', 'Sim. Você volta para o Free mas não perde nenhum dado histórico.'],
+  ['Quando o Pro estará disponível?',   'O plano Pro está em desenvolvimento final. Você será notificado por e-mail assim que for lançado com acesso antecipado.'],
+  ['O plano Grátis tem limite de tempo?','Não. O plano Grátis é gratuito para sempre, sem expiração. Use sem pressa.'],
+  ['Meus dados ficam seguros?',          'Sim. Seus dados são 100% privados e nunca compartilhados com terceiros. Você é o único dono das suas informações.'],
+  ['Posso cancelar sem taxas?',          'Sim. Cancele a qualquer momento, sem multa, diretamente nas configurações da conta.'],
 ]
 
-function Check() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ color: '#4ac46e', flexShrink: 0 }}>
-      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-    </svg>
-  )
-}
+const FREE_FEATS = [
+  'Dashboard com saldo do mês',
+  'Até 30 transações por mês',
+  'Categorias de gastos',
+  'Relatório mensal em PDF',
+  'Contas fixas automáticas',
+]
 
-function Cross() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14" style={{ color: 'var(--t3)', flexShrink: 0 }}>
-      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+const PRO_FEATS = [
+  { text: 'Transações', hi: 'Ilimitadas' },
+  { text: 'Contas fixas', hi: 'Ilimitadas' },
+  { text: 'Limites por categoria' },
+  { text: 'Relatório PDF mensal automático' },
+  null,
+  { text: 'Histórico completo de meses' },
+  { text: 'Exportação CSV' },
+  { text: 'Suporte prioritário' },
+]
+
+const COMPARE_GROUPS = [
+  {
+    label: 'Dashboard & Relatórios',
+    rows: [
+      { feat: 'Saldo do mês em tempo real',     free: true,  pro: true  },
+      { feat: 'Relatório PDF mensal',            free: true,  pro: true  },
+      { feat: 'Histórico de meses anteriores',   free: false, pro: true  },
+      { feat: 'Exportação CSV',                  free: false, pro: true  },
+    ],
+  },
+  {
+    label: 'Transações',
+    rows: [
+      { feat: 'Transações por mês',              free: '30',  pro: 'Ilimitadas' },
+      { feat: 'Categorias de gastos',            free: true,  pro: true  },
+      { feat: 'Limites por categoria',           free: false, pro: true  },
+      { feat: 'Contas fixas automáticas',        free: true,  pro: true  },
+      { feat: 'Contas fixas ilimitadas',         free: false, pro: true  },
+    ],
+  },
+  {
+    label: 'Suporte',
+    rows: [
+      { feat: 'Suporte por e-mail',              free: true,  pro: true  },
+      { feat: 'Suporte prioritário',             free: false, pro: true  },
+    ],
+  },
+]
+
+const CheckYes = () => (
+  <div className="plp-check-yes">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+      <path d="M2 6l3 3 5-5"/>
     </svg>
-  )
-}
+  </div>
+)
+const CheckNo = () => (
+  <div className="plp-check-no">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="2" strokeLinecap="round">
+      <line x1="3" y1="3" x2="9" y2="9"/><line x1="9" y1="3" x2="3" y2="9"/>
+    </svg>
+  </div>
+)
 
 export default function Planos() {
-  const [toast, setToast] = useState(false)
+  const [billing, setBilling] = useState('mensal')
   const [openFaq, setOpenFaq] = useState(null)
+  const [toast,   setToast]   = useState(false)
+
   let user = {}
   try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
   const isPro = user.plan === 'pro'
+
+  const proPrice  = billing === 'mensal' ? '19' : '15'
+  const properiod = billing === 'mensal'
+    ? 'por mês · Cancele quando quiser'
+    : 'por mês · Cobrado anualmente (R$ 190,80/ano)'
 
   const handleAssinar = () => {
     setToast(true)
     setTimeout(() => setToast(false), 4000)
   }
 
+  const toggleFaq = (i) => setOpenFaq(openFaq === i ? null : i)
+
   return (
     <>
       <Navbar />
-      <div className="page pwnav fade-in" style={{ maxWidth: 520, paddingBottom: 120 }}>
 
-        {/* ── Header ── */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 7,
-            background: 'rgba(74,196,110,.07)', border: '1px solid rgba(74,196,110,.18)',
-            borderRadius: 100, padding: '5px 14px', fontSize: 12,
-            color: 'var(--c)', fontFamily: 'var(--fd)', fontWeight: 700,
-            marginBottom: 14, letterSpacing: 0.5,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--c)', animation: 'pdot 2s infinite' }} />
-            Escolha seu plano
-          </div>
-          <div className="pgt" style={{ marginBottom: 6 }}>Planos & Preços</div>
-          <div className="pgs">Controle total do seu dinheiro, no seu ritmo</div>
+      {toast && (
+        <div className="toast tok" style={{ left: 'calc(50% + 120px)' }}>
+          Em breve! Você será notificado quando o Pro estiver disponível.
         </div>
+      )}
 
-        {/* ── Toast ── */}
-        {toast && (
-          <div className="toast tok" style={{ marginBottom: 20 }}>
-            <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"/>
-            </svg>
-            Em breve! Você será notificado quando o Pro estiver disponível.
-          </div>
-        )}
+      <div className="pwnav fade-in">
+        <div className="dsb-content">
 
-        {/* ── Card PRO ── */}
-        <div className="plan-pro-card fu d1">
-          {/* Glow decorativo */}
-          <div style={{
-            position: 'absolute', top: -60, right: -60,
-            width: 200, height: 200, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(74,196,110,.12), transparent 70%)',
-            pointerEvents: 'none',
-          }} />
+          {/* ── Hero ── */}
+          <div className="plp-hero r1">
+            <div className="plp-eyebrow">
+              <span className="plp-hero-dot" />
+              Escolha seu plano
+            </div>
+            <h1 className="plp-title">
+              Controle total do<br />
+              <em>seu dinheiro.</em>
+            </h1>
+            <p className="plp-sub">Comece grátis e faça upgrade quando precisar de mais poder.</p>
 
-          {/* Topo: badge + nome */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: 'rgba(74,196,110,.12)', border: '1px solid rgba(74,196,110,.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>
-                <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" style={{ color: 'var(--c)' }}>
-                  <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd"/>
-                </svg>
+            <div className="plp-billing-row">
+              <div className="plp-billing-toggle">
+                <button
+                  className={`plp-bt-btn${billing === 'mensal' ? ' on' : ''}`}
+                  onClick={() => setBilling('mensal')}
+                >Mensal</button>
+                <button
+                  className={`plp-bt-btn${billing === 'anual' ? ' on' : ''}`}
+                  onClick={() => setBilling('anual')}
+                >Anual</button>
               </div>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c)', textTransform: 'uppercase', letterSpacing: 1.5, fontFamily: 'var(--fd)' }}>Pro</div>
-                <div style={{ fontSize: 10, color: 'var(--t2)', marginTop: 1 }}>Acesso completo</div>
+              {billing === 'anual' && (
+                <span className="plp-bt-save">Economize 20%</span>
+              )}
+            </div>
+          </div>
+
+          {/* ── Cards ── */}
+          <div className="plp-grid r2">
+
+            {/* FREE */}
+            <div className="plp-card plp-free">
+              <div className="plp-plan-top">
+                <div>
+                  <div className="plp-plan-name plp-name-free">Grátis</div>
+                  <div className="plp-plan-desc">Ideal para começar</div>
+                </div>
+                {!isPro && <div className="plp-badge plp-badge-free">Atual</div>}
+              </div>
+
+              <div className="plp-price-wrap">
+                <div className="plp-price">
+                  <span className="plp-price-cur plp-cur-free">R$</span>
+                  <span className="plp-price-num">0</span>
+                </div>
+                <div className="plp-price-period">Para sempre grátis</div>
+              </div>
+
+              <div className="plp-feats">
+                {FREE_FEATS.map(f => (
+                  <div key={f} className="plp-feat">
+                    <div className="plp-feat-check plp-feat-check-free">
+                      <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.5)" strokeWidth="2" strokeLinecap="round">
+                        <path d="M2 6l3 3 5-5"/>
+                      </svg>
+                    </div>
+                    <span className="plp-feat-text plp-feat-text-free">{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="plp-cta">
+                <button className="plp-btn-cta plp-cta-ghost" disabled>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  Plano atual
+                </button>
               </div>
             </div>
 
-            <span style={{
-              background: 'linear-gradient(135deg, var(--c), #32a05a)',
-              color: '#000000', fontSize: 10, fontWeight: 800,
-              padding: '4px 12px', borderRadius: 20,
-              letterSpacing: 0.5, fontFamily: 'var(--fd)',
-              boxShadow: '0 4px 16px rgba(74,196,110,.3)',
-            }}>⭐ RECOMENDADO</span>
-          </div>
+            {/* PRO */}
+            <div className="plp-card plp-pro">
+              <div className="plp-pro-grid" />
 
-          {/* Preço */}
-          <div style={{ marginBottom: 6, display: 'flex', alignItems: 'flex-end', gap: 4 }}>
-            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t2)', paddingBottom: 4 }}>R$</span>
-            <span style={{ fontSize: 52, fontWeight: 800, color: 'var(--c)', lineHeight: 1, fontFamily: 'var(--fn)', letterSpacing: -2 }}>19</span>
-            <span style={{ fontSize: 28, fontWeight: 800, color: 'var(--c)', paddingBottom: 2, fontFamily: 'var(--fn)' }}>,90</span>
-            <span style={{ fontSize: 13, color: 'var(--t2)', paddingBottom: 6 }}>/mês</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--t2)', marginBottom: 24 }}>Cancele quando quiser · Sem fidelidade</div>
-
-          {/* Features */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 26 }}>
-            {FEATURES.map(f => (
-              <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Check />
-                <span style={{ fontSize: 13.5, color: 'var(--t1)' }}>
-                  {f.label}{typeof f.pro === 'string' ? <span style={{ color: 'var(--c)', fontWeight: 700 }}> — {f.pro}</span> : ''}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA */}
-          {isPro ? (
-            <div style={{
-              textAlign: 'center', padding: 14,
-              background: 'rgba(74,196,110,.08)', borderRadius: 14,
-              fontSize: 14, fontWeight: 700, color: 'var(--c)',
-              border: '1px solid rgba(74,196,110,.18)',
-            }}>✨ Você já é Pro!</div>
-          ) : (
-            <button
-              className="btn bp"
-              style={{ width: '100%', justifyContent: 'center', fontSize: 15, padding: '14px 0', borderRadius: 14, fontWeight: 800 }}
-              onClick={handleAssinar}
-            >
-              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
-                <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd"/>
-              </svg>
-              Assinar Pro — Em breve
-            </button>
-          )}
-        </div>
-
-        {/* ── Card Gratuito ── */}
-        <div className="plan-free-card fu d2">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)', textTransform: 'uppercase', letterSpacing: 1.5, fontFamily: 'var(--fd)' }}>Gratuito</div>
-            {!isPro && <span className="bdg baurora">Plano atual</span>}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, marginBottom: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t2)', paddingBottom: 3 }}>R$</span>
-            <span style={{ fontSize: 38, fontWeight: 800, color: 'var(--t1)', fontFamily: 'var(--fn)', lineHeight: 1 }}>0</span>
-            <span style={{ fontSize: 12, color: 'var(--t2)', paddingBottom: 4 }}>/mês</span>
-          </div>
-          <div style={{ fontSize: 12, color: 'var(--t2)', marginBottom: 20 }}>Para começar, sem cartão</div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {FEATURES.map(f => (
-              <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {f.free ? <Check /> : <Cross />}
-                <span style={{ fontSize: 13, color: f.free ? 'var(--t1)' : 'var(--t2)' }}>
-                  {f.label}{typeof f.free === 'string' ? <span style={{ color: 'var(--t2)', fontWeight: 600 }}> — {f.free}</span> : ''}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── FAQ ── */}
-        <div className="card fu d3" style={{ marginBottom: 0 }}>
-          <div className="sct" style={{ marginBottom: 18 }}>Dúvidas frequentes</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {FAQ.map(([q, a], i) => (
-              <div
-                key={q}
-                style={{ borderBottom: i < FAQ.length - 1 ? '1px solid rgba(74,196,110,.07)' : 'none' }}
-              >
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  style={{
-                    width: '100%', background: 'none', border: 'none',
-                    cursor: 'pointer', padding: '14px 0',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                    textAlign: 'left',
-                  }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>{q}</span>
-                  <svg
-                    viewBox="0 0 20 20" fill="currentColor" width="16" height="16"
-                    style={{ color: 'var(--t2)', flexShrink: 0, transition: 'transform .2s', transform: openFaq === i ? 'rotate(180deg)' : 'none' }}
-                  >
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/>
+              <div className="plp-plan-top">
+                <div>
+                  <div className="plp-plan-name plp-name-pro">Pro</div>
+                  <div className="plp-plan-desc plp-desc-pro">Para quem quer controle total</div>
+                </div>
+                <div className="plp-badge plp-badge-rec">
+                  <svg width="9" height="9" viewBox="0 0 12 12" fill="currentColor" stroke="currentColor" strokeWidth="1">
+                    <polygon points="6 1 7.5 4.5 11 5 8.5 7.5 9 11 6 9.5 3 11 3.5 7.5 1 5 4.5 4.5"/>
                   </svg>
-                </button>
-                {openFaq === i && (
-                  <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6, paddingBottom: 14 }}>
-                    {a}
-                  </div>
+                  Recomendado
+                </div>
+              </div>
+
+              <div className="plp-price-wrap">
+                <div className="plp-price">
+                  <span className="plp-price-cur">R$</span>
+                  <span className="plp-price-num">{proPrice}</span>
+                  <span className="plp-price-dec">,90</span>
+                </div>
+                <div className="plp-price-period plp-period-pro">{properiod}</div>
+                <div className="plp-price-cancel">Sem fidelidade · Sem cartão para testar</div>
+              </div>
+
+              <div className="plp-feats">
+                {PRO_FEATS.map((f, i) =>
+                  f === null
+                    ? <div key={i} className="plp-feat-sep" />
+                    : (
+                      <div key={i} className="plp-feat">
+                        <div className="plp-feat-check plp-feat-check-pro">
+                          <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                            <path d="M2 6l3 3 5-5"/>
+                          </svg>
+                        </div>
+                        <span className="plp-feat-text">
+                          {f.text}
+                          {f.hi && <> — <span className="plp-feat-hi">{f.hi}</span></>}
+                        </span>
+                      </div>
+                    )
                 )}
               </div>
-            ))}
+
+              <div className="plp-cta">
+                {isPro ? (
+                  <div className="plp-btn-cta plp-cta-is-pro">✨ Você já é Pro!</div>
+                ) : (
+                  <button className="plp-btn-cta plp-cta-soon" onClick={handleAssinar}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                    Assinar Pro — Em breve
+                  </button>
+                )}
+                <div className="plp-plan-note">Para começar, sem cartão de crédito</div>
+              </div>
+            </div>
+
           </div>
 
-          <div style={{ marginTop: 16, fontSize: 12, color: 'var(--t2)', paddingTop: 16, borderTop: '1px solid rgba(74,196,110,.07)' }}>
-            Dúvidas? <span style={{ color: 'var(--c)', fontWeight: 600 }}>suporte@myfinancepro.com.br</span>
+          {/* ── Comparison Table ── */}
+          <div className="plp-compare r3">
+            <div className="plp-compare-label">Comparativo detalhado</div>
+
+            <div className="plp-table">
+              <div className="plp-th-row">
+                <div className="plp-th plp-th-feat">Funcionalidade</div>
+                <div className="plp-th">Grátis</div>
+                <div className="plp-th plp-th-pro">Pro</div>
+              </div>
+
+              {COMPARE_GROUPS.map(group => (
+                <div key={group.label}>
+                  <div className="plp-tr plp-tr-group">
+                    <div className="plp-group-label">{group.label}</div>
+                  </div>
+                  {group.rows.map(row => (
+                    <div key={row.feat} className="plp-tr">
+                      <div className="plp-td-feat">{row.feat}</div>
+                      <div className="plp-td-cell">
+                        {row.free === true  ? <CheckYes /> :
+                         row.free === false ? <CheckNo  /> :
+                         <span className="plp-ct-val">{row.free}</span>}
+                      </div>
+                      <div className="plp-td-cell">
+                        {row.pro === true  ? <CheckYes /> :
+                         row.pro === false ? <CheckNo  /> :
+                         <span className="plp-ct-val plp-ct-val-g">{row.pro}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
+
+          {/* ── Bottom row ── */}
+          <div className="plp-bottom r4">
+
+            {/* Guarantee */}
+            <div className="plp-guarantee">
+              <div className="plp-guar-ico">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+              </div>
+              <div className="plp-guar-title">Cancele quando quiser</div>
+              <div className="plp-guar-sub">
+                Sem contratos, sem fidelidade. Você pode cancelar sua assinatura Pro a qualquer momento, sem taxas ou complicações.
+              </div>
+              <div className="plp-guar-tags">
+                <span className="plp-guar-tag">Sem contrato</span>
+                <span className="plp-guar-tag">100% privado</span>
+                <span className="plp-guar-tag">Sem cartão agora</span>
+              </div>
+            </div>
+
+            {/* FAQ */}
+            <div className="plp-faq">
+              <div className="plp-faq-head">
+                <div className="plp-faq-head-ico">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                </div>
+                <div className="plp-faq-head-title">Perguntas frequentes</div>
+              </div>
+              <div className="plp-faq-list">
+                {FAQ.map(([q, a], i) => (
+                  <div
+                    key={q}
+                    className={`plp-faq-item${openFaq === i ? ' open' : ''}`}
+                    onClick={() => toggleFaq(i)}
+                  >
+                    <div className="plp-faq-q">
+                      <span className="plp-faq-question">{q}</span>
+                      <span className={`plp-faq-arrow${openFaq === i ? ' open' : ''}`}>↓</span>
+                    </div>
+                    <div className="plp-faq-answer">{a}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
         </div>
-
       </div>
     </>
   )
