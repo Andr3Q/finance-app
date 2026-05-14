@@ -53,6 +53,9 @@ model Transaction {
 
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, month, year, archived])
+  @@index([userId, type, month, year])
 }
 
 // ── Tabela: budgets ─────────────────────────────────────
@@ -64,6 +67,8 @@ model Budget {
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ── Tabela: category_limits ────────────────────────────
@@ -88,4 +93,6 @@ model PushSubscription {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }
