@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
+import { useUser } from '../hooks/useUser.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar           from '../components/Navbar.jsx'
 import TransactionForm  from '../components/TransactionForm.jsx'
@@ -25,8 +26,7 @@ const fmtShort= (n) => {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  let user = {}
-  try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
+  const user = useUser()
 
   const [summary,      setSummary]      = useState(null)
   const [transactions, setTransactions] = useState([])

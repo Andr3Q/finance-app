@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Navbar from '../components/Navbar.jsx'
+import { useUser } from '../hooks/useUser.js'
 
 const FAQ = [
   ['Quando o Pro estará disponível?',   'O plano Pro está em desenvolvimento final. Você será notificado por e-mail assim que for lançado com acesso antecipado.'],
@@ -76,8 +77,7 @@ export default function Planos() {
   const [openFaq, setOpenFaq] = useState(null)
   const [toast,   setToast]   = useState(false)
 
-  let user = {}
-  try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
+  const user = useUser()
   const isPro = user.plan === 'pro'
 
   const proPrice  = billing === 'mensal' ? '19' : '15'
