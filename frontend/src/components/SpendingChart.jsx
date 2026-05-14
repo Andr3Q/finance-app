@@ -46,7 +46,7 @@ export default function SpendingChart({ data }) {
         {slices.map((s) => (
           <div key={s.name} className="pli">
             <div className="pld" style={{ background: s.color }} />
-            <span>{s.name} — R$ {s.value.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</span>
+            <span>{s.name} — R$ {s.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
           </div>
         ))}
       </div>
