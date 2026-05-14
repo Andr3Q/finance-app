@@ -1,5 +1,5 @@
-const CACHE_NAME = 'financaspro-v4'
-const STATIC_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png']
+const CACHE_NAME = 'finance-v5'
+const STATIC_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/logo-icon.png']
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -18,7 +18,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('push', e => {
   const data = e.data?.json() || {}
-  const title = data.title || 'FinançasPro'
+  const title = data.title || 'Finance'
   const options = {
     body:    data.body || '',
     icon:    '/icon-192.png',
