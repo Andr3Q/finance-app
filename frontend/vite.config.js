@@ -17,9 +17,8 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'vendor-react':  ['react', 'react-dom', 'react-router-dom'],
-          'vendor-charts': ['recharts'],
-          'vendor-http':   ['axios'],
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-http':  ['axios'],
         }
       }
     }

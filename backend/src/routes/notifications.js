@@ -1,13 +1,12 @@
 const express = require('express')
 const router  = express.Router()
-const { PrismaClient } = require('@prisma/client')
-const auth   = require('../middleware/auth')
-const prisma = new PrismaClient()
+const prisma  = require('../lib/prisma')
+const auth    = require('../middleware/auth')
 
 router.use(auth)
 
 // Retorna a chave pública VAPID para o frontend criar a assinatura
-router.get('/vapid-public-key', (req, res) => {
+router.get('/vapid-public-key', (_req, res) => {
   res.json({ key: process.env.VAPID_PUBLIC_KEY || null })
 })
 
