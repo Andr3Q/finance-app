@@ -16,6 +16,9 @@ const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { sendResetEmail } = require('../services/emailService')
+const { forgotPasswordLimiter } = require('../middleware/rateLimiter')
+
+const EMAIL_REGEX = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{2,}$/
 
 const router = express.Router()
 
@@ -28,6 +31,15 @@ router.post('/register', async (req, res) => {
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Nome, e-mail e senha são obrigatórios.' })
+    }
+    if (typeof name !== 'string' || name.trim().length < 2 || name.length > 100) {
+      return res.status(400).json({ error: 'Nome deve ter entre 2 e 100 caracteres.' })
+    }
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ error: 'E-mail inválido.' })
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'A senha deve ter pelo menos 8 caracteres.' })
     }
     if (password.length > 72) {
       return res.status(400).json({ error: 'A senha deve ter no máximo 72 caracteres.' })
@@ -45,8 +57,8 @@ router.post('/register', async (req, res) => {
     // Cria o usuário no banco
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
         password: hashedPassword,
         salary: salary || 0,
         reportEmail: email // Por padrão, envia relatório para o próprio e-mail
@@ -75,12 +87,15 @@ router.post('/login', async (req, res) => {
     if (!email || !password) {
       return res.status(400).json({ error: 'E-mail e senha são obrigatórios.' })
     }
+    if (!EMAIL_REGEX.test(email)) {
+      return res.status(400).json({ error: 'E-mail inválido.' })
+    }
     if (password.length > 72) {
       return res.status(400).json({ error: 'A senha deve ter no máximo 72 caracteres.' })
     }
 
     // Busca usuário pelo e-mail
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
     if (!user) {
       return res.status(401).json({ error: 'E-mail ou senha incorretos.' })
     }
@@ -120,10 +135,10 @@ router.get('/me', authMiddleware, async (req, res) => {
 
 // ── POST /auth/forgot-password ──────────────────────────
 // Gera token de reset e envia link por e-mail
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const { email } = req.body
-    if (!email) return res.status(400).json({ error: 'E-mail é obrigatório.' })
+    if (!email || !EMAIL_REGEX.test(email)) return res.status(400).json({ error: 'E-mail inválido.' })
 
     const user = await prisma.user.findUnique({ where: { email } })
     // Responde igual mesmo se não encontrar (evita descobrir e-mails cadastrados)
