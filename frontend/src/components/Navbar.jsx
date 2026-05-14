@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../services/installPrompt.js'
+import { useUser } from '../hooks/useUser.js'
 
 const ROUTE_TITLES = {
   '/dashboard':    'Dashboard',
@@ -23,8 +24,7 @@ function LogoutIcon(){ return <svg width="15" height="15" viewBox="0 0 24 24" fi
 export default function Navbar() {
   const navigate = useNavigate()
   const location = useLocation()
-  let user = {}
-  try { user = JSON.parse(localStorage.getItem('user') || '{}') } catch { user = {} }
+  const user = useUser()
 
   const [appInstalled, setAppInstalled] = useState(() => isInstalled())
   const [installing,   setInstalling]   = useState(false)
