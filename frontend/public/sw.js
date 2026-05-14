@@ -1,4 +1,4 @@
-const CACHE_NAME = 'finance-v5'
+const CACHE_NAME = 'finance-v9'
 const STATIC_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/logo-icon.png']
 
 self.addEventListener('install', e => {
