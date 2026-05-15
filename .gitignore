@@ -48,3 +48,8 @@ backend/prisma/*.db-journal
 # ── Testes ────────────────────────────────────────────
 coverage/
 .nyc_output/
+
+# ── Protótipos / assets gerados ───────────────────────
+frontend/financaspro-v*.html
+wave-preview.html
+frontend/public/Gemini_Generated_Image_*.png
