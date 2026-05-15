@@ -61,10 +61,12 @@ if (isProd) {
 }
 
 // ── CORS restrito apenas para rotas de API ──────────────
-const allowedOrigins = [
-  'https://financaspro-1042158013294.southamerica-east1.run.app',
-  'https://finance-app-1042158013294.southamerica-east1.run.app',
-]
+// Configura via ALLOWED_ORIGINS no .env (vírgula separada)
+// Ex: ALLOWED_ORIGINS=https://app.exemplo.com,https://outro.com
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean)
 
 app.use('/api/', cors({
   origin: isProd
@@ -129,6 +131,9 @@ app.use((req, res, next) => {
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Backend rodando em http://localhost:${PORT}`)
   console.log(`📋 Ambiente: ${isProd ? 'PRODUÇÃO ☁️' : 'desenvolvimento 🛠️'}`)
+  if (isProd && allowedOrigins.length === 0) {
+    console.warn('⚠️  ALLOWED_ORIGINS não configurado — CORS bloqueará todas as origens em produção!')
+  }
 })
 
 // ── Graceful shutdown ───────────────────────────────────
