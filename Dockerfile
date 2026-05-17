@@ -13,7 +13,7 @@ WORKDIR /frontend
 
 # Instala dependências primeiro (melhor uso do cache Docker)
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copia o código e compila para produção
 COPY frontend/ ./
