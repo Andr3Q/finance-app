@@ -76,10 +76,12 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 app.use('/api/', cors({
   origin: isProd
     ? (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
+        // Em produção, exige Origin explícita e dentro da lista permitida.
+        // Rejeita requests sem Origin (scripts server-side, curl, etc.)
+        if (origin && allowedOrigins.includes(origin)) return callback(null, true)
         callback(new Error('CORS: origem não permitida'))
       }
-    : true,
+    : (origin, callback) => callback(null, true), // dev: aceita qualquer origem
   credentials: true,
 }))
 
