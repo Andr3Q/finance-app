@@ -32,6 +32,10 @@ const PORT       = process.env.PORT || 3001
 const isProd     = process.env.NODE_ENV === 'production'
 const publicPath = path.join(__dirname, '../public')
 
+// Cloud Run senta atrás de um proxy — necessário para o rate-limit
+// identificar IPs corretamente pelo X-Forwarded-For
+app.set('trust proxy', 1)
+
 // ── Compressão ──────────────────────────────────────────
 app.use(compression())
 
