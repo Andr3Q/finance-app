@@ -41,8 +41,27 @@ app.use(compression())
 
 // ── Segurança: Headers HTTP ─────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
+  // CSP: restringe de onde scripts, estilos e conexões podem vir
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc:  ["'self'"],
+      scriptSrc:   ["'self'"],
+      styleSrc:    ["'self'", "'unsafe-inline'"],  // Vite injeta estilos inline
+      imgSrc:      ["'self'", 'data:', 'blob:'],
+      fontSrc:     ["'self'", 'data:'],
+      connectSrc:  ["'self'", 'https://api.groq.com'],
+      objectSrc:   ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri:     ["'self'"],
+      formAction:  ["'self'"],
+    },
+  },
+  // HSTS: força HTTPS por 1 ano — browser nunca faz downgrade para HTTP
+  hsts: {
+    maxAge:            31536000,
+    includeSubDomains: true,
+  },
+  crossOriginEmbedderPolicy: false,  // necessário para Vite assets
 }))
 
 // ── Arquivos estáticos com CORS aberto ──────────────────
