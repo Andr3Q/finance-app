@@ -52,7 +52,7 @@ router.post('/register', async (req, res) => {
     }
 
     // Criptografa a senha com bcrypt (salt = 10 rounds)
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 12)
 
     // Cria o usuário no banco
     const user = await prisma.user.create({
@@ -66,7 +66,7 @@ router.post('/register', async (req, res) => {
     })
 
     // Gera token JWT válido por 7 dias
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
 
     res.status(201).json({
       token,
@@ -106,7 +106,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'E-mail ou senha incorretos.' })
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' })
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
 
     res.json({
       token,
@@ -183,7 +183,7 @@ router.post('/reset-password', async (req, res) => {
 
     if (!user) return res.status(400).json({ error: 'Link inválido ou expirado. Solicite um novo.' })
 
-    const hashedPassword = await bcrypt.hash(password, 10)
+    const hashedPassword = await bcrypt.hash(password, 12)
     await prisma.user.update({
       where: { id: user.id },
       data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null }
