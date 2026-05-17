@@ -16,7 +16,7 @@ const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { sendResetEmail } = require('../services/emailService')
-const { forgotPasswordLimiter } = require('../middleware/rateLimiter')
+const { forgotPasswordLimiter, resetPasswordLimiter } = require('../middleware/rateLimiter')
 
 const EMAIL_REGEX = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{2,}$/
 
@@ -167,11 +167,11 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 
 // ── POST /auth/reset-password ───────────────────────────
 // Valida token e salva nova senha
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
   try {
     const { token, password } = req.body
     if (!token || !password) return res.status(400).json({ error: 'Token e nova senha são obrigatórios.' })
-    if (password.length < 6)  return res.status(400).json({ error: 'A senha deve ter pelo menos 6 caracteres.' })
+    if (password.length < 8)  return res.status(400).json({ error: 'A senha deve ter pelo menos 8 caracteres.' })
 
     const hash = crypto.createHash('sha256').update(token).digest('hex')
     const user = await prisma.user.findFirst({
