@@ -58,6 +58,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Inicialização:
-# 1. Aplica migrations pendentes (seguro para produção, não destrói dados)
-# 2. Inicia o servidor Express
-CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
+# 1. Registra o baseline (ignora erro se já registrado — idempotente)
+# 2. Aplica migrations pendentes (seguro para produção, não destrói dados)
+# 3. Inicia o servidor Express
+CMD ["sh", "-c", "npx prisma migrate resolve --applied 20260514000000_baseline 2>/dev/null || true && npx prisma migrate deploy && node src/server.js"]
