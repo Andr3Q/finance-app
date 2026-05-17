@@ -20,4 +20,12 @@ prisma.$on('error', (e) => {
   console.error('[Prisma]', e.message)
 })
 
+// Neon free tier dorme após 5 min sem atividade.
+// Ping a cada 4 min mantém o banco acordado enquanto o container estiver vivo.
+if (process.env.NODE_ENV === 'production') {
+  setInterval(async () => {
+    try { await prisma.$queryRaw`SELECT 1` } catch { /* silencioso */ }
+  }, 4 * 60 * 1000)
+}
+
 module.exports = prisma
