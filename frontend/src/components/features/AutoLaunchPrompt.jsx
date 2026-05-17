@@ -4,7 +4,7 @@
 
 import { useState } from 'react'
 import { transactionsAPI } from '../../services/api.js'
-import { IconAlert } from './icons.jsx'
+import { IconAlert } from '../ui/icons.jsx'
 
 export default function AutoLaunchPrompt({ autoLaunched, onLaunched }) {
   const [loading,   setLoading]   = useState(false)
