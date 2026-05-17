@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { budgetAPI } from '../../services/api.js'
-import { saveUser } from '../../hooks/useUser.js'
+import { budgetAPI } from '../../../services/api.js'
+import { saveUser } from '../../../hooks/useUser.js'
 
 export default function SalaryCard({ user, onMessage }) {
   const [salary,        setSalary]        = useState(user.salary || 0)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../../services/installPrompt.js'
+import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../../../services/installPrompt.js'
 
 function CfgInstallStep({ n, text }) {
   return (

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { saveUser } from '../../hooks/useUser.js'
+import { saveUser } from '../../../hooks/useUser.js'
 
 export default function ProfileCard({ user }) {
   const nameParts = (user.name || '').split(' ')

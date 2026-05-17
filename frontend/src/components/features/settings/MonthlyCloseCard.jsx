@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { reportsAPI } from '../../services/api.js'
+import { reportsAPI } from '../../../services/api.js'
 
 export default function MonthlyCloseCard({ user, isPro, onMessage, onUpgrade }) {
   const [closing, setClosing] = useState(false)

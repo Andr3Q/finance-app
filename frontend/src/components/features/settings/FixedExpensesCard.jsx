@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { budgetAPI } from '../../services/api.js'
+import { budgetAPI } from '../../../services/api.js'
 
 export default function FixedExpensesCard({ onMessage }) {
   const [budgets,   setBudgets]   = useState([])
