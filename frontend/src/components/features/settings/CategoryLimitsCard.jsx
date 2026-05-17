@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { budgetAPI } from '../../services/api.js'
+import { budgetAPI } from '../../../services/api.js'
 
 const CATEGORIES = [
   { key: 'food',      label: 'Alimentação' },
