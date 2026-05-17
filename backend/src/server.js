@@ -95,9 +95,9 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
 app.use('/api/', cors({
   origin: isProd
     ? (origin, callback) => {
-        // Em produção, exige Origin explícita e dentro da lista permitida.
-        // Rejeita requests sem Origin (scripts server-side, curl, etc.)
-        if (origin && allowedOrigins.includes(origin)) return callback(null, true)
+        // Permite: requests sem Origin (same-origin do browser) e origens na lista.
+        // A proteção real contra acesso não autorizado é o JWT em cada rota.
+        if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
         callback(new Error('CORS: origem não permitida'))
       }
     : (origin, callback) => callback(null, true), // dev: aceita qualquer origem
