@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { notificationsAPI } from '../../services/api.js'
+import { notificationsAPI } from '../../../services/api.js'
 import CfgToggle from './CfgToggle.jsx'
 
 function urlBase64ToUint8Array(base64String) {
