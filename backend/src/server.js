@@ -91,8 +91,15 @@ app.use('/api/reports',       reportRoutes)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/agent',        agentLimiter, agentRoutes)
 
-// ── Health Check com ping no banco (antes do SPA catch-all) ─
+// ── Health endpoints (antes do SPA catch-all) ───────────
 const prismaHealth = require('./lib/prisma')
+
+// /ping — resposta imediata sem tocar no banco (mede latência do servidor)
+app.get('/ping', (req, res) => {
+  res.json({ status: 'ok', ts: Date.now() })
+})
+
+// /health — verifica banco de dados
 app.get('/health', async (req, res) => {
   try {
     await prismaHealth.$queryRaw`SELECT 1`
@@ -134,6 +141,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   if (isProd && allowedOrigins.length === 0) {
     console.warn('⚠️  ALLOWED_ORIGINS não configurado — CORS bloqueará todas as origens em produção!')
   }
+  // Aquece a conexão com o banco imediatamente após o servidor subir,
+  // para que a primeira request real não pague o custo de conectar.
+  prismaHealth.$connect().catch(() => {})
 })
 
 // ── Graceful shutdown ───────────────────────────────────
