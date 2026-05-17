@@ -38,4 +38,12 @@ const forgotPasswordLimiter = rateLimit({
   message: { error: 'Muitas tentativas de recuperação de senha. Tente novamente em 1 hora.' },
 })
 
-module.exports = { apiLimiter, authLimiter, agentLimiter, forgotPasswordLimiter }
+// Reset de senha: 10 tentativas / 15 min (anti brute-force de token)
+const resetPasswordLimiter = rateLimit({
+  ...opts,
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Muitas tentativas de redefinição de senha. Tente novamente em 15 minutos.' },
+})
+
+module.exports = { apiLimiter, authLimiter, agentLimiter, forgotPasswordLimiter, resetPasswordLimiter }
