@@ -252,7 +252,7 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Transação não encontrada.' })
     }
 
-    await prisma.transaction.delete({ where: { id } })
+    await prisma.transaction.delete({ where: { id, userId: req.userId } })
     res.json({ message: 'Transação removida com sucesso.' })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao remover transação.' })
