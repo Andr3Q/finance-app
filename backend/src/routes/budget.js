@@ -115,7 +115,7 @@ router.put('/:id', async (req, res) => {
       updateData.amount = parsed
     }
 
-    const budget = await prisma.budget.update({ where: { id }, data: updateData })
+    const budget = await prisma.budget.update({ where: { id, userId: req.userId }, data: updateData })
     res.json(budget)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar conta fixa.' })
@@ -130,7 +130,7 @@ router.delete('/:id', async (req, res) => {
     const existing = await prisma.budget.findFirst({ where: { id, userId: req.userId } })
     if (!existing) return res.status(404).json({ error: 'Conta fixa não encontrada.' })
 
-    await prisma.budget.delete({ where: { id } })
+    await prisma.budget.delete({ where: { id, userId: req.userId } })
     res.json({ message: 'Conta fixa removida.' })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao remover conta fixa.' })
