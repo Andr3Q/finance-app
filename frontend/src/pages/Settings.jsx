@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import { authAPI } from '../services/api.js'
 import UpgradeModal from '../components/ui/UpgradeModal.jsx'
 import { useUser } from '../hooks/useUser.js'
 import { useTheme } from '../hooks/useTheme.js'
@@ -13,6 +14,7 @@ import NotificationsCard   from '../components/features/settings/NotificationsCa
 import CategoryLimitsCard  from '../components/features/settings/CategoryLimitsCard.jsx'
 import MonthlyCloseCard    from '../components/features/settings/MonthlyCloseCard.jsx'
 import InstallCard         from '../components/features/settings/InstallCard.jsx'
+import RemindersCard       from '../components/features/settings/RemindersCard.jsx'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -27,6 +29,12 @@ export default function Settings() {
   const showMsg = (text, type = 'success') => {
     setMsg(text); setMsgType(type)
     setTimeout(() => setMsg(''), 4000)
+  }
+
+  const handleLogout = async () => {
+    try { await authAPI.logout() } catch { /* ignora erros de rede */ }
+    localStorage.removeItem('user')
+    navigate('/login')
   }
 
   return (
@@ -58,7 +66,22 @@ export default function Settings() {
 
             <CategoryLimitsCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
             <MonthlyCloseCard   user={user} isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
+
+            <div className="cfg-sec-title r4">Lembretes</div>
+            <RemindersCard />
             <InstallCard />
+
+            <div className="cfg-sec-title r10">Conta</div>
+            <div className="cfg-card r10">
+              <button className="cfg-btn-danger cfg-logout-btn" onClick={handleLogout}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sair da conta
+              </button>
+            </div>
 
           </div>
         </div>

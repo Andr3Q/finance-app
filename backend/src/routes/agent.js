@@ -121,6 +121,8 @@ async function runTool(name, args, userId) {
         category: args.category,
         description: args.description || null,
         date,
+        month: date.getMonth() + 1,
+        year:  date.getFullYear(),
       },
     })
     return {
@@ -134,10 +136,14 @@ async function runTool(name, args, userId) {
 
 function sanitizeHistory(history) {
   if (!Array.isArray(history)) return []
-  return history
+  const filtered = history
     .filter(m => m && typeof m === 'object' && ['user','assistant'].includes(m.role) && typeof m.content === 'string')
     .slice(-10)
     .map(m => ({ role: m.role, content: m.content.slice(0, 2000) }))
+  // Descarta mensagens mais antigas se contexto total for muito grande
+  const totalChars = filtered.reduce((s, m) => s + m.content.length, 0)
+  if (totalChars > 12000) return filtered.slice(-4)
+  return filtered
 }
 
 const SYSTEM = `Você é o assistente financeiro pessoal do FinançasPro.
@@ -232,6 +238,136 @@ router.post('/chat', async (req, res) => {
     }
 
     res.status(500).json({ error: 'Erro ao processar mensagem. Tente novamente.' })
+  }
+})
+
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+// ── POST /api/agent/predict ─────────────────────────────
+// Previsão curta (2 frases) sobre o fim do mês
+router.post('/predict', async (req, res) => {
+  if (!process.env.GROQ_API_KEY) return res.status(503).json({ error: 'IA não configurada.' })
+  try {
+    const now         = new Date()
+    const month       = now.getMonth() + 1
+    const year        = now.getFullYear()
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const dayOfMonth  = now.getDate()
+
+    const [txs, budgets, user] = await Promise.all([
+      prisma.transaction.findMany({
+        where: { userId: req.userId, month, year, archived: false },
+        select: { type: true, amount: true, category: true },
+      }),
+      prisma.budget.findMany({ where: { userId: req.userId } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, name: true } }),
+    ])
+
+    if (txs.length === 0) return res.json({ prediction: null })
+
+    const totalExpenses  = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    const totalIncome    = txs.filter(t => t.type === 'income').reduce((s, t)  => s + Number(t.amount), 0)
+    const salary         = user?.salary || 0
+    const fixedCosts     = budgets.reduce((s, b) => s + Number(b.amount), 0)
+    const totalAvailable = salary + totalIncome
+    const pct            = totalAvailable > 0 ? Math.round(totalExpenses / totalAvailable * 100) : 0
+
+    const byCategory = {}
+    txs.filter(t => t.type === 'expense').forEach(t => {
+      byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount)
+    })
+    const topCat = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0]
+
+    const groq   = new Groq({ apiKey: process.env.GROQ_API_KEY })
+    const prompt = `Usuário: ${user?.name || 'usuário'}
+Mês: ${MONTHS_PT[month - 1]} ${year} — dia ${dayOfMonth} de ${daysInMonth}
+Disponível: R$ ${totalAvailable.toFixed(2)} | Gasto até agora: R$ ${totalExpenses.toFixed(2)} (${pct}%)
+Principal categoria de gasto: ${CATEGORY_LABELS[topCat?.[0]] || topCat?.[0] || 'N/A'} (R$ ${topCat?.[1]?.toFixed(2) || '0,00'})
+
+Escreva UMA frase curta e direta prevendo como o usuário vai terminar o mês financeiramente. Sem saudações, sem formatação, apenas a previsão.`
+
+    const response = await groq.chat.completions.create({
+      model:       'llama-3.3-70b-versatile',
+      messages:    [
+        { role: 'system', content: 'Consultor financeiro pessoal. Responda em português, máximo 1 frase, sem formatação.' },
+        { role: 'user',   content: prompt },
+      ],
+      max_tokens:  120,
+      temperature: 0.6,
+    })
+
+    res.json({ prediction: response.choices[0].message.content.trim() })
+  } catch (err) {
+    console.error('[AGENT/predict]', err.message)
+    if (err.status === 429) return res.status(429).json({ error: 'Muitas requisições. Tente em instantes.' })
+    res.status(500).json({ error: 'Erro ao gerar previsão.' })
+  }
+})
+
+// ── POST /api/agent/monthly-report ─────────────────────
+// Relatório IA completo do mês (max ~200 palavras)
+router.post('/monthly-report', async (req, res) => {
+  if (!process.env.GROQ_API_KEY) return res.status(503).json({ error: 'IA não configurada.' })
+  try {
+    const now   = new Date()
+    const month = Number(req.body?.month) || now.getMonth() + 1
+    const year  = Number(req.body?.year)  || now.getFullYear()
+
+    if (month < 1 || month > 12) return res.status(400).json({ error: 'Mês inválido.' })
+
+    const [txs, budgets, user] = await Promise.all([
+      prisma.transaction.findMany({
+        where: { userId: req.userId, month, year, archived: false },
+        select: { type: true, amount: true, category: true, description: true },
+      }),
+      prisma.budget.findMany({ where: { userId: req.userId } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, name: true } }),
+    ])
+
+    if (txs.length === 0) return res.json({ report: 'Nenhuma transação registrada neste mês.', month, year })
+
+    const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t)  => s + Number(t.amount), 0)
+    const salary        = user?.salary || 0
+    const fixedCosts    = budgets.reduce((s, b) => s + Number(b.amount), 0)
+    const balance       = salary + totalIncome - fixedCosts - totalExpenses
+
+    const byCategory = {}
+    txs.filter(t => t.type === 'expense').forEach(t => {
+      byCategory[t.category] = (byCategory[t.category] || 0) + Number(t.amount)
+    })
+    const topCats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .map(([cat, amt]) => `${CATEGORY_LABELS[cat] || cat}: R$ ${amt.toFixed(2)}`).join(', ')
+
+    const groq   = new Groq({ apiKey: process.env.GROQ_API_KEY })
+    const prompt = `Analise ${MONTHS_PT[month - 1]}/${year} de ${user?.name || 'usuário'}:
+Salário R$${salary.toFixed(2)} | Fixos R$${fixedCosts.toFixed(2)} | Extras R$${totalIncome.toFixed(2)} | Gasto R$${totalExpenses.toFixed(2)} | Saldo R$${balance.toFixed(2)}
+Top gastos: ${topCats}
+Transações: ${txs.length}
+
+Gere relatório financeiro em 4 parágrafos curtos (máximo 180 palavras total):
+1. Desempenho geral do mês (1-2 frases)
+2. Principais gastos e destaques (1-2 frases)
+3. Pontos de atenção (1 frase)
+4. 2 sugestões práticas para o próximo mês
+
+Sem títulos, sem marcadores, parágrafos separados por linha em branco. Tom direto e amigável.`
+
+    const response = await groq.chat.completions.create({
+      model:       'llama-3.3-70b-versatile',
+      messages:    [
+        { role: 'system', content: 'Consultor financeiro pessoal. Responda em português, estruturado e direto.' },
+        { role: 'user',   content: prompt },
+      ],
+      max_tokens:  450,
+      temperature: 0.65,
+    })
+
+    res.json({ report: response.choices[0].message.content.trim(), month, year })
+  } catch (err) {
+    console.error('[AGENT/monthly-report]', err.message)
+    if (err.status === 429) return res.status(429).json({ error: 'Muitas requisições. Tente em instantes.' })
+    res.status(500).json({ error: 'Erro ao gerar relatório.' })
   }
 })
 

@@ -16,12 +16,15 @@ const authMiddleware = require('../middleware/auth')
 const multer         = require('multer')
 const { parse }      = require('csv-parse')
 const { sendPushToUser } = require('../services/pushService')
+const { dashboardLimiter } = require('../middleware/rateLimiter')
 
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',
   health:'Saúde', leisure:'Lazer', education:'Educação',
   home:'Casa', income:'Entrada Extra', other:'Outros',
 }
+const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS)
+const MAX_AMOUNT = 999_999_999.99
 
 const router = express.Router()
 
@@ -86,7 +89,7 @@ router.get('/summary', async (req, res) => {
 // ── GET /transactions/dashboard ────────────────────────
 // Endpoint unificado: retorna summary + transactions + limits em 1 chamada
 // Substitui as 3 chamadas separadas do Dashboard (3 round trips → 1)
-router.get('/dashboard', async (req, res) => {
+router.get('/dashboard', dashboardLimiter, async (req, res) => {
   try {
     const now   = new Date()
     const month = now.getMonth() + 1
@@ -125,6 +128,98 @@ router.get('/dashboard', async (req, res) => {
   }
 })
 
+// ── GET /transactions/monthly-history ──────────────────
+// Retorna resumo de receitas e despesas dos últimos N meses
+// Query: ?months=6 (padrão 6, máx 12)
+router.get('/monthly-history', async (req, res) => {
+  try {
+    const months = Math.min(Math.max(parseInt(req.query.months) || 6, 1), 12)
+    const now    = new Date()
+
+    // Monta lista dos meses desejados
+    const slots = []
+    for (let i = months - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      slots.push({ month: d.getMonth() + 1, year: d.getFullYear() })
+    }
+
+    const startSlot = slots[0]
+    const txs = await prisma.transaction.findMany({
+      where: {
+        userId: req.userId,
+        archived: false,
+        OR: [
+          { year: { gt: startSlot.year } },
+          { year: startSlot.year, month: { gte: startSlot.month } },
+        ],
+      },
+      select: { type: true, amount: true, month: true, year: true },
+    })
+
+    const map = {}
+    slots.forEach(s => { map[`${s.year}-${s.month}`] = { ...s, income: 0, expenses: 0 } })
+    txs.forEach(t => {
+      const key = `${t.year}-${t.month}`
+      if (map[key]) {
+        if (t.type === 'income') map[key].income   += Number(t.amount)
+        else                     map[key].expenses += Number(t.amount)
+      }
+    })
+
+    res.json(Object.values(map))
+  } catch (err) {
+    console.error('Erro no histórico mensal:', err)
+    res.status(500).json({ error: 'Erro ao carregar histórico.' })
+  }
+})
+
+// ── GET /transactions/subscriptions ────────────────────
+// Detecta gastos recorrentes nos últimos 3 meses
+router.get('/subscriptions', async (req, res) => {
+  try {
+    const now   = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+
+    const txs = await prisma.transaction.findMany({
+      where: {
+        userId:   req.userId,
+        type:     'expense',
+        archived: false,
+        OR: [
+          { year: { gt: start.getFullYear() } },
+          { year: start.getFullYear(), month: { gte: start.getMonth() + 1 } },
+        ],
+      },
+      select: { description: true, amount: true, category: true, month: true, year: true, date: true },
+      orderBy: { date: 'desc' },
+    })
+
+    // Agrupa por descrição normalizada
+    const groups = {}
+    txs.forEach(t => {
+      const key = t.description.trim().toLowerCase()
+      if (!groups[key]) groups[key] = { description: t.description, category: t.category, amounts: [], months: new Set(), lastDate: t.date }
+      groups[key].amounts.push(Number(t.amount))
+      groups[key].months.add(`${t.year}-${t.month}`)
+      if (new Date(t.date) > new Date(groups[key].lastDate)) groups[key].lastDate = t.date
+    })
+
+    // Filtra: mínimo 2 meses distintos
+    const subscriptions = Object.values(groups)
+      .filter(g => g.months.size >= 2)
+      .map(g => {
+        const avg = g.amounts.reduce((s, a) => s + a, 0) / g.amounts.length
+        return { description: g.description, amount: Math.round(avg * 100) / 100, category: g.category, occurrences: g.amounts.length, months: g.months.size, lastDate: g.lastDate }
+      })
+      .sort((a, b) => b.amount - a.amount)
+
+    res.json(subscriptions)
+  } catch (err) {
+    console.error('Erro nas assinaturas:', err)
+    res.status(500).json({ error: 'Erro ao detectar assinaturas.' })
+  }
+})
+
 // ── GET /transactions ───────────────────────────────────
 // Lista transações do mês com suporte a paginação.
 // Query params: ?page=1&limit=100&month=5&year=2026
@@ -133,6 +228,14 @@ router.get('/', async (req, res) => {
     const now   = new Date()
     const month = req.query.month ? parseInt(req.query.month) : now.getMonth() + 1
     const year  = req.query.year  ? parseInt(req.query.year)  : now.getFullYear()
+
+    if (month < 1 || month > 12 || !Number.isInteger(month)) {
+      return res.status(400).json({ error: 'Mês inválido (1-12).' })
+    }
+    if (year < 1900 || year > 2100 || !Number.isInteger(year)) {
+      return res.status(400).json({ error: 'Ano inválido.' })
+    }
+
     const page  = Math.max(1, parseInt(req.query.page)  || 1)
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 100))
     const skip  = (page - 1) * limit
@@ -167,11 +270,20 @@ router.post('/', async (req, res) => {
     if (!isFinite(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({ error: 'Valor deve ser um número maior que zero.' })
     }
+    if (parsedAmount > MAX_AMOUNT) {
+      return res.status(400).json({ error: 'Valor excede o limite permitido.' })
+    }
     if (!type || !category) {
       return res.status(400).json({ error: 'Tipo e categoria são obrigatórios.' })
     }
     if (!['expense', 'income'].includes(type)) {
       return res.status(400).json({ error: 'Tipo deve ser "expense" ou "income".' })
+    }
+    if (!VALID_CATEGORIES.includes(category)) {
+      return res.status(400).json({ error: 'Categoria inválida.' })
+    }
+    if (description !== undefined && (typeof description !== 'string' || description.length > 255)) {
+      return res.status(400).json({ error: 'Descrição deve ter no máximo 255 caracteres.' })
     }
 
     // Limite do plano Free: 30 transações por mês
@@ -316,7 +428,17 @@ router.post('/auto-launch', async (req, res) => {
 
 // ── POST /transactions/import ───────────────────────────
 // Importa transações de um arquivo CSV (ex: extrato bancário)
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } })
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['text/csv', 'application/csv', 'text/plain', 'application/vnd.ms-excel']
+    if (!allowed.includes(file.mimetype) && !file.originalname.endsWith('.csv')) {
+      return cb(new Error('Apenas arquivos CSV são permitidos.'))
+    }
+    cb(null, true)
+  }
+})
 
 router.post('/import', upload.single('file'), async (req, res) => {
   try {

@@ -90,6 +90,7 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true       # Hot-reload funciona no Docker (Linux)
       - VITE_HOST=0.0.0.0
+      - BACKEND_HOST=backend           # Resolve o hostname interno do Docker
     stdin_open: true                   # Mantém o container ativo (evita parada inesperada)
     tty: true
     deploy:

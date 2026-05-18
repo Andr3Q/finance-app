@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { transactionsAPI } from '../../services/api.js'
+import CurrencyInput from '../ui/CurrencyInput.jsx'
 
 const CATEGORIES = [
   { value: 'food',      label: 'Alimentação' },
@@ -22,7 +23,7 @@ export default function TransactionForm({ onClose, onSuccess }) {
 
   const handleSubmit = async e => {
     e.preventDefault()
-    if (!form.amount || parseFloat(form.amount) <= 0) {
+    if (!form.amount || form.amount <= 0) {
       setError('Insira um valor válido.')
       return
     }
@@ -31,7 +32,7 @@ export default function TransactionForm({ onClose, onSuccess }) {
     try {
       await transactionsAPI.create({
         description: form.description,
-        amount:      parseFloat(form.amount),
+        amount:      form.amount,
         type,
         category: type === 'income' ? 'income' : form.category,
       })
@@ -81,17 +82,11 @@ export default function TransactionForm({ onClose, onSuccess }) {
 
         <form onSubmit={handleSubmit}>
           {/* Input de valor em destaque */}
-          <input
+          <CurrencyInput
             className="amtinp"
-            name="amount"
-            type="number"
-            placeholder="0,00"
-            min="0.01"
-            step="0.01"
             value={form.amount}
-            onChange={handleChange}
+            onChange={v => setForm(f => ({ ...f, amount: v }))}
             autoFocus
-            required
             style={{ color: isExp ? 'var(--red)' : 'var(--c)' }}
           />
 

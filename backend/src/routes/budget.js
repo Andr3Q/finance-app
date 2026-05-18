@@ -16,6 +16,9 @@ const express        = require('express')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 
+const VALID_CATEGORIES = ['food','shopping','transport','health','leisure','education','home','income','other']
+const MAX_AMOUNT = 999_999_999.99
+
 const router = express.Router()
 
 router.use(authMiddleware)
@@ -36,7 +39,7 @@ router.get('/', async (req, res) => {
 // ── POST /budget ────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { name, amount } = req.body
+    const { name, amount, dueDay } = req.body
 
     const parsedAmount = parseFloat(amount)
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -47,6 +50,15 @@ router.post('/', async (req, res) => {
     }
     if (!isFinite(parsedAmount) || parsedAmount <= 0) {
       return res.status(400).json({ error: 'Valor deve ser maior que zero.' })
+    }
+    if (parsedAmount > MAX_AMOUNT) {
+      return res.status(400).json({ error: 'Valor excede o limite permitido.' })
+    }
+    if (dueDay !== undefined && dueDay !== null) {
+      const parsedDueDay = parseInt(dueDay, 10)
+      if (!Number.isInteger(parsedDueDay) || parsedDueDay < 1 || parsedDueDay > 31) {
+        return res.status(400).json({ error: 'Dia de vencimento deve ser entre 1 e 31.' })
+      }
     }
 
     // Limite do plano Free: máximo 3 contas fixas
@@ -62,9 +74,10 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const budget = await prisma.budget.create({
-      data: { name: name.trim(), amount: parsedAmount, userId: req.userId }
-    })
+    const createData = { name: name.trim(), amount: parsedAmount, userId: req.userId }
+    if (dueDay !== undefined && dueDay !== null) createData.dueDay = parseInt(dueDay, 10)
+
+    const budget = await prisma.budget.create({ data: createData })
     res.status(201).json(budget)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao criar conta fixa.' })
@@ -77,13 +90,14 @@ router.put('/salary', async (req, res) => {
   try {
     const { salary } = req.body
 
-    if (salary === undefined || salary === null) {
-      return res.status(400).json({ error: 'Salário é obrigatório.' })
+    const parsed = parseFloat(salary)
+    if (!isFinite(parsed) || parsed < 0) {
+      return res.status(400).json({ error: 'Salário inválido.' })
     }
 
     const user = await prisma.user.update({
       where: { id: req.userId },
-      data:  { salary: parseFloat(salary) }
+      data:  { salary: parsed }
     })
     res.json({ salary: user.salary })
   } catch (error) {
@@ -94,8 +108,8 @@ router.put('/salary', async (req, res) => {
 // ── PUT /budget/:id ─────────────────────────────────────
 router.put('/:id', async (req, res) => {
   try {
-    const { id }            = req.params
-    const { name, amount }  = req.body
+    const { id }                   = req.params
+    const { name, amount, dueDay } = req.body
 
     const existing = await prisma.budget.findFirst({ where: { id, userId: req.userId } })
     if (!existing) return res.status(404).json({ error: 'Conta fixa não encontrada.' })
@@ -112,7 +126,21 @@ router.put('/:id', async (req, res) => {
       if (!isFinite(parsed) || parsed <= 0) {
         return res.status(400).json({ error: 'Valor deve ser maior que zero.' })
       }
+      if (parsed > MAX_AMOUNT) {
+        return res.status(400).json({ error: 'Valor excede o limite permitido.' })
+      }
       updateData.amount = parsed
+    }
+    if (dueDay !== undefined) {
+      if (dueDay === null) {
+        updateData.dueDay = null
+      } else {
+        const parsedDueDay = parseInt(dueDay, 10)
+        if (!Number.isInteger(parsedDueDay) || parsedDueDay < 1 || parsedDueDay > 31) {
+          return res.status(400).json({ error: 'Dia de vencimento deve ser entre 1 e 31.' })
+        }
+        updateData.dueDay = parsedDueDay
+      }
     }
 
     const budget = await prisma.budget.update({ where: { id, userId: req.userId }, data: updateData })
@@ -156,6 +184,9 @@ router.post('/category-limits', async (req, res) => {
     if (!category || !amount) {
       return res.status(400).json({ error: 'Categoria e valor são obrigatórios.' })
     }
+    if (!VALID_CATEGORIES.includes(category)) {
+      return res.status(400).json({ error: 'Categoria inválida.' })
+    }
 
     // Limites por categoria são exclusivos do plano Pro
     const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
@@ -182,6 +213,9 @@ router.post('/category-limits', async (req, res) => {
 // Remove o limite de uma categoria
 router.delete('/category-limits/:category', async (req, res) => {
   try {
+    if (!VALID_CATEGORIES.includes(req.params.category)) {
+      return res.status(400).json({ error: 'Categoria inválida.' })
+    }
     await prisma.categoryLimit.deleteMany({
       where: { userId: req.userId, category: req.params.category }
     })
