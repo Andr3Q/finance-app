@@ -28,31 +28,56 @@ const PRO_FEATS = [
   { text: 'Suporte prioritário' },
 ]
 
+const ELITE_FEATS = [
+  { text: 'Tudo do Pro', hi: 'incluído' },
+  null,
+  { text: 'Previsão IA mensal' },
+  { text: 'Relatório IA detalhado' },
+  null,
+  { text: 'Módulo de Metas financeiras' },
+  { text: 'Lembretes de vencimento' },
+  { text: 'Detector de assinaturas' },
+  { text: 'Análises avançadas' },
+]
+
 const COMPARE_GROUPS = [
   {
     label: 'Dashboard & Relatórios',
     rows: [
-      { feat: 'Saldo do mês em tempo real',     free: true,  pro: true  },
-      { feat: 'Relatório PDF mensal',            free: true,  pro: true  },
-      { feat: 'Histórico de meses anteriores',   free: false, pro: true  },
-      { feat: 'Exportação CSV',                  free: false, pro: true  },
+      { feat: 'Saldo do mês em tempo real',     free: true,  pro: true,  elite: true  },
+      { feat: 'Relatório PDF mensal',            free: true,  pro: true,  elite: true  },
+      { feat: 'Histórico de meses anteriores',   free: false, pro: true,  elite: true  },
+      { feat: 'Exportação CSV',                  free: false, pro: true,  elite: true  },
+      { feat: 'Previsão IA mensal',              free: false, pro: false, elite: true  },
+      { feat: 'Relatório IA detalhado',          free: false, pro: false, elite: true  },
     ],
   },
   {
-    label: 'Transações',
+    label: 'Transações & Orçamento',
     rows: [
-      { feat: 'Transações por mês',              free: '30',  pro: 'Ilimitadas' },
-      { feat: 'Categorias de gastos',            free: true,  pro: true  },
-      { feat: 'Limites por categoria',           free: false, pro: true  },
-      { feat: 'Contas fixas automáticas',        free: true,  pro: true  },
-      { feat: 'Contas fixas ilimitadas',         free: false, pro: true  },
+      { feat: 'Transações por mês',              free: '30',  pro: 'Ilimitadas', elite: 'Ilimitadas' },
+      { feat: 'Categorias de gastos',            free: true,  pro: true,  elite: true  },
+      { feat: 'Limites por categoria',           free: false, pro: true,  elite: true  },
+      { feat: 'Contas fixas automáticas',        free: true,  pro: true,  elite: true  },
+      { feat: 'Contas fixas ilimitadas',         free: false, pro: true,  elite: true  },
+      { feat: 'Detector de assinaturas',         free: false, pro: false, elite: true  },
+      { feat: 'Lembretes de vencimento',         free: false, pro: false, elite: true  },
+    ],
+  },
+  {
+    label: 'IA & Metas',
+    rows: [
+      { feat: 'Módulo de Metas financeiras',     free: false, pro: false, elite: true  },
+      { feat: 'Score financeiro avançado',       free: false, pro: false, elite: true  },
+      { feat: 'Análises avançadas',              free: false, pro: false, elite: true  },
     ],
   },
   {
     label: 'Suporte',
     rows: [
-      { feat: 'Suporte por e-mail',              free: true,  pro: true  },
-      { feat: 'Suporte prioritário',             free: false, pro: true  },
+      { feat: 'Suporte por e-mail',              free: true,  pro: true,  elite: true  },
+      { feat: 'Suporte prioritário',             free: false, pro: true,  elite: true  },
+      { feat: 'Suporte dedicado',                free: false, pro: false, elite: true  },
     ],
   },
 ]
@@ -60,6 +85,13 @@ const COMPARE_GROUPS = [
 const CheckYes = () => (
   <div className="plp-check-yes">
     <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+      <path d="M2 6l3 3 5-5"/>
+    </svg>
+  </div>
+)
+const CheckYesElite = () => (
+  <div className="plp-check-yes plp-check-elite">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round">
       <path d="M2 6l3 3 5-5"/>
     </svg>
   </div>
@@ -80,10 +112,15 @@ export default function Planos() {
   const user = useUser()
   const isPro = user.plan === 'pro'
 
-  const proPrice  = billing === 'mensal' ? '19' : '15'
-  const properiod = billing === 'mensal'
+  const proPrice    = billing === 'mensal' ? '19' : '15'
+  const properiod   = billing === 'mensal'
     ? 'por mês · Cancele quando quiser'
     : 'por mês · Cobrado anualmente (R$ 190,80/ano)'
+
+  const elitePrice  = billing === 'mensal' ? '34' : '27'
+  const elitePeriod = billing === 'mensal'
+    ? 'por mês · Cancele quando quiser'
+    : 'por mês · Cobrado anualmente (R$ 334,80/ano)'
 
   const handleAssinar = () => {
     setToast(true)
@@ -225,6 +262,67 @@ export default function Planos() {
               <div className="pp1-cta-note">Para começar, sem cartão de crédito</div>
             </div>
 
+            {/* ELITE */}
+            <div className="pp1-card pp1-elite">
+              <div className="pp1-elite-glow" />
+              <div className="grad-particles" aria-hidden="true">
+                {[5,14,23,34,45,56,65,76,85,94].map((left, i) => (
+                  <span key={i} className="grad-particle pp1-elite-particle" style={{
+                    left:`${left}%`,
+                    width:`${2+(i%3)}px`, height:`${2+(i%3)}px`,
+                    animationDelay:`${(i*0.48)%3}s`,
+                    animationDuration:`${2+(i%4)*0.65}s`,
+                    opacity: 0.25+(i%3)*0.12,
+                  }}/>
+                ))}
+              </div>
+
+              <div className="pp1-em-breve-badge">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Em breve
+              </div>
+
+              <div className="pp1-card-tier pp1-tier-elite">Elite</div>
+              <div className="pp1-card-tagline pp1-tagline-elite">Para quem quer o poder da IA</div>
+
+              <div className="pp1-price-block">
+                <div className="pp1-price">
+                  <span className="pp1-price-cur pp1-cur-elite">R$</span>
+                  <span className="pp1-price-num pp1-num-elite">{elitePrice}</span>
+                  <span className="pp1-price-dec pp1-dec-elite">,90</span>
+                </div>
+                <div className="pp1-price-note pp1-note-elite">{elitePeriod}</div>
+                <div className="pp1-price-cancel pp1-cancel-elite">Sem fidelidade · Sem cartão para testar</div>
+              </div>
+
+              <div className="pp1-divider pp1-divider-elite" />
+
+              <ul className="pp1-feats">
+                {ELITE_FEATS.map((f, i) =>
+                  f === null ? <li key={i} className="pp1-feat-sep pp1-feat-sep-elite" /> : (
+                    <li key={i} className="pp1-feat">
+                      <div className="pp1-feat-ico pp1-feat-ico-elite">
+                        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#a78bfa" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
+                      </div>
+                      <span className="pp1-feat-text pp1-feat-text-elite">
+                        {f.text}{f.hi && <> — <span className="pp1-feat-hi-elite">{f.hi}</span></>}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ul>
+
+              <button className="pp1-cta-elite" onClick={handleAssinar}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                Quero ser notificado
+              </button>
+              <div className="pp1-cta-note pp1-cta-note-elite">Lista de espera · Sem compromisso</div>
+            </div>
+
           </div>
 
           {/* ── Tabela comparativa ── */}
@@ -235,6 +333,7 @@ export default function Planos() {
                 <div className="pp1-th-feat">Funcionalidade</div>
                 <div className="pp1-th">Grátis</div>
                 <div className="pp1-th pp1-th-pro">Pro</div>
+                <div className="pp1-th pp1-th-elite">Elite</div>
               </div>
               {COMPARE_GROUPS.map(group => (
                 <div key={group.label}>
@@ -251,6 +350,11 @@ export default function Planos() {
                         {row.pro === true  ? <CheckYes /> :
                          row.pro === false ? <CheckNo  /> :
                          <span className="pp1-td-val pp1-td-val-g">{row.pro}</span>}
+                      </div>
+                      <div className="pp1-td pp1-td-elite-col">
+                        {row.elite === true  ? <CheckYesElite /> :
+                         row.elite === false ? <CheckNo  /> :
+                         <span className="pp1-td-val pp1-td-val-e">{row.elite}</span>}
                       </div>
                     </div>
                   ))}

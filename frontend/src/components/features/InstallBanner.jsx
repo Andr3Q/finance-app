@@ -71,7 +71,7 @@ export default function InstallBanner() {
 
   if (!visible) return null
 
-  const posDesktop = { position: 'fixed', bottom: 24, right: 24, width: 300, zIndex: 210 }
+  const posDesktop = { position: 'fixed', bottom: 24, right: 84, width: 300, zIndex: 210 }
   const posMobile  = {
     position: 'fixed',
     bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
@@ -80,7 +80,8 @@ export default function InstallBanner() {
   }
   const anim = { animation: `${hiding ? 'bannerOut .28s' : 'bannerIn .32s cubic-bezier(.34,1.56,.64,1)'} forwards` }
 
-  const props = { hasPrompt: hasNativePrompt, installing, platform, onInstall: handleInstall, onClose: handleClose }
+  const isDesktop = !platform.isIOS && !platform.isAndroid && !isMobile
+  const props = { hasPrompt: hasNativePrompt, installing, platform, isDesktop, onInstall: handleInstall, onClose: handleClose }
 
   return (
     <div style={isMobile ? posMobile : posDesktop}>
@@ -91,12 +92,20 @@ export default function InstallBanner() {
   )
 }
 
-function Instructions({ platform }) {
+function Instructions({ platform, isDesktop }) {
   if (platform.isIOS) {
     return (
       <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.7 }}>
         <span style={{ display: 'block' }}>1. Toque em <ShareIcon /> no Safari</span>
         <span style={{ display: 'block' }}>2. Escolha <strong style={{ color: 'var(--c)' }}>"Adicionar à Tela de Início"</strong></span>
+      </div>
+    )
+  }
+  if (isDesktop) {
+    return (
+      <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.7 }}>
+        <span style={{ display: 'block' }}>Clique em <strong style={{ color: 'var(--c)' }}>⊕</strong> na barra de endereço do Chrome</span>
+        <span style={{ display: 'block' }}>e selecione <strong style={{ color: 'var(--c)' }}>"Instalar"</strong></span>
       </div>
     )
   }
@@ -108,7 +117,7 @@ function Instructions({ platform }) {
   )
 }
 
-function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
+function MobileBanner({ hasPrompt, installing, platform, isDesktop, onInstall, onClose }) {
   return (
     <div style={{
       background: 'var(--bg-secondary)',
@@ -150,7 +159,7 @@ function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 6 }}>
               Instalar Finance
             </div>
-            <Instructions platform={platform} />
+            <Instructions platform={platform} isDesktop={isDesktop} />
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--t3)', cursor: 'pointer', padding: 4, flexShrink: 0 }} aria-label="Fechar">
             <XIcon />
@@ -161,7 +170,7 @@ function MobileBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
   )
 }
 
-function DesktopBanner({ hasPrompt, installing, platform, onInstall, onClose }) {
+function DesktopBanner({ hasPrompt, installing, platform, isDesktop, onInstall, onClose }) {
   return (
     <div style={{
       background: 'var(--bg-secondary)', border: '1px solid rgba(74,196,110,.3)',

@@ -17,6 +17,9 @@ router.post('/subscribe', async (req, res) => {
     if (!endpoint || !keys?.p256dh || !keys?.auth) {
       return res.status(400).json({ error: 'Dados de assinatura inválidos.' })
     }
+    try { new URL(endpoint) } catch {
+      return res.status(400).json({ error: 'Endpoint inválido.' })
+    }
     await prisma.pushSubscription.upsert({
       where:  { endpoint },
       create: { endpoint, p256dh: keys.p256dh, auth: keys.auth, userId: req.userId },

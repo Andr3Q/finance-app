@@ -1,21 +1,19 @@
 import { useState } from 'react'
 import { budgetAPI } from '../../../services/api.js'
 import { saveUser } from '../../../hooks/useUser.js'
+import CurrencyInput from '../../ui/CurrencyInput.jsx'
 
 export default function SalaryCard({ user, onMessage }) {
-  const [salary,        setSalary]        = useState(user.salary || 0)
-  const [salaryDisplay, setSalaryDisplay] = useState(
-    user.salary > 0 ? user.salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ''
-  )
+  const [salary, setSalary] = useState(user.salary || '')
   const [saving, setSaving] = useState(false)
 
   const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
     try {
-      await budgetAPI.updateSalary(salary)
+      await budgetAPI.updateSalary(salary || 0)
       const stored = JSON.parse(localStorage.getItem('user') || '{}')
-      saveUser({ ...stored, salary })
+      saveUser({ ...stored, salary: salary || 0 })
       onMessage('Salário atualizado com sucesso!')
     } catch {
       onMessage('Erro ao salvar salário.', 'error')
@@ -40,21 +38,11 @@ export default function SalaryCard({ user, onMessage }) {
       <form onSubmit={handleSave} className="cfg-card-body">
         <div className="cfg-inp-group">
           <span className="cfg-inp-prefix">R$</span>
-          <input
+          <CurrencyInput
             className="cfg-inp cfg-inp-prefixed"
-            type="text"
-            inputMode="decimal"
-            value={salaryDisplay}
+            value={salary}
+            onChange={setSalary}
             placeholder="0,00"
-            onChange={e => {
-              const raw = e.target.value.replace(/[^0-9,]/g, '')
-              setSalaryDisplay(raw)
-              setSalary(parseFloat(raw.replace(',', '.')) || 0)
-            }}
-            onBlur={() => {
-              if (salary > 0) setSalaryDisplay(salary.toLocaleString('pt-BR', { minimumFractionDigits: 2 }))
-              else setSalaryDisplay('')
-            }}
           />
           <button type="submit" className="cfg-btn-primary" disabled={saving} style={{ flexShrink: 0 }}>
             {saving ? 'Salvando…' : 'Salvar'}

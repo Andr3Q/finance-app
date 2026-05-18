@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { transactionsAPI } from '../services/api.js'
+import { transactionsAPI, agentAPI, goalsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import GradCard from '../components/ui/GradCard.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import AutoLaunchPrompt from '../components/features/AutoLaunchPrompt.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
@@ -33,6 +34,9 @@ export default function Dashboard() {
   const [showForm,     setShowForm]     = useState(false)
   const [toast,        setToast]        = useState(null)
   const [txFilter,     setTxFilter]     = useState('all')
+  const [prediction,   setPrediction]   = useState(null)
+  const [predLoading,  setPredLoading]  = useState(false)
+  const [goals,        setGoals]        = useState([])
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -62,6 +66,52 @@ export default function Dashboard() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  useEffect(() => {
+    if (!summary || !transactions.length) return
+    const d = new Date()
+    const month = d.getMonth() + 1
+    const year  = d.getFullYear()
+    const key   = `ai-predict-${month}-${year}`
+    try {
+      const cached = JSON.parse(localStorage.getItem(key) || 'null')
+      if (cached?.ts && Date.now() - cached.ts < 6 * 3600 * 1000) {
+        setPrediction(cached.text)
+        return
+      }
+    } catch {}
+    setPredLoading(true)
+    agentAPI.predict()
+      .then(({ data }) => {
+        const text = data.prediction || ''
+        setPrediction(text)
+        localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }))
+      })
+      .catch(() => {})
+      .finally(() => setPredLoading(false))
+  }, [summary, transactions.length])
+
+  useEffect(() => {
+    goalsAPI.list()
+      .then(({ data }) => setGoals(data.slice(0, 3)))
+      .catch(() => {})
+  }, [])
+
+  const handleRefreshPrediction = () => {
+    const d = new Date()
+    const key = `ai-predict-${d.getMonth() + 1}-${d.getFullYear()}`
+    localStorage.removeItem(key)
+    setPrediction(null)
+    setPredLoading(true)
+    agentAPI.predict()
+      .then(({ data }) => {
+        const text = data.prediction || ''
+        setPrediction(text)
+        localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }))
+      })
+      .catch(() => {})
+      .finally(() => setPredLoading(false))
+  }
+
   const handleDelete = async (id) => {
     if (!window.confirm('Remover esta transação?')) return
     try {
@@ -87,6 +137,26 @@ export default function Dashboard() {
     pct < 50  ? '#4ac46e' :
     pct < 70  ? '#ffc107' :
     pct < 90  ? '#ff8c42' : '#ff4757'
+
+  const score = useMemo(() => {
+    if (!summary || summary.totalAvailable <= 0) return null
+    const budgetPts  = Math.round(Math.max(0, 60 * (1 - Math.min(pct, 100) / 100)))
+    const balanceRatio = Math.max(0, Math.min(1, summary.currentBalance / summary.totalAvailable))
+    const balancePts = Math.round(40 * balanceRatio)
+    return budgetPts + balancePts
+  }, [summary, pct])
+
+  const scoreLabel = score === null ? '—' :
+    score >= 80 ? 'Excelente' :
+    score >= 60 ? 'Bom' :
+    score >= 40 ? 'Regular' :
+    score >= 20 ? 'Atenção' : 'Crítico'
+
+  const scoreColor = score === null ? 'var(--t2)' :
+    score >= 80 ? '#4ac46e' :
+    score >= 60 ? '#00d084' :
+    score >= 40 ? '#ffc107' :
+    score >= 20 ? '#ff8c42' : '#ff4757'
 
   const filteredTx = useMemo(() =>
     txFilter === 'all' ? transactions : transactions.filter(t => t.type === txFilter)
@@ -188,6 +258,19 @@ export default function Dashboard() {
               <span className="hb-metric-hint">{pct}% do orçamento · {MONTHS[now.getMonth()]}</span>
             </div>
 
+            <div className="hb-metric-sep" />
+
+            <div className="hb-metric">
+              <div className="hb-metric-lbl">Score financeiro</div>
+              <div className="hb-metric-val" style={{ color: scoreColor }}>
+                {score !== null ? score : '—'}
+                {score !== null && <span style={{ fontSize: 13, fontWeight: 400, color: 'rgba(255,255,255,.3)', marginLeft: 4 }}>/100</span>}
+              </div>
+              <span className="hb-metric-badge" style={{ background:`${scoreColor}18`, color: scoreColor, border:`1px solid ${scoreColor}28` }}>
+                {scoreLabel}
+              </span>
+            </div>
+
             <button className="hb-new-btn" onClick={() => setShowForm(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -278,6 +361,61 @@ export default function Dashboard() {
                   )
                 })}
               </div>
+
+              {/* Previsão IA */}
+              <GradCard
+                iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
+                icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2z"/><path d="M12 6v6l4 2"/></svg>}
+                title="Previsão IA"
+                sub={`Análise do mês de ${MONTHS[now.getMonth()]}`}
+                right={
+                  !predLoading && (
+                    <button className="dsb-pred-refresh" onClick={handleRefreshPrediction} title="Atualizar previsão">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+                      </svg>
+                    </button>
+                  )
+                }
+              >
+                {predLoading ? (
+                  <div className="anl-loading">
+                    <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
+                  </div>
+                ) : prediction ? (
+                  <p className="anl-desc" style={{ margin: 0 }}>{prediction}</p>
+                ) : (
+                  <div className="anl-empty">
+                    <span>Registre transações para gerar uma previsão</span>
+                  </div>
+                )}
+              </GradCard>
+
+              {/* Metas — resumo */}
+              {goals.length > 0 && (
+                <div className="hb-bars-card">
+                  <div className="hb-card-head">
+                    <span className="hb-card-title">Metas financeiras</span>
+                    <button className="hb-card-link" onClick={() => navigate('/goals')}>Ver todas →</button>
+                  </div>
+                  {goals.map(g => {
+                    const pct = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0
+                    return (
+                      <div key={g.id} className="hb-bar-row">
+                        <div className="hb-bar-dot" style={{ background: g.color }} />
+                        <div className="hb-bar-name">{g.title}</div>
+                        <div className="hb-bar-track">
+                          <div className="hb-bar-fill" style={{ width: `${pct}%`, background: g.color }} />
+                        </div>
+                        <div className="hb-bar-right">
+                          <span className="hb-bar-val">R$ {(g.currentAmount ?? 0).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</span>
+                          <span className="hb-bar-pct">{pct}%</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* Upgrade */}
               {!isPro && (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { budgetAPI } from '../../../services/api.js'
+import CurrencyInput from '../../ui/CurrencyInput.jsx'
 
 const CATEGORIES = [
   { key: 'food',      label: 'Alimentação' },
@@ -31,7 +32,7 @@ export default function CategoryLimitsCard({ isPro, onMessage, onUpgrade }) {
     e.preventDefault()
     if (!newLimit.amount) return
     try {
-      await budgetAPI.setLimit({ category: newLimit.category, amount: parseFloat(newLimit.amount) })
+      await budgetAPI.setLimit({ category: newLimit.category, amount: newLimit.amount })
       setNewLimit(p => ({ ...p, amount: '' }))
       fetchLimits()
       onMessage('Limite salvo!')
@@ -103,9 +104,9 @@ export default function CategoryLimitsCard({ isPro, onMessage, onUpgrade }) {
                 onChange={e => setNewLimit(p => ({ ...p, category: e.target.value }))}>
                 {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
               </select>
-              <input className="cfg-inp cfg-inp-num" type="number" placeholder="R$ limite"
-                min="1" step="0.01" value={newLimit.amount}
-                onChange={e => setNewLimit(p => ({ ...p, amount: e.target.value }))} />
+              <CurrencyInput className="cfg-inp cfg-inp-num" placeholder="R$ limite"
+                value={newLimit.amount}
+                onChange={v => setNewLimit(p => ({ ...p, amount: v }))} />
               <button type="submit" className="cfg-btn-ghost">Salvar</button>
             </form>
           </>
