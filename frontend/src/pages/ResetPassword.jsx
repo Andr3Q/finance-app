@@ -16,7 +16,7 @@ export default function ResetPassword() {
     e.preventDefault()
     setError('')
     if (password !== confirm) return setError('As senhas não coincidem.')
-    if (password.length < 6)  return setError('A senha deve ter pelo menos 6 caracteres.')
+    if (password.length < 8)  return setError('A senha deve ter pelo menos 8 caracteres.')
     setLoading(true)
     try {
       await authAPI.resetPassword(token, password)

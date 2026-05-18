@@ -46,4 +46,13 @@ const resetPasswordLimiter = rateLimit({
   message: { error: 'Muitas tentativas de redefinição de senha. Tente novamente em 15 minutos.' },
 })
 
-module.exports = { apiLimiter, authLimiter, agentLimiter, forgotPasswordLimiter, resetPasswordLimiter }
+// Dashboard / rotas pesadas: 30 req / min por usuário autenticado
+const dashboardLimiter = rateLimit({
+  ...opts,
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => req.userId || req.ip,
+  message: { error: 'Muitas requisições. Aguarde um momento.' },
+})
+
+module.exports = { apiLimiter, authLimiter, agentLimiter, forgotPasswordLimiter, resetPasswordLimiter, dashboardLimiter }

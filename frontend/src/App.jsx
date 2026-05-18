@@ -11,18 +11,20 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'))
 const ResetPassword  = lazy(() => import('./pages/ResetPassword.jsx'))
 const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
+const Analytics      = lazy(() => import('./pages/Analytics.jsx'))
+const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
 const Planos         = lazy(() => import('./pages/Planos.jsx'))
 
 function PrivateRoute({ children }) {
-  const token = localStorage.getItem('token')
-  if (!token) return <Navigate to="/login" replace />
+  const user = localStorage.getItem('user')
+  if (!user) return <Navigate to="/login" replace />
   return <>{children}<AgentChat /></>
 }
 
 function HomeRoute() {
-  const token = localStorage.getItem('token')
-  return token ? <Navigate to="/dashboard" replace /> : <Landing />
+  const user = localStorage.getItem('user')
+  return user ? <Navigate to="/dashboard" replace /> : <Landing />
 }
 
 function PageLoader() {
@@ -59,6 +61,8 @@ export default function App() {
           <Route path="/reset-password"  element={<ResetPassword />} />
           <Route path="/dashboard"    element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
+          <Route path="/analytics"    element={<PrivateRoute><Analytics /></PrivateRoute>} />
+          <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
           <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
           <Route path="/planos"       element={<PrivateRoute><Planos /></PrivateRoute>} />
         </Routes>

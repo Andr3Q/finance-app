@@ -36,6 +36,7 @@ model User {
   budgets           Budget[]
   categoryLimits    CategoryLimit[]
   pushSubscriptions PushSubscription[]
+  goals             Goal[]
 }
 
 // ── Tabela: transactions ────────────────────────────────
@@ -64,6 +65,7 @@ model Budget {
   id     String @id @default(uuid())
   name   String                                   // Ex: "Aluguel", "Internet"
   amount Float                                    // Valor mensal fixo
+  dueDay Int?                                     // Dia do vencimento (1-31)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -81,6 +83,22 @@ model CategoryLimit {
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, category])
+}
+
+// ── Tabela: goals ───────────────────────────────────────
+model Goal {
+  id            String    @id @default(uuid())
+  title         String
+  targetAmount  Float
+  currentAmount Float     @default(0)
+  color         String    @default("#4ac46e")
+  deadline      DateTime?
+  createdAt     DateTime  @default(now())
+
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ── Tabela: push_subscriptions ──────────────────────────

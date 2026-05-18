@@ -66,7 +66,7 @@ export default function Login({ isRegister = false }) {
     const errs = {}
     if (mode === 'register' && !form.name.trim()) errs.name = 'Nome obrigatório'
     if (!EMAIL_RE.test(form.email.trim()))         errs.email = 'E-mail inválido'
-    if (form.password.length < 6)                  errs.password = 'Mínimo 6 caracteres'
+    if (form.password.length < 8)                  errs.password = 'Mínimo 8 caracteres'
     setFieldErrs(errs)
     return Object.keys(errs).length === 0
   }
@@ -81,7 +81,6 @@ export default function Login({ isRegister = false }) {
         ? { email: form.email.trim(), password: form.password }
         : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: parseFloat(form.salary) || 0 }
       const res = await fn(data)
-      localStorage.setItem('token', res.data.token)
       localStorage.setItem('user', JSON.stringify(res.data.user))
       navigate('/dashboard')
     } catch (err) {
@@ -230,7 +229,7 @@ export default function Login({ isRegister = false }) {
                 <input
                   id="f-pass" name="password"
                   type={showPass ? 'text' : 'password'}
-                  placeholder={mode === 'register' ? 'Mínimo 6 caracteres' : '••••••••'}
+                  placeholder={mode === 'register' ? 'Mínimo 8 caracteres' : '••••••••'}
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   value={form.password}
                   onChange={handleChange}

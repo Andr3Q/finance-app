@@ -12,25 +12,16 @@
 import axios from 'axios'
 
 // URL base da API — usa o proxy do Vite (/api → http://backend:3001)
+// withCredentials: envia o cookie HttpOnly em todas as requisições
 const api = axios.create({
   baseURL: '/api',
   timeout: 15000,
-})
-
-// Interceptor de requisição:
-// Antes de CADA chamada, pega o token do localStorage
-// e coloca no cabeçalho Authorization automaticamente
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-  return config
+  withCredentials: true,
 })
 
 // Interceptor de resposta:
-// Se o backend retornar 401 ou 403 (token expirado),
-// desloga o usuário e redireciona para o login
+// Se o backend retornar 401 ou 403 (cookie expirado),
+// limpa os dados locais e redireciona para o login
 api.interceptors.response.use(
   response => response,
   error => {
@@ -38,7 +29,6 @@ api.interceptors.response.use(
     const status = error.response.status
     const isAuthError = (status === 401) || (status === 403 && !error.response?.data?.limitReached)
     if (isAuthError) {
-      localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/login'
     }
@@ -48,9 +38,10 @@ api.interceptors.response.use(
 
 // ── Funções de autenticação ─────────────────────────────
 export const authAPI = {
-  login:         (data)            => api.post('/auth/login', data),
-  register:      (data)            => api.post('/auth/register', data),
-  me:            ()                => api.get('/auth/me'),
+  login:          (data)            => api.post('/auth/login', data),
+  register:       (data)            => api.post('/auth/register', data),
+  me:             ()                => api.get('/auth/me'),
+  logout:         ()                => api.post('/auth/logout'),
   forgotPassword: (email)           => api.post('/auth/forgot-password', { email }),
   resetPassword:  (token, password) => api.post('/auth/reset-password', { token, password }),
   upgradePro:     ()                => api.post('/auth/upgrade'),
@@ -59,13 +50,15 @@ export const authAPI = {
 
 // ── Funções de transações ───────────────────────────────
 export const transactionsAPI = {
-  dashboard:  ()     => api.get('/transactions/dashboard'),
-  list:       (params) => api.get('/transactions', { params }),
-  summary:    ()     => api.get('/transactions/summary'),
-  create:     (data) => api.post('/transactions', data),
-  remove:     (id)   => api.delete(`/transactions/${id}`),
-  autoLaunch: ()     => api.post('/transactions/auto-launch'),
-  importCSV:  (formData) => api.post('/transactions/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+  dashboard:      ()           => api.get('/transactions/dashboard'),
+  list:           (params)     => api.get('/transactions', { params }),
+  summary:        ()           => api.get('/transactions/summary'),
+  create:         (data)       => api.post('/transactions', data),
+  remove:         (id)         => api.delete(`/transactions/${id}`),
+  autoLaunch:     ()           => api.post('/transactions/auto-launch'),
+  importCSV:      (formData)   => api.post('/transactions/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  monthlyHistory: (months = 6) => api.get('/transactions/monthly-history', { params: { months } }),
+  subscriptions:  ()           => api.get('/transactions/subscriptions'),
 }
 
 // ── Funções de orçamento (contas fixas) ─────────────────
@@ -96,7 +89,17 @@ export const notificationsAPI = {
 
 // ── Agente IA ───────────────────────────────────────────
 export const agentAPI = {
-  chat: (message, history) => api.post('/agent/chat', { message, history }),
+  chat:          (message, history) => api.post('/agent/chat', { message, history }),
+  predict:       ()                 => api.post('/agent/predict', {}),
+  monthlyReport: (month, year)      => api.post('/agent/monthly-report', { month, year }),
+}
+
+// ── Funções de metas financeiras ────────────────────────
+export const goalsAPI = {
+  list:   ()           => api.get('/goals'),
+  create: (data)       => api.post('/goals', data),
+  update: (id, data)   => api.patch(`/goals/${id}`, data),
+  remove: (id)         => api.delete(`/goals/${id}`),
 }
 
 export default api

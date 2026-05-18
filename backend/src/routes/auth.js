@@ -20,6 +20,18 @@ const { forgotPasswordLimiter, resetPasswordLimiter } = require('../middleware/r
 
 const EMAIL_REGEX = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{2,}$/
 
+const isProd = process.env.NODE_ENV === 'production'
+
+function setAuthCookie(res, token) {
+  res.cookie('token', token, {
+    httpOnly:  true,
+    secure:    isProd,
+    sameSite:  'strict',
+    maxAge:    24 * 60 * 60 * 1000,
+    path:      '/',
+  })
+}
+
 const router = express.Router()
 
 // ── POST /auth/register ─────────────────────────────────
@@ -65,11 +77,10 @@ router.post('/register', async (req, res) => {
       }
     })
 
-    // Gera token JWT válido por 7 dias
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
+    setAuthCookie(res, token)
 
     res.status(201).json({
-      token,
       user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan }
     })
   } catch (error) {
@@ -107,9 +118,9 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
+    setAuthCookie(res, token)
 
     res.json({
-      token,
       user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan }
     })
   } catch (error) {
@@ -213,6 +224,13 @@ router.post('/upgrade', authMiddleware, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar plano.' })
   }
+})
+
+// ── POST /auth/logout ───────────────────────────────────
+// Limpa o cookie de sessão
+router.post('/logout', (req, res) => {
+  res.clearCookie('token', { httpOnly: true, secure: isProd, sameSite: 'strict', path: '/' })
+  res.json({ message: 'Logout realizado.' })
 })
 
 // ── POST /auth/downgrade ────────────────────────────────

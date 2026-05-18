@@ -16,6 +16,7 @@ const express      = require('express')
 const cors         = require('cors')
 const helmet       = require('helmet')
 const compression  = require('compression')
+const cookieParser = require('cookie-parser')
 const path         = require('path')
 
 const { apiLimiter, authLimiter, agentLimiter, forgotPasswordLimiter } = require('./middleware/rateLimiter')
@@ -26,6 +27,7 @@ const reportRoutes        = require('./routes/reports')
 const notificationRoutes  = require('./routes/notifications')
 const monitorAlertRoute   = require('./routes/monitorAlert')
 const agentRoutes         = require('./routes/agent')
+const goalRoutes          = require('./routes/goals')
 
 const app        = express()
 const PORT       = process.env.PORT || 3001
@@ -92,19 +94,21 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
   .map(o => o.trim())
   .filter(Boolean)
 
+const devOrigins = ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173']
+
 app.use('/api/', cors({
-  origin: isProd
-    ? (origin, callback) => {
-        // Permite: requests sem Origin (same-origin do browser) e origens na lista.
-        // A proteção real contra acesso não autorizado é o JWT em cada rota.
-        if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
-        callback(new Error('CORS: origem não permitida'))
-      }
-    : (origin, callback) => callback(null, true), // dev: aceita qualquer origem
+  origin: (origin, callback) => {
+    // Requests sem Origin = same-origin (browser nunca envia Origin em same-origin)
+    if (!origin) return callback(null, true)
+    const allowed = isProd ? allowedOrigins : devOrigins
+    if (allowed.includes(origin)) return callback(null, true)
+    callback(new Error('CORS: origem não permitida'))
+  },
   credentials: true,
 }))
 
-// ── Body + Rate limit ───────────────────────────────────
+// ── Cookies + Body + Rate limit ────────────────────────
+app.use(cookieParser())
 app.use(express.json({ limit: '10kb' }))
 app.use(express.urlencoded({ extended: true, limit: '10kb' }))
 app.use('/api/', apiLimiter)
@@ -117,6 +121,7 @@ app.use('/api/reports',       reportRoutes)
 app.use('/api/monitor-alert', monitorAlertRoute)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/agent',        agentLimiter, agentRoutes)
+app.use('/api/goals',        goalRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
 const prismaHealth = require('./lib/prisma')
@@ -130,18 +135,16 @@ app.get('/ping', (req, res) => {
 app.get('/health', async (req, res) => {
   try {
     await prismaHealth.$queryRaw`SELECT 1`
-    res.json({ status: 'ok', env: isProd ? 'production' : 'development' })
+    res.json({ status: 'ok' })
   } catch {
-    res.status(503).json({ status: 'degraded', detail: 'database unreachable' })
+    res.status(503).json({ status: 'degraded' })
   }
 })
 
 // ── Handler de Erros Global ─────────────────────────────
 app.use((err, req, res, next) => {
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message)
-  res.status(err.status || 500).json({
-    error: isProd ? 'Erro interno do servidor.' : err.message,
-  })
+  res.status(err.status || 500).json({ error: 'Erro interno do servidor.' })
 })
 
 // ── SPA catch-all (depois de todas as rotas de API) ─────
