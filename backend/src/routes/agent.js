@@ -111,8 +111,10 @@ async function runTool(name, args, userId) {
 
     let date = new Date()
     if (args.date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) return { error: 'Data inválida. Use YYYY-MM-DD.' }
       const parsed = new Date(args.date)
-      if (!isNaN(parsed)) date = parsed
+      if (isNaN(parsed.getTime())) return { error: 'Data inválida.' }
+      date = parsed
     }
 
     const tx = await prisma.transaction.create({
