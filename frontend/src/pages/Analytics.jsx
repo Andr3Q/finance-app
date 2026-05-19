@@ -128,15 +128,19 @@ export default function Analytics() {
   }
 
   useEffect(() => {
+    let cancelled = false
+
     transactionsAPI.monthlyHistory(6)
-      .then(r => setHistory(r.data))
-      .catch(() => {})
-      .finally(() => setLoadingHist(false))
+      .then(r => { if (!cancelled) setHistory(r.data) })
+      .catch(() => { if (!cancelled) setLoadingHist(false) })
+      .finally(() => { if (!cancelled) setLoadingHist(false) })
 
     transactionsAPI.subscriptions()
-      .then(r => setSubs(r.data))
-      .catch(() => {})
-      .finally(() => setLoadingSubs(false))
+      .then(r => { if (!cancelled) setSubs(r.data) })
+      .catch(() => { if (!cancelled) setLoadingSubs(false) })
+      .finally(() => { if (!cancelled) setLoadingSubs(false) })
+
+    return () => { cancelled = true }
   }, [])
 
   return (

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
+import { authAPI } from './services/api.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazy(() => import('./pages/Landing.jsx'))
@@ -16,15 +17,17 @@ const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
 const Planos         = lazy(() => import('./pages/Planos.jsx'))
 
+function isLoggedIn() {
+  try { return !!JSON.parse(localStorage.getItem('user') || 'null') } catch { return false }
+}
+
 function PrivateRoute({ children }) {
-  const user = localStorage.getItem('user')
-  if (!user) return <Navigate to="/login" replace />
+  if (!isLoggedIn()) return <Navigate to="/login" replace />
   return <>{children}<AgentChat /></>
 }
 
 function HomeRoute() {
-  const user = localStorage.getItem('user')
-  return user ? <Navigate to="/dashboard" replace /> : <Landing />
+  return isLoggedIn() ? <Navigate to="/dashboard" replace /> : <Landing />
 }
 
 function PageLoader() {
@@ -37,9 +40,18 @@ function PageLoader() {
 
 export default function App() {
   useEffect(() => {
-    // beforeinstallprompt = Chrome considera o app NÃO instalado → limpa flag
-    const onPrompt = (e) => { e.preventDefault(); setInstallPrompt(e); clearInstalled() }
-    // appinstalled = app acabou de ser instalado → persiste no localStorage
+    // Valida sessão contra o servidor uma vez na inicialização
+    // Se o cookie JWT expirou mas localStorage ainda tem dados, limpa e redireciona
+    if (isLoggedIn()) {
+      authAPI.me().catch(() => {
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+      })
+    }
+  }, [])
+
+  useEffect(() => {
+    const onPrompt    = (e) => { e.preventDefault(); setInstallPrompt(e); clearInstalled() }
     const onInstalled = () => markInstalled()
     window.addEventListener('beforeinstallprompt', onPrompt)
     window.addEventListener('appinstalled', onInstalled)

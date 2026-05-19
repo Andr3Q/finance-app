@@ -91,9 +91,9 @@ export default function Navbar() {
   }, [showBell])
 
   const logout = async () => {
-    try { await authAPI.logout() } catch { /* ignora erros de rede no logout */ }
     localStorage.removeItem('user')
-    navigate('/login')
+    try { await authAPI.logout() } catch { /* ignora erros de rede no logout */ }
+    navigate('/login', { replace: true })
   }
 
   const handleInstallClick = async () => {

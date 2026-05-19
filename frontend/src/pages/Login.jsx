@@ -42,7 +42,8 @@ const EyeOffIcon = () => (
   </svg>
 )
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
 
 export default function Login({ isRegister = false }) {
   const navigate = useNavigate()
@@ -66,7 +67,12 @@ export default function Login({ isRegister = false }) {
     const errs = {}
     if (mode === 'register' && !form.name.trim()) errs.name = 'Nome obrigatório'
     if (!EMAIL_RE.test(form.email.trim()))         errs.email = 'E-mail inválido'
-    if (form.password.length < 8)                  errs.password = 'Mínimo 8 caracteres'
+    if (mode === 'register') {
+      if (!PASSWORD_RE.test(form.password))
+        errs.password = 'Mínimo 8 caracteres com letra maiúscula, minúscula e número'
+    } else {
+      if (form.password.length < 8) errs.password = 'Mínimo 8 caracteres'
+    }
     setFieldErrs(errs)
     return Object.keys(errs).length === 0
   }
