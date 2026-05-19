@@ -56,8 +56,7 @@ export default function Dashboard() {
       setSummary(data.summary)
       setTransactions(data.transactions)
       setCache('dashboard', data)
-    } catch (err) {
-      console.error(err)
+    } catch {
       if (!cached) showToast('Erro ao carregar dados.', false)
     } finally {
       setLoading(false)
@@ -66,47 +65,51 @@ export default function Dashboard() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // Predição IA — cache em sessionStorage (apaga ao fechar a aba, não persiste dados financeiros)
   useEffect(() => {
     if (!summary || !transactions.length) return
     const d = new Date()
-    const month = d.getMonth() + 1
-    const year  = d.getFullYear()
-    const key   = `ai-predict-${month}-${year}`
+    const key = `ai-predict-${d.getMonth() + 1}-${d.getFullYear()}`
     try {
-      const cached = JSON.parse(localStorage.getItem(key) || 'null')
+      const cached = JSON.parse(sessionStorage.getItem(key) || 'null')
       if (cached?.ts && Date.now() - cached.ts < 6 * 3600 * 1000) {
         setPrediction(cached.text)
         return
       }
     } catch {}
+    let cancelled = false
     setPredLoading(true)
     agentAPI.predict()
       .then(({ data }) => {
+        if (cancelled) return
         const text = data.prediction || ''
         setPrediction(text)
-        localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }))
+        sessionStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }))
       })
       .catch(() => {})
-      .finally(() => setPredLoading(false))
+      .finally(() => { if (!cancelled) setPredLoading(false) })
+    return () => { cancelled = true }
   }, [summary, transactions.length])
 
   useEffect(() => {
+    let cancelled = false
     goalsAPI.list()
-      .then(({ data }) => setGoals(data.slice(0, 3)))
+      .then(({ data }) => { if (!cancelled) setGoals(data.slice(0, 3)) })
       .catch(() => {})
+    return () => { cancelled = true }
   }, [])
 
   const handleRefreshPrediction = () => {
     const d = new Date()
     const key = `ai-predict-${d.getMonth() + 1}-${d.getFullYear()}`
-    localStorage.removeItem(key)
+    sessionStorage.removeItem(key)
     setPrediction(null)
     setPredLoading(true)
     agentAPI.predict()
       .then(({ data }) => {
         const text = data.prediction || ''
         setPrediction(text)
-        localStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }))
+        sessionStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }))
       })
       .catch(() => {})
       .finally(() => setPredLoading(false))

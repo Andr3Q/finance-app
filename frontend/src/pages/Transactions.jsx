@@ -33,7 +33,7 @@ export default function Transactions() {
     try {
       const res = await transactionsAPI.list({ limit: 200 })
       setTransactions(res.data.data ?? res.data)
-    } catch (err) { console.error(err) }
+    } catch { showToast('Erro ao carregar transações.', false) }
     finally { setLoading(false) }
   }
 

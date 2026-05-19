@@ -53,7 +53,9 @@ export default function CurrencyInput({ value, onChange, className, style, place
     if (n > 0) {
       setDisplay(n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
       onChange(n)
-    } else if (!display) {
+    } else {
+      // Descarta zero, negativo ou inválido — reseta o campo
+      setDisplay('')
       onChange('')
     }
   }
