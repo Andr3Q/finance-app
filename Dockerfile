@@ -22,10 +22,10 @@ RUN npm run build
 
 
 # ── Stage 2: Backend de Produção ────────────────────────
-FROM node:20-alpine
+FROM node:20-slim
 
-# OpenSSL necessário para o Prisma
-RUN apk add --no-cache openssl openssl-dev
+# OpenSSL e ca-certificates necessários para o Prisma e conexões SSL
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -48,7 +48,7 @@ ENV NODE_ENV=production
 ENV PORT=8080
 
 # Usuário sem privilégios
-RUN addgroup -g 1001 -S appuser && adduser -S appuser -u 1001 -G appuser
+RUN groupadd -g 1001 appuser && useradd -u 1001 -g appuser -s /bin/sh appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
@@ -61,4 +61,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 # 1. Registra o baseline (ignora erro se já registrado — idempotente)
 # 2. Aplica migrations pendentes (seguro para produção, não destrói dados)
 # 3. Inicia o servidor Express
-CMD ["sh", "-c", "npx prisma migrate resolve --applied 20260514000000_baseline 2>/dev/null || true && npx prisma migrate deploy && node src/server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
