@@ -37,7 +37,7 @@ router.use(authMiddleware)
 // - Total de gastos (expense)
 // - Saldo disponível (salário + entradas - contas fixas - gastos)
 // - Percentual do orçamento usado
-router.get('/summary', async (req, res) => {
+router.get('/summary', dashboardLimiter, async (req, res) => {
   try {
     const now   = new Date()
     const month = now.getMonth() + 1  // getMonth() retorna 0-11, então somamos 1
@@ -131,7 +131,7 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
 // ── GET /transactions/monthly-history ──────────────────
 // Retorna resumo de receitas e despesas dos últimos N meses
 // Query: ?months=6 (padrão 6, máx 12)
-router.get('/monthly-history', async (req, res) => {
+router.get('/monthly-history', dashboardLimiter, async (req, res) => {
   try {
     const months = Math.min(Math.max(parseInt(req.query.months) || 6, 1), 12)
     const now    = new Date()
@@ -175,7 +175,7 @@ router.get('/monthly-history', async (req, res) => {
 
 // ── GET /transactions/subscriptions ────────────────────
 // Detecta gastos recorrentes nos últimos 3 meses
-router.get('/subscriptions', async (req, res) => {
+router.get('/subscriptions', dashboardLimiter, async (req, res) => {
   try {
     const now   = new Date()
     const start = new Date(now.getFullYear(), now.getMonth() - 2, 1)
@@ -223,7 +223,7 @@ router.get('/subscriptions', async (req, res) => {
 // ── GET /transactions ───────────────────────────────────
 // Lista transações do mês com suporte a paginação.
 // Query params: ?page=1&limit=100&month=5&year=2026
-router.get('/', async (req, res) => {
+router.get('/', dashboardLimiter, async (req, res) => {
   try {
     const now   = new Date()
     const month = req.query.month ? parseInt(req.query.month) : now.getMonth() + 1

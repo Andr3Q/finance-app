@@ -1,11 +1,9 @@
-const express  = require('express')
-const router   = express.Router()
-const prisma   = require('../lib/prisma')
-const webpush  = require('web-push')
-const { readFileSync, writeFileSync } = require('fs')
+const express = require('express')
+const router  = express.Router()
+const prisma  = require('../lib/prisma')
+const webpush = require('web-push')
 
-const COOLDOWN_MS   = (parseInt(process.env.MONITOR_COOLDOWN_MINUTES) || 15) * 60 * 1000
-const COOLDOWN_FILE = '/tmp/fm_last_alert'
+const COOLDOWN_MS = (parseInt(process.env.MONITOR_COOLDOWN_MINUTES) || 15) * 60 * 1000
 
 webpush.setVapidDetails(
   `mailto:${process.env.EMAIL_USER || 'monitor@finance-app.local'}`,
@@ -13,12 +11,13 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 )
 
+// Cooldown em memória — sem race condition, sem /tmp, sem disco
+let lastAlertTs = 0
+
 function cooldownOk() {
-  try {
-    const last = parseInt(readFileSync(COOLDOWN_FILE, 'utf8'))
-    if (Date.now() - last < COOLDOWN_MS) return false
-  } catch { /* arquivo não existe ainda — primeira vez */ }
-  writeFileSync(COOLDOWN_FILE, String(Date.now()))
+  const now = Date.now()
+  if (now - lastAlertTs < COOLDOWN_MS) return false
+  lastAlertTs = now
   return true
 }
 
@@ -42,9 +41,14 @@ router.post('/', async (req, res) => {
     return res.json({ ok: true, sent: 0, reason: 'sem assinantes' })
   }
 
+  const serviceNames = failed
+    .filter(f => f && typeof f.name === 'string')
+    .map(f => `${f.name}: ${f.detail || 'offline'}`)
+    .join('\n')
+
   const payload = JSON.stringify({
     title: '⚠️ Finance App com problemas',
-    body:  failed.map(f => `${f.name}: ${f.detail}`).join('\n'),
+    body:  serviceNames,
     icon:  '/icon-192.png',
     badge: '/icon-192.png',
     data:  { url: '/' },
@@ -72,7 +76,7 @@ router.post('/', async (req, res) => {
 
   const sent   = results.filter(r => r.status === 'fulfilled').length
   const errors = results.filter(r => r.status === 'rejected').length
-  console.log(`[monitor-alert] ${sent} notificações enviadas, ${errors} erros | serviços: ${failed.map(f => f.name).join(', ')}`)
+  console.log(`[monitor-alert] ${sent} notificações enviadas, ${errors} erros`)
 
   res.json({ ok: true, sent, errors })
 })
