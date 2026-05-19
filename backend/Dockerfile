@@ -6,12 +6,11 @@
 # cada instrução para construir a "imagem" do backend.
 # ═══════════════════════════════════════════════════════
 
-# Base: Node.js versão 20 na versão leve (alpine = Linux mínimo)
-FROM node:20-alpine
+# Base: Node.js versão 20 Debian slim (compatível com Prisma 5.22+ WASM)
+FROM node:20-slim
 
-# Instala OpenSSL — necessário para o Prisma funcionar no Alpine Linux
-# Sem isso, o Prisma não consegue se comunicar com o banco de dados
-RUN apk add --no-cache openssl openssl-dev
+# Instala OpenSSL e ca-certificates necessários para o Prisma e conexões SSL
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Define o diretório de trabalho dentro do container
 WORKDIR /app
@@ -34,11 +33,11 @@ COPY . .
 EXPOSE 3001
 
 # Usuário sem privilégios — minimiza impacto de vulnerabilidades
-RUN addgroup -g 1001 -S appuser && adduser -S appuser -u 1001 -G appuser
+RUN groupadd -g 1001 appuser && useradd -u 1001 -g appuser -s /bin/sh appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
-CMD ["sh", "-c", "npx prisma generate && node src/server.js"]
+CMD ["node", "src/server.js"]
