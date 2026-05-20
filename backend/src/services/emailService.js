@@ -7,7 +7,17 @@
 
 const nodemailer = require('nodemailer')
 
-// Cria o "transportador" de e-mails — configura qual servidor de e-mail usar
+// Escapa caracteres especiais HTML para evitar injeção nos templates de e-mail
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
+// Cria o transportador de e-mails — configura qual servidor de e-mail usar
 // Gmail requer uma "App Password" (não a senha normal da conta)
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -16,6 +26,11 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 })
+
+// Valida credenciais na inicialização para detectar problema cedo
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.warn('[emailService] EMAIL_USER ou EMAIL_PASS não configurados — envio de e-mails desativado.')
+}
 
 /**
  * Envia o relatório mensal por e-mail com o PDF em anexo
@@ -41,8 +56,8 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
       </div>
       
       <div style="background: #fff; padding: 24px; border-radius: 12px; margin-bottom: 16px;">
-        <p style="color: #333; font-size: 16px;">Olá, <strong>${userName}</strong>! 👋</p>
-        <p style="color: #666;">Aqui está o resumo financeiro do seu mês de <strong>${monthName}/${year}</strong>:</p>
+        <p style="color: #333; font-size: 16px;">Olá, <strong>${esc(userName)}</strong>! 👋</p>
+        <p style="color: #666;">Aqui está o resumo financeiro do seu mês de <strong>${esc(monthName)}/${year}</strong>:</p>
         
         <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
           <tr style="background: #f8f8f8;">
@@ -102,7 +117,7 @@ async function sendResetEmail(toEmail, userName, resetLink) {
         <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">Redefinição de senha</p>
       </div>
       <div style="background: #fff; padding: 28px; border-radius: 12px;">
-        <p style="color: #333; font-size: 15px; margin: 0 0 12px;">Olá, <strong>${userName}</strong>!</p>
+        <p style="color: #333; font-size: 15px; margin: 0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
         <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
           Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para criar uma nova senha:
         </p>

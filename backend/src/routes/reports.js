@@ -14,6 +14,7 @@ const prisma                 = require('../lib/prisma')
 const authMiddleware         = require('../middleware/auth')
 const { sendMonthlyReport }  = require('../services/emailService')
 const { generateMonthlyPDF } = require('../services/pdfService')
+const { reportLimiter }      = require('../middleware/rateLimiter')
 
 const router = express.Router()
 
@@ -21,23 +22,14 @@ router.use(authMiddleware)
 
 // ── POST /reports/monthly-close ─────────────────────────
 // Fecha o mês: gera PDF, envia e-mail e arquiva transações
-router.post('/monthly-close', async (req, res) => {
+router.post('/monthly-close', reportLimiter, async (req, res) => {
   try {
     const now   = new Date()
     const month = now.getMonth() + 1
     const year  = now.getFullYear()
 
-    // Relatório PDF é exclusivo do plano Pro
-    const userPlan = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
-    if (userPlan.plan === 'free') {
-      return res.status(403).json({
-        error: 'O relatório mensal em PDF é exclusivo do plano Pro.',
-        limitReached: true,
-        plan: 'free'
-      })
-    }
-
-    // Busca dados necessários
+    // Busca user + transações + orçamentos em paralelo (1 round trip ao banco)
+    // A checagem do plano é feita após — Pro users não pagam 1 query extra de plan-check
     const [user, transactions, budgets] = await Promise.all([
       prisma.user.findUnique({ where: { id: req.userId } }),
       prisma.transaction.findMany({
@@ -46,6 +38,16 @@ router.post('/monthly-close', async (req, res) => {
       }),
       prisma.budget.findMany({ where: { userId: req.userId } })
     ])
+
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    if (user.plan === 'free') {
+      return res.status(403).json({
+        error: 'O relatório mensal em PDF é exclusivo do plano Pro.',
+        limitReached: true,
+        plan: 'free'
+      })
+    }
 
     // Calcula resumo
     const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)

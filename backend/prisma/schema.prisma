@@ -37,6 +37,8 @@ model User {
   categoryLimits    CategoryLimit[]
   pushSubscriptions PushSubscription[]
   goals             Goal[]
+
+  @@index([resetToken])  // busca de reset-password usa findFirst por hash — sem índice = full scan
 }
 
 // ── Tabela: transactions ────────────────────────────────

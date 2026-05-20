@@ -1,8 +1,42 @@
-# Exclui pastas que não devem ir para o Cloud Build
-node_modules
-frontend/node_modules
-backend/node_modules
+# Dependências — instaladas no container durante o build
+**/node_modules
+**/.npm
+
+# Variáveis de ambiente — nunca copiar para o container
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.example
+
+# Artefatos de build (gerados no container)
 frontend/dist
+backend/public
+
+# Git
 .git
-.env
-*.log
+.gitignore
+
+# Logs
+**/*.log
+**/logs
+
+# Cache de ferramentas
+**/.cache
+**/.parcel-cache
+**/.vite
+
+# Testes e cobertura
+**/*.test.js
+**/*.spec.js
+**/coverage
+**/__tests__
+
+# Editores
+.vscode
+.idea
+**/*.swp
+**/*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -5,11 +5,14 @@ const webpush = require('web-push')
 
 const COOLDOWN_MS = (parseInt(process.env.MONITOR_COOLDOWN_MINUTES) || 15) * 60 * 1000
 
-webpush.setVapidDetails(
-  `mailto:${process.env.EMAIL_USER || 'monitor@finance-app.local'}`,
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-)
+// Configura VAPID apenas se as chaves estiverem definidas — evita crash no módulo load
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    `mailto:${process.env.EMAIL_USER || 'monitor@finance-app.local'}`,
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  )
+}
 
 // Cooldown em memória — sem race condition, sem /tmp, sem disco
 let lastAlertTs = 0
