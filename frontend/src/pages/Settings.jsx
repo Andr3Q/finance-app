@@ -58,7 +58,7 @@ export default function Settings() {
 
             <div className="cfg-sec-title r4">Financeiro</div>
             <SalaryCard user={user} onMessage={showMsg} />
-            <FixedExpensesCard onMessage={showMsg} />
+            <FixedExpensesCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <div className="cfg-sec-title r7">Preferências</div>
             <AppearanceCard theme={theme} toggleTheme={toggleTheme} />

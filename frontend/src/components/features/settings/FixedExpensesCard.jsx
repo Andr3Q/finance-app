@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { budgetAPI } from '../../../services/api.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 
-export default function FixedExpensesCard({ onMessage }) {
+export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const [budgets,   setBudgets]   = useState([])
   const [newBudget, setNewBudget] = useState({ name: '', amount: '', dueDay: '' })
 
@@ -10,8 +10,8 @@ export default function FixedExpensesCard({ onMessage }) {
     try {
       const res = await budgetAPI.list()
       setBudgets(res.data)
-    } catch (err) {
-      console.error(err)
+    } catch {
+      onMessage('Erro ao carregar contas fixas.', 'error')
     }
   }
 
@@ -27,8 +27,12 @@ export default function FixedExpensesCard({ onMessage }) {
       setNewBudget({ name: '', amount: '', dueDay: '' })
       fetchBudgets()
       onMessage('Conta fixa adicionada!')
-    } catch {
-      onMessage('Erro ao adicionar conta fixa.', 'error')
+    } catch (err) {
+      if (err.response?.data?.limitReached) {
+        onUpgrade?.('Você atingiu o limite de 3 contas fixas do plano Gratuito. Faça upgrade para adicionar contas ilimitadas.')
+      } else {
+        onMessage(err.response?.data?.error || 'Erro ao adicionar conta fixa.', 'error')
+      }
     }
   }
 
