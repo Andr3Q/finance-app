@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { budgetAPI } from '../../../services/api.js'
+import { invalidateCache } from '../../../services/cache.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
+
+function notifyBudgetChanged() {
+  invalidateCache('dashboard')
+  window.dispatchEvent(new CustomEvent('budget-updated'))
+}
 
 export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const [budgets,   setBudgets]   = useState([])
@@ -26,6 +32,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       await budgetAPI.create({ name: newBudget.name, amount: newBudget.amount, dueDay: newBudget.dueDay ? parseInt(newBudget.dueDay) : undefined })
       setNewBudget({ name: '', amount: '', dueDay: '' })
       fetchBudgets()
+      notifyBudgetChanged()
       onMessage('Conta fixa adicionada!')
     } catch (err) {
       if (err.response?.data?.limitReached) {
@@ -40,6 +47,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     try {
       await budgetAPI.remove(id)
       fetchBudgets()
+      notifyBudgetChanged()
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao remover.', 'error')
     }
