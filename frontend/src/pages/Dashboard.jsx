@@ -30,6 +30,8 @@ export default function Dashboard() {
 
   const [summary,      setSummary]      = useState(null)
   const [transactions, setTransactions] = useState([])
+  const [limits,       setLimits]       = useState([])
+  const [budgets,      setBudgets]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [showForm,     setShowForm]     = useState(false)
   const [toast,        setToast]        = useState(null)
@@ -49,12 +51,16 @@ export default function Dashboard() {
     if (cached) {
       setSummary(cached.summary)
       setTransactions(cached.transactions)
+      setLimits(cached.limits || [])
+      setBudgets(cached.budgets || [])
       setLoading(false)
     }
     try {
       const { data } = await transactionsAPI.dashboard()
       setSummary(data.summary)
       setTransactions(data.transactions)
+      setLimits(data.limits || [])
+      setBudgets(data.budgets || [])
       setCache('dashboard', data)
     } catch {
       if (!cached) showToast('Erro ao carregar dados.', false)
@@ -356,6 +362,33 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* Contas fixas pendentes */}
+              {!summary?.autoLaunched && budgets.length > 0 && (
+                <div className="hb-bars-card">
+                  <div className="hb-card-head">
+                    <span className="hb-card-title">Contas fixas do mês</span>
+                    <button className="hb-card-link" onClick={() => navigate('/settings')}>Gerenciar →</button>
+                  </div>
+                  {budgets.map((b) => (
+                    <div key={b.id} className="hb-bar-row">
+                      <div className="hb-bar-dot" style={{ background: '#ff8c42' }} />
+                      <div className="hb-bar-name">{b.name}</div>
+                      <div className="hb-bar-track">
+                        <div className="hb-bar-fill" style={{ width: summary?.totalFixedCosts > 0 ? `${(b.amount / summary.totalFixedCosts) * 100}%` : '0%', background: '#ff8c42' }} />
+                      </div>
+                      <div className="hb-bar-right">
+                        <span className="hb-bar-val">R$ {fmtShort(b.amount)}</span>
+                        <span className="hb-bar-pct" style={{ color:'#ff8c42' }}>pendente</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="hb-fixed-total-row">
+                    <span>Total a lançar</span>
+                    <span>R$ {fmt(summary?.totalFixedCosts)}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Barras de categoria (Stripe) */}
               <div className="hb-bars-card">
                 <div className="hb-card-head">
@@ -363,19 +396,27 @@ export default function Dashboard() {
                   <button className="hb-card-link" onClick={() => navigate('/transactions')}>Ver detalhes →</button>
                 </div>
                 {topCategories.length === 0 ? (
-                  <div className="hb-empty">Sem gastos registrados</div>
+                  <div className="hb-empty">Sem gastos registrados este mês</div>
                 ) : topCategories.map((c, i) => {
-                  const barPct = totalExpenses > 0 ? (c.val / totalExpenses) * 100 : 0
+                  const barPct  = totalExpenses > 0 ? (c.val / totalExpenses) * 100 : 0
+                  const lim     = limits.find(l => l.category === c.cat)
+                  const over    = lim && c.val > lim.amount
+                  const limPct  = lim ? Math.min(100, Math.round((c.val / lim.amount) * 100)) : null
                   return (
                     <div key={c.cat} className="hb-bar-row">
-                      <div className="hb-bar-dot" style={{ background: HB_COLORS[i % HB_COLORS.length] }} />
+                      <div className="hb-bar-dot" style={{ background: over ? '#ff4757' : HB_COLORS[i % HB_COLORS.length] }} />
                       <div className="hb-bar-name">{c.label}</div>
                       <div className="hb-bar-track">
-                        <div className="hb-bar-fill" style={{ width:`${barPct}%`, background: HB_COLORS[i % HB_COLORS.length] }} />
+                        <div className="hb-bar-fill" style={{ width:`${barPct}%`, background: over ? '#ff4757' : HB_COLORS[i % HB_COLORS.length] }} />
                       </div>
                       <div className="hb-bar-right">
                         <span className="hb-bar-val">R$ {fmtShort(c.val)}</span>
-                        <span className="hb-bar-pct">{Math.round(barPct)}%</span>
+                        {lim
+                          ? <span className="hb-bar-pct" style={{ color: over ? '#ff4757' : '#ffc107' }}>
+                              {over ? '⚠ limite' : `${limPct}% do limite`}
+                            </span>
+                          : <span className="hb-bar-pct">{Math.round(barPct)}%</span>
+                        }
                       </div>
                     </div>
                   )
