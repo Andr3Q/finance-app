@@ -129,6 +129,7 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
       summary: { salary: user.salary, totalIncome, totalFixedCosts, totalExpenses, totalAvailable, currentBalance, percentUsed, autoLaunched, month, year },
       transactions,
       limits,
+      budgets,
     })
   } catch (err) {
     console.error('Erro no dashboard:', err)
