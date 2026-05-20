@@ -37,6 +37,7 @@ model User {
   categoryLimits    CategoryLimit[]
   pushSubscriptions PushSubscription[]
   goals             Goal[]
+  installmentPlans  InstallmentPlan[]
 
   @@index([resetToken])  // busca de reset-password usa findFirst por hash — sem índice = full scan
 }
@@ -113,6 +114,24 @@ model PushSubscription {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ── Tabela: installment_plans ───────────────────────────
+// Compras parceladas: celular 12x, carro 48x, etc.
+model InstallmentPlan {
+  id                String   @id @default(uuid())
+  name              String                           // Ex: "Celular Samsung"
+  totalInstallments Int                              // Total de parcelas (12)
+  paidInstallments  Int      @default(0)             // Quantas já foram pagas
+  amount            Float                            // Valor de cada parcela
+  startMonth        Int                              // Mês da 1ª parcela
+  startYear         Int                              // Ano da 1ª parcela
+  createdAt         DateTime @default(now())
+
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
