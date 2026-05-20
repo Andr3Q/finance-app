@@ -126,7 +126,7 @@ export default function Dashboard() {
   }
 
   const pct        = summary?.percentUsed || 0
-  const isPro      = user.plan === 'pro'
+  const isPro      = user.plan === 'pro' || user.plan === 'elite'
   const now        = new Date()
 
   const healthLabel =
