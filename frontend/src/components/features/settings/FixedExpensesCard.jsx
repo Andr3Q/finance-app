@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { budgetAPI } from '../../../services/api.js'
+import { budgetAPI, transactionsAPI } from '../../../services/api.js'
 import { invalidateCache } from '../../../services/cache.js'
+import { useUser } from '../../../hooks/useUser.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 
 function notifyBudgetChanged() {
@@ -8,9 +9,18 @@ function notifyBudgetChanged() {
   window.dispatchEvent(new CustomEvent('budget-updated'))
 }
 
+function isLaunchedThisMonth(user) {
+  const now = new Date()
+  return user?.autoLaunchMonth === now.getMonth() + 1 &&
+         user?.autoLaunchYear  === now.getFullYear()
+}
+
 export default function FixedExpensesCard({ onMessage, onUpgrade }) {
-  const [budgets,   setBudgets]   = useState([])
-  const [newBudget, setNewBudget] = useState({ name: '', amount: '', dueDay: '' })
+  const user = useUser()
+  const [budgets,    setBudgets]    = useState([])
+  const [newBudget,  setNewBudget]  = useState({ name: '', amount: '', dueDay: '' })
+  const [launching,  setLaunching]  = useState(false)
+  const [launched,   setLaunched]   = useState(() => isLaunchedThisMonth(user))
 
   const fetchBudgets = async () => {
     try {
@@ -40,6 +50,24 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       } else {
         onMessage(err.response?.data?.error || 'Erro ao adicionar conta fixa.', 'error')
       }
+    }
+  }
+
+  const handleLaunch = async () => {
+    setLaunching(true)
+    try {
+      const { data } = await transactionsAPI.autoLaunch()
+      if (data.alreadyLaunched) {
+        onMessage('As contas fixas já foram lançadas este mês.', 'success')
+      } else {
+        onMessage(`✓ ${data.count} contas fixas lançadas como transações!`)
+        notifyBudgetChanged()
+      }
+      setLaunched(true)
+    } catch (err) {
+      onMessage(err.response?.data?.error || 'Erro ao lançar contas fixas.', 'error')
+    } finally {
+      setLaunching(false)
     }
   }
 
@@ -92,11 +120,27 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
           </div>
         )}
         {budgets.length > 0 && (
-          <div className="cfg-fixed-hint">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            Acesse o Dashboard para lançar as contas fixas do mês.
+          <div className="cfg-launch-row">
+            {launched ? (
+              <div className="cfg-launched-ok">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Contas fixas lançadas este mês
+              </div>
+            ) : (
+              <button className="cfg-btn-launch" onClick={handleLaunch} disabled={launching}>
+                {launching
+                  ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> Lançando...</>
+                  : <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                      </svg>
+                      Lançar como transações deste mês
+                    </>
+                }
+              </button>
+            )}
           </div>
         )}
         <form onSubmit={handleAdd} className="cfg-add-row">
