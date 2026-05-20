@@ -18,12 +18,12 @@ services:
   # ───────────────────────────────────────────────
   # 🗄️  db — PostgreSQL local (desativado)
   #
-  # O banco agora é o Neon (nuvem), configurado em .env.
+  # O banco em produção é o Supabase (nuvem), configurado em .env.
   # Tanto o docker-compose local quanto o Cloud Run usam
   # o mesmo banco → dados sempre sincronizados.
   #
-  # Para reativar banco local: descomente o bloco abaixo
-  # e adicione "depends_on: db" no serviço backend.
+  # Para usar banco local (ex: testes isolados): descomente o bloco
+  # abaixo e adicione "depends_on: db" no serviço backend.
   # ───────────────────────────────────────────────
   # db:
   #   image: postgres:15-alpine
