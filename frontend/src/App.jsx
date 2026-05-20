@@ -4,6 +4,7 @@ import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 import { authAPI } from './services/api.js'
+import { saveUser } from './hooks/useUser.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazy(() => import('./pages/Landing.jsx'))
@@ -43,14 +44,15 @@ export default function App() {
     // Valida sessão contra o servidor uma vez na inicialização
     // Se o cookie JWT expirou mas localStorage ainda tem dados, limpa e redireciona
     if (isLoggedIn()) {
-      authAPI.me().catch((err) => {
-        // Só desloga em erro de autenticação (401/403), não em falha de rede ou timeout
-        const status = err.response?.status
-        if (status === 401 || status === 403) {
-          localStorage.removeItem('user')
-          window.location.href = '/login'
-        }
-      })
+      authAPI.me()
+        .then(res => { if (res.data) saveUser(res.data) })
+        .catch((err) => {
+          const status = err.response?.status
+          if (status === 401 || status === 403) {
+            localStorage.removeItem('user')
+            window.location.href = '/login'
+          }
+        })
     }
   }, [])
 
