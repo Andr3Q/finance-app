@@ -1836,6 +1836,35 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   font-size: 11px; font-weight: 700; color: #000;
   background: #4ac46e; border-radius: 20px; padding: 4px 10px;
 }
+
+/* ── Elite badge — topbar ── */
+.dsb-topbar-elite {
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 800; letter-spacing: .6px; color: #fff;
+  background: linear-gradient(135deg, #4c1d95 0%, #7c3aed 40%, #a855f7 70%, #7c3aed 100%);
+  background-size: 250% 100%;
+  border-radius: 20px; padding: 4px 11px;
+  border: 1px solid rgba(168,85,247,.6);
+  box-shadow: 0 0 14px rgba(139,92,246,.6), 0 0 4px rgba(168,85,247,.4), inset 0 1px 0 rgba(255,255,255,.15);
+  animation: elite-bg 4s ease infinite;
+  cursor: default;
+}
+.dsb-elite-shimmer {
+  position: absolute; top: 0; left: -120%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+  transform: skewX(-15deg);
+  animation: elite-shine 3s ease infinite;
+  pointer-events: none;
+}
+@keyframes elite-bg {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+@keyframes elite-shine {
+  0%        { left: -120%; }
+  55%, 100% { left: 160%; }
+}
 .dsb-topbar-av {
   width: 32px; height: 32px; border-radius: 50%;
   background: linear-gradient(135deg, #1a4a28, #4ac46e);
