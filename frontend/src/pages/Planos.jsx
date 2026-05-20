@@ -110,7 +110,7 @@ export default function Planos() {
   const [toast,   setToast]   = useState(false)
 
   const user = useUser()
-  const isPro = user.plan === 'pro'
+  const isPro = user.plan === 'pro' || user.plan === 'elite'
 
   const proPrice    = billing === 'mensal' ? '19' : '15'
   const properiod   = billing === 'mensal'

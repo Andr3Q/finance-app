@@ -32,7 +32,9 @@ export default function SettingsHero({ user, isPro }) {
         <div className="cfg-hero-name">{user.name || 'Usuário'}</div>
         <div className="cfg-hero-email">{user.email}</div>
         <div className="cfg-hero-badges">
-          <span className={`cfg-badge ${isPro ? 'pro' : 'free'}`}>{isPro ? 'Pro ✨' : 'Grátis'}</span>
+          <span className={`cfg-badge ${user.plan === 'elite' ? 'pro' : isPro ? 'pro' : 'free'}`}>
+            {user.plan === 'elite' ? 'Elite ⚡' : isPro ? 'Pro ✨' : 'Grátis'}
+          </span>
         </div>
       </div>
     </div>

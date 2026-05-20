@@ -20,7 +20,7 @@ export default function Settings() {
   const navigate = useNavigate()
   const user  = useUser()
   const { theme, toggle: toggleTheme } = useTheme()
-  const isPro = user.plan === 'pro'
+  const isPro = user.plan === 'pro' || user.plan === 'elite'
 
   const [msg,          setMsg]          = useState('')
   const [msgType,      setMsgType]      = useState('success')

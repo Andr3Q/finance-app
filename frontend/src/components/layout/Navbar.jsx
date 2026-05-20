@@ -114,7 +114,7 @@ export default function Navbar() {
   }
 
   const initials  = user.name ? user.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase() : '?'
-  const isPro     = user.plan === 'pro'
+  const isPro     = user.plan === 'pro' || user.plan === 'elite'
   const isActive  = (path) => location.pathname === path
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
@@ -213,7 +213,7 @@ export default function Navbar() {
             </div>
             <div className="dsb-s-user-info">
               <div className="dsb-s-user-name">{user.name || 'Usuário'}</div>
-              <div className="dsb-s-user-role">{isPro ? 'Plano Pro ✨' : 'Plano Grátis'}</div>
+              <div className="dsb-s-user-role">{user.plan === 'elite' ? 'Plano Elite ⚡' : isPro ? 'Plano Pro ✨' : 'Plano Grátis'}</div>
             </div>
             <button className="dsb-s-logout" onClick={logout} title="Sair">
               <LogoutIcon />
@@ -233,9 +233,11 @@ export default function Navbar() {
           </div>
         </div>
         <div className="dsb-topbar-right">
-          {isPro
-            ? <span className="dsb-topbar-pro">PRO ✨</span>
-            : <button className="dsb-topbar-upgrade" onClick={() => navigate('/planos')}>⚡ Upgrade</button>
+          {user.plan === 'elite'
+            ? <span className="dsb-topbar-pro">ELITE ⚡</span>
+            : isPro
+              ? <span className="dsb-topbar-pro">PRO ✨</span>
+              : <button className="dsb-topbar-upgrade" onClick={() => navigate('/planos')}>⚡ Upgrade</button>
           }
 
           {/* Toggle dark/light */}
