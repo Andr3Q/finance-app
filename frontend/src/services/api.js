@@ -103,4 +103,11 @@ export const goalsAPI = {
   remove: (id)         => api.delete(`/goals/${id}`),
 }
 
+export const installmentsAPI = {
+  list:   ()     => api.get('/installments'),
+  create: (data) => api.post('/installments', data),
+  pay:    (id)   => api.patch(`/installments/${id}/pay`),
+  remove: (id)   => api.delete(`/installments/${id}`),
+}
+
 export default api

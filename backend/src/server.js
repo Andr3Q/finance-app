@@ -34,6 +34,7 @@ const notificationRoutes  = require('./routes/notifications')
 const monitorAlertRoute   = require('./routes/monitorAlert')
 const agentRoutes         = require('./routes/agent')
 const goalRoutes          = require('./routes/goals')
+const installmentRoutes   = require('./routes/installments')
 
 const app        = express()
 const PORT       = process.env.PORT || 3001
@@ -160,6 +161,7 @@ app.use('/api/monitor-alert', monitorAlertRoute)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/agent',        agentLimiter, agentRoutes)
 app.use('/api/goals',        goalRoutes)
+app.use('/api/installments', installmentRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
 const prismaHealth = require('./lib/prisma')

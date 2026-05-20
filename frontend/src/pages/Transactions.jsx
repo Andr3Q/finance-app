@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { transactionsAPI } from '../services/api.js'
+import { transactionsAPI, installmentsAPI } from '../services/api.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
+import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 
 const CACHE_KEY = 'transactions:list'
@@ -18,14 +19,20 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
 const fmt = (n) => n?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'
 
 export default function Transactions() {
-  const [transactions, setTransactions] = useState([])
-  const [loading,      setLoading]      = useState(true)
-  const [showForm,     setShowForm]     = useState(false)
-  const [filter,       setFilter]       = useState('all')
-  const [search,       setSearch]       = useState('')
-  const [toast,        setToast]        = useState(null)
-  const fileInputRef                    = useRef(null)
-  const now                             = new Date()
+  const [transactions,  setTransactions]  = useState([])
+  const [installments,  setInstallments]  = useState([])
+  const [loading,       setLoading]       = useState(true)
+  const [showForm,      setShowForm]      = useState(false)
+  const [filter,        setFilter]        = useState('all')
+  const [search,        setSearch]        = useState('')
+  const [toast,         setToast]         = useState(null)
+  const [parcOpen,      setParcOpen]      = useState(true)
+  const [showParcForm,  setShowParcForm]  = useState(false)
+  const [newParc,       setNewParc]       = useState({ name: '', amount: '', total: '' })
+  const [parcLoading,   setParcLoading]   = useState(false)
+  const [payingId,      setPayingId]      = useState(null)
+  const fileInputRef = useRef(null)
+  const now = new Date()
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -46,7 +53,17 @@ export default function Transactions() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchTransactions() }, [])
+  const fetchInstallments = async () => {
+    try {
+      const res = await installmentsAPI.list()
+      setInstallments(res.data)
+    } catch {}
+  }
+
+  useEffect(() => {
+    fetchTransactions()
+    fetchInstallments()
+  }, [])
 
   const handleImportCSV = async (e) => {
     const file = e.target.files[0]
@@ -75,6 +92,53 @@ export default function Transactions() {
     } catch { showToast('Erro ao remover.', false) }
   }
 
+  const handlePay = async (id) => {
+    setPayingId(id)
+    try {
+      await installmentsAPI.pay(id)
+      fetchInstallments()
+      invalidateCache(CACHE_KEY)
+      fetchTransactions(true)
+      invalidateCache('dashboard')
+      window.dispatchEvent(new CustomEvent('budget-updated'))
+      showToast('Parcela registrada como transação!')
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Erro ao pagar parcela.', false)
+    } finally {
+      setPayingId(null)
+    }
+  }
+
+  const handleDeleteInstallment = async (id) => {
+    if (!window.confirm('Remover este parcelamento?')) return
+    try {
+      await installmentsAPI.remove(id)
+      fetchInstallments()
+      showToast('Parcelamento removido.')
+    } catch { showToast('Erro ao remover.', false) }
+  }
+
+  const handleCreateInstallment = async (e) => {
+    e.preventDefault()
+    if (!newParc.name || !newParc.amount || !newParc.total) return
+    setParcLoading(true)
+    try {
+      await installmentsAPI.create({
+        name:              newParc.name,
+        amount:            newParc.amount,
+        totalInstallments: parseInt(newParc.total),
+      })
+      setNewParc({ name: '', amount: '', total: '' })
+      setShowParcForm(false)
+      fetchInstallments()
+      showToast('Parcelamento criado!')
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Erro ao criar parcelamento.', false)
+    } finally {
+      setParcLoading(false)
+    }
+  }
+
   const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const totalIncome   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const balance       = totalIncome - totalExpenses
@@ -94,13 +158,12 @@ export default function Transactions() {
   })
 
   const FILTER_PILLS = [
-    { value: 'all',     label: 'Todas',    icon: '◈' },
-    { value: 'income',  label: 'Entradas', icon: '↑' },
-    { value: 'expense', label: 'Saídas',   icon: '↓' },
-    { value: 'fixed',   label: 'Fixas',    icon: '⊞' },
+    { value: 'all',     label: 'Todas',    },
+    { value: 'income',  label: 'Entradas', },
+    { value: 'expense', label: 'Saídas',   },
+    { value: 'fixed',   label: 'Fixas',    },
   ]
 
-  // Agrupa por data para o feed
   const grouped = (() => {
     const todayMs = new Date().setHours(0,0,0,0)
     const yestMs  = todayMs - 86400000
@@ -115,6 +178,8 @@ export default function Transactions() {
     })
     return [...map.entries()]
   })()
+
+  const activeInstallments = installments.filter(p => p.paidInstallments < p.totalInstallments)
 
   return (
     <>
@@ -194,6 +259,136 @@ export default function Transactions() {
             </div>
           </div>
 
+          {/* ── Parcelas ── */}
+          <div className="parc-section">
+            <div className="parc-header" onClick={() => setParcOpen(p => !p)}>
+              <div className="parc-header-left">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+                </svg>
+                <span>Compras parceladas</span>
+                {activeInstallments.length > 0 && (
+                  <span className="parc-badge">{activeInstallments.length}</span>
+                )}
+              </div>
+              <div className="parc-header-right">
+                <button
+                  className="parc-new-btn"
+                  onClick={e => { e.stopPropagation(); setShowParcForm(p => !p); setParcOpen(true) }}
+                >
+                  + Nova parcela
+                </button>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                  style={{ transition: 'transform .2s', transform: parcOpen ? 'rotate(180deg)' : 'rotate(0deg)', opacity: .4 }}>
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </div>
+            </div>
+
+            {parcOpen && (
+              <div className="parc-body">
+
+                {/* Formulário novo parcelamento */}
+                {showParcForm && (
+                  <form className="parc-form" onSubmit={handleCreateInstallment}>
+                    <input
+                      className="cfg-inp"
+                      placeholder="Nome (ex: Celular Samsung)"
+                      value={newParc.name}
+                      onChange={e => setNewParc(p => ({ ...p, name: e.target.value }))}
+                      maxLength={100}
+                    />
+                    <CurrencyInput
+                      className="cfg-inp cfg-inp-num"
+                      placeholder="Valor por parcela"
+                      value={newParc.amount}
+                      onChange={v => setNewParc(p => ({ ...p, amount: v }))}
+                    />
+                    <input
+                      className="cfg-inp cfg-inp-num"
+                      type="number"
+                      placeholder="Nº parcelas"
+                      min="2" max="360"
+                      value={newParc.total}
+                      onChange={e => setNewParc(p => ({ ...p, total: e.target.value }))}
+                    />
+                    <button type="submit" className="cfg-btn-ghost" disabled={parcLoading}>
+                      {parcLoading
+                        ? <span className="spinner" style={{ width:13, height:13, borderWidth:2 }} />
+                        : 'Adicionar'
+                      }
+                    </button>
+                    <button type="button" className="cfg-btn-ghost" style={{ opacity:.5 }} onClick={() => setShowParcForm(false)}>
+                      Cancelar
+                    </button>
+                  </form>
+                )}
+
+                {installments.length === 0 && !showParcForm ? (
+                  <div className="parc-empty">Nenhuma compra parcelada. Clique em "+ Nova parcela" para adicionar.</div>
+                ) : (
+                  <div className="parc-grid">
+                    {installments.map(p => {
+                      const remaining  = p.totalInstallments - p.paidInstallments
+                      const pct        = Math.round((p.paidInstallments / p.totalInstallments) * 100)
+                      const totalRem   = remaining * p.amount
+                      const done       = remaining === 0
+                      return (
+                        <div key={p.id} className={`parc-card${done ? ' parc-done' : ''}`}>
+                          <div className="parc-card-top">
+                            <div className="parc-name">{p.name}</div>
+                            <button className="parc-del" onClick={() => handleDeleteInstallment(p.id)} title="Remover">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>
+                          </div>
+
+                          <div className="parc-progress-track">
+                            <div className="parc-progress-fill" style={{ width: `${pct}%` }} />
+                          </div>
+
+                          <div className="parc-stats">
+                            <span className="parc-count">
+                              {done
+                                ? '✓ Quitado'
+                                : <><strong>{p.paidInstallments}</strong>/{p.totalInstallments} pagas</>
+                              }
+                            </span>
+                            <span className="parc-pct">{pct}%</span>
+                          </div>
+
+                          <div className="parc-values">
+                            <span>R$ {fmt(p.amount)}/parcela</span>
+                            {!done && <span className="parc-remaining">R$ {fmt(totalRem)} restante</span>}
+                          </div>
+
+                          {!done && (
+                            <button
+                              className="parc-pay-btn"
+                              onClick={() => handlePay(p.id)}
+                              disabled={payingId === p.id}
+                            >
+                              {payingId === p.id
+                                ? <><span className="spinner" style={{ width:12, height:12, borderWidth:2 }} /> Registrando...</>
+                                : <>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                      <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                    Pagar parcela {p.paidInstallments + 1}/{p.totalInstallments}
+                                  </>
+                              }
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* ── Toolbar ── */}
           <div className="tx1-toolbar">
             <div className="tx1-search-wrap">
@@ -236,9 +431,9 @@ export default function Transactions() {
                     <div className="tx1-date-label">{dateLabel}</div>
                     {txs.map(t => {
                       const isInc    = t.type === 'income'
+                      const isFixed  = t.category === 'fixed'
                       const catLabel = CATEGORY_LABELS[t.category] || t.category
                       const desc     = t.description || catLabel
-                      const isFixed  = desc.toLowerCase().includes('[fixa]')
                       return (
                         <div key={t.id} className="tx1-row">
                           <div className={`tx1-row-ico ${isInc ? 'inc' : 'exp'}`}>
