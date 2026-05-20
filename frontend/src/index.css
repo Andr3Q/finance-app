@@ -5236,6 +5236,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   font-size: 10px; color: rgba(255,255,255,.3);
   min-width: 28px; text-align: right;
 }
+.hb-fixed-total-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 20px 12px;
+  font-size: 12px; font-weight: 600;
+  color: rgba(255,255,255,.5);
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.hb-fixed-total-row span:last-child { color: #ff8c42; }
+[data-theme="light"] .hb-fixed-total-row { color: rgba(0,0,0,.5); border-color: rgba(0,0,0,.07); }
+[data-theme="light"] .hb-bar-val { color: #111; }
 
 /* ── Feed (Linear + Monzo) ─────────────────────────────── */
 .hb-feed-tabs {
