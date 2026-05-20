@@ -18,7 +18,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('push', e => {
   const data = e.data?.json() || {}
-  const title = data.title || 'Finance'
+  const title = data.title || 'FinançasPro'
   const options = {
     body:    data.body || '',
     icon:    '/icon-192.png',

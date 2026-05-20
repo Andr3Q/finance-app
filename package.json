@@ -15,7 +15,8 @@
     "db:migrate":    "cd backend && npx prisma migrate dev",
     "db:generate":   "cd backend && npx prisma generate",
     "db:reset":      "cd backend && npx prisma migrate reset",
-    "install:all":   "cd backend && npm install && cd ../frontend && npm install"
+    "install:all":   "cd backend && npm install && cd ../frontend && npm install",
+    "lint":          "cd backend && npm run lint && cd ../frontend && npm run lint"
   },
   "engines": {
     "node": ">=20"
