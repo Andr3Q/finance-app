@@ -2,7 +2,13 @@
 // 🚀 src/server.js — Ponto de Entrada do Backend
 // ═══════════════════════════════════════════════════════
 
+// Monorepo: tenta .env no CWD (docker-compose / produção); se não encontrar,
+// busca na raiz do projeto (desenvolvimento direto via `npm run dev:backend`)
+const path = require('path')
 require('dotenv').config()
+if (!process.env.DATABASE_URL) {
+  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
+}
 
 // ── Validação de variáveis obrigatórias na inicialização ─
 const REQUIRED_ENV = ['JWT_SECRET', 'DATABASE_URL']
