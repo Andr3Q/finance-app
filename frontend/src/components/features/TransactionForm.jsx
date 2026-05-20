@@ -10,6 +10,7 @@ const CATEGORIES = [
   { value: 'leisure',   label: 'Lazer'       },
   { value: 'education', label: 'Educação'    },
   { value: 'home',      label: 'Casa'        },
+  { value: 'fixed',     label: 'Conta Fixa'  },
   { value: 'other',     label: 'Outros'      },
 ]
 
