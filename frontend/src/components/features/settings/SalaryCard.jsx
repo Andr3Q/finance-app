@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { budgetAPI } from '../../../services/api.js'
 import { saveUser } from '../../../hooks/useUser.js'
+import { invalidateCache } from '../../../services/cache.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 
 export default function SalaryCard({ user, onMessage }) {
@@ -14,6 +15,8 @@ export default function SalaryCard({ user, onMessage }) {
       await budgetAPI.updateSalary(salary || 0)
       const stored = JSON.parse(localStorage.getItem('user') || '{}')
       saveUser({ ...stored, salary: salary || 0 })
+      invalidateCache('dashboard')
+      window.dispatchEvent(new CustomEvent('budget-updated'))
       onMessage('Salário atualizado com sucesso!')
     } catch {
       onMessage('Erro ao salvar salário.', 'error')

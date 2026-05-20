@@ -65,6 +65,12 @@ export default function Dashboard() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  useEffect(() => {
+    const handler = () => fetchData(true)
+    window.addEventListener('budget-updated', handler)
+    return () => window.removeEventListener('budget-updated', handler)
+  }, [fetchData])
+
   // Predição IA — cache em sessionStorage (apaga ao fechar a aba, não persiste dados financeiros)
   useEffect(() => {
     if (!summary || !transactions.length) return

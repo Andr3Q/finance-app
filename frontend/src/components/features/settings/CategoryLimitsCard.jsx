@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { budgetAPI } from '../../../services/api.js'
+import { invalidateCache } from '../../../services/cache.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
+
+function notifyBudgetChanged() {
+  invalidateCache('dashboard')
+  window.dispatchEvent(new CustomEvent('budget-updated'))
+}
 
 const CATEGORIES = [
   { key: 'food',      label: 'Alimentação' },
@@ -35,6 +41,7 @@ export default function CategoryLimitsCard({ isPro, onMessage, onUpgrade }) {
       await budgetAPI.setLimit({ category: newLimit.category, amount: newLimit.amount })
       setNewLimit(p => ({ ...p, amount: '' }))
       fetchLimits()
+      notifyBudgetChanged()
       onMessage('Limite salvo!')
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao salvar limite.', 'error')
@@ -45,6 +52,7 @@ export default function CategoryLimitsCard({ isPro, onMessage, onUpgrade }) {
     try {
       await budgetAPI.removeLimit(category)
       fetchLimits()
+      notifyBudgetChanged()
     } catch {
       onMessage('Erro ao remover limite.', 'error')
     }
