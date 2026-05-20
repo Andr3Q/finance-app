@@ -67,9 +67,9 @@ router.post('/', async (req, res) => {
       where:  { id: req.userId },
       select: { plan: true, _count: { select: { budgets: true } } }
     })
-    if (userData?.plan === 'free' && userData._count.budgets >= 3) {
+    if (userData?.plan === 'free' && userData._count.budgets >= 15) {
       return res.status(403).json({
-        error: 'Limite de 3 contas fixas atingido no plano Gratuito.',
+        error: 'Limite de 15 contas fixas atingido no plano Gratuito.',
         limitReached: true,
         plan: 'free'
       })
