@@ -18,8 +18,9 @@ export default function AutoLaunchPrompt({ autoLaunched, onLaunched }) {
     setLoading(true)
     setError('')
     try {
-      const res = await transactionsAPI.autoLaunch()
-      onLaunched(res.data.message) // avisa o Dashboard para recarregar
+      await transactionsAPI.autoLaunch()
+      setDismissed(true)
+      onLaunched()
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao lançar contas fixas.')
       setLoading(false)
