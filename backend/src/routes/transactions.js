@@ -14,7 +14,7 @@ const express        = require('express')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const multer         = require('multer')
-const { parse }      = require('csv-parse')
+const { parse }      = require('csv-parse/sync')
 const { sendPushToUser } = require('../services/pushService')
 const { dashboardLimiter } = require('../middleware/rateLimiter')
 
@@ -24,7 +24,8 @@ const CATEGORY_LABELS = {
   home:'Casa', income:'Entrada Extra', other:'Outros',
 }
 const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS)
-const MAX_AMOUNT = 999_999_999.99
+const MAX_AMOUNT  = 999_999_999.99
+const UUID_REGEX  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const router = express.Router()
 
@@ -286,23 +287,25 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Descrição deve ter no máximo 255 caracteres.' })
     }
 
-    // Limite do plano Free: 30 transações por mês
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
-    if (user.plan === 'free') {
-      const now = new Date()
-      const count = await prisma.transaction.count({
-        where: { userId: req.userId, month: now.getMonth() + 1, year: now.getFullYear(), archived: false }
-      })
-      if (count >= 30) {
-        return res.status(403).json({
-          error: 'Limite de 30 transações por mês atingido no plano Gratuito.',
-          limitReached: true,
-          plan: 'free'
-        })
-      }
-    }
+    const now          = new Date()
+    const currentMonth = now.getMonth() + 1
+    const currentYear  = now.getFullYear()
 
-    const now = new Date()
+    // Plano Free: busca plan + count em 1 query (evita 2 round trips ao banco)
+    const userData = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: {
+        plan: true,
+        _count: { select: { transactions: { where: { month: currentMonth, year: currentYear, archived: false } } } }
+      }
+    })
+    if (userData?.plan === 'free' && userData._count.transactions >= 30) {
+      return res.status(403).json({
+        error: 'Limite de 30 transações por mês atingido no plano Gratuito.',
+        limitReached: true,
+        plan: 'free'
+      })
+    }
 
     const transaction = await prisma.transaction.create({
       data: {
@@ -310,8 +313,8 @@ router.post('/', async (req, res) => {
         amount:      parsedAmount,
         type,
         category,
-        month:       now.getMonth() + 1,
-        year:        now.getFullYear(),
+        month:       currentMonth,
+        year:        currentYear,
         userId:      req.userId
       }
     })
@@ -352,21 +355,16 @@ router.post('/', async (req, res) => {
 // ── DELETE /transactions/:id ────────────────────────────
 // Remove uma transação pelo ID (apenas se pertencer ao usuário)
 router.delete('/:id', async (req, res) => {
+  const { id } = req.params
+  if (!UUID_REGEX.test(id)) return res.status(400).json({ error: 'ID inválido.' })
   try {
-    const { id } = req.params
-
-    // Verifica se a transação pertence ao usuário logado
-    const transaction = await prisma.transaction.findFirst({
-      where: { id, userId: req.userId }
-    })
-
-    if (!transaction) {
-      return res.status(404).json({ error: 'Transação não encontrada.' })
-    }
-
-    await prisma.transaction.delete({ where: { id, userId: req.userId } })
+    // deleteMany com userId evita findFirst prévio — 1 query em vez de 2
+    // userId na where garante que um usuário nunca apaga transação alheia
+    const result = await prisma.transaction.deleteMany({ where: { id, userId: req.userId } })
+    if (result.count === 0) return res.status(404).json({ error: 'Transação não encontrada.' })
     res.json({ message: 'Transação removida com sucesso.' })
   } catch (error) {
+    console.error('Erro ao remover transação:', error)
     res.status(500).json({ error: 'Erro ao remover transação.' })
   }
 })
@@ -380,44 +378,67 @@ router.post('/auto-launch', async (req, res) => {
     const month = now.getMonth() + 1
     const year  = now.getFullYear()
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    // Verificações prévias antes do claim atômico
+    const [userCheck, budgets] = await Promise.all([
+      prisma.user.findUnique({ where: { id: req.userId } }),
+      prisma.budget.findMany({ where: { userId: req.userId } }),
+    ])
 
-    // Verifica se já foi lançado este mês
-    if (user.autoLaunchMonth === month && user.autoLaunchYear === year) {
+    if (userCheck.autoLaunchMonth === month && userCheck.autoLaunchYear === year) {
       return res.json({ message: 'Contas fixas já foram lançadas este mês.', alreadyLaunched: true })
     }
-
-    const budgets = await prisma.budget.findMany({ where: { userId: req.userId } })
-
     if (budgets.length === 0) {
       return res.status(400).json({ error: 'Nenhuma conta fixa cadastrada. Adicione em Configurações.' })
     }
 
-    // Cria uma transação para cada conta fixa
-    // A descrição começa com "[Fixa]" para identificação
-    const transactions = await Promise.all(
-      budgets.map(b => prisma.transaction.create({
-        data: {
-          description: `[Fixa] ${b.name}`,
-          amount:      b.amount,
-          type:        'expense',
-          category:    'home',
-          month,
-          year,
-          userId:      req.userId
-        }
-      }))
-    )
+    // Verifica limite do plano Free antes de criar transações
+    let budgetsToLaunch = budgets
+    if (userCheck.plan === 'free') {
+      const currentCount = await prisma.transaction.count({
+        where: { userId: req.userId, month, year, archived: false }
+      })
+      const remaining = 30 - currentCount
+      if (remaining <= 0) {
+        return res.status(403).json({
+          error: 'Limite de 30 transações por mês atingido. Não foi possível lançar as contas fixas.',
+          limitReached: true,
+          plan: 'free',
+        })
+      }
+      // Lança apenas até o limite disponível
+      if (budgets.length > remaining) budgetsToLaunch = budgets.slice(0, remaining)
+    }
 
-    // Marca o mês/ano do lançamento no usuário
-    await prisma.user.update({
-      where: { id: req.userId },
-      data:  { autoLaunchMonth: month, autoLaunchYear: year }
+    // Marca o mês atomicamente — se dois requests chegarem ao mesmo tempo, apenas um
+    // conseguirá fazer o update (o outro encontrará count=0 e retornará alreadyLaunched).
+    const claimed = await prisma.user.updateMany({
+      where: {
+        id: req.userId,
+        NOT: { autoLaunchMonth: month, autoLaunchYear: year },
+      },
+      data: { autoLaunchMonth: month, autoLaunchYear: year },
+    })
+
+    if (claimed.count === 0) {
+      return res.json({ message: 'Contas fixas já foram lançadas este mês.', alreadyLaunched: true })
+    }
+
+    // createMany insere N contas em 1 round trip ao banco (vs N inserts individuais)
+    await prisma.transaction.createMany({
+      data: budgetsToLaunch.map(b => ({
+        description: `[Fixa] ${b.name}`,
+        amount:      b.amount,
+        type:        'expense',
+        category:    'home',
+        month,
+        year,
+        userId:      req.userId
+      }))
     })
 
     res.json({
-      message:      `✅ ${transactions.length} contas fixas lançadas com sucesso!`,
-      transactions,
+      message:         `✅ ${budgetsToLaunch.length} contas fixas lançadas com sucesso!`,
+      count:           budgetsToLaunch.length,
       alreadyLaunched: false
     })
   } catch (error) {
@@ -446,80 +467,83 @@ router.post('/import', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
     }
 
-    const fileContent = req.file.buffer.toString('utf-8')
-
-    // Plano Free: verifica o espaço restante antes de importar
-    const now = new Date()
+    const fileContent  = req.file.buffer.toString('utf-8')
+    const now          = new Date()
     const currentMonth = now.getMonth() + 1
     const currentYear  = now.getFullYear()
-    const userPlan = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
+
+    // Plano Free: plan + count em 1 query
+    const userData = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: {
+        plan: true,
+        _count: { select: { transactions: { where: { month: currentMonth, year: currentYear, archived: false } } } }
+      }
+    })
     let freeLimit = null
-    if (userPlan.plan === 'free') {
-      const count = await prisma.transaction.count({
-        where: { userId: req.userId, month: currentMonth, year: currentYear, archived: false }
-      })
-      if (count >= 30) {
+    if (userData?.plan === 'free') {
+      const currentCount = userData._count.transactions
+      if (currentCount >= 30) {
         return res.status(403).json({
           error: 'Limite de 30 transações por mês atingido no plano Gratuito.',
           limitReached: true,
           plan: 'free'
         })
       }
-      freeLimit = 30 - count
+      freeLimit = 30 - currentCount
     }
 
-    parse(fileContent, {
-      columns: true,
-      skip_empty_lines: true,
-      delimiter: [',', ';']
-    }, async (err, records) => {
-      if (err) {
-        return res.status(400).json({ error: 'Erro ao processar o arquivo CSV.' })
-      }
+    // Versão síncrona — elimina o mixing de callback+async que causava
+    // bug de "headers already sent" quando a Promise rejeitava dentro do callback
+    let records
+    try {
+      records = parse(fileContent, {
+        columns:          true,
+        skip_empty_lines: true,
+        delimiter:        [',', ';'],
+      })
+    } catch {
+      return res.status(400).json({ error: 'Erro ao processar o arquivo CSV.' })
+    }
 
-      const MAX_CSV_ROWS = 500
-      if (records.length > MAX_CSV_ROWS) {
-        return res.status(400).json({ error: `O arquivo CSV deve ter no máximo ${MAX_CSV_ROWS} transações.` })
-      }
+    const MAX_CSV_ROWS = 500
+    if (records.length > MAX_CSV_ROWS) {
+      return res.status(400).json({ error: `O arquivo CSV deve ter no máximo ${MAX_CSV_ROWS} transações.` })
+    }
 
-      const transactions = []
+    const transactions = []
+    for (const record of records) {
+      if (freeLimit !== null && transactions.length >= freeLimit) break
 
-      for (const record of records) {
-        if (freeLimit !== null && transactions.length >= freeLimit) break
+      const description = (
+        record['Descrição'] || record['Historico'] || record['description'] ||
+        record['HISTÓRICO'] || record['Detalhes'] || 'Importação'
+      )
+      let amountStr = (record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0')
+        .toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
+      const amount = parseFloat(amountStr)
 
-        const description = record['Descrição'] || record['Historico'] || record['description'] || record['HISTÓRICO'] || record['Detalhes'] || 'Importação'
-        let amountStr = record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0'
-
-        amountStr = amountStr.toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
-        const amount = parseFloat(amountStr)
-
-        if (!isNaN(amount) && amount !== 0) {
-          transactions.push({
-            description: description.substring(0, 255),
-            amount: Math.abs(amount),
-            type: amount > 0 ? 'income' : 'expense',
-            category: 'other',
-            month: currentMonth,
-            year: currentYear,
-            userId: req.userId
-          })
-        }
-      }
-
-      if (transactions.length === 0) {
-        return res.status(400).json({ error: 'Nenhuma transação válida encontrada no arquivo.' })
-      }
-
-      try {
-        await prisma.transaction.createMany({ data: transactions })
-        res.json({
-          message: `✅ ${transactions.length} transações importadas com sucesso!`,
-          count: transactions.length
+      if (!isNaN(amount) && amount !== 0) {
+        transactions.push({
+          description: String(description).substring(0, 255),
+          amount:      Math.abs(amount),
+          type:        amount > 0 ? 'income' : 'expense',
+          category:    'other',
+          month:       currentMonth,
+          year:        currentYear,
+          userId:      req.userId,
         })
-      } catch (saveError) {
-        console.error('Erro ao salvar transações do CSV:', saveError)
-        if (!res.headersSent) res.status(500).json({ error: 'Erro ao salvar transações.' })
       }
+    }
+
+    if (transactions.length === 0) {
+      return res.status(400).json({ error: 'Nenhuma transação válida encontrada no arquivo.' })
+    }
+
+    await prisma.transaction.createMany({ data: transactions })
+    res.json({
+      message: `✅ ${transactions.length} transações importadas com sucesso!`,
+      count:   transactions.length,
     })
 
   } catch (error) {

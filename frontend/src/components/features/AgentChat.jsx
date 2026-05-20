@@ -159,6 +159,7 @@ export default function AgentChat() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
               rows={1}
+              maxLength={2000}
               disabled={loading}
             />
             <button

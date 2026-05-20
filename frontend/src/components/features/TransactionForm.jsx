@@ -112,6 +112,7 @@ export default function TransactionForm({ onClose, onSuccess }) {
               placeholder={isExp ? 'Ex: Almoço no restaurante' : 'Ex: Freelance, 13° salário'}
               value={form.description}
               onChange={handleChange}
+              maxLength={255}
             />
           </div>
 
