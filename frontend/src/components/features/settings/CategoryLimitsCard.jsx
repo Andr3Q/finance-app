@@ -21,8 +21,8 @@ export default function CategoryLimitsCard({ isPro, onMessage, onUpgrade }) {
     try {
       const res = await budgetAPI.getLimits()
       setLimits(res.data)
-    } catch (err) {
-      console.error(err)
+    } catch {
+      onMessage('Erro ao carregar limites por categoria.', 'error')
     }
   }
 
