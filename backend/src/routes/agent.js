@@ -244,7 +244,7 @@ router.post('/chat', async (req, res) => {
       // razão para esperar uma terminar antes de iniciar a outra.
       const toolResults = await Promise.all(
         msg.tool_calls.map(async (call) => {
-          let args = {}
+          let args
           try { args = JSON.parse(call.function.arguments || '{}') } catch { args = {} }
           let result
           try {
@@ -290,12 +290,11 @@ router.post('/predict', async (req, res) => {
     const daysInMonth = new Date(year, month, 0).getDate()
     const dayOfMonth  = now.getDate()
 
-    const [txs, budgets, user] = await Promise.all([
+    const [txs, user] = await Promise.all([
       prisma.transaction.findMany({
         where: { userId: req.userId, month, year, archived: false },
         select: { type: true, amount: true, category: true },
       }),
-      prisma.budget.findMany({ where: { userId: req.userId } }),
       prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, name: true } }),
     ])
 

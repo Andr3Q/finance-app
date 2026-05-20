@@ -519,7 +519,7 @@ router.post('/import', upload.single('file'), async (req, res) => {
         record['Descrição'] || record['Historico'] || record['description'] ||
         record['HISTÓRICO'] || record['Detalhes'] || 'Importação'
       )
-      let amountStr = (record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0')
+      const amountStr = (record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0')
         .toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
       const amount = parseFloat(amountStr)
 
