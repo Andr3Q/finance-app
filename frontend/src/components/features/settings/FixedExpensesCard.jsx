@@ -29,7 +29,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       onMessage('Conta fixa adicionada!')
     } catch (err) {
       if (err.response?.data?.limitReached) {
-        onUpgrade?.('Você atingiu o limite de 3 contas fixas do plano Gratuito. Faça upgrade para adicionar contas ilimitadas.')
+        onUpgrade?.('Você atingiu o limite de 15 contas fixas do plano Gratuito. Faça upgrade para adicionar contas ilimitadas.')
       } else {
         onMessage(err.response?.data?.error || 'Erro ao adicionar conta fixa.', 'error')
       }
