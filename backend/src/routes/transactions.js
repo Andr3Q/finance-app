@@ -18,6 +18,17 @@ const { parse }      = require('csv-parse/sync')
 const { sendPushToUser } = require('../services/pushService')
 const { dashboardLimiter } = require('../middleware/rateLimiter')
 
+// Retorna mês/ano/dia no fuso horário de Brasília (UTC-3),
+// evitando que viradas de meia-noite UTC mudem o mês incorretamente.
+function nowBrasilia() {
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: 'numeric', day: 'numeric',
+  }).formatToParts(new Date())
+  const get = (type) => parseInt(parts.find(p => p.type === type).value)
+  return { month: get('month'), year: get('year'), day: get('day') }
+}
+
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',
   health:'Saúde', leisure:'Lazer', education:'Educação',
@@ -40,9 +51,7 @@ router.use(authMiddleware)
 // - Percentual do orçamento usado
 router.get('/summary', dashboardLimiter, async (req, res) => {
   try {
-    const now   = new Date()
-    const month = now.getMonth() + 1  // getMonth() retorna 0-11, então somamos 1
-    const year  = now.getFullYear()
+    const { month, year } = nowBrasilia()
 
     // Busca dados do usuário, contas fixas e transações do mês
     const [transactions, budgets, user] = await Promise.all([
@@ -92,9 +101,7 @@ router.get('/summary', dashboardLimiter, async (req, res) => {
 // Substitui as 3 chamadas separadas do Dashboard (3 round trips → 1)
 router.get('/dashboard', dashboardLimiter, async (req, res) => {
   try {
-    const now   = new Date()
-    const month = now.getMonth() + 1
-    const year  = now.getFullYear()
+    const { month, year } = nowBrasilia()
 
     const [transactions, budgets, user, limits] = await Promise.all([
       prisma.transaction.findMany({
@@ -287,9 +294,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Descrição deve ter no máximo 255 caracteres.' })
     }
 
-    const now          = new Date()
-    const currentMonth = now.getMonth() + 1
-    const currentYear  = now.getFullYear()
+    const { month: currentMonth, year: currentYear } = nowBrasilia()
 
     // Plano Free: busca plan + count em 1 query (evita 2 round trips ao banco)
     const userData = await prisma.user.findUnique({
@@ -323,8 +328,8 @@ router.post('/', async (req, res) => {
     setImmediate(async () => {
       try {
         const [expenses, incomes, user, budgets] = await Promise.all([
-          prisma.transaction.aggregate({ where: { userId: req.userId, type: 'expense', month: now.getMonth()+1, year: now.getFullYear(), archived: false }, _sum: { amount: true } }),
-          prisma.transaction.aggregate({ where: { userId: req.userId, type: 'income',  month: now.getMonth()+1, year: now.getFullYear(), archived: false }, _sum: { amount: true } }),
+          prisma.transaction.aggregate({ where: { userId: req.userId, type: 'expense', month: currentMonth, year: currentYear, archived: false }, _sum: { amount: true } }),
+          prisma.transaction.aggregate({ where: { userId: req.userId, type: 'income',  month: currentMonth, year: currentYear, archived: false }, _sum: { amount: true } }),
           prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true } }),
           prisma.budget.aggregate({ where: { userId: req.userId }, _sum: { amount: true } }),
         ])
@@ -374,9 +379,7 @@ router.delete('/:id', async (req, res) => {
 // Só executa uma vez por mês (controla pelo autoLaunchMonth/Year no User).
 router.post('/auto-launch', async (req, res) => {
   try {
-    const now   = new Date()
-    const month = now.getMonth() + 1
-    const year  = now.getFullYear()
+    const { month, year } = nowBrasilia()
 
     // Verificações prévias antes do claim atômico
     const [userCheck, budgets] = await Promise.all([

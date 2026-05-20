@@ -277,12 +277,14 @@ export default function Planos() {
                 ))}
               </div>
 
-              <div className="pp1-em-breve-badge">
-                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                Em breve
-              </div>
+              {user.plan !== 'elite' && (
+                <div className="pp1-em-breve-badge">
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  Em breve
+                </div>
+              )}
 
               <div className="pp1-card-tier pp1-tier-elite">Elite</div>
               <div className="pp1-card-tagline pp1-tagline-elite">Para quem quer o poder da IA</div>
@@ -314,13 +316,18 @@ export default function Planos() {
                 )}
               </ul>
 
-              <button className="pp1-cta-elite" onClick={handleAssinar}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-                Quero ser notificado
-              </button>
-              <div className="pp1-cta-note pp1-cta-note-elite">Lista de espera · Sem compromisso</div>
+              {user.plan === 'elite'
+                ? <div className="pp1-cta-is-pro">⚡ Você já é Elite!</div>
+                : <>
+                    <button className="pp1-cta-elite" onClick={handleAssinar}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                      Quero ser notificado
+                    </button>
+                    <div className="pp1-cta-note pp1-cta-note-elite">Lista de espera · Sem compromisso</div>
+                  </>
+              }
             </div>
 
           </div>

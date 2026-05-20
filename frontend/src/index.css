@@ -2795,6 +2795,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   margin-top: 4px;
 }
 .cfg-fixed-total span:last-child { color: var(--c); }
+.cfg-fixed-hint {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: rgba(255,255,255,.3);
+  padding: 8px 10px; margin-bottom: 10px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px;
+}
+.cfg-fixed-hint svg { flex-shrink: 0; opacity: .5; }
+[data-theme="light"] .cfg-fixed-hint { color: rgba(0,0,0,.4); background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.07); }
 .cfg-del-btn {
   width: 26px;
   height: 26px;
@@ -5180,6 +5190,17 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   display: flex; justify-content: space-between;
   font-size: 11px; color: rgba(255,255,255,.3);
 }
+.hb-ring-fixed-row {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: rgba(255,255,255,.3);
+  margin-top: 6px; flex-wrap: wrap;
+}
+.hb-ring-fixed-row svg { flex-shrink: 0; opacity: .45; }
+.hb-ring-fixed-row strong { color: rgba(255,255,255,.6); font-weight: 600; }
+.hb-ring-fixed-ok  { color: #4ac46e; font-size: 10px; font-weight: 600; }
+.hb-ring-fixed-warn { color: #f59e0b; font-size: 10px; font-weight: 600; }
+[data-theme="light"] .hb-ring-fixed-row { color: rgba(0,0,0,.4); }
+[data-theme="light"] .hb-ring-fixed-row strong { color: rgba(0,0,0,.65); }
 
 /* ── Bars card (Stripe) ────────────────────────────────── */
 .hb-bars-card .hb-card-head { border-bottom: 1px solid rgba(255,255,255,.05); }
