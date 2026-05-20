@@ -53,55 +53,54 @@ router.post('/', async (req, res) => {
 })
 
 router.patch('/:id', async (req, res) => {
+  if (!validId(req.params.id))
+    return res.status(400).json({ error: 'ID inválido.' })
+
+  const { title, targetAmount, currentAmount, color, deadline } = req.body
+  const data = {}
+
+  if (title !== undefined)
+    data.title = String(title).trim().slice(0, 80)
+
+  if (targetAmount !== undefined) {
+    const v = parseFloat(targetAmount)
+    if (isNaN(v) || v <= 0) return res.status(400).json({ error: 'Valor-alvo inválido.' })
+    data.targetAmount = v
+  }
+
+  if (currentAmount !== undefined) {
+    const v = parseFloat(currentAmount)
+    if (isNaN(v) || v < 0) return res.status(400).json({ error: 'Valor atual inválido.' })
+    data.currentAmount = v
+  }
+
+  if (color !== undefined) {
+    if (!HEX_COLOR.test(color)) return res.status(400).json({ error: 'Cor inválida. Use formato #RRGGBB.' })
+    data.color = color
+  }
+
+  if (deadline !== undefined) {
+    if (deadline === null || deadline === '') {
+      data.deadline = null
+    } else {
+      const d = new Date(deadline)
+      if (isNaN(d.getTime())) return res.status(400).json({ error: 'Data de prazo inválida.' })
+      data.deadline = d
+    }
+  }
+
+  if (Object.keys(data).length === 0)
+    return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
+
   try {
-    if (!validId(req.params.id))
-      return res.status(400).json({ error: 'ID inválido.' })
-
-    const existing = await prisma.goal.findFirst({
-      where: { id: req.params.id, userId: req.userId },
-    })
-    if (!existing) return res.status(404).json({ error: 'Meta não encontrada.' })
-
-    const { title, targetAmount, currentAmount, color, deadline } = req.body
-    const data = {}
-
-    if (title !== undefined)
-      data.title = String(title).trim().slice(0, 80)
-
-    if (targetAmount !== undefined) {
-      const v = parseFloat(targetAmount)
-      if (isNaN(v) || v <= 0) return res.status(400).json({ error: 'Valor-alvo inválido.' })
-      data.targetAmount = v
-    }
-
-    if (currentAmount !== undefined) {
-      const v = parseFloat(currentAmount)
-      if (isNaN(v) || v < 0) return res.status(400).json({ error: 'Valor atual inválido.' })
-      data.currentAmount = v
-    }
-
-    if (color !== undefined) {
-      if (!HEX_COLOR.test(color)) return res.status(400).json({ error: 'Cor inválida. Use formato #RRGGBB.' })
-      data.color = color
-    }
-
-    if (deadline !== undefined) {
-      if (deadline === null || deadline === '') {
-        data.deadline = null
-      } else {
-        const d = new Date(deadline)
-        if (isNaN(d.getTime())) return res.status(400).json({ error: 'Data de prazo inválida.' })
-        data.deadline = d
-      }
-    }
-
-    // userId na constraint garante que um usuário nunca edita meta alheia
+    // update com userId = ownership check + update em 1 query (sem findFirst prévio)
     const updated = await prisma.goal.update({
       where: { id: req.params.id, userId: req.userId },
       data,
     })
     res.json(updated)
-  } catch {
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Meta não encontrada.' })
     res.status(500).json({ error: 'Erro ao atualizar meta.' })
   }
 })

@@ -14,11 +14,31 @@ router.get('/vapid-public-key', (_req, res) => {
 router.post('/subscribe', async (req, res) => {
   try {
     const { endpoint, keys } = req.body
-    if (!endpoint || !keys?.p256dh || !keys?.auth) {
+    if (!endpoint || typeof endpoint !== 'string' || !keys?.p256dh || !keys?.auth) {
       return res.status(400).json({ error: 'Dados de assinatura inválidos.' })
     }
-    try { new URL(endpoint) } catch {
+
+    // Valida URL e exige HTTPS — protege contra SSRF via endpoints maliciosos
+    let parsedUrl
+    try { parsedUrl = new URL(endpoint) } catch {
       return res.status(400).json({ error: 'Endpoint inválido.' })
+    }
+    if (parsedUrl.protocol !== 'https:') {
+      return res.status(400).json({ error: 'Endpoint deve usar HTTPS.' })
+    }
+
+    // Aceita apenas domínios de serviços de push conhecidos (FCM, Mozilla, Apple, Windows)
+    const ALLOWED_PUSH_HOSTS = [
+      'fcm.googleapis.com',
+      'updates.push.services.mozilla.com',
+      'push.services.mozilla.com',
+      'web.push.apple.com',
+      'wns2.notify.windows.com',
+      'notify.windows.com',
+    ]
+    const hostOk = ALLOWED_PUSH_HOSTS.some(h => parsedUrl.hostname === h || parsedUrl.hostname.endsWith(`.${h}`))
+    if (!hostOk) {
+      return res.status(400).json({ error: 'Serviço de notificação não reconhecido.' })
     }
     await prisma.pushSubscription.upsert({
       where:  { endpoint },

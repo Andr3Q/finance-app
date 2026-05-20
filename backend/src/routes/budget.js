@@ -18,6 +18,7 @@ const authMiddleware = require('../middleware/auth')
 
 const VALID_CATEGORIES = ['food','shopping','transport','health','leisure','education','home','income','other']
 const MAX_AMOUNT = 999_999_999.99
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const router = express.Router()
 
@@ -61,17 +62,17 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Limite do plano Free: máximo 3 contas fixas
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
-    if (user.plan === 'free') {
-      const count = await prisma.budget.count({ where: { userId: req.userId } })
-      if (count >= 3) {
-        return res.status(403).json({
-          error: 'Limite de 3 contas fixas atingido no plano Gratuito.',
-          limitReached: true,
-          plan: 'free'
-        })
-      }
+    // Limite do plano Free: plan + count em 1 query (evita 2 round trips)
+    const userData = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { plan: true, _count: { select: { budgets: true } } }
+    })
+    if (userData?.plan === 'free' && userData._count.budgets >= 3) {
+      return res.status(403).json({
+        error: 'Limite de 3 contas fixas atingido no plano Gratuito.',
+        limitReached: true,
+        plan: 'free'
+      })
     }
 
     const createData = { name: name.trim(), amount: parsedAmount, userId: req.userId }
@@ -94,6 +95,9 @@ router.put('/salary', async (req, res) => {
     if (!isFinite(parsed) || parsed < 0) {
       return res.status(400).json({ error: 'Salário inválido.' })
     }
+    if (parsed > 999_999_999.99) {
+      return res.status(400).json({ error: 'Salário excede o limite permitido.' })
+    }
 
     const user = await prisma.user.update({
       where: { id: req.userId },
@@ -107,60 +111,66 @@ router.put('/salary', async (req, res) => {
 
 // ── PUT /budget/:id ─────────────────────────────────────
 router.put('/:id', async (req, res) => {
+  const { id } = req.params
+  if (!UUID_REGEX.test(id)) return res.status(400).json({ error: 'ID inválido.' })
+
+  const { name, amount, dueDay } = req.body
+  const updateData = {}
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
+      return res.status(400).json({ error: 'Nome inválido.' })
+    }
+    updateData.name = name.trim()
+  }
+  if (amount !== undefined) {
+    const parsed = parseFloat(amount)
+    if (!isFinite(parsed) || parsed <= 0) {
+      return res.status(400).json({ error: 'Valor deve ser maior que zero.' })
+    }
+    if (parsed > MAX_AMOUNT) {
+      return res.status(400).json({ error: 'Valor excede o limite permitido.' })
+    }
+    updateData.amount = parsed
+  }
+  if (dueDay !== undefined) {
+    if (dueDay === null) {
+      updateData.dueDay = null
+    } else {
+      const parsedDueDay = parseInt(dueDay, 10)
+      if (!Number.isInteger(parsedDueDay) || parsedDueDay < 1 || parsedDueDay > 31) {
+        return res.status(400).json({ error: 'Dia de vencimento deve ser entre 1 e 31.' })
+      }
+      updateData.dueDay = parsedDueDay
+    }
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
+  }
+
   try {
-    const { id }                   = req.params
-    const { name, amount, dueDay } = req.body
-
-    const existing = await prisma.budget.findFirst({ where: { id, userId: req.userId } })
-    if (!existing) return res.status(404).json({ error: 'Conta fixa não encontrada.' })
-
-    const updateData = {}
-    if (name !== undefined) {
-      if (typeof name !== 'string' || name.trim().length === 0 || name.length > 100) {
-        return res.status(400).json({ error: 'Nome inválido.' })
-      }
-      updateData.name = name.trim()
-    }
-    if (amount !== undefined) {
-      const parsed = parseFloat(amount)
-      if (!isFinite(parsed) || parsed <= 0) {
-        return res.status(400).json({ error: 'Valor deve ser maior que zero.' })
-      }
-      if (parsed > MAX_AMOUNT) {
-        return res.status(400).json({ error: 'Valor excede o limite permitido.' })
-      }
-      updateData.amount = parsed
-    }
-    if (dueDay !== undefined) {
-      if (dueDay === null) {
-        updateData.dueDay = null
-      } else {
-        const parsedDueDay = parseInt(dueDay, 10)
-        if (!Number.isInteger(parsedDueDay) || parsedDueDay < 1 || parsedDueDay > 31) {
-          return res.status(400).json({ error: 'Dia de vencimento deve ser entre 1 e 31.' })
-        }
-        updateData.dueDay = parsedDueDay
-      }
-    }
-
+    // update com userId na where = ownership check + update em 1 query (sem findFirst prévio)
     const budget = await prisma.budget.update({ where: { id, userId: req.userId }, data: updateData })
     res.json(budget)
-  } catch (error) {
+  } catch (err) {
+    if (err.code === 'P2025') return res.status(404).json({ error: 'Conta fixa não encontrada.' })
+    console.error('Erro ao atualizar conta fixa:', err)
     res.status(500).json({ error: 'Erro ao atualizar conta fixa.' })
   }
 })
 
 // ── DELETE /budget/:id ──────────────────────────────────
 router.delete('/:id', async (req, res) => {
+  const { id } = req.params
+  if (!UUID_REGEX.test(id)) return res.status(400).json({ error: 'ID inválido.' })
   try {
-    const { id } = req.params
-
-    const existing = await prisma.budget.findFirst({ where: { id, userId: req.userId } })
-    if (!existing) return res.status(404).json({ error: 'Conta fixa não encontrada.' })
-
-    await prisma.budget.delete({ where: { id, userId: req.userId } })
+    // deleteMany com userId = ownership check em 1 query (sem findFirst prévio)
+    const result = await prisma.budget.deleteMany({ where: { id, userId: req.userId } })
+    if (result.count === 0) return res.status(404).json({ error: 'Conta fixa não encontrada.' })
     res.json({ message: 'Conta fixa removida.' })
   } catch (error) {
+    console.error('Erro ao remover conta fixa:', error)
     res.status(500).json({ error: 'Erro ao remover conta fixa.' })
   }
 })
@@ -181,11 +191,18 @@ router.get('/category-limits', async (req, res) => {
 router.post('/category-limits', async (req, res) => {
   try {
     const { category, amount } = req.body
-    if (!category || !amount) {
+    if (!category || amount === undefined || amount === null) {
       return res.status(400).json({ error: 'Categoria e valor são obrigatórios.' })
     }
     if (!VALID_CATEGORIES.includes(category)) {
       return res.status(400).json({ error: 'Categoria inválida.' })
+    }
+    const parsedCatAmount = parseFloat(amount)
+    if (!isFinite(parsedCatAmount) || parsedCatAmount <= 0) {
+      return res.status(400).json({ error: 'Valor deve ser maior que zero.' })
+    }
+    if (parsedCatAmount > MAX_AMOUNT) {
+      return res.status(400).json({ error: 'Valor excede o limite permitido.' })
     }
 
     // Limites por categoria são exclusivos do plano Pro
@@ -200,8 +217,8 @@ router.post('/category-limits', async (req, res) => {
     // upsert = cria se não existe, atualiza se já existe
     const limit = await prisma.categoryLimit.upsert({
       where:  { userId_category: { userId: req.userId, category } },
-      update: { amount: parseFloat(amount) },
-      create: { category, amount: parseFloat(amount), userId: req.userId }
+      update: { amount: parsedCatAmount },
+      create: { category, amount: parsedCatAmount, userId: req.userId }
     })
     res.json(limit)
   } catch (error) {

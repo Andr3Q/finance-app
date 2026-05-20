@@ -6,6 +6,45 @@ const authMiddleware = require('../middleware/auth')
 const router = express.Router()
 router.use(authMiddleware)
 
+// ── Modelos ─────────────────────────────────────────────
+// Modelo rápido (8B): previsão curta de 1 frase — velocidade importa
+// Modelo qualidade (120B): chat + relatório — raciocínio importa
+const MODEL_FAST    = 'llama-3.1-8b-instant'
+const MODEL_QUALITY = 'openai/gpt-oss-120b'
+
+// ── Singleton do cliente Groq ────────────────────────────
+// Criado uma única vez ao carregar o módulo (não a cada requisição).
+// timeout: 30s — evita requests penduradas indefinidamente.
+const groq = process.env.GROQ_API_KEY
+  ? new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 30_000 })
+  : null
+
+function requireGroq(res) {
+  if (!groq) {
+    res.status(503).json({ error: 'Agente IA não configurado. Adicione GROQ_API_KEY no .env.' })
+    return false
+  }
+  return true
+}
+
+// ── Retry para erros transitórios ───────────────────────
+// 529 = Groq overloaded, 503 = servidor indisponível.
+// Espera crescente: 1s, 2s (até 2 tentativas extras).
+async function withRetry(fn, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      const retryable = err.status === 529 || err.status === 503
+      if (retryable && attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
+        continue
+      }
+      throw err
+    }
+  }
+}
+
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',
   health:'Saúde', leisure:'Lazer', education:'Educação',
@@ -121,7 +160,7 @@ async function runTool(name, args, userId) {
       data: {
         userId, type: args.type, amount,
         category: args.category,
-        description: args.description || null,
+        description: args.description ? String(args.description).slice(0, 255) : null,
         date,
         month: date.getMonth() + 1,
         year:  date.getFullYear(),
@@ -142,10 +181,23 @@ function sanitizeHistory(history) {
     .filter(m => m && typeof m === 'object' && ['user','assistant'].includes(m.role) && typeof m.content === 'string')
     .slice(-10)
     .map(m => ({ role: m.role, content: m.content.slice(0, 2000) }))
-  // Descarta mensagens mais antigas se contexto total for muito grande
   const totalChars = filtered.reduce((s, m) => s + m.content.length, 0)
   if (totalChars > 12000) return filtered.slice(-4)
   return filtered
+}
+
+function handleGroqError(err, res) {
+  console.error('[AGENT]', err.status || '', err.message)
+  if (err.status === 429 || err.status === 529) {
+    return res.status(429).json({ error: 'Serviço de IA sobrecarregado. Aguarde alguns segundos e tente novamente.' })
+  }
+  if (err.status === 401) {
+    return res.status(503).json({ error: 'Chave da IA inválida. Verifique o GROQ_API_KEY.' })
+  }
+  if (err.name === 'APITimeoutError' || err.code === 'ETIMEDOUT') {
+    return res.status(504).json({ error: 'A IA demorou muito para responder. Tente novamente.' })
+  }
+  res.status(500).json({ error: 'Erro ao processar mensagem. Tente novamente.' })
 }
 
 const SYSTEM = `Você é o assistente financeiro pessoal do FinançasPro.
@@ -153,11 +205,9 @@ Responda sempre em português, de forma clara e objetiva.
 Use as ferramentas disponíveis para buscar os dados reais do usuário — nunca invente números.
 Ao analisar gastos, seja específico com valores. Ao criar transações, confirme o que foi registrado.`
 
-// POST /api/agent/chat
+// ── POST /api/agent/chat ────────────────────────────────
 router.post('/chat', async (req, res) => {
-  if (!process.env.GROQ_API_KEY) {
-    return res.status(503).json({ error: 'Agente IA não configurado. Adicione GROQ_API_KEY no .env.' })
-  }
+  if (!requireGroq(res)) return
 
   const { message, history } = req.body
 
@@ -168,8 +218,6 @@ router.post('/chat', async (req, res) => {
     return res.status(400).json({ error: 'Mensagem muito longa.' })
   }
 
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
   const messages = [
     { role: 'system', content: SYSTEM },
     ...sanitizeHistory(history),
@@ -177,52 +225,47 @@ router.post('/chat', async (req, res) => {
   ]
 
   try {
-    let response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    let response = await withRetry(() => groq.chat.completions.create({
+      model:      MODEL_QUALITY,
       messages,
-      tools: TOOLS,
+      tools:      TOOLS,
       tool_choice: 'auto',
       max_tokens: 1024,
-    })
+    }))
 
     let msg        = response.choices[0].message
     let iterations = 0
 
-    // Loop agêntico com limite de iterações para evitar loop infinito
     while (msg.tool_calls?.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
       iterations++
-      messages.push(msg)
 
-      for (const call of msg.tool_calls) {
-        let args = {}
-        try {
-          args = JSON.parse(call.function.arguments || '{}')
-        } catch {
-          args = {}
-        }
-
-        let result
-        try {
-          result = await runTool(call.function.name, args, req.userId)
-        } catch (toolErr) {
-          console.error(`[AGENT] tool ${call.function.name}:`, toolErr.message)
-          result = { error: 'Erro ao buscar dados. Tente novamente.' }
-        }
-
-        messages.push({
-          role: 'tool',
-          tool_call_id: call.id,
-          content: JSON.stringify(result).slice(0, 8000),
+      // Executa todas as tool calls em paralelo — quando o modelo pede múltiplas
+      // ferramentas ao mesmo tempo (ex: get_summary + get_transactions), não há
+      // razão para esperar uma terminar antes de iniciar a outra.
+      const toolResults = await Promise.all(
+        msg.tool_calls.map(async (call) => {
+          let args = {}
+          try { args = JSON.parse(call.function.arguments || '{}') } catch { args = {} }
+          let result
+          try {
+            result = await runTool(call.function.name, args, req.userId)
+          } catch (toolErr) {
+            console.error(`[AGENT] tool ${call.function.name}:`, toolErr.message)
+            result = { error: 'Erro ao buscar dados. Tente novamente.' }
+          }
+          return { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 8000) }
         })
-      }
+      )
 
-      response = await groq.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
+      messages.push(msg, ...toolResults)
+
+      response = await withRetry(() => groq.chat.completions.create({
+        model:      MODEL_QUALITY,
         messages,
-        tools: TOOLS,
+        tools:      TOOLS,
         tool_choice: 'auto',
         max_tokens: 1024,
-      })
+      }))
 
       msg = response.choices[0].message
     }
@@ -230,25 +273,16 @@ router.post('/chat', async (req, res) => {
     const reply = msg.content?.trim() || 'Não consegui gerar uma resposta. Tente novamente.'
     res.json({ reply })
   } catch (err) {
-    console.error('[AGENT]', err.message)
-
-    if (err.status === 429) {
-      return res.status(429).json({ error: 'Muitas requisições. Aguarde alguns segundos e tente novamente.' })
-    }
-    if (err.status === 401) {
-      return res.status(503).json({ error: 'Chave da IA inválida. Verifique o GROQ_API_KEY no .env.' })
-    }
-
-    res.status(500).json({ error: 'Erro ao processar mensagem. Tente novamente.' })
+    handleGroqError(err, res)
   }
 })
 
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
 // ── POST /api/agent/predict ─────────────────────────────
-// Previsão curta (2 frases) sobre o fim do mês
+// Usa modelo rápido (8B) — apenas 1 frase curta, velocidade > qualidade.
 router.post('/predict', async (req, res) => {
-  if (!process.env.GROQ_API_KEY) return res.status(503).json({ error: 'IA não configurada.' })
+  if (!requireGroq(res)) return
   try {
     const now         = new Date()
     const month       = now.getMonth() + 1
@@ -270,7 +304,6 @@ router.post('/predict', async (req, res) => {
     const totalExpenses  = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
     const totalIncome    = txs.filter(t => t.type === 'income').reduce((s, t)  => s + Number(t.amount), 0)
     const salary         = user?.salary || 0
-    const fixedCosts     = budgets.reduce((s, b) => s + Number(b.amount), 0)
     const totalAvailable = salary + totalIncome
     const pct            = totalAvailable > 0 ? Math.round(totalExpenses / totalAvailable * 100) : 0
 
@@ -280,7 +313,6 @@ router.post('/predict', async (req, res) => {
     })
     const topCat = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0]
 
-    const groq   = new Groq({ apiKey: process.env.GROQ_API_KEY })
     const prompt = `Usuário: ${user?.name || 'usuário'}
 Mês: ${MONTHS_PT[month - 1]} ${year} — dia ${dayOfMonth} de ${daysInMonth}
 Disponível: R$ ${totalAvailable.toFixed(2)} | Gasto até agora: R$ ${totalExpenses.toFixed(2)} (${pct}%)
@@ -288,34 +320,32 @@ Principal categoria de gasto: ${CATEGORY_LABELS[topCat?.[0]] || topCat?.[0] || '
 
 Escreva UMA frase curta e direta prevendo como o usuário vai terminar o mês financeiramente. Sem saudações, sem formatação, apenas a previsão.`
 
-    const response = await groq.chat.completions.create({
-      model:       'llama-3.3-70b-versatile',
+    const response = await withRetry(() => groq.chat.completions.create({
+      model:       MODEL_FAST,
       messages:    [
         { role: 'system', content: 'Consultor financeiro pessoal. Responda em português, máximo 1 frase, sem formatação.' },
         { role: 'user',   content: prompt },
       ],
       max_tokens:  120,
       temperature: 0.6,
-    })
+    }))
 
     res.json({ prediction: response.choices[0].message.content.trim() })
   } catch (err) {
-    console.error('[AGENT/predict]', err.message)
-    if (err.status === 429) return res.status(429).json({ error: 'Muitas requisições. Tente em instantes.' })
-    res.status(500).json({ error: 'Erro ao gerar previsão.' })
+    handleGroqError(err, res)
   }
 })
 
 // ── POST /api/agent/monthly-report ─────────────────────
-// Relatório IA completo do mês (max ~200 palavras)
 router.post('/monthly-report', async (req, res) => {
-  if (!process.env.GROQ_API_KEY) return res.status(503).json({ error: 'IA não configurada.' })
+  if (!requireGroq(res)) return
   try {
     const now   = new Date()
     const month = Number(req.body?.month) || now.getMonth() + 1
     const year  = Number(req.body?.year)  || now.getFullYear()
 
-    if (month < 1 || month > 12) return res.status(400).json({ error: 'Mês inválido.' })
+    if (month < 1 || month > 12)     return res.status(400).json({ error: 'Mês inválido.' })
+    if (year  < 2020 || year > 2100) return res.status(400).json({ error: 'Ano inválido.' })
 
     const [txs, budgets, user] = await Promise.all([
       prisma.transaction.findMany({
@@ -341,7 +371,6 @@ router.post('/monthly-report', async (req, res) => {
     const topCats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5)
       .map(([cat, amt]) => `${CATEGORY_LABELS[cat] || cat}: R$ ${amt.toFixed(2)}`).join(', ')
 
-    const groq   = new Groq({ apiKey: process.env.GROQ_API_KEY })
     const prompt = `Analise ${MONTHS_PT[month - 1]}/${year} de ${user?.name || 'usuário'}:
 Salário R$${salary.toFixed(2)} | Fixos R$${fixedCosts.toFixed(2)} | Extras R$${totalIncome.toFixed(2)} | Gasto R$${totalExpenses.toFixed(2)} | Saldo R$${balance.toFixed(2)}
 Top gastos: ${topCats}
@@ -355,21 +384,19 @@ Gere relatório financeiro em 4 parágrafos curtos (máximo 180 palavras total):
 
 Sem títulos, sem marcadores, parágrafos separados por linha em branco. Tom direto e amigável.`
 
-    const response = await groq.chat.completions.create({
-      model:       'llama-3.3-70b-versatile',
+    const response = await withRetry(() => groq.chat.completions.create({
+      model:       MODEL_QUALITY,
       messages:    [
         { role: 'system', content: 'Consultor financeiro pessoal. Responda em português, estruturado e direto.' },
         { role: 'user',   content: prompt },
       ],
       max_tokens:  450,
       temperature: 0.65,
-    })
+    }))
 
     res.json({ report: response.choices[0].message.content.trim(), month, year })
   } catch (err) {
-    console.error('[AGENT/monthly-report]', err.message)
-    if (err.status === 429) return res.status(429).json({ error: 'Muitas requisições. Tente em instantes.' })
-    res.status(500).json({ error: 'Erro ao gerar relatório.' })
+    handleGroqError(err, res)
   }
 })
 

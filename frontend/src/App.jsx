@@ -43,9 +43,13 @@ export default function App() {
     // Valida sessão contra o servidor uma vez na inicialização
     // Se o cookie JWT expirou mas localStorage ainda tem dados, limpa e redireciona
     if (isLoggedIn()) {
-      authAPI.me().catch(() => {
-        localStorage.removeItem('user')
-        window.location.href = '/login'
+      authAPI.me().catch((err) => {
+        // Só desloga em erro de autenticação (401/403), não em falha de rede ou timeout
+        const status = err.response?.status
+        if (status === 401 || status === 403) {
+          localStorage.removeItem('user')
+          window.location.href = '/login'
+        }
       })
     }
   }, [])
