@@ -24,9 +24,8 @@ const helmet       = require('helmet')
 const compression  = require('compression')
 const cookieParser = require('cookie-parser')
 const crypto       = require('crypto')
-const path         = require('path')
 
-const { apiLimiter, authLimiter, agentLimiter, forgotPasswordLimiter } = require('./middleware/rateLimiter')
+const { apiLimiter, authLimiter, agentLimiter } = require('./middleware/rateLimiter')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -209,7 +208,7 @@ app.get('/health', async (req, res) => {
 // ── Handler de Erros Global ─────────────────────────────
 // Inclui tratamento de erros Prisma para retornar status HTTP correto
 // em vez de sempre retornar 500.
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   // Unique constraint (ex: e-mail duplicado)
   if (err.code === 'P2002') {
     return res.status(409).json({ error: 'Recurso já existe.' })

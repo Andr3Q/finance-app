@@ -1,8 +1,8 @@
 {
-  "name": "Finance",
-  "short_name": "Finance",
+  "name": "FinançasPro",
+  "short_name": "FinançasPro",
   "id": "/",
-  "description": "Finance — Seu gestor inteligente de finanças pessoais.",
+  "description": "FinançasPro — Seu gestor inteligente de finanças pessoais.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -30,21 +30,21 @@
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Dashboard — Finance"
+      "label": "Dashboard — FinançasPro"
     },
     {
       "src": "/screenshot-mobile-2.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Login — Finance"
+      "label": "Login — FinançasPro"
     },
     {
       "src": "/screenshot-desktop.png",
       "sizes": "1280x800",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Versão desktop — Finance"
+      "label": "Versão desktop — FinançasPro"
     }
   ]
 }

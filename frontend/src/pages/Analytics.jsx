@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react'
 import Navbar from '../components/layout/Navbar.jsx'
 import GradCard from '../components/ui/GradCard.jsx'
 import { transactionsAPI, agentAPI } from '../services/api.js'
+import { getCache, setCache } from '../services/cache.js'
+
+const CACHE_HISTORY = 'analytics:history'
+const CACHE_SUBS    = 'analytics:subs'
+const TTL_5MIN      = 5 * 60_000
 
 const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 const MONTHS_FULL  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -130,15 +135,27 @@ export default function Analytics() {
   useEffect(() => {
     let cancelled = false
 
-    transactionsAPI.monthlyHistory(6)
-      .then(r => { if (!cancelled) setHistory(r.data) })
-      .catch(() => { if (!cancelled) setLoadingHist(false) })
-      .finally(() => { if (!cancelled) setLoadingHist(false) })
+    const cachedHistory = getCache(CACHE_HISTORY)
+    if (cachedHistory) {
+      setHistory(cachedHistory)
+      setLoadingHist(false)
+    } else {
+      transactionsAPI.monthlyHistory(6)
+        .then(r => { if (!cancelled) { setCache(CACHE_HISTORY, r.data, TTL_5MIN); setHistory(r.data) } })
+        .catch(() => { if (!cancelled) setLoadingHist(false) })
+        .finally(() => { if (!cancelled) setLoadingHist(false) })
+    }
 
-    transactionsAPI.subscriptions()
-      .then(r => { if (!cancelled) setSubs(r.data) })
-      .catch(() => { if (!cancelled) setLoadingSubs(false) })
-      .finally(() => { if (!cancelled) setLoadingSubs(false) })
+    const cachedSubs = getCache(CACHE_SUBS)
+    if (cachedSubs) {
+      setSubs(cachedSubs)
+      setLoadingSubs(false)
+    } else {
+      transactionsAPI.subscriptions()
+        .then(r => { if (!cancelled) { setCache(CACHE_SUBS, r.data, TTL_5MIN); setSubs(r.data) } })
+        .catch(() => { if (!cancelled) setLoadingSubs(false) })
+        .finally(() => { if (!cancelled) setLoadingSubs(false) })
+    }
 
     return () => { cancelled = true }
   }, [])

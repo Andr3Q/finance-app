@@ -3,6 +3,9 @@ import Navbar from '../components/layout/Navbar.jsx'
 import { goalsAPI } from '../services/api.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
+import { getCache, setCache, invalidateCache } from '../services/cache.js'
+
+const CACHE_KEY = 'goals:list'
 
 const PARTICLES = [
   { left:  4, size: 3, delay: 0,   dur: 2.8 },
@@ -91,9 +94,14 @@ export default function Goals() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  const fetch = useCallback(async () => {
+  const fetch = useCallback(async (force = false) => {
+    if (!force) {
+      const cached = getCache(CACHE_KEY)
+      if (cached) { setGoals(cached); setLoading(false); return }
+    }
     try {
       const { data } = await goalsAPI.list()
+      setCache(CACHE_KEY, data, 60_000)
       setGoals(data)
     } catch (err) {
       if (err.response) showToast('Erro ao carregar metas.', false)
@@ -117,7 +125,8 @@ export default function Goals() {
         showToast('Meta criada!')
       }
       setModal(null)
-      fetch()
+      invalidateCache(CACHE_KEY)
+      fetch(true)
     } catch (err) {
       showToast(err.response?.data?.error || 'Erro ao salvar meta.', false)
     } finally {
@@ -130,7 +139,8 @@ export default function Goals() {
     try {
       await goalsAPI.remove(id)
       showToast('Meta removida.')
-      fetch()
+      invalidateCache(CACHE_KEY)
+      fetch(true)
     } catch {
       showToast('Erro ao remover meta.', false)
     }
