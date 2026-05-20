@@ -8,7 +8,6 @@ import { useTheme } from '../hooks/useTheme.js'
 import SettingsHero        from '../components/features/settings/SettingsHero.jsx'
 import ProfileCard         from '../components/features/settings/ProfileCard.jsx'
 import SalaryCard          from '../components/features/settings/SalaryCard.jsx'
-import FixedExpensesCard   from '../components/features/settings/FixedExpensesCard.jsx'
 import AppearanceCard      from '../components/features/settings/AppearanceCard.jsx'
 import NotificationsCard   from '../components/features/settings/NotificationsCard.jsx'
 import CategoryLimitsCard  from '../components/features/settings/CategoryLimitsCard.jsx'
@@ -58,7 +57,6 @@ export default function Settings() {
 
             <div className="cfg-sec-title r4">Financeiro</div>
             <SalaryCard user={user} onMessage={showMsg} />
-            <FixedExpensesCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <div className="cfg-sec-title r7">Preferências</div>
             <AppearanceCard theme={theme} toggleTheme={toggleTheme} />
