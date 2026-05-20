@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { transactionsAPI } from '../services/api.js'
+import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
+
+const CACHE_KEY = 'transactions:list'
 
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',
@@ -29,10 +32,16 @@ export default function Transactions() {
     setTimeout(() => setToast(null), 4000)
   }
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = async (force = false) => {
+    if (!force) {
+      const cached = getCache(CACHE_KEY)
+      if (cached) { setTransactions(cached); setLoading(false); return }
+    }
     try {
       const res = await transactionsAPI.list({ limit: 200 })
-      setTransactions(res.data.data ?? res.data)
+      const data = res.data.data ?? res.data
+      setCache(CACHE_KEY, data, 30_000)
+      setTransactions(data)
     } catch { showToast('Erro ao carregar transações.', false) }
     finally { setLoading(false) }
   }
@@ -48,7 +57,8 @@ export default function Transactions() {
       setLoading(true)
       const res = await transactionsAPI.importCSV(formData)
       showToast(res.data.message)
-      fetchTransactions()
+      invalidateCache(CACHE_KEY)
+      fetchTransactions(true)
     } catch (err) {
       showToast(err.response?.data?.error || 'Erro ao importar CSV.', false)
       setLoading(false)
@@ -60,7 +70,8 @@ export default function Transactions() {
     if (!window.confirm('Remover esta transação?')) return
     try {
       await transactionsAPI.remove(id)
-      fetchTransactions()
+      invalidateCache(CACHE_KEY)
+      fetchTransactions(true)
     } catch { showToast('Erro ao remover.', false) }
   }
 
@@ -297,7 +308,7 @@ export default function Transactions() {
       {showForm && (
         <TransactionForm
           onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); fetchTransactions() }}
+          onSuccess={() => { setShowForm(false); invalidateCache(CACHE_KEY); fetchTransactions(true) }}
         />
       )}
     </>
