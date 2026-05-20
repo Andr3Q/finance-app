@@ -2795,16 +2795,30 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   margin-top: 4px;
 }
 .cfg-fixed-total span:last-child { color: var(--c); }
-.cfg-fixed-hint {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11px; color: rgba(255,255,255,.3);
-  padding: 8px 10px; margin-bottom: 10px;
-  background: rgba(255,255,255,.03);
-  border: 1px solid rgba(255,255,255,.06);
-  border-radius: 8px;
+.cfg-launch-row {
+  margin-bottom: 14px;
 }
-.cfg-fixed-hint svg { flex-shrink: 0; opacity: .5; }
-[data-theme="light"] .cfg-fixed-hint { color: rgba(0,0,0,.4); background: rgba(0,0,0,.03); border-color: rgba(0,0,0,.07); }
+.cfg-btn-launch {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%; padding: 11px 16px;
+  background: linear-gradient(135deg, rgba(74,196,110,.15), rgba(74,196,110,.08));
+  border: 1px solid rgba(74,196,110,.3);
+  border-radius: 10px; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: #4ac46e;
+  transition: background .15s, border-color .15s;
+}
+.cfg-btn-launch:hover:not(:disabled) { background: rgba(74,196,110,.2); border-color: rgba(74,196,110,.5); }
+.cfg-btn-launch:disabled { opacity: .6; cursor: not-allowed; }
+.cfg-launched-ok {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%; padding: 11px 16px;
+  background: rgba(74,196,110,.07);
+  border: 1px solid rgba(74,196,110,.2);
+  border-radius: 10px;
+  font-size: 13px; font-weight: 600; color: #4ac46e;
+}
+[data-theme="light"] .cfg-btn-launch { background: rgba(74,196,110,.08); }
+[data-theme="light"] .cfg-launched-ok { background: rgba(74,196,110,.06); }
 .cfg-del-btn {
   width: 26px;
   height: 26px;
