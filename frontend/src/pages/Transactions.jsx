@@ -10,7 +10,7 @@ const CACHE_KEY = 'transactions:list'
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',
   health:'Saúde', leisure:'Lazer', education:'Educação',
-  home:'Casa', income:'Entrada Extra', other:'Outros',
+  home:'Casa', fixed:'Conta Fixa', income:'Entrada Extra', other:'Outros',
 }
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                 'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -88,7 +88,7 @@ export default function Transactions() {
       filter === 'all'     ? true :
       filter === 'expense' ? t.type === 'expense' :
       filter === 'income'  ? t.type === 'income'  :
-      filter === 'fixed'   ? (t.description || '').toLowerCase().includes('[fixa]') :
+      filter === 'fixed'   ? t.category === 'fixed' :
       true
     return matchSearch && matchFilter
   })

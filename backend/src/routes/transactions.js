@@ -32,7 +32,7 @@ function nowBrasilia() {
 const CATEGORY_LABELS = {
   food:'Alimentação', shopping:'Shopping', transport:'Transporte',
   health:'Saúde', leisure:'Lazer', education:'Educação',
-  home:'Casa', income:'Entrada Extra', other:'Outros',
+  home:'Casa', fixed:'Conta Fixa', income:'Entrada Extra', other:'Outros',
 }
 const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS)
 const MAX_AMOUNT  = 999_999_999.99
@@ -430,10 +430,10 @@ router.post('/auto-launch', async (req, res) => {
     // createMany insere N contas em 1 round trip ao banco (vs N inserts individuais)
     await prisma.transaction.createMany({
       data: budgetsToLaunch.map(b => ({
-        description: `[Fixa] ${b.name}`,
+        description: b.name,
         amount:      b.amount,
         type:        'expense',
-        category:    'home',
+        category:    'fixed',
         month,
         year,
         userId:      req.userId
