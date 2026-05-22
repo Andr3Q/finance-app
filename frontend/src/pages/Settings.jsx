@@ -105,7 +105,7 @@ export default function Settings() {
             {/* Excluir conta — aparece em todos os dispositivos */}
             <div className="cfg-card">
               <button
-                className="cfg-btn-danger"
+                className="cfg-btn-danger cfg-logout-btn"
                 onClick={() => { setDeleteModal(true); setDeletePass(''); setDeleteErr('') }}
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -113,9 +113,6 @@ export default function Settings() {
                 </svg>
                 Excluir minha conta
               </button>
-              <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 8, marginBottom: 0 }}>
-                Remove permanentemente todos os seus dados — LGPD Art. 18.
-              </p>
             </div>
 
           </div>
