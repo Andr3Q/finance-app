@@ -8,6 +8,11 @@ on:
   # Permite rodar manualmente pelo painel do GitHub Actions
   workflow_dispatch:
 
+# Garante que só um deploy roda por vez — o mais recente cancela o anterior
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: Deploy para Cloud Run
