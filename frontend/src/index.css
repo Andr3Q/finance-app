@@ -7249,8 +7249,15 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .gls-feature-item { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--t2); }
 
 /* ── Settings: botão de logout ── */
-.cfg-logout-btn { width: 100%; justify-content: center; }
-@media (max-width: 768px) { .cfg-logout-btn { font-size: 13px; } }
+.cfg-logout-btn { width: 100%; justify-content: center; font-size: 14px; }
+
+/* Esconde o card de logout no desktop — já existe na sidebar */
+@media (min-width: 769px) { .cfg-mobile-only { display: none !important; } }
+
+/* No mobile o btn-danger fica full width */
+@media (max-width: 768px) {
+  .cfg-btn-danger { width: 100%; justify-content: center; font-size: 14px; }
+}
 
 /* ═══════════════════════════════════════════════════════
    GradCard — cabeçalho com gradiente + partículas
