@@ -2739,6 +2739,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   color: var(--c);
   font-weight: 600;
 }
+.cfg-inline-err { font-size: 12px; color: #ff4757; font-weight: 600; }
 
 /* Buttons */
 .cfg-btn-primary {
@@ -5445,7 +5446,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* ── Responsive ────────────────────────────────────────── */
 @media (max-width: 900px) {
   .hb-grid { grid-template-columns: 1fr; }
-  .hb-right { order: -1; }
+  .hb-right { order: -1; min-height: unset; }
+  .hb-right .hb-feed-card { flex: none; }
   .hb-ring-card { padding: 18px 20px; }
 }
 @media (max-width: 640px) {
@@ -6055,14 +6057,25 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   font-size: 11px; color: rgba(255,255,255,.35);
 }
 .parc-remaining { color: #ff8c42; font-weight: 600; }
+.parc-actions {
+  display: flex; gap: 8px; align-items: center; margin-top: 2px;
+}
 .parc-pay-btn {
   display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
+  flex: 1; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;
   background: rgba(74,196,110,.1); border: 1px solid rgba(74,196,110,.25); color: #4ac46e;
-  transition: background .15s; margin-top: 2px;
+  transition: background .15s;
 }
 .parc-pay-btn:hover:not(:disabled) { background: rgba(74,196,110,.2); }
 .parc-pay-btn:disabled { opacity: .6; cursor: not-allowed; }
+.parc-unpay-btn {
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600;
+  background: rgba(255,107,107,.07); border: 1px solid rgba(255,107,107,.2); color: rgba(255,107,107,.7);
+  transition: background .15s; white-space: nowrap; flex-shrink: 0;
+}
+.parc-unpay-btn:hover:not(:disabled) { background: rgba(255,107,107,.15); color: #ff6b6b; }
+.parc-unpay-btn:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Light mode */
 [data-theme="light"] .parc-section { background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.08); }
@@ -6553,7 +6566,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   align-items: center;
   justify-content: center;
 }
-.pp1-td-pro-col { display: table-cell; }
+.pp1-td-pro-col { display: flex; }
 .pp1-td-val {
   font-size: 12px;
   color: var(--t2);
@@ -7476,6 +7489,35 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .gls-empty-state .gls-btn-new { margin-top: 8px; }
 [data-theme="light"] .gls-empty-state { border-color: rgba(0,0,0,.1); background: rgba(0,0,0,.02); }
 [data-theme="light"] .gls-empty-icon { background: rgba(74,196,110,.12); }
+.gls-locked-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 10px; padding: 56px 24px; border: 1px dashed rgba(74,196,110,.35);
+  border-radius: 14px; text-align: center; background: rgba(74,196,110,.04);
+}
+.gls-locked-icon {
+  width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; background: rgba(74,196,110,.12);
+}
+.gls-locked-title { font-size: 15px; font-weight: 600; color: var(--t1); }
+.gls-locked-sub { font-size: 12.5px; color: var(--t3); max-width: 260px; line-height: 1.5; font-weight: 400; }
+.gls-btn-upgrade {
+  margin-top: 4px; padding: 9px 22px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  border: none; cursor: pointer; background: #4ac46e;
+  color: #fff; transition: opacity .15s;
+}
+.gls-btn-upgrade:hover { opacity: .88; }
+[data-theme="light"] .gls-locked-state { border-color: rgba(74,196,110,.25); background: rgba(74,196,110,.03); }
+[data-theme="light"] .gls-locked-icon { background: rgba(74,196,110,.1); }
+.gls-pro-limit-banner {
+  display: flex; align-items: center; gap: 7px; padding: 10px 14px;
+  border-radius: 9px; font-size: 12.5px; color: var(--t2); margin-bottom: 14px;
+  background: rgba(255,140,66,.1); border: 1px solid rgba(255,140,66,.25);
+}
+.gls-pro-limit-link {
+  background: none; border: none; cursor: pointer; font-size: 12.5px;
+  font-weight: 600; color: #7b2fff; padding: 0; text-decoration: underline;
+}
+[data-theme="light"] .gls-pro-limit-banner { background: rgba(255,140,66,.08); }
 .gls-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

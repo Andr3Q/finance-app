@@ -19,6 +19,12 @@ const api = axios.create({
   withCredentials: true,
 })
 
+api.interceptors.request.use(config => {
+  const token = sessionStorage.getItem('token')
+  if (token) config.headers['Authorization'] = `Bearer ${token}`
+  return config
+})
+
 // Interceptor de resposta:
 // Se o backend retornar 401 ou 403 (cookie expirado),
 // limpa os dados locais e redireciona para o login
@@ -29,7 +35,8 @@ api.interceptors.response.use(
     const status = error.response.status
     const isAuthError = (status === 401) || (status === 403 && !error.response?.data?.limitReached)
     if (isAuthError) {
-      localStorage.removeItem('user')
+      sessionStorage.removeItem('user')
+      sessionStorage.removeItem('token')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -47,6 +54,7 @@ export const authAPI = {
   updateProfile:  (data)            => api.put('/auth/profile', data),
   upgradePro:     ()                => api.post('/auth/upgrade'),
   downgradeFree:  ()                => api.post('/auth/downgrade'),
+  deleteAccount:  (password)        => api.delete('/auth/account', { data: { password } }),
 }
 
 // ── Funções de transações ───────────────────────────────
@@ -107,7 +115,12 @@ export const installmentsAPI = {
   list:   ()     => api.get('/installments'),
   create: (data) => api.post('/installments', data),
   pay:    (id)   => api.patch(`/installments/${id}/pay`),
+  unpay:  (id)   => api.patch(`/installments/${id}/unpay`),
   remove: (id)   => api.delete(`/installments/${id}`),
+}
+
+export const paymentsAPI = {
+  createPreference: (plan, period) => api.post('/payments/create-preference', { plan, period }),
 }
 
 export default api

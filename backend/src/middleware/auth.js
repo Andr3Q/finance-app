@@ -15,14 +15,14 @@ const jwt = require('jsonwebtoken')
 
 function authMiddleware(req, res, next) {
   // Prefer HttpOnly cookie; fall back to Authorization header for API clients
-  const token = req.cookies?.token || (req.headers['authorization']?.split(' ')[1])
+  const token = (req.headers['authorization']?.split(' ')[1]) || req.cookies?.token
 
   if (!token) {
     return res.status(401).json({ error: 'Token não encontrado. Faça login.' })
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] })
     req.userId = decoded.userId
     next()
   } catch (error) {

@@ -7,11 +7,7 @@
 // ═══════════════════════════════════════════════════════
 
 const PDFDocument = require('pdfkit')
-
-const MONTH_NAMES = [
-  'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
-]
+const { MONTHS: MONTH_NAMES } = require('../utils/constants')
 
 const CATEGORY_LABELS = {
   food:        '🍔 Alimentação',

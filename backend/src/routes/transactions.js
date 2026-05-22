@@ -18,25 +18,8 @@ const { parse }      = require('csv-parse/sync')
 const { sendPushToUser } = require('../services/pushService')
 const { dashboardLimiter } = require('../middleware/rateLimiter')
 
-// Retorna mês/ano/dia no fuso horário de Brasília (UTC-3),
-// evitando que viradas de meia-noite UTC mudem o mês incorretamente.
-function nowBrasilia() {
-  const parts = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric', month: 'numeric', day: 'numeric',
-  }).formatToParts(new Date())
-  const get = (type) => parseInt(parts.find(p => p.type === type).value)
-  return { month: get('month'), year: get('year'), day: get('day') }
-}
-
-const CATEGORY_LABELS = {
-  food:'Alimentação', shopping:'Shopping', transport:'Transporte',
-  health:'Saúde', leisure:'Lazer', education:'Educação',
-  home:'Casa', fixed:'Conta Fixa', income:'Entrada Extra', other:'Outros',
-}
-const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS)
-const MAX_AMOUNT  = 999_999_999.99
-const UUID_REGEX  = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES } = require('../utils/constants')
+const { nowBrasilia } = require('../utils/helpers')
 
 const router = express.Router()
 
@@ -271,7 +254,7 @@ router.get('/', dashboardLimiter, async (req, res) => {
 // ── POST /transactions ──────────────────────────────────
 // Registra uma nova transação (gasto ou entrada de dinheiro)
 // Body esperado: { description, amount, type, category }
-router.post('/', async (req, res) => {
+router.post('/', dashboardLimiter, async (req, res) => {
   try {
     const { description, amount, type, category } = req.body
     const parsedAmount = parseFloat(amount)
@@ -305,11 +288,19 @@ router.post('/', async (req, res) => {
         _count: { select: { transactions: { where: { month: currentMonth, year: currentYear, archived: false } } } }
       }
     })
-    if (userData?.plan === 'free' && userData._count.transactions >= 30) {
+    const txCount = userData._count.transactions
+    if (userData?.plan === 'free' && txCount >= 20) {
       return res.status(403).json({
-        error: 'Limite de 30 transações por mês atingido no plano Gratuito.',
+        error: 'Limite de 20 transações por mês atingido no plano Gratuito.',
         limitReached: true,
         plan: 'free'
+      })
+    }
+    if (userData?.plan === 'pro' && txCount >= 35) {
+      return res.status(403).json({
+        error: 'Limite de 35 transações por mês atingido no plano Pro.',
+        limitReached: true,
+        plan: 'pro'
       })
     }
 
@@ -360,7 +351,7 @@ router.post('/', async (req, res) => {
 
 // ── DELETE /transactions/:id ────────────────────────────
 // Remove uma transação pelo ID (apenas se pertencer ao usuário)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', dashboardLimiter, async (req, res) => {
   const { id } = req.params
   if (!UUID_REGEX.test(id)) return res.status(400).json({ error: 'ID inválido.' })
   try {
@@ -378,7 +369,7 @@ router.delete('/:id', async (req, res) => {
 // ── POST /transactions/auto-launch ─────────────────────
 // Lança todas as contas fixas como transações do mês atual.
 // Só executa uma vez por mês (controla pelo autoLaunchMonth/Year no User).
-router.post('/auto-launch', async (req, res) => {
+router.post('/auto-launch', dashboardLimiter, async (req, res) => {
   try {
     const { month, year } = nowBrasilia()
 
@@ -397,19 +388,19 @@ router.post('/auto-launch', async (req, res) => {
 
     // Verifica limite do plano Free antes de criar transações
     let budgetsToLaunch = budgets
-    if (userCheck.plan === 'free') {
+    if (userCheck.plan === 'free' || userCheck.plan === 'pro') {
+      const planLimit  = userCheck.plan === 'pro' ? 35 : 20
       const currentCount = await prisma.transaction.count({
         where: { userId: req.userId, month, year, archived: false }
       })
-      const remaining = 30 - currentCount
+      const remaining = planLimit - currentCount
       if (remaining <= 0) {
         return res.status(403).json({
-          error: 'Limite de 30 transações por mês atingido. Não foi possível lançar as contas fixas.',
+          error: `Limite de ${planLimit} transações por mês atingido. Não foi possível lançar as contas fixas.`,
           limitReached: true,
-          plan: 'free',
+          plan: userCheck.plan,
         })
       }
-      // Lança apenas até o limite disponível
       if (budgets.length > remaining) budgetsToLaunch = budgets.slice(0, remaining)
     }
 
@@ -465,7 +456,7 @@ const upload = multer({
   }
 })
 
-router.post('/import', upload.single('file'), async (req, res) => {
+router.post('/import', dashboardLimiter, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
@@ -484,17 +475,18 @@ router.post('/import', upload.single('file'), async (req, res) => {
         _count: { select: { transactions: { where: { month: currentMonth, year: currentYear, archived: false } } } }
       }
     })
-    let freeLimit = null
-    if (userData?.plan === 'free') {
+    let importLimit = null
+    if (userData?.plan === 'free' || userData?.plan === 'pro') {
+      const planLimit    = userData.plan === 'pro' ? 35 : 20
       const currentCount = userData._count.transactions
-      if (currentCount >= 30) {
+      if (currentCount >= planLimit) {
         return res.status(403).json({
-          error: 'Limite de 30 transações por mês atingido no plano Gratuito.',
+          error: `Limite de ${planLimit} transações por mês atingido.`,
           limitReached: true,
-          plan: 'free'
+          plan: userData.plan
         })
       }
-      freeLimit = 30 - currentCount
+      importLimit = planLimit - currentCount
     }
 
     // Versão síncrona — elimina o mixing de callback+async que causava
@@ -517,7 +509,7 @@ router.post('/import', upload.single('file'), async (req, res) => {
 
     const transactions = []
     for (const record of records) {
-      if (freeLimit !== null && transactions.length >= freeLimit) break
+      if (importLimit !== null && transactions.length >= importLimit) break
 
       const description = (
         record['Descrição'] || record['Historico'] || record['description'] ||

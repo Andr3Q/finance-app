@@ -30,7 +30,8 @@ model User {
   autoLaunchYear   Int?
   resetToken       String?
   resetTokenExpiry DateTime?
-  plan             String    @default("free")  // "free" ou "pro"
+  plan             String    @default("free")
+  planExpiresAt    DateTime?
 
   transactions      Transaction[]
   budgets           Budget[]
@@ -134,4 +135,47 @@ model InstallmentPlan {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ── Tabela: security_scans ──────────────────────────────
+model SecurityScan {
+  id        String   @id @default(uuid())
+  tool      String
+  status    String
+  vulnCount Int      @default(0)
+  details   Json?
+  runAt     DateTime @default(now())
+
+  @@index([tool, runAt])
+  @@map("security_scans")
+}
+
+// ── Tabela: processed_payments ──────────────────────────
+// Deduplicação de webhooks do Mercado Pago — impede que o mesmo pagamento
+// ative o plano duas vezes se o MP reenviar a notificação.
+model ProcessedPayment {
+  id          String   @id @default(uuid())
+  paymentId   String   @unique
+  userId      String
+  plan        String
+  period      String
+  processedAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("processed_payments")
+}
+
+// ── Tabela: login_audits ────────────────────────────────
+// Log de todas as tentativas de login — permite detectar ataques de força
+// bruta, contas comprometidas e acessos suspeitos por IP.
+model LoginAudit {
+  id        String   @id @default(uuid())
+  email     String
+  success   Boolean
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@map("login_audits")
 }

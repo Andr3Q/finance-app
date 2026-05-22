@@ -21,9 +21,13 @@ export default function Settings() {
   const { theme, toggle: toggleTheme } = useTheme()
   const isPro = user.plan === 'pro' || user.plan === 'elite'
 
-  const [msg,          setMsg]          = useState('')
-  const [msgType,      setMsgType]      = useState('success')
-  const [upgradeModal, setUpgradeModal] = useState(null)
+  const [msg,           setMsg]          = useState('')
+  const [msgType,       setMsgType]      = useState('success')
+  const [upgradeModal,  setUpgradeModal] = useState(null)
+  const [deleteModal,   setDeleteModal]  = useState(false)
+  const [deletePass,    setDeletePass]   = useState('')
+  const [deleteErr,     setDeleteErr]    = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const showMsg = (text, type = 'success') => {
     setMsg(text); setMsgType(type)
@@ -32,8 +36,23 @@ export default function Settings() {
 
   const handleLogout = async () => {
     try { await authAPI.logout() } catch { /* ignora erros de rede */ }
-    localStorage.removeItem('user')
+    sessionStorage.removeItem('user')
+    sessionStorage.removeItem('token')
     navigate('/login')
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!deletePass) { setDeleteErr('Digite sua senha para confirmar.'); return }
+    setDeleteLoading(true); setDeleteErr('')
+    try {
+      await authAPI.deleteAccount(deletePass)
+      sessionStorage.removeItem('user')
+      sessionStorage.removeItem('token')
+      navigate('/login')
+    } catch (err) {
+      setDeleteErr(err.response?.data?.error || 'Erro ao excluir conta.')
+      setDeleteLoading(false)
+    }
   }
 
   return (
@@ -79,6 +98,21 @@ export default function Settings() {
                 </svg>
                 Sair da conta
               </button>
+              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--bd)' }}>
+                <button
+                  className="cfg-btn-danger"
+                  style={{ opacity: 0.7, fontSize: 13 }}
+                  onClick={() => { setDeleteModal(true); setDeletePass(''); setDeleteErr('') }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                  Excluir minha conta
+                </button>
+                <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 6, marginBottom: 0 }}>
+                  Remove permanentemente todos os seus dados — LGPD Art. 18.
+                </p>
+              </div>
             </div>
 
           </div>
@@ -87,6 +121,59 @@ export default function Settings() {
 
       {upgradeModal && (
         <UpgradeModal reason={upgradeModal} onClose={() => { setUpgradeModal(null); navigate('/planos') }} />
+      )}
+
+      {deleteModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'var(--s1)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:400 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+              <div style={{ width:36, height:36, borderRadius:10, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div>
+                <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)' }}>Excluir conta permanentemente</div>
+                <div style={{ fontSize:12, color:'var(--t3)' }}>Esta ação não pode ser desfeita</div>
+              </div>
+            </div>
+
+            <p style={{ fontSize:13, color:'var(--t2)', marginBottom:16, lineHeight:1.6 }}>
+              Todos os seus dados serão removidos: transações, metas, contas fixas,
+              histórico e configurações. Seu plano será cancelado sem reembolso proporcional.
+            </p>
+
+            <label style={{ fontSize:13, color:'var(--t3)', display:'block', marginBottom:6 }}>
+              Digite sua senha para confirmar
+            </label>
+            <input
+              type="password"
+              placeholder="Sua senha atual"
+              value={deletePass}
+              onChange={e => { setDeletePass(e.target.value); setDeleteErr('') }}
+              onKeyDown={e => e.key === 'Enter' && handleDeleteAccount()}
+              style={{ width:'100%', boxSizing:'border-box', padding:'10px 12px', background:'var(--bg)', border:`1px solid ${deleteErr ? '#ef4444' : 'var(--bd)'}`, borderRadius:8, color:'var(--t1)', fontSize:14, outline:'none', marginBottom: deleteErr ? 6 : 16 }}
+              autoFocus
+            />
+            {deleteErr && (
+              <div style={{ fontSize:12, color:'#ef4444', marginBottom:14 }}>{deleteErr}</div>
+            )}
+
+            <div style={{ display:'flex', gap:10 }}>
+              <button
+                onClick={() => setDeleteModal(false)}
+                style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteLoading}
+                style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor: deleteLoading ? 'not-allowed' : 'pointer', opacity: deleteLoading ? 0.7 : 1 }}
+              >
+                {deleteLoading ? 'Excluindo…' : 'Excluir conta'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )

@@ -64,7 +64,7 @@ export default function NotificationsCard({ isPro, onMessage, onUpgrade }) {
       })
       await notificationsAPI.subscribe(sub.toJSON())
     } catch (err) {
-      console.error('Push error:', err)
+      if (import.meta.env.DEV) console.error('Push error:', err)
       setNotifStatus('default')
       onMessage(err.message || 'Erro ao ativar notificações.', 'error')
     } finally {

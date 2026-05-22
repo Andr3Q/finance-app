@@ -8,21 +8,8 @@ import GradCard from '../components/ui/GradCard.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import AutoLaunchPrompt from '../components/features/AutoLaunchPrompt.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
-
-const CATEGORY_LABELS = {
-  food:'Alimentação', shopping:'Shopping', transport:'Transporte',
-  health:'Saúde', leisure:'Lazer', education:'Educação',
-  home:'Casa', fixed:'Conta Fixa', income:'Entrada Extra', other:'Outros',
-}
-
-const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-
-const fmt     = (n) => n?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'
-const fmtShort= (n) => {
-  if (!n && n !== 0) return '0'
-  if (Math.abs(n) >= 1000) return `${(n/1000).toFixed(1)}k`
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: 0 })
-}
+import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
+import { fmt, fmtShort } from '../utils/format.js'
 
 export default function Dashboard() {
   const navigate = useNavigate()

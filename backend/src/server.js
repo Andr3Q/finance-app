@@ -2,6 +2,10 @@
 // 🚀 src/server.js — Ponto de Entrada do Backend
 // ═══════════════════════════════════════════════════════
 
+// Ignora SIGPIPE globalmente — libpq (Prisma) e subprocessos nativos (trivy, npm)
+// podem gerar SIGPIPE em conexões TCP/pipes quebrados. Sem este handler o processo morre.
+process.on('SIGPIPE', () => {})
+
 // Monorepo: tenta .env no CWD (docker-compose / produção); se não encontrar,
 // busca na raiz do projeto (desenvolvimento direto via `npm run dev:backend`)
 const path = require('path')
@@ -25,7 +29,7 @@ const compression  = require('compression')
 const cookieParser = require('cookie-parser')
 const crypto       = require('crypto')
 
-const { apiLimiter, authLimiter, agentLimiter } = require('./middleware/rateLimiter')
+const { apiLimiter, authLimiter, agentLimiter, paymentLimiter } = require('./middleware/rateLimiter')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -35,6 +39,9 @@ const monitorAlertRoute   = require('./routes/monitorAlert')
 const agentRoutes         = require('./routes/agent')
 const goalRoutes          = require('./routes/goals')
 const installmentRoutes   = require('./routes/installments')
+const paymentRoutes       = require('./routes/payments')
+const securityRoutes      = require('./routes/security')
+const { runAllScans }     = require('./services/securityScanner')
 
 const app        = express()
 const PORT       = process.env.PORT || 3001
@@ -157,41 +164,69 @@ app.use('/api/auth',          authLimiter, authRoutes)
 app.use('/api/transactions',  transactionRoutes)
 app.use('/api/budget',        budgetRoutes)
 app.use('/api/reports',       reportRoutes)
-app.use('/api/monitor-alert', monitorAlertRoute)
+app.use('/api/monitor-alert', apiLimiter, monitorAlertRoute)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/agent',        agentLimiter, agentRoutes)
 app.use('/api/goals',        goalRoutes)
 app.use('/api/installments', installmentRoutes)
+app.use('/api/payments',     paymentLimiter, paymentRoutes)
+app.use('/api/security',     apiLimiter,     securityRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
-const prismaHealth = require('./lib/prisma')
+// Cliente DEDICADO ao health check — completamente separado do pool principal.
+// Isso evita que $disconnect() ou lentidão no health afetem rotas reais.
+const { PrismaClient: PrismaHealthClient } = require('@prisma/client')
+const _hcUrl = (() => {
+  const base = process.env.DATABASE_URL || ''
+  if (!base) return base
+  try {
+    const u = new URL(base)
+    if (!u.searchParams.has('connection_limit')) u.searchParams.set('connection_limit', '1')
+    if (!u.searchParams.has('connect_timeout'))  u.searchParams.set('connect_timeout',  '8')
+    if (!u.searchParams.has('pool_timeout'))      u.searchParams.set('pool_timeout',     '8')
+    return u.toString()
+  } catch { return base }
+})()
+const prismaHealth = new PrismaHealthClient({
+  log: [{ emit: 'event', level: 'error' }],
+  datasources: { db: { url: _hcUrl } },
+})
+prismaHealth.$on('error', () => {})  // suprime logs duplicados do cliente de health
 
 // /ping — resposta imediata sem tocar no banco (mede latência do servidor)
-app.get('/ping', (req, res) => {
+app.get('/ping', apiLimiter, (req, res) => {
   res.json({ status: 'ok', ts: Date.now() })
 })
 
 // Cache do health check — atualizado em background pelo keepalive (15s)
 // TTL de 30s: /health quase nunca toca no banco durante um request
 const _health = { ts: 0, ok: true, db_ms: 0 }
+let _healthFailStreak = 0
 
-// Atualiza o cache em background — separa latência de DB da latência de resposta HTTP
+async function tryPing(timeoutMs = 8000) {
+  await Promise.race([
+    prismaHealth.$queryRaw`SELECT 1`,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
+  ])
+}
+
 async function refreshHealth() {
   const t0 = Date.now()
   try {
-    await Promise.race([
-      prismaHealth.$queryRaw`SELECT 1`,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-    ])
+    await tryPing()
+    _healthFailStreak = 0
     Object.assign(_health, { ts: Date.now(), ok: true, db_ms: Date.now() - t0 })
   } catch (err) {
-    Object.assign(_health, { ts: Date.now(), ok: false, db_ms: Date.now() - t0 })
-    console.error(`[HEALTH] keepalive falhou: ${err.message}`)
+    _healthFailStreak++
+    // Marca degraded só após 3 falhas consecutivas — reconexões transitórias são normais
+    const ok = _healthFailStreak < 3
+    Object.assign(_health, { ts: Date.now(), ok, db_ms: Date.now() - t0 })
+    if (!ok) console.error(`[HEALTH] DB indisponível (streak ${_healthFailStreak}): ${err.message}`)
   }
 }
 
 // /health — serve do cache em memória; query real só se keepalive parou há >30s
-app.get('/health', async (req, res) => {
+app.get('/health', apiLimiter, async (req, res) => {
   const now = Date.now()
 
   if (now - _health.ts < 30_000 && _health.ts > 0) {
@@ -262,6 +297,13 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   if (isProd) {
     setInterval(refreshHealth, 15_000)
   }
+
+  // Scans de segurança: primeiro após 3min (app estável), depois a cada 6h
+  // Intervalo reduzido de 1h→6h: trivy escaneia /app inteiro e é pesado
+  setTimeout(() => {
+    runAllScans().catch(() => {})
+    setInterval(() => runAllScans().catch(() => {}), 6 * 3_600_000)
+  }, 3 * 60_000)
 })
 
 // ── Graceful shutdown ───────────────────────────────────

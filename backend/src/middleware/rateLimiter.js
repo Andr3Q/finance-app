@@ -10,12 +10,11 @@ const apiLimiter = rateLimit({
   message:  { error: 'Muitas requisições. Tente novamente em 15 minutos.' },
 })
 
-// Autenticação: 5 tentativas / 15 min por IP
-// skipSuccessfulRequests: logins bem-sucedidos não consomem a cota — só tentativas falhas
+// Autenticação: 20 tentativas / 15 min por IP (dev) — em prod usar 5
 const authLimiter = rateLimit({
   ...opts,
   windowMs:               15 * 60 * 1000,
-  max:                    5,
+  max:                    process.env.NODE_ENV === 'production' ? 5 : 20,
   skipSuccessfulRequests: true,
   message:  { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 })
@@ -62,12 +61,32 @@ const reportLimiter = rateLimit({
   message:      { error: 'Limite de fechamentos mensais atingido. Tente novamente em 1 hora.' },
 })
 
+// Registro de conta: 5 por hora por IP (independente de authLimiter que usa skipSuccessful)
+const registerLimiter = rateLimit({
+  ...opts,
+  windowMs: 60 * 60 * 1000,
+  max:      5,
+  message:  { error: 'Muitas tentativas de cadastro. Tente novamente em 1 hora.' },
+})
+
+// Criação de preferência de pagamento: 10 por 15 min por usuário autenticado
+// Evita que alguém crie preferências em loop gerando custo desnecessário no MP
+const paymentLimiter = rateLimit({
+  ...opts,
+  windowMs:     15 * 60 * 1000,
+  max:          10,
+  keyGenerator: (req) => req.userId || req.ip,
+  message:      { error: 'Muitas tentativas de pagamento. Tente novamente em 15 minutos.' },
+})
+
 module.exports = {
   apiLimiter,
   authLimiter,
+  registerLimiter,
   agentLimiter,
   forgotPasswordLimiter,
   resetPasswordLimiter,
   dashboardLimiter,
   reportLimiter,
+  paymentLimiter,
 }
