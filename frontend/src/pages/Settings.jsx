@@ -89,7 +89,9 @@ export default function Settings() {
             <InstallCard />
 
             <div className="cfg-sec-title r10">Conta</div>
-            <div className="cfg-card r10">
+
+            {/* Sair — só aparece no mobile (desktop tem o botão na sidebar) */}
+            <div className="cfg-card r10 cfg-mobile-only">
               <button className="cfg-btn-danger cfg-logout-btn" onClick={handleLogout}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
@@ -98,21 +100,22 @@ export default function Settings() {
                 </svg>
                 Sair da conta
               </button>
-              <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--bd)' }}>
-                <button
-                  className="cfg-btn-danger"
-                  style={{ opacity: 0.7, fontSize: 13 }}
-                  onClick={() => { setDeleteModal(true); setDeletePass(''); setDeleteErr('') }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                  </svg>
-                  Excluir minha conta
-                </button>
-                <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 6, marginBottom: 0 }}>
-                  Remove permanentemente todos os seus dados — LGPD Art. 18.
-                </p>
-              </div>
+            </div>
+
+            {/* Excluir conta — aparece em todos os dispositivos */}
+            <div className="cfg-card">
+              <button
+                className="cfg-btn-danger"
+                onClick={() => { setDeleteModal(true); setDeletePass(''); setDeleteErr('') }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+                Excluir minha conta
+              </button>
+              <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 8, marginBottom: 0 }}>
+                Remove permanentemente todos os seus dados — LGPD Art. 18.
+              </p>
             </div>
 
           </div>
