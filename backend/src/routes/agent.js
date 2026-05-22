@@ -2,6 +2,8 @@ const express        = require('express')
 const Groq           = require('groq-sdk')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
+const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS } = require('../utils/constants')
+const { nowBrasilia } = require('../utils/helpers')
 
 const router = express.Router()
 router.use(authMiddleware)
@@ -28,16 +30,19 @@ function requireGroq(res) {
 }
 
 // ── Retry para erros transitórios ───────────────────────
-// 529 = Groq overloaded, 503 = servidor indisponível.
-// Espera crescente: 1s, 2s (até 2 tentativas extras).
+// 429 = rate limit, 529 = Groq overloaded, 503 = servidor indisponível.
+// Backoff crescente: 1s, 2s, 4s. 429 espera o dobro (2s, 4s, 8s).
 async function withRetry(fn, retries = 2) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fn()
     } catch (err) {
-      const retryable = err.status === 529 || err.status === 503
+      const isRateLimit   = err.status === 429
+      const isOverloaded  = err.status === 529 || err.status === 503
+      const retryable     = isRateLimit || isOverloaded
       if (retryable && attempt < retries) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
+        const base  = isRateLimit ? 2000 : 1000
+        await new Promise(r => setTimeout(r, base * Math.pow(2, attempt)))
         continue
       }
       throw err
@@ -45,13 +50,6 @@ async function withRetry(fn, retries = 2) {
   }
 }
 
-const CATEGORY_LABELS = {
-  food:'Alimentação', shopping:'Shopping', transport:'Transporte',
-  health:'Saúde', leisure:'Lazer', education:'Educação',
-  home:'Casa', income:'Entrada Extra', other:'Outros',
-}
-
-const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS)
 const MAX_TOOL_ITERATIONS = 5
 
 const TOOLS = [
@@ -99,9 +97,9 @@ const TOOLS = [
 
 async function runTool(name, args, userId) {
   if (name === 'get_transactions') {
-    const now   = new Date()
-    const month = (args.month != null && args.month > 0) ? Number(args.month) : (now.getMonth() + 1)
-    const year  = (args.year  != null && args.year  > 0) ? Number(args.year)  : now.getFullYear()
+    const br    = nowBrasilia()
+    const month = (args.month != null && args.month > 0) ? Number(args.month) : br.month
+    const year  = (args.year  != null && args.year  > 0) ? Number(args.year)  : br.year
 
     if (month < 1 || month > 12) return { error: 'Mês inválido. Use 1-12.' }
 
@@ -121,11 +119,9 @@ async function runTool(name, args, userId) {
   }
 
   if (name === 'get_summary') {
-    const now   = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth(), 1)
-    const end   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+    const { month, year } = nowBrasilia()
     const [txs, budgets, user] = await Promise.all([
-      prisma.transaction.findMany({ where: { userId, date: { gte: start, lte: end } } }),
+      prisma.transaction.findMany({ where: { userId, month, year, archived: false } }),
       prisma.budget.findMany({ where: { userId } }),
       prisma.user.findUnique({ where: { id: userId }, select: { salary: true, plan: true } }),
     ])
@@ -134,7 +130,7 @@ async function runTool(name, args, userId) {
     const fixedTotal    = budgets.reduce((s, b) => s + b.amount, 0)
     const salary        = user?.salary || 0
     return {
-      month: now.getMonth() + 1, year: now.getFullYear(),
+      month, year,
       salary, totalIncome, totalExpenses, fixedTotal,
       balance: salary + totalIncome - fixedTotal - totalExpenses,
       transactionCount: txs.length, plan: user?.plan,
@@ -154,6 +150,18 @@ async function runTool(name, args, userId) {
       const parsed = new Date(args.date)
       if (isNaN(parsed.getTime())) return { error: 'Data inválida.' }
       date = parsed
+    }
+
+    const { month: txMonth, year: txYear } = { month: date.getMonth() + 1, year: date.getFullYear() }
+    const userData = await prisma.user.findUnique({
+      where:  { id: userId },
+      select: { plan: true, _count: { select: { transactions: { where: { month: txMonth, year: txYear, archived: false } } } } }
+    })
+    const txCount = userData?._count?.transactions ?? 0
+    const PLAN_LIMITS = { free: 20, pro: 35 }
+    const planLimit = PLAN_LIMITS[userData?.plan]
+    if (planLimit && txCount >= planLimit) {
+      return { error: `Limite de ${planLimit} transações por mês atingido no plano ${userData.plan === 'free' ? 'Gratuito' : 'Pro'}.` }
     }
 
     const tx = await prisma.transaction.create({
@@ -245,7 +253,10 @@ router.post('/chat', async (req, res) => {
       const toolResults = await Promise.all(
         msg.tool_calls.map(async (call) => {
           let args
-          try { args = JSON.parse(call.function.arguments || '{}') } catch { args = {} }
+          try { args = JSON.parse(call.function.arguments || '{}') } catch (e) {
+            console.error(`[AGENT] parse args ${call.function.name}:`, e.message)
+            args = {}
+          }
           let result
           try {
             result = await runTool(call.function.name, args, req.userId)
@@ -277,18 +288,14 @@ router.post('/chat', async (req, res) => {
   }
 })
 
-const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
 // ── POST /api/agent/predict ─────────────────────────────
 // Usa modelo rápido (8B) — apenas 1 frase curta, velocidade > qualidade.
 router.post('/predict', async (req, res) => {
   if (!requireGroq(res)) return
   try {
-    const now         = new Date()
-    const month       = now.getMonth() + 1
-    const year        = now.getFullYear()
+    const { month, year, day: dayOfMonth } = nowBrasilia()
     const daysInMonth = new Date(year, month, 0).getDate()
-    const dayOfMonth  = now.getDate()
 
     const [txs, user] = await Promise.all([
       prisma.transaction.findMany({
@@ -313,7 +320,7 @@ router.post('/predict', async (req, res) => {
     const topCat = Object.entries(byCategory).sort((a, b) => b[1] - a[1])[0]
 
     const prompt = `Usuário: ${user?.name || 'usuário'}
-Mês: ${MONTHS_PT[month - 1]} ${year} — dia ${dayOfMonth} de ${daysInMonth}
+Mês: ${MONTHS[month - 1]} ${year} — dia ${dayOfMonth} de ${daysInMonth}
 Disponível: R$ ${totalAvailable.toFixed(2)} | Gasto até agora: R$ ${totalExpenses.toFixed(2)} (${pct}%)
 Principal categoria de gasto: ${CATEGORY_LABELS[topCat?.[0]] || topCat?.[0] || 'N/A'} (R$ ${topCat?.[1]?.toFixed(2) || '0,00'})
 
@@ -339,9 +346,9 @@ Escreva UMA frase curta e direta prevendo como o usuário vai terminar o mês fi
 router.post('/monthly-report', async (req, res) => {
   if (!requireGroq(res)) return
   try {
-    const now   = new Date()
-    const month = Number(req.body?.month) || now.getMonth() + 1
-    const year  = Number(req.body?.year)  || now.getFullYear()
+    const br    = nowBrasilia()
+    const month = Number(req.body?.month) || br.month
+    const year  = Number(req.body?.year)  || br.year
 
     if (month < 1 || month > 12)     return res.status(400).json({ error: 'Mês inválido.' })
     if (year  < 2020 || year > 2100) return res.status(400).json({ error: 'Ano inválido.' })
@@ -370,7 +377,7 @@ router.post('/monthly-report', async (req, res) => {
     const topCats = Object.entries(byCategory).sort((a, b) => b[1] - a[1]).slice(0, 5)
       .map(([cat, amt]) => `${CATEGORY_LABELS[cat] || cat}: R$ ${amt.toFixed(2)}`).join(', ')
 
-    const prompt = `Analise ${MONTHS_PT[month - 1]}/${year} de ${user?.name || 'usuário'}:
+    const prompt = `Analise ${MONTHS[month - 1]}/${year} de ${user?.name || 'usuário'}:
 Salário R$${salary.toFixed(2)} | Fixos R$${fixedCosts.toFixed(2)} | Extras R$${totalIncome.toFixed(2)} | Gasto R$${totalExpenses.toFixed(2)} | Saldo R$${balance.toFixed(2)}
 Top gastos: ${topCats}
 Transações: ${txs.length}

@@ -12,27 +12,21 @@ jobs:
   deploy:
     name: Deploy para Cloud Run
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-      # 1. Faz checkout do código
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. Autentica no Google Cloud usando a Service Account
-      #    Configure o secret GCP_SA_KEY no repositório:
-      #    Settings → Secrets → Actions → New repository secret
-      #    Valor: JSON da Service Account com permissão roles/run.admin
       - name: Autenticar no Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # 3. Instala o gcloud CLI
       - name: Configurar Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      # 4. Deploy via Cloud Build (compila imagem Docker + faz deploy)
-      #    Idêntico ao `npm run deploy` local
       - name: Deploy para Cloud Run
         run: |
           gcloud run deploy finance-app \

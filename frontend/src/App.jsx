@@ -17,9 +17,11 @@ const Analytics      = lazy(() => import('./pages/Analytics.jsx'))
 const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
 const Planos         = lazy(() => import('./pages/Planos.jsx'))
+const PrivacyPolicy  = lazy(() => import('./pages/PrivacyPolicy.jsx'))
+const TermsOfUse     = lazy(() => import('./pages/TermsOfUse.jsx'))
 
 function isLoggedIn() {
-  try { return !!JSON.parse(localStorage.getItem('user') || 'null') } catch { return false }
+  try { return !!JSON.parse(sessionStorage.getItem('user') || 'null') } catch { return false }
 }
 
 function PrivateRoute({ children }) {
@@ -49,7 +51,8 @@ export default function App() {
         .catch((err) => {
           const status = err.response?.status
           if (status === 401 || status === 403) {
-            localStorage.removeItem('user')
+            sessionStorage.removeItem('user')
+            sessionStorage.removeItem('token')
             window.location.href = '/login'
           }
         })
@@ -83,6 +86,8 @@ export default function App() {
           <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
           <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
           <Route path="/planos"       element={<PrivateRoute><Planos /></PrivateRoute>} />
+          <Route path="/privacidade"  element={<PrivacyPolicy />} />
+          <Route path="/termos"       element={<TermsOfUse />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

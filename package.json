@@ -4,19 +4,19 @@
   "private": true,
   "description": "FinançasPro — Controle financeiro pessoal com IA, PWA e relatórios em PDF",
   "scripts": {
-    "dev":           "docker compose up",
-    "dev:build":     "docker compose up --build",
-    "dev:backend":   "cd backend && npm run dev",
-    "dev:frontend":  "cd frontend && npm run dev",
-    "stop":          "docker compose down",
-    "logs":          "docker compose logs -f",
-    "deploy":        "gcloud run deploy finance-app --source . --region southamerica-east1 --quiet",
-    "db:studio":     "cd backend && npx prisma studio",
-    "db:migrate":    "cd backend && npx prisma migrate dev",
-    "db:generate":   "cd backend && npx prisma generate",
-    "db:reset":      "cd backend && npx prisma migrate reset",
-    "install:all":   "cd backend && npm install && cd ../frontend && npm install",
-    "lint":          "cd backend && npm run lint && cd ../frontend && npm run lint"
+    "dev": "docker compose up",
+    "dev:build": "docker compose up --build",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "stop": "docker compose down",
+    "logs": "docker compose logs -f",
+    "deploy": "gcloud run deploy finance-app --source . --region southamerica-east1 --quiet",
+    "db:studio": "cd backend && npx prisma studio",
+    "db:migrate": "cd backend && npx prisma migrate dev",
+    "db:generate": "cd backend && npx prisma generate",
+    "db:reset": "cd backend && npx prisma migrate reset",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "lint": "cd backend && npm run lint && cd ../frontend && npm run lint"
   },
   "engines": {
     "node": ">=20"

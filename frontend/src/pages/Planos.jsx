@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { useUser } from '../hooks/useUser.js'
+import { paymentsAPI } from '../services/api.js'
 
 const FAQ = [
   ['Quando o Pro estará disponível?',   'O plano Pro está em desenvolvimento final. Você será notificado por e-mail assim que for lançado com acesso antecipado.'],
@@ -11,20 +13,19 @@ const FAQ = [
 
 const FREE_FEATS = [
   'Dashboard com saldo do mês',
-  'Até 30 transações por mês',
+  'Até 20 transações por mês',
   'Categorias de gastos',
   'Relatório mensal em PDF',
   'Contas fixas automáticas',
 ]
 
 const PRO_FEATS = [
-  { text: 'Transações', hi: 'Ilimitadas' },
-  { text: 'Contas fixas', hi: 'Ilimitadas' },
+  { text: 'Transações', hi: '35 por mês' },
+  { text: 'Contas fixas', hi: 'Até 35' },
   { text: 'Limites por categoria' },
   { text: 'Relatório PDF mensal automático' },
   null,
   { text: 'Histórico completo de meses' },
-  { text: 'Exportação CSV' },
   { text: 'Suporte prioritário' },
 ]
 
@@ -34,7 +35,7 @@ const ELITE_FEATS = [
   { text: 'Previsão IA mensal' },
   { text: 'Relatório IA detalhado' },
   null,
-  { text: 'Módulo de Metas financeiras' },
+  { text: 'Metas financeiras', hi: 'Ilimitadas' },
   { text: 'Lembretes de vencimento' },
   { text: 'Detector de assinaturas' },
   { text: 'Análises avançadas' },
@@ -47,7 +48,7 @@ const COMPARE_GROUPS = [
       { feat: 'Saldo do mês em tempo real',     free: true,  pro: true,  elite: true  },
       { feat: 'Relatório PDF mensal',            free: true,  pro: true,  elite: true  },
       { feat: 'Histórico de meses anteriores',   free: false, pro: true,  elite: true  },
-      { feat: 'Exportação CSV',                  free: false, pro: true,  elite: true  },
+      { feat: 'Exportação CSV',                  free: true,  pro: true,  elite: true  },
       { feat: 'Previsão IA mensal',              free: false, pro: false, elite: true  },
       { feat: 'Relatório IA detalhado',          free: false, pro: false, elite: true  },
     ],
@@ -55,11 +56,11 @@ const COMPARE_GROUPS = [
   {
     label: 'Transações & Orçamento',
     rows: [
-      { feat: 'Transações por mês',              free: '30',  pro: 'Ilimitadas', elite: 'Ilimitadas' },
+      { feat: 'Transações por mês',              free: '20',  pro: '35',  elite: 'Ilimitadas' },
       { feat: 'Categorias de gastos',            free: true,  pro: true,  elite: true  },
       { feat: 'Limites por categoria',           free: false, pro: true,  elite: true  },
       { feat: 'Contas fixas automáticas',        free: true,  pro: true,  elite: true  },
-      { feat: 'Contas fixas ilimitadas',         free: false, pro: true,  elite: true  },
+      { feat: 'Limite de contas fixas',          free: '15',  pro: '35',  elite: 'Ilimitadas' },
       { feat: 'Detector de assinaturas',         free: false, pro: false, elite: true  },
       { feat: 'Lembretes de vencimento',         free: false, pro: false, elite: true  },
     ],
@@ -67,9 +68,9 @@ const COMPARE_GROUPS = [
   {
     label: 'IA & Metas',
     rows: [
-      { feat: 'Módulo de Metas financeiras',     free: false, pro: false, elite: true  },
-      { feat: 'Score financeiro avançado',       free: false, pro: false, elite: true  },
-      { feat: 'Análises avançadas',              free: false, pro: false, elite: true  },
+      { feat: 'Metas financeiras',               free: false, pro: '4',   elite: 'Ilimitadas' },
+      { feat: 'Score financeiro avançado',       free: true,  pro: true,  elite: true  },
+      { feat: 'Análises avançadas',              free: true,  pro: true,  elite: true  },
     ],
   },
   {
@@ -105,27 +106,57 @@ const CheckNo = () => (
 )
 
 export default function Planos() {
-  const [billing, setBilling] = useState('mensal')
-  const [openFaq, setOpenFaq] = useState(null)
-  const [toast,   setToast]   = useState(false)
+  const [billing,   setBilling]  = useState('mensal')
+  const [openFaq,   setOpenFaq]  = useState(null)
+  const [toast,     setToast]    = useState(null)
+  const [loading,   setLoading]  = useState(null) // 'pro_monthly' | 'pro_annual' | etc.
 
-  const user = useUser()
-  const isPro = user.plan === 'pro' || user.plan === 'elite'
+  const user   = useUser()
+  const isPro  = user.plan === 'pro' || user.plan === 'elite'
+  const location = useLocation()
 
-  const proPrice    = billing === 'mensal' ? '19' : '15'
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const status = params.get('payment')
+    if (status === 'success') showToast('Pagamento aprovado! Seu plano foi ativado. 🎉', 'success')
+    if (status === 'pending') showToast('Pagamento pendente. Você receberá confirmação em breve.', 'warn')
+    if (status === 'failure') showToast('Pagamento não aprovado. Tente novamente.', 'error')
+  }, [])
+
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 5000)
+  }
+
+  const handleCheckout = async (plan, period) => {
+    const key = `${plan}_${period}`
+    setLoading(key)
+    // Abre janela imediatamente no clique — evita bloqueio de popup e dá resposta instantânea
+    const win = window.open('about:blank', '_blank')
+    try {
+      const { data } = await paymentsAPI.createPreference(plan, period)
+      if (!data.checkoutUrl?.startsWith('https://www.mercadopago.com.br/')) throw new Error('URL inválida')
+      win.location.href = data.checkoutUrl
+    } catch {
+      win.close()
+      showToast('Erro ao iniciar pagamento. Tente novamente.', 'error')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const proPrice    = billing === 'mensal' ? '9' : '8'
+  const proCents    = billing === 'mensal' ? ',90' : ',25'
   const properiod   = billing === 'mensal'
     ? 'por mês · Cancele quando quiser'
-    : 'por mês · Cobrado anualmente (R$ 190,80/ano)'
+    : 'por mês · Cobrado anualmente (R$ 99,00/ano)'
 
   const elitePrice  = billing === 'mensal' ? '34' : '27'
   const elitePeriod = billing === 'mensal'
     ? 'por mês · Cancele quando quiser'
     : 'por mês · Cobrado anualmente (R$ 334,80/ano)'
 
-  const handleAssinar = () => {
-    setToast(true)
-    setTimeout(() => setToast(false), 4000)
-  }
+  const period = billing === 'mensal' ? 'monthly' : 'annual'
 
   const toggleFaq = (i) => setOpenFaq(openFaq === i ? null : i)
 
@@ -134,8 +165,9 @@ export default function Planos() {
       <Navbar />
 
       {toast && (
-        <div className="toast tok" style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:400, whiteSpace:'nowrap' }}>
-          Em breve! Você será notificado quando o Pro estiver disponível.
+        <div className={`toast ${toast.type === 'error' ? 'terr' : toast.type === 'warn' ? 'twarn' : 'tok'}`}
+          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:400, whiteSpace:'nowrap' }}>
+          {toast.msg}
         </div>
       )}
 
@@ -226,7 +258,7 @@ export default function Planos() {
                 <div className="pp1-price">
                   <span className="pp1-price-cur pp1-cur-pro">R$</span>
                   <span className="pp1-price-num pp1-num-pro">{proPrice}</span>
-                  <span className="pp1-price-dec">,90</span>
+                  <span className="pp1-price-dec">{proCents}</span>
                 </div>
                 <div className="pp1-price-note pp1-note-pro">{properiod}</div>
                 <div className="pp1-price-cancel">Sem fidelidade · Sem cartão para testar</div>
@@ -252,14 +284,18 @@ export default function Planos() {
               {isPro ? (
                 <div className="pp1-cta-is-pro">✨ Você já é Pro!</div>
               ) : (
-                <button className="pp1-cta-pro" onClick={handleAssinar}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                  </svg>
-                  Assinar Pro — Em breve
+                <button className="pp1-cta-pro" onClick={() => handleCheckout('pro', period)} disabled={!!loading}>
+                  {loading === `pro_${period}` ? 'Aguarde…' : (
+                    <>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                      </svg>
+                      Assinar Pro
+                    </>
+                  )}
                 </button>
               )}
-              <div className="pp1-cta-note">Para começar, sem cartão de crédito</div>
+              <div className="pp1-cta-note">PIX ou cartão · Cancele quando quiser</div>
             </div>
 
             {/* ELITE */}
@@ -277,14 +313,6 @@ export default function Planos() {
                 ))}
               </div>
 
-              {user.plan !== 'elite' && (
-                <div className="pp1-em-breve-badge">
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                  Em breve
-                </div>
-              )}
 
               <div className="pp1-card-tier pp1-tier-elite">Elite</div>
               <div className="pp1-card-tagline pp1-tagline-elite">Para quem quer o poder da IA</div>
@@ -319,13 +347,17 @@ export default function Planos() {
               {user.plan === 'elite'
                 ? <div className="pp1-cta-is-pro">⚡ Você já é Elite!</div>
                 : <>
-                    <button className="pp1-cta-elite" onClick={handleAssinar}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                      </svg>
-                      Quero ser notificado
+                    <button className="pp1-cta-elite" onClick={() => handleCheckout('elite', period)} disabled={!!loading}>
+                      {loading === `elite_${period}` ? 'Aguarde…' : (
+                        <>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                          </svg>
+                          Assinar Elite
+                        </>
+                      )}
                     </button>
-                    <div className="pp1-cta-note pp1-cta-note-elite">Lista de espera · Sem compromisso</div>
+                    <div className="pp1-cta-note pp1-cta-note-elite">PIX ou cartão · Cancele quando quiser</div>
                   </>
               }
             </div>

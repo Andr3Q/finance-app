@@ -42,6 +42,9 @@ desktop.ini
 backend/prisma/*.db
 backend/prisma/*.db-journal
 
+# ── Trivy (scanner de segurança — DB local grande demais para o git) ──
+backend/.trivy-cache/
+
 # ── Docker ────────────────────────────────────────────
 .docker/
 

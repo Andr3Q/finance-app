@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { saveUser } from '../../../hooks/useUser.js'
+import { authAPI } from '../../../services/api.js'
 
 export default function ProfileCard({ user }) {
   const nameParts = (user.name || '').split(' ')
@@ -8,18 +9,24 @@ export default function ProfileCard({ user }) {
   const [profileEmail,  setProfileEmail]  = useState(user.email || '')
   const [saving,        setSaving]        = useState(false)
   const [profileMsg,    setProfileMsg]    = useState('')
+  const [profileErr,    setProfileErr]    = useState('')
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault()
     setSaving(true)
+    setProfileErr('')
     const fullName = [firstName, lastName].filter(Boolean).join(' ')
-    const stored = JSON.parse(localStorage.getItem('user') || '{}')
-    saveUser({ ...stored, name: fullName, email: profileEmail })
-    setTimeout(() => {
-      setSaving(false)
+    try {
+      await authAPI.updateProfile({ name: fullName, email: profileEmail })
+      const stored = JSON.parse(sessionStorage.getItem('user') || '{}')
+      saveUser({ ...stored, name: fullName, email: profileEmail })
       setProfileMsg('Perfil atualizado!')
       setTimeout(() => setProfileMsg(''), 3000)
-    }, 300)
+    } catch (err) {
+      setProfileErr(err.response?.data?.error || 'Erro ao atualizar perfil.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -55,6 +62,7 @@ export default function ProfileCard({ user }) {
         </div>
         <div className="cfg-form-footer">
           {profileMsg && <span className="cfg-inline-ok">{profileMsg}</span>}
+          {profileErr && <span className="cfg-inline-err">{profileErr}</span>}
           <button type="submit" className="cfg-btn-primary" disabled={saving}>
             {saving ? 'Salvando…' : 'Salvar alterações'}
           </button>

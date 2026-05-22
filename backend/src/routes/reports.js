@@ -15,6 +15,7 @@ const authMiddleware         = require('../middleware/auth')
 const { sendMonthlyReport }  = require('../services/emailService')
 const { generateMonthlyPDF } = require('../services/pdfService')
 const { reportLimiter }      = require('../middleware/rateLimiter')
+const { nowBrasilia }        = require('../utils/helpers')
 
 const router = express.Router()
 
@@ -24,9 +25,7 @@ router.use(authMiddleware)
 // Fecha o mês: gera PDF, envia e-mail e arquiva transações
 router.post('/monthly-close', reportLimiter, async (req, res) => {
   try {
-    const now   = new Date()
-    const month = now.getMonth() + 1
-    const year  = now.getFullYear()
+    const { month, year } = nowBrasilia()
 
     // Busca user + transações + orçamentos em paralelo (1 round trip ao banco)
     // A checagem do plano é feita após — Pro users não pagam 1 query extra de plan-check

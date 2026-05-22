@@ -6,17 +6,10 @@ import TransactionForm from '../components/features/TransactionForm.jsx'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 
+import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
+import { fmt } from '../utils/format.js'
+
 const CACHE_KEY = 'transactions:list'
-
-const CATEGORY_LABELS = {
-  food:'Alimentação', shopping:'Shopping', transport:'Transporte',
-  health:'Saúde', leisure:'Lazer', education:'Educação',
-  home:'Casa', fixed:'Conta Fixa', income:'Entrada Extra', other:'Outros',
-}
-const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-
-const fmt = (n) => n?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'
 
 export default function Transactions() {
   const [transactions,  setTransactions]  = useState([])
@@ -31,6 +24,7 @@ export default function Transactions() {
   const [newParc,       setNewParc]       = useState({ name: '', amount: '', total: '' })
   const [parcLoading,   setParcLoading]   = useState(false)
   const [payingId,      setPayingId]      = useState(null)
+  const [unpayingId,    setUnpayingId]    = useState(null)
   const fileInputRef = useRef(null)
   const now = new Date()
 
@@ -106,6 +100,19 @@ export default function Transactions() {
       showToast(err.response?.data?.error || 'Erro ao pagar parcela.', false)
     } finally {
       setPayingId(null)
+    }
+  }
+
+  const handleUnpay = async (id) => {
+    setUnpayingId(id)
+    try {
+      await installmentsAPI.unpay(id)
+      fetchInstallments()
+      showToast('Parcela desfeita.')
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Erro ao desfazer parcela.', false)
+    } finally {
+      setUnpayingId(null)
     }
   }
 
@@ -363,23 +370,43 @@ export default function Transactions() {
                             {!done && <span className="parc-remaining">R$ {fmt(totalRem)} restante</span>}
                           </div>
 
-                          {!done && (
-                            <button
-                              className="parc-pay-btn"
-                              onClick={() => handlePay(p.id)}
-                              disabled={payingId === p.id}
-                            >
-                              {payingId === p.id
-                                ? <><span className="spinner" style={{ width:12, height:12, borderWidth:2 }} /> Registrando...</>
-                                : <>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                      <polyline points="20 6 9 17 4 12"/>
-                                    </svg>
-                                    Pagar parcela {p.paidInstallments + 1}/{p.totalInstallments}
-                                  </>
-                              }
-                            </button>
-                          )}
+                          <div className="parc-actions">
+                            {!done && (
+                              <button
+                                className="parc-pay-btn"
+                                onClick={() => handlePay(p.id)}
+                                disabled={payingId === p.id || unpayingId === p.id}
+                              >
+                                {payingId === p.id
+                                  ? <><span className="spinner" style={{ width:12, height:12, borderWidth:2 }} /> Registrando...</>
+                                  : <>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                      </svg>
+                                      Pagar parcela {p.paidInstallments + 1}/{p.totalInstallments}
+                                    </>
+                                }
+                              </button>
+                            )}
+                            {p.paidInstallments > 0 && (
+                              <button
+                                className="parc-unpay-btn"
+                                onClick={() => handleUnpay(p.id)}
+                                disabled={unpayingId === p.id || payingId === p.id}
+                                title="Desfazer última parcela"
+                              >
+                                {unpayingId === p.id
+                                  ? <span className="spinner" style={{ width:11, height:11, borderWidth:2 }} />
+                                  : <>
+                                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                                        <path d="M3 7v6h6"/><path d="M3 13C5 8 9.5 5 15 5a9 9 0 010 18c-3.5 0-6.5-1.5-8.5-4"/>
+                                      </svg>
+                                      Desfazer
+                                    </>
+                                }
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )
                     })}

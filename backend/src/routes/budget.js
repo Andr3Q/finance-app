@@ -16,9 +16,7 @@ const express        = require('express')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 
-const VALID_CATEGORIES = ['food','shopping','transport','health','leisure','education','home','income','other']
-const MAX_AMOUNT = 999_999_999.99
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const { UUID_REGEX, MAX_AMOUNT, VALID_CATEGORIES } = require('../utils/constants')
 
 const router = express.Router()
 
@@ -72,6 +70,13 @@ router.post('/', async (req, res) => {
         error: 'Limite de 15 contas fixas atingido no plano Gratuito.',
         limitReached: true,
         plan: 'free'
+      })
+    }
+    if (userData?.plan === 'pro' && userData._count.budgets >= 35) {
+      return res.status(403).json({
+        error: 'Limite de 35 contas fixas atingido no plano Pro.',
+        limitReached: true,
+        plan: 'pro'
       })
     }
 

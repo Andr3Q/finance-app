@@ -4,6 +4,7 @@ import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../../service
 import { useUser } from '../../hooks/useUser.js'
 import { useTheme } from '../../hooks/useTheme.js'
 import { authAPI } from '../../services/api.js'
+import { MONTHS, WEEKDAYS } from '../../constants/index.js'
 
 const ROUTE_TITLES = {
   '/transactions': 'Transações',
@@ -19,10 +20,6 @@ function greeting() {
   if (h >= 12 && h < 18) return 'Boa tarde'
   return 'Boa noite'
 }
-
-const WEEKDAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado']
-const MONTHS   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
 
 function BellIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> }
 function HomeIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> }
@@ -91,7 +88,8 @@ export default function Navbar() {
   }, [showBell])
 
   const logout = async () => {
-    localStorage.removeItem('user')
+    sessionStorage.removeItem('user')
+    sessionStorage.removeItem('token')
     try { await authAPI.logout() } catch { /* ignora erros de rede no logout */ }
     navigate('/login', { replace: true })
   }

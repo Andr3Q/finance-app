@@ -10,30 +10,41 @@ function buildUrl() {
 
   const params = new URLSearchParams()
 
-  // PgBouncer (porta 6543) exige connection_limit=1 — o próprio pooler gerencia
-  // as conexões reais com o PostgreSQL. Com conexão direta usamos até 10.
   if (!base.includes('connection_limit')) {
-    params.set('connection_limit', isPgBouncer ? '1' : (isProd ? '10' : '5'))
+    params.set('connection_limit', isPgBouncer ? '1' : (isProd ? '8' : '5'))
   }
-  if (!base.includes('pool_timeout'))    params.set('pool_timeout',    '20')
+  if (!base.includes('pool_timeout'))    params.set('pool_timeout',    '30')
   if (!base.includes('connect_timeout')) params.set('connect_timeout', '10')
 
-  // pgbouncer=true instrui o Prisma a não usar prepared statements persistentes
-  // (incompatível com PgBouncer transaction mode)
+  // TCP keepalive no nível do driver (libpq): evita que NAT/firewall do Cloud Run
+  // ou do Supabase feche conexões ociosas silenciosamente.
+  // keepalives_idle=60: envia probe TCP depois de 60s sem tráfego
+  // keepalives_interval=10: reenvio a cada 10s se não houver resposta
+  // keepalives_count=3: após 3 falhas consecutivas, considera conexão morta
+  if (!base.includes('keepalives')) {
+    params.set('keepalives',          '1')
+    params.set('keepalives_idle',     '60')
+    params.set('keepalives_interval', '10')
+    params.set('keepalives_count',    '3')
+  }
+
   if (isPgBouncer && !base.includes('pgbouncer=true')) {
     params.set('pgbouncer', 'true')
   }
 
-  // Opções PostgreSQL de sessão (não suportadas no modo transaction do PgBouncer)
-  if (!isPgBouncer && !base.includes('statement_timeout')) {
-    const pgOpts = [
-      'statement_timeout=15000',
-      'idle_in_transaction_session_timeout=20000',
-      'application_name=financaspro',
-    ].join(' -c ')
-    params.set('options', `-c ${pgOpts}`)
-  } else if (isPgBouncer && !base.includes('application_name')) {
-    params.set('options', '-c application_name=financaspro')
+  // Só adiciona `options=` se a URL ainda não tiver — Neon usa options=endpoint%3D...
+  // para roteamento interno; adicionar um segundo `options=` causa P1000 (auth fail).
+  if (!base.includes('options=')) {
+    if (!isPgBouncer && !base.includes('statement_timeout')) {
+      const pgOpts = [
+        'statement_timeout=15000',
+        'idle_in_transaction_session_timeout=20000',
+        'application_name=financaspro',
+      ].join(' -c ')
+      params.set('options', `-c ${pgOpts}`)
+    } else if (isPgBouncer) {
+      params.set('options', '-c application_name=financaspro')
+    }
   }
 
   const sep = base.includes('?') ? '&' : '?'
@@ -59,6 +70,9 @@ const prisma = new PrismaClient({
 })
 
 prisma.$on('error', (e) => {
+  // ConnectionReset (code 104) é normal: o servidor fecha conexões ociosas e o
+  // Prisma reconecta automaticamente. Não é um erro acionável.
+  if (e.message.includes('ConnectionReset') || e.message.includes('Connection reset')) return
   console.error('[Prisma] ERROR:', e.message)
 })
 
@@ -77,7 +91,41 @@ if (!isProd) {
 if (isPgBouncer) {
   console.log('[Prisma] Modo PgBouncer ativo (connection_limit=1)')
 } else {
-  console.log('[Prisma] Conexão direta (connection_limit=' + (isProd ? 10 : 5) + ')')
+  console.log('[Prisma] Conexão direta (connection_limit=' + (isProd ? 8 : 5) + ')')
 }
 
-module.exports = prisma
+// Códigos de erro Prisma que indicam falha transitória — recuperáveis com retry
+const RETRYABLE = new Set(['P1001','P1002','P1008','P1017','P2024'])
+
+function isRetryable(err) {
+  return RETRYABLE.has(err.code) ||
+    err.message?.includes('ConnectionReset') ||
+    err.message?.includes('connection closed') ||
+    err.message?.includes('Can\'t reach database')
+}
+
+// Middleware global: todas as queries retentam automaticamente em falha transitória.
+// Elimina a necessidade de withRetry() em cada rota individualmente.
+const prismaWithRetry = prisma.$extends({
+  query: {
+    $allModels: {
+      async $allOperations({ operation, model, args, query }) {
+        const MAX = 2
+        for (let attempt = 0; attempt <= MAX; attempt++) {
+          try {
+            return await query(args)
+          } catch (err) {
+            if (attempt < MAX && isRetryable(err)) {
+              await new Promise(r => setTimeout(r, 200 * (attempt + 1)))
+              continue
+            }
+            throw err
+          }
+        }
+      },
+    },
+  },
+})
+
+module.exports = prismaWithRetry
+module.exports.raw = prisma  // acesso direto sem retry (health check, migrations)

@@ -1,22 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Navbar from '../components/layout/Navbar.jsx'
 import GradCard from '../components/ui/GradCard.jsx'
 import { transactionsAPI, agentAPI } from '../services/api.js'
 import { getCache, setCache } from '../services/cache.js'
+import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
+import { fmt } from '../utils/format.js'
 
 const CACHE_HISTORY = 'analytics:history'
 const CACHE_SUBS    = 'analytics:subs'
 const TTL_5MIN      = 5 * 60_000
 
 const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-const MONTHS_FULL  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
-const CATEGORY_LABELS = {
-  food:'Alimentação', shopping:'Shopping', transport:'Transporte',
-  health:'Saúde', leisure:'Lazer', education:'Educação',
-  home:'Casa', income:'Entrada Extra', other:'Outros',
-}
-
-const fmt = (n) => n?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'
+const MONTHS_FULL  = MONTHS
 
 // ── Gráfico de barras SVG ────────────────────────────────
 function BarChart({ data }) {
@@ -115,16 +110,40 @@ export default function Analytics() {
   const [loadingSubs,   setLoadingSubs]   = useState(true)
   const [report,        setReport]        = useState(null)
   const [reportLoading, setReportLoading] = useState(false)
+  const [toast,         setToast]         = useState(null)
   const now = new Date()
   const [reportMonth,   setReportMonth]   = useState(now.getMonth() + 1)
   const [reportYear,    setReportYear]    = useState(now.getFullYear())
+  const reportRef = useRef(null)
+
+  const showToast = (msg, ok = true) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 4000)
+  }
 
   const generateReport = async () => {
+    // Verifica cache em sessionStorage — evita regerar o mesmo mês
+    const cacheKey = `ai-report-${reportMonth}-${reportYear}`
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null')
+      if (cached?.text && Date.now() - cached.ts < 6 * 3600 * 1000) {
+        setReport(cached.text)
+        setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+        return
+      }
+    } catch {}
+
     setReportLoading(true)
     setReport(null)
     try {
       const { data } = await agentAPI.monthlyReport(reportMonth, reportYear)
-      setReport(data.report || data.text || '')
+      const text = data.report || data.text || ''
+      setReport(text)
+      if (text && !text.startsWith('Nenhuma')) {
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({ text, ts: Date.now() })) } catch {}
+        showToast('Relatório gerado com sucesso!')
+      }
+      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     } catch (err) {
       setReport(err.response?.data?.error || 'Erro ao gerar relatório. Tente novamente.')
     } finally {
@@ -163,6 +182,11 @@ export default function Analytics() {
   return (
     <>
       <Navbar />
+      {toast && (
+        <div className={`toast ${toast.ok ? 'tok' : 'terr'}`} style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:400, whiteSpace:'nowrap' }}>
+          {toast.msg}
+        </div>
+      )}
       <div className="pwnav fade-in">
         <div className="dsb-content">
           <div className="anl-page">
@@ -223,7 +247,7 @@ export default function Analytics() {
                 </div>
               )}
               {report && !reportLoading && (
-                <div className="anl-report-text">{report}</div>
+                <div className="anl-report-text" ref={reportRef}>{report}</div>
               )}
             </GradCard>
 

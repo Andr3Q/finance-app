@@ -5,8 +5,7 @@ const authMiddleware = require('../middleware/auth')
 const router = express.Router()
 router.use(authMiddleware)
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const HEX_COLOR  = /^#[0-9A-F]{6}$/i
+const { UUID_REGEX, HEX_COLOR } = require('../utils/constants')
 
 function validId(id) { return UUID_REGEX.test(id) }
 
@@ -36,6 +35,27 @@ router.post('/', async (req, res) => {
       if (isNaN(new Date(deadline).getTime()))
         return res.status(400).json({ error: 'Data de prazo inválida.' })
     }
+
+    // Verificação de plano: Free bloqueado, Pro limitado a 4, Elite ilimitado
+    const userData = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { plan: true, _count: { select: { goals: true } } },
+    })
+    if (userData?.plan === 'free') {
+      return res.status(403).json({
+        error: 'Metas financeiras são exclusivas dos planos Pro e Elite.',
+        limitReached: true,
+        plan: 'free',
+      })
+    }
+    if (userData?.plan === 'pro' && userData._count.goals >= 4) {
+      return res.status(403).json({
+        error: 'Limite de 4 metas atingido no plano Pro.',
+        limitReached: true,
+        plan: 'pro',
+      })
+    }
+
     const goal = await prisma.goal.create({
       data: {
         title:         title.trim().slice(0, 80),
