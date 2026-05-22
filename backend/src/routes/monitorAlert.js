@@ -1,4 +1,5 @@
 const express = require('express')
+const crypto  = require('crypto')
 const router  = express.Router()
 const prisma  = require('../lib/prisma')
 const webpush = require('web-push')
@@ -25,8 +26,11 @@ function cooldownOk() {
 }
 
 router.post('/', async (req, res) => {
-  const secret = process.env.MONITOR_SECRET
-  if (!secret || req.headers['x-monitor-secret'] !== secret) {
+  const secret   = process.env.MONITOR_SECRET
+  const incoming = req.headers['x-monitor-secret']
+  if (!secret || !incoming) return res.status(401).json({ error: 'Unauthorized' })
+  const a = Buffer.from(secret), b = Buffer.from(incoming)
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 

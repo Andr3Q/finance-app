@@ -5,11 +5,9 @@ const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { sendResetEmail } = require('../services/emailService')
-const { forgotPasswordLimiter, resetPasswordLimiter } = require('../middleware/rateLimiter')
+const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter } = require('../middleware/rateLimiter')
 
-const EMAIL_REGEX    = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{2,}$/
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
-const isProd = process.env.NODE_ENV === 'production'
+const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
 
 // Gerado uma única vez na inicialização — bcrypt.compare é sempre executado
 // mesmo quando o e-mail não existe, prevenindo timing attack que revelaria
@@ -29,7 +27,7 @@ function setAuthCookie(res, token) {
 const router = express.Router()
 
 // ── POST /auth/register ─────────────────────────────────
-router.post('/register', async (req, res) => {
+router.post('/register', registerLimiter, async (req, res) => {
   try {
     const { name, email, password, salary } = req.body
 
@@ -56,13 +54,18 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Este e-mail já está cadastrado.' })
     }
 
+    const parsedSalary = parseFloat(salary) || 0
+    if (parsedSalary < 0 || parsedSalary > 999_999_999.99) {
+      return res.status(400).json({ error: 'Salário inválido.' })
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12)
     const user = await prisma.user.create({
       data: {
         name:        name.trim(),
         email:       normalizedEmail,
         password:    hashedPassword,
-        salary:      salary || 0,
+        salary:      parsedSalary,
         reportEmail: normalizedEmail,  // era `email` — agora usa o e-mail normalizado
       }
     })
@@ -71,6 +74,7 @@ router.post('/register', async (req, res) => {
     setAuthCookie(res, token)
 
     res.status(201).json({
+      token,
       user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan }
     })
   } catch (error) {
@@ -94,20 +98,30 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Senha inválida.' })
     }
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
+    const normalizedEmail = email.toLowerCase().trim()
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
     // Sempre executa bcrypt — sem isso, user inexistente retorna em ~1ms e user existente
     // em ~100ms, revelando quais e-mails estão cadastrados por timing attack.
     const passwordMatch = await bcrypt.compare(password, user?.password ?? DUMMY_HASH)
 
+    const ip        = req.ip || req.headers['x-forwarded-for'] || null
+    const userAgent = (req.headers['user-agent'] || '').slice(0, 200) || null
+
     if (!user || !passwordMatch) {
+      // Audit: registra falha em background — não bloqueia resposta
+      prisma.loginAudit.create({ data: { email: normalizedEmail, success: false, ip, userAgent } }).catch(() => {})
       return res.status(401).json({ error: 'E-mail ou senha incorretos.' })
     }
+
+    // Audit: registra login bem-sucedido em background
+    prisma.loginAudit.create({ data: { email: normalizedEmail, success: true, ip, userAgent } }).catch(() => {})
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
 
     res.json({
+      token,
       user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan }
     })
   } catch (error) {
@@ -119,12 +133,23 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where:  { id: req.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, autoLaunchMonth: true, autoLaunchYear: true }
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true }
     })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
-    res.json(user)
+
+    // Rebaixa para free se o plano expirou
+    if (user.plan !== 'free' && user.planExpiresAt && user.planExpiresAt < new Date()) {
+      user = await prisma.user.update({
+        where:  { id: req.userId },
+        data:   { plan: 'free', planExpiresAt: null },
+        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true }
+      })
+    }
+
+    const { planExpiresAt, ...userOut } = user
+    res.json(userOut)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar usuário.' })
   }
@@ -267,6 +292,37 @@ router.put('/profile', authMiddleware, async (req, res) => {
 router.post('/logout', (req, res) => {
   res.clearCookie('token', { httpOnly: true, secure: isProd, sameSite: 'strict', path: '/' })
   res.json({ message: 'Logout realizado.' })
+})
+
+// ── DELETE /auth/account ────────────────────────────────
+// LGPD Art. 18: direito à exclusão. Remove todos os dados do usuário.
+// Requer confirmação da senha para evitar exclusão acidental ou por sessão sequestrada.
+router.delete('/account', authMiddleware, async (req, res) => {
+  try {
+    const { password } = req.body
+    if (!password) return res.status(400).json({ error: 'Senha obrigatória para confirmar exclusão.' })
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    const match = await bcrypt.compare(password, user.password)
+    if (!match) return res.status(401).json({ error: 'Senha incorreta.' })
+
+    // Remove dados auxiliares que não têm cascade via FK
+    await prisma.$transaction([
+      prisma.loginAudit.deleteMany({ where: { email: user.email } }),
+      prisma.processedPayment.deleteMany({ where: { userId: req.userId } }),
+      prisma.user.delete({ where: { id: req.userId } }),
+      // transactions, budgets, goals, installmentPlans, pushSubscriptions:
+      // deletados automaticamente por onDelete: Cascade no schema
+    ])
+
+    res.clearCookie('token', { httpOnly: true, secure: isProd, sameSite: 'strict', path: '/' })
+    res.json({ message: 'Conta excluída com sucesso. Seus dados foram removidos permanentemente.' })
+  } catch (error) {
+    console.error('[auth] delete-account:', error.message)
+    res.status(500).json({ error: 'Erro ao excluir conta.' })
+  }
 })
 
 // ── POST /auth/downgrade ────────────────────────────────

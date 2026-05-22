@@ -1,18 +1,10 @@
 const express        = require('express')
 const router         = express.Router()
-const { PrismaClient } = require('@prisma/client')
+const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 
-const prisma = new PrismaClient()
-
-function nowBrasilia() {
-  const parts = new Intl.DateTimeFormat('pt-BR', {
-    timeZone: 'America/Sao_Paulo',
-    year: 'numeric', month: 'numeric',
-  }).formatToParts(new Date())
-  const get = (type) => parseInt(parts.find(p => p.type === type).value)
-  return { month: get('month'), year: get('year') }
-}
+const { UUID_REGEX } = require('../utils/constants')
+const { nowBrasilia } = require('../utils/helpers')
 
 router.use(authMiddleware)
 
@@ -74,6 +66,7 @@ router.post('/', async (req, res) => {
 
 // PATCH /installments/:id/pay — marca próxima parcela como paga e cria transação
 router.patch('/:id/pay', async (req, res) => {
+  if (!UUID_REGEX.test(req.params.id)) return res.status(400).json({ error: 'ID inválido.' })
   try {
     const plan = await prisma.installmentPlan.findFirst({
       where: { id: req.params.id, userId: req.userId },
@@ -84,25 +77,11 @@ router.patch('/:id/pay', async (req, res) => {
     }
 
     const nextPaid = plan.paidInstallments + 1
-    const { month, year } = nowBrasilia()
 
-    const [updated] = await prisma.$transaction([
-      prisma.installmentPlan.update({
-        where: { id: plan.id },
-        data:  { paidInstallments: nextPaid },
-      }),
-      prisma.transaction.create({
-        data: {
-          description: `${plan.name} (${nextPaid}/${plan.totalInstallments})`,
-          amount:      plan.amount,
-          type:        'expense',
-          category:    'fixed',
-          month,
-          year,
-          userId:      req.userId,
-        },
-      }),
-    ])
+    const updated = await prisma.installmentPlan.update({
+      where: { id: plan.id },
+      data:  { paidInstallments: nextPaid },
+    })
 
     res.json(updated)
   } catch (err) {
@@ -111,8 +90,32 @@ router.patch('/:id/pay', async (req, res) => {
   }
 })
 
+// PATCH /installments/:id/unpay — desfaz a última parcela paga
+router.patch('/:id/unpay', async (req, res) => {
+  if (!UUID_REGEX.test(req.params.id)) return res.status(400).json({ error: 'ID inválido.' })
+  try {
+    const plan = await prisma.installmentPlan.findFirst({
+      where: { id: req.params.id, userId: req.userId },
+    })
+    if (!plan) return res.status(404).json({ error: 'Parcelamento não encontrado.' })
+    if (plan.paidInstallments === 0) {
+      return res.status(400).json({ error: 'Nenhuma parcela paga para desfazer.' })
+    }
+
+    const updated = await prisma.installmentPlan.update({
+      where: { id: plan.id },
+      data:  { paidInstallments: plan.paidInstallments - 1 },
+    })
+    res.json(updated)
+  } catch (err) {
+    console.error('Erro ao desfazer parcela:', err)
+    res.status(500).json({ error: 'Erro ao desfazer parcela.' })
+  }
+})
+
 // DELETE /installments/:id
 router.delete('/:id', async (req, res) => {
+  if (!UUID_REGEX.test(req.params.id)) return res.status(400).json({ error: 'ID inválido.' })
   try {
     const result = await prisma.installmentPlan.deleteMany({
       where: { id: req.params.id, userId: req.userId },

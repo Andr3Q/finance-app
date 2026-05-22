@@ -53,6 +53,7 @@ export default function Login({ isRegister = false }) {
   const [fieldErrs,  setFieldErrs]  = useState({})
   const [showPass,   setShowPass]   = useState(false)
   const [form,       setForm]       = useState({ name: '', email: '', password: '', salary: '' })
+  const [termsOk,    setTermsOk]    = useState(false)
 
   const handleChange = e => {
     const { name, value } = e.target
@@ -70,6 +71,7 @@ export default function Login({ isRegister = false }) {
     if (mode === 'register') {
       if (!PASSWORD_RE.test(form.password))
         errs.password = 'Mínimo 8 caracteres com letra maiúscula, minúscula e número'
+      if (!termsOk) errs.terms = 'Você precisa aceitar os termos para continuar'
     } else {
       if (form.password.length < 8) errs.password = 'Mínimo 8 caracteres'
     }
@@ -87,7 +89,8 @@ export default function Login({ isRegister = false }) {
         ? { email: form.email.trim(), password: form.password }
         : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: parseFloat(form.salary) || 0 }
       const res = await fn(data)
-      localStorage.setItem('user', JSON.stringify(res.data.user))
+      if (res.data.token) sessionStorage.setItem('token', res.data.token)
+      sessionStorage.setItem('user', JSON.stringify(res.data.user))
       navigate('/dashboard')
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Ocorreu um erro. Tente novamente.')
@@ -291,11 +294,25 @@ export default function Login({ isRegister = false }) {
             </button>
 
             {mode === 'register' && (
-              <p className="lauth-form-note">
-                Ao criar uma conta você concorda com os{' '}
-                <a href="/termos">Termos de uso</a> e{' '}
-                <a href="/privacidade">Política de privacidade</a>.
-              </p>
+              <div style={{ marginTop: 14 }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={termsOk}
+                    onChange={e => { setTermsOk(e.target.checked); if (fieldErrs.terms) setFieldErrs(f => ({ ...f, terms: '' })) }}
+                    style={{ marginTop: 2, accentColor: 'var(--c)', width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.5 }}>
+                    Li e aceito os{' '}
+                    <Link to="/termos" target="_blank" style={{ color: 'var(--c)', textDecoration: 'none' }}>Termos de Uso</Link>
+                    {' '}e a{' '}
+                    <Link to="/privacidade" target="_blank" style={{ color: 'var(--c)', textDecoration: 'none' }}>Política de Privacidade</Link>
+                  </span>
+                </label>
+                {fieldErrs.terms && (
+                  <div className="lauth-field-err" style={{ marginTop: 6 }}><ErrIcon /> {fieldErrs.terms}</div>
+                )}
+              </div>
             )}
           </form>
 

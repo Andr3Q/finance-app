@@ -24,8 +24,8 @@ RUN npm run build
 # ── Stage 2: Backend de Produção ────────────────────────
 FROM node:20-slim
 
-# OpenSSL e ca-certificates necessários para o Prisma e conexões SSL
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# OpenSSL, curl e ca-certificates necessários para o Prisma, SSL e trivy
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -43,6 +43,11 @@ RUN npx prisma generate
 # O Express vai servir esses arquivos estáticos
 COPY --from=frontend-builder /frontend/dist ./public
 
+# Instala trivy (scanner de segurança) e cria pasta de cache
+RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+    | sh -s -- -b /usr/local/bin \
+    && mkdir -p /app/.trivy-cache
+
 # Variáveis de ambiente de produção
 ENV NODE_ENV=production
 ENV PORT=8080
@@ -58,7 +63,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Inicialização:
-# 1. Registra o baseline (ignora erro se já registrado — idempotente)
-# 2. Aplica migrations pendentes (seguro para produção, não destrói dados)
-# 3. Inicia o servidor Express
-CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
+# prisma migrate deploy com retry — Neon (serverless DB) pode estar suspenso no
+# primeiro acesso após inatividade e retorna P1000 enquanto acorda (~2-5s).
+# Retry exponencial: 2s, 4s, 8s (total ≤ 14s de espera extra no pior caso).
+CMD ["sh", "-c", "i=1; until timeout 60 npx prisma migrate deploy; do if [ $i -ge 4 ]; then echo '[WARN] migrate deploy falhou após 4 tentativas, iniciando servidor mesmo assim'; break; fi; echo \"[migrate] tentativa $i falhou, aguardando $((i*2))s...\"; i=$((i+1)); sleep $((i*2)); done && node src/server.js"]

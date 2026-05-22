@@ -13,7 +13,7 @@ export default function SalaryCard({ user, onMessage }) {
     setSaving(true)
     try {
       await budgetAPI.updateSalary(salary || 0)
-      const stored = JSON.parse(localStorage.getItem('user') || '{}')
+      const stored = JSON.parse(sessionStorage.getItem('user') || '{}')
       saveUser({ ...stored, salary: salary || 0 })
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
