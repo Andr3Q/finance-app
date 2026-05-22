@@ -213,10 +213,11 @@ export default function Navbar() {
               <div className="dsb-s-user-name">{user.name || 'Usuário'}</div>
               <div className="dsb-s-user-role">{user.plan === 'elite' ? 'Plano Elite ⚡' : isPro ? 'Plano Pro ✨' : 'Plano Grátis'}</div>
             </div>
-            <button className="dsb-s-logout" onClick={logout} title="Sair">
-              <LogoutIcon />
-            </button>
           </div>
+          <button className="dsb-s-logout-btn" onClick={logout}>
+            <LogoutIcon />
+            Sair da conta
+          </button>
         </div>
       </aside>
 
