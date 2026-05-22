@@ -32,20 +32,9 @@ jobs:
       - name: Configurar Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      # Build separado do deploy — evita conflito de versão no Cloud Run.
-      # gcloud run deploy --source leva ~3min (janela grande para conflito);
-      # separando: build envia a imagem sem tocar no serviço, deploy é instantâneo.
-      - name: Build imagem
-        run: |
-          gcloud builds submit \
-            --machine-type=e2-highcpu-8 \
-            --tag="southamerica-east1-docker.pkg.dev/financaspro-2024/cloud-run-source-deploy/finance-app:latest" \
-            --quiet \
-            .
-
       - name: Deploy para Cloud Run
         run: |
           gcloud run deploy finance-app \
-            --image="southamerica-east1-docker.pkg.dev/financaspro-2024/cloud-run-source-deploy/finance-app:latest" \
-            --region=southamerica-east1 \
+            --source . \
+            --region southamerica-east1 \
             --quiet
