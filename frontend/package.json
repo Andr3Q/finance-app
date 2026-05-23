@@ -12,10 +12,11 @@
     "format": "prettier --write src"
   },
   "dependencies": {
+    "axios": "^1.6.0",
+    "posthog-js": "^1.376.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "react-router-dom": "^6.22.0",
-    "axios": "^1.6.0"
+    "react-router-dom": "^6.22.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import { analytics } from '../services/analytics.js'
 import GradCard from '../components/ui/GradCard.jsx'
 import { goalsAPI, transactionsAPI, agentAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
@@ -320,6 +321,7 @@ export default function Goals() {
         showToast('Meta atualizada!')
       } else {
         await goalsAPI.create(form)
+        analytics.track('goal_created', { targetAmount: form.targetAmount })
         showToast('Meta criada!')
       }
       setModal(null)
@@ -344,6 +346,7 @@ export default function Goals() {
       const newAmount = depositGoal.currentAmount + amount
       await goalsAPI.update(depositGoal.id, { currentAmount: newAmount })
       const done = newAmount >= depositGoal.targetAmount
+      analytics.track('goal_deposit_made', { amount, goalReached: done })
       showToast(done ? 'Meta atingida! Parabéns!' : 'Depósito registrado!')
       setDepositGoal(null)
       invalidateCache(CACHE_KEY)

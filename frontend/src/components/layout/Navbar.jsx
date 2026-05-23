@@ -4,6 +4,7 @@ import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../../service
 import { useUser } from '../../hooks/useUser.js'
 import { useTheme } from '../../hooks/useTheme.js'
 import { authAPI } from '../../services/api.js'
+import { analytics } from '../../services/analytics.js'
 import { MONTHS, WEEKDAYS } from '../../constants/index.js'
 
 const ROUTE_TITLES = {
@@ -90,6 +91,7 @@ export default function Navbar() {
   }, [showBell])
 
   const logout = async () => {
+    analytics.reset()
     sessionStorage.removeItem('user')
     sessionStorage.removeItem('token')
     try { await authAPI.logout() } catch { /* ignora erros de rede no logout */ }
