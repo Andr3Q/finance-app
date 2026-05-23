@@ -1,7 +1,14 @@
+import { useNavigate } from 'react-router-dom'
+
 export default function SettingsHero({ user, isPro }) {
+  const navigate = useNavigate()
+
   const initials = user.name
     ? user.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
     : '?'
+
+  const badgeLabel = user.plan === 'elite' ? 'Elite ⚡' : isPro ? 'Pro ✨' : 'Grátis'
+  const badgeClass = `cfg-badge ${user.plan === 'elite' ? 'pro' : isPro ? 'pro' : 'free'}`
 
   return (
     <div className="cfg-hero r1">
@@ -32,9 +39,13 @@ export default function SettingsHero({ user, isPro }) {
         <div className="cfg-hero-name">{user.name || 'Usuário'}</div>
         <div className="cfg-hero-email">{user.email}</div>
         <div className="cfg-hero-badges">
-          <span className={`cfg-badge ${user.plan === 'elite' ? 'pro' : isPro ? 'pro' : 'free'}`}>
-            {user.plan === 'elite' ? 'Elite ⚡' : isPro ? 'Pro ✨' : 'Grátis'}
-          </span>
+          <button
+            className={badgeClass}
+            onClick={() => navigate('/planos')}
+            title="Gerenciar plano"
+          >
+            {badgeLabel}
+          </button>
         </div>
       </div>
     </div>

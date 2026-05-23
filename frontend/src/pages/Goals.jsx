@@ -1,14 +1,19 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
-import { goalsAPI } from '../services/api.js'
+import GradCard from '../components/ui/GradCard.jsx'
+import { goalsAPI, transactionsAPI, agentAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
+import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt, fmtDate } from '../utils/format.js'
 
-const CACHE_KEY = 'goals:list'
+const CACHE_KEY     = 'goals:list'
+const CACHE_HISTORY = 'analytics:history'
+const CACHE_SUBS    = 'analytics:subs'
+const TTL_5MIN      = 5 * 60_000
 
 const PARTICLES = [
   { left:  4, size: 3, delay: 0,   dur: 2.8 },
@@ -22,6 +27,7 @@ const PARTICLES = [
 ]
 
 const COLORS = ['#4ac46e','#4f8ef7','#7b2fff','#ff8c42','#ff4757','#ff6b9d']
+const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 const EMPTY_FORM = { title: '', targetAmount: '', currentAmount: '', color: '#4ac46e', deadline: '' }
 
@@ -83,18 +89,112 @@ function GoalForm({ initial, onSave, onCancel, saving }) {
   )
 }
 
+function BarChart({ data }) {
+  const maxVal = Math.max(...data.flatMap(d => [d.income, d.expenses]), 1)
+  const barH = 100
+
+  return (
+    <div className="anl-chart-wrap">
+      <div className="anl-chart-legend">
+        <span className="anl-legend-dot" style={{ background: '#4ac46e' }} /> Entradas
+        <span className="anl-legend-dot" style={{ background: '#ff6b6b', marginLeft: 14 }} /> Saídas
+      </div>
+      <div className="anl-chart-body">
+        <svg viewBox={`0 0 ${data.length * 52} ${barH + 28}`} className="anl-chart-svg" preserveAspectRatio="none">
+          {data.map((d, i) => {
+            const incH = (d.income   / maxVal) * barH
+            const expH = (d.expenses / maxVal) * barH
+            const x    = i * 52
+            return (
+              <g key={i}>
+                <rect x={x + 4}  y={barH - incH} width={20} height={Math.max(incH, 1)}  rx="3" fill="#4ac46e" opacity=".85" />
+                <rect x={x + 27} y={barH - expH} width={20} height={Math.max(expH, 1)} rx="3" fill="#ff6b6b" opacity=".85" />
+                <text x={x + 26} y={barH + 18} textAnchor="middle" className="anl-chart-label">
+                  {MONTHS_SHORT[d.month - 1]}
+                </text>
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+      <div className="anl-chart-vals">
+        {data.map((d, i) => (
+          <div key={i} className="anl-chart-col">
+            <span style={{ color: '#4ac46e' }}>+{fmt(d.income)}</span>
+            <span style={{ color: '#ff6b6b' }}>-{fmt(d.expenses)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function SubscriptionsList({ data, loading }) {
+  if (loading) return (
+    <div className="anl-loading">
+      <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
+    </div>
+  )
+  if (!data.length) return (
+    <div className="anl-empty">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="1.5" strokeLinecap="round">
+        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
+        <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+      </svg>
+      <span>Nenhuma assinatura detectada</span>
+      <span className="anl-empty-sub">Precisamos de pelo menos 2 meses de transações similares</span>
+    </div>
+  )
+  const total = data.reduce((s, s2) => s + s2.amount, 0)
+  return (
+    <div className="anl-subs-list">
+      {data.map((s, i) => (
+        <div key={i} className="anl-sub-item">
+          <div className="anl-sub-ico">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round">
+              <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
+              <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+            </svg>
+          </div>
+          <div className="anl-sub-info">
+            <span className="anl-sub-name">{s.description}</span>
+            <span className="anl-sub-cat">{CATEGORY_LABELS[s.category] || s.category} · {s.months}x detectado</span>
+          </div>
+          <span className="anl-sub-amt">R$ {fmt(s.amount)}/mês</span>
+        </div>
+      ))}
+      <div className="anl-subs-total">
+        <span>Total em assinaturas</span>
+        <span style={{ color: '#ff6b6b', fontWeight: 700 }}>R$ {fmt(total)}/mês</span>
+      </div>
+    </div>
+  )
+}
+
 export default function Goals() {
   const user                  = useUser()
   const navigate              = useNavigate()
   const [goals,   setGoals]   = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal,   setModal]   = useState(null)   // null | 'new' | goal-object for edit
+  const [modal,   setModal]   = useState(null)
   const [saving,  setSaving]  = useState(false)
   const [toast,   setToast]   = useState(null)
 
-  const plan     = user?.plan ?? null
-  const isFree   = plan === 'free'
-  const isPro    = plan === 'pro'
+  const [history,       setHistory]       = useState([])
+  const [subs,          setSubs]          = useState([])
+  const [loadingHist,   setLoadingHist]   = useState(true)
+  const [loadingSubs,   setLoadingSubs]   = useState(true)
+  const [report,        setReport]        = useState(null)
+  const [reportLoading, setReportLoading] = useState(false)
+  const now = new Date()
+  const [reportMonth, setReportMonth] = useState(now.getMonth() + 1)
+  const [reportYear,  setReportYear]  = useState(now.getFullYear())
+  const reportRef = useRef(null)
+
+  const plan    = user?.plan ?? null
+  const isFree  = plan === 'free'
+  const isPro   = plan === 'pro'
+  const isElite = plan === 'elite'
   const proLimit = 4
 
   const showToast = (msg, ok = true) => {
@@ -102,7 +202,7 @@ export default function Goals() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  const fetch = useCallback(async (force = false) => {
+  const fetchGoals = useCallback(async (force = false) => {
     if (!force) {
       const cached = getCache(CACHE_KEY)
       if (cached) { setGoals(cached); setLoading(false); return }
@@ -118,7 +218,35 @@ export default function Goals() {
     }
   }, [])
 
-  useEffect(() => { fetch() }, [fetch])
+  useEffect(() => {
+    fetchGoals()
+
+    let cancelled = false
+
+    const cachedHistory = getCache(CACHE_HISTORY)
+    if (cachedHistory) {
+      setHistory(cachedHistory)
+      setLoadingHist(false)
+    } else {
+      transactionsAPI.monthlyHistory(6)
+        .then(r => { if (!cancelled) { setCache(CACHE_HISTORY, r.data, TTL_5MIN); setHistory(r.data) } })
+        .catch(() => { if (!cancelled) setLoadingHist(false) })
+        .finally(() => { if (!cancelled) setLoadingHist(false) })
+    }
+
+    const cachedSubs = getCache(CACHE_SUBS)
+    if (cachedSubs) {
+      setSubs(cachedSubs)
+      setLoadingSubs(false)
+    } else {
+      transactionsAPI.subscriptions()
+        .then(r => { if (!cancelled) { setCache(CACHE_SUBS, r.data, TTL_5MIN); setSubs(r.data) } })
+        .catch(() => { if (!cancelled) setLoadingSubs(false) })
+        .finally(() => { if (!cancelled) setLoadingSubs(false) })
+    }
+
+    return () => { cancelled = true }
+  }, [fetchGoals])
 
   const handleSave = async (form) => {
     if (!form.title.trim()) return showToast('Informe o nome da meta.', false)
@@ -134,7 +262,7 @@ export default function Goals() {
       }
       setModal(null)
       invalidateCache(CACHE_KEY)
-      fetch(true)
+      fetchGoals(true)
     } catch (err) {
       if (err.response?.data?.limitReached) {
         setModal(null)
@@ -153,9 +281,38 @@ export default function Goals() {
       await goalsAPI.remove(id)
       showToast('Meta removida.')
       invalidateCache(CACHE_KEY)
-      fetch(true)
+      fetchGoals(true)
     } catch {
       showToast('Erro ao remover meta.', false)
+    }
+  }
+
+  const generateReport = async () => {
+    const cacheKey = `ai-report-${reportMonth}-${reportYear}`
+    try {
+      const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null')
+      if (cached?.text && Date.now() - cached.ts < 6 * 3600 * 1000) {
+        setReport(cached.text)
+        setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+        return
+      }
+    } catch {}
+
+    setReportLoading(true)
+    setReport(null)
+    try {
+      const { data } = await agentAPI.monthlyReport(reportMonth, reportYear)
+      const text = data.report || data.text || ''
+      setReport(text)
+      if (text && !text.startsWith('Nenhuma')) {
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({ text, ts: Date.now() })) } catch {}
+        showToast('Relatório gerado com sucesso!')
+      }
+      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+    } catch (err) {
+      setReport(err.response?.data?.error || 'Erro ao gerar relatório. Tente novamente.')
+    } finally {
+      setReportLoading(false)
     }
   }
 
@@ -174,6 +331,7 @@ export default function Goals() {
         <div className="dsb-content">
           <div className="gls-page">
 
+            {/* ── Hero ── */}
             <div className="gls-hero">
               <div className="gc-glow" />
               <div className="gc-particles" aria-hidden="true">
@@ -190,8 +348,8 @@ export default function Goals() {
                 </svg>
               </div>
               <div className="gls-hero-text">
-                <div className="cfg-ch-title">Minhas metas</div>
-                <div className="cfg-ch-sub">Acompanhe seus objetivos financeiros</div>
+                <div className="cfg-ch-title">Metas & Análises</div>
+                <div className="cfg-ch-sub">Objetivos financeiros e acompanhamento histórico</div>
               </div>
               {!isFree && (
                 <button className="gls-btn-new"
@@ -205,6 +363,7 @@ export default function Goals() {
               )}
             </div>
 
+            {/* ── Metas ── */}
             {loading ? (
               <div style={{ display:'flex', justifyContent:'center', padding:'40px 0' }}>
                 <span className="spinner" style={{ width: 22, height: 22, borderWidth: 2.5 }} />
@@ -240,67 +399,131 @@ export default function Goals() {
               </div>
             ) : (
               <>
-              {isPro && goals.length >= proLimit && (
-                <div className="gls-pro-limit-banner">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                  Limite de {proLimit} metas atingido no plano Pro.{' '}
-                  <button className="gls-pro-limit-link" onClick={() => navigate('/planos')}>Fazer upgrade</button>
-                </div>
-              )}
-              <div className="gls-grid">
-                {goals.map(g => {
-                  const pct  = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0
-                  const done = pct >= 100
-                  return (
-                    <div key={g.id} className="gls-card" style={{ '--gc': g.color }}>
-                      <div className="gls-card-top" style={{ borderTopColor: g.color }} />
-                      <div className="gls-card-body">
-                        <div className="gls-card-row1">
-                          <span className="gls-card-title">{g.title}</span>
-                          <span className="gls-card-pct" style={{ color: g.color, borderColor: `${g.color}33`, background: `${g.color}12` }}>
-                            {done ? '✓' : `${pct}%`}
-                          </span>
-                        </div>
-                        <div className="gls-card-bar-wrap">
-                          <div className="gls-card-bar">
-                            <div className="gls-card-bar-fill" style={{ width: `${pct}%`, background: g.color }} />
+                {isPro && goals.length >= proLimit && (
+                  <div className="gls-pro-limit-banner">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    Limite de {proLimit} metas atingido no plano Pro.{' '}
+                    <button className="gls-pro-limit-link" onClick={() => navigate('/planos')}>Fazer upgrade</button>
+                  </div>
+                )}
+                <div className="gls-grid">
+                  {goals.map(g => {
+                    const pct  = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0
+                    const done = pct >= 100
+                    return (
+                      <div key={g.id} className="gls-card" style={{ '--gc': g.color }}>
+                        <div className="gls-card-top" style={{ borderTopColor: g.color }} />
+                        <div className="gls-card-body">
+                          <div className="gls-card-row1">
+                            <span className="gls-card-title">{g.title}</span>
+                            <span className="gls-card-pct" style={{ color: g.color, borderColor: `${g.color}33`, background: `${g.color}12` }}>
+                              {done ? '✓' : `${pct}%`}
+                            </span>
                           </div>
-                        </div>
-                        <div className="gls-card-amounts">
-                          <span style={{ color: g.color }}>R$ {fmt(g.currentAmount)}</span>
-                          <span>de R$ {fmt(g.targetAmount)}</span>
-                        </div>
-                        {g.deadline && (
-                          <div className="gls-card-deadline">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                            </svg>
-                            Prazo: {fmtDate(g.deadline)}
+                          <div className="gls-card-bar-wrap">
+                            <div className="gls-card-bar">
+                              <div className="gls-card-bar-fill" style={{ width: `${pct}%`, background: g.color }} />
+                            </div>
                           </div>
-                        )}
-                        <div className="gls-card-actions">
-                          <button className="gls-act-btn" onClick={() => setModal({ ...g, deadline: g.deadline ? g.deadline.slice(0,10) : '' })}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
-                              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                            Editar
-                          </button>
-                          <button className="gls-act-btn gls-act-del" onClick={() => handleDelete(g.id)}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                              <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                            </svg>
-                            Remover
-                          </button>
+                          <div className="gls-card-amounts">
+                            <span style={{ color: g.color }}>R$ {fmt(g.currentAmount)}</span>
+                            <span>de R$ {fmt(g.targetAmount)}</span>
+                          </div>
+                          {g.deadline && (
+                            <div className="gls-card-deadline">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                              </svg>
+                              Prazo: {fmtDate(g.deadline)}
+                            </div>
+                          )}
+                          <div className="gls-card-actions">
+                            <button className="gls-act-btn" onClick={() => setModal({ ...g, deadline: g.deadline ? g.deadline.slice(0,10) : '' })}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                              </svg>
+                              Editar
+                            </button>
+                            <button className="gls-act-btn gls-act-del" onClick={() => handleDelete(g.id)}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                                <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                              </svg>
+                              Remover
+                            </button>
+                          </div>
                         </div>
                       </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            {/* ── Histórico de Gastos ── */}
+            <div className="cfg-sec-title" style={{ marginTop: 32 }}>Histórico de gastos</div>
+            <GradCard
+              iconBg="rgba(79,142,247,.1)" iconBorder="rgba(79,142,247,.25)"
+              icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
+              title="Evolução mensal"
+              sub="Entradas e saídas dos últimos 6 meses"
+            >
+              {loadingHist ? (
+                <div className="anl-loading"><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /></div>
+              ) : history.length > 0 ? (
+                <BarChart data={history} />
+              ) : (
+                <div className="anl-empty"><span>Sem dados de histórico ainda</span></div>
+              )}
+            </GradCard>
+
+            {/* ── Detector de Assinaturas ── */}
+            <div className="cfg-sec-title">Detector de assinaturas</div>
+            <GradCard
+              iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
+              icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>}
+              title="Gastos recorrentes detectados"
+              sub="Transações que se repetem em meses diferentes"
+            >
+              <SubscriptionsList data={subs} loading={loadingSubs} />
+            </GradCard>
+
+            {/* ── Relatório IA (Elite only) ── */}
+            {isElite && (
+              <>
+                <div className="cfg-sec-title">Relatório com IA</div>
+                <GradCard
+                  iconBg="rgba(255,140,66,.1)" iconBorder="rgba(255,140,66,.25)"
+                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff8c42" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>}
+                  title="Relatório mensal IA"
+                  sub="Análise completa gerada por inteligência artificial"
+                >
+                  <div className="anl-report-controls">
+                    <select className="anl-report-select" value={reportMonth} onChange={e => setReportMonth(+e.target.value)}>
+                      {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                    </select>
+                    <select className="anl-report-select" value={reportYear} onChange={e => setReportYear(+e.target.value)}>
+                      {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <button className="anl-report-btn" onClick={generateReport} disabled={reportLoading}>
+                      {reportLoading
+                        ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />Gerando...</>
+                        : 'Gerar relatório'
+                      }
+                    </button>
+                  </div>
+                  {reportLoading && (
+                    <div className="anl-loading">
+                      <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
                     </div>
-                  )
-                })}
-              </div>
+                  )}
+                  {report && !reportLoading && (
+                    <div className="anl-report-text" ref={reportRef}>{report}</div>
+                  )}
+                </GradCard>
               </>
             )}
 
