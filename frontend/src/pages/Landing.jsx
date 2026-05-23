@@ -84,6 +84,16 @@ const PRO_FEATURES = [
   { text: 'Suporte prioritário' },
 ]
 
+const ELITE_FEATURES = [
+  { text: <>Tudo do Pro incluído</> },
+  { text: <><span className="lp2-feat-hi">Previsão IA</span> mensal</> },
+  { text: <><span className="lp2-feat-hi">Relatório IA</span> detalhado</> },
+  { text: 'Detector de assinaturas' },
+  { text: 'Lembretes de vencimento' },
+  { text: <>Metas — <span className="lp2-feat-hi">Ilimitadas</span></> },
+  { text: 'Suporte dedicado' },
+]
+
 export default function Landing() {
   const [toast, setToast] = useState(false)
 
@@ -242,6 +252,34 @@ export default function Landing() {
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
                 Assinar Pro — Em breve
+              </button>
+              <div className="lp2-plan-note">Para começar, sem cartão de crédito</div>
+            </div>
+
+            {/* Elite */}
+            <div className="lp2-plan-card lp2-plan-elite">
+              <div className="lp2-plan-header">
+                <div>
+                  <div className="lp2-plan-name lp2-plan-name-elite">Elite</div>
+                  <div className="lp2-plan-tagline">Máximo poder + IA</div>
+                </div>
+                <div className="lp2-plan-badge lp2-plan-badge-elite">⚡ Premium</div>
+              </div>
+              <div className="lp2-plan-price lp2-plan-price-elite">R$ 34<small>,90/mês</small></div>
+              <div className="lp2-plan-cancel">Cancele quando quiser · Sem fidelidade</div>
+              <ul className="lp2-plan-feats">
+                {ELITE_FEATURES.map((f, i) => (
+                  <li key={i} className="lp2-plan-feat">
+                    <div className="lp2-feat-check lp2-feat-check-elite"><CheckIcon /></div>
+                    {f.text}
+                  </li>
+                ))}
+              </ul>
+              <button className="lp2-btn-plan-elite" onClick={handleProClick}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="#fbbf24" stroke="none">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                Assinar Elite — Em breve
               </button>
               <div className="lp2-plan-note">Para começar, sem cartão de crédito</div>
             </div>
