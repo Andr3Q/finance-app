@@ -114,6 +114,17 @@ if (isProd) {
     res.sendFile(path.join(publicPath, 'sw.js'))
   })
 
+  // Runtime config para o frontend — chave PostHog como env var (não baked na imagem)
+  // Deve vir antes do express.static para o Express interceptar antes de procurar arquivo
+  app.get('/app-config.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+    res.setHeader('Cache-Control', 'no-store')
+    res.send(`window.__APP_CONFIG__=${JSON.stringify({
+      posthogKey:  process.env.POSTHOG_KEY  || '',
+      posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
+    })};`)
+  })
+
   app.use(express.static(publicPath, { maxAge: 0 }))
 }
 

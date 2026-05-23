@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { agentAPI } from '../../services/api.js'
 import { useUser } from '../../hooks/useUser.js'
+import { analytics } from '../../services/analytics.js'
 
 const SUGGESTIONS = [
   'Quanto gastei esse mês?',
@@ -35,6 +36,7 @@ export default function AgentChat() {
     const text = (msg || input).trim()
     if (!text || loading) return
     setInput('')
+    analytics.track('ai_message_sent')
 
     const userMsg = { role: 'user', content: text }
     setHistory(h => [...h, userMsg])
@@ -70,7 +72,7 @@ export default function AgentChat() {
       {/* Botão flutuante */}
       <button
         className={`agent-fab${open ? ' active' : ''}`}
-        onClick={() => setOpen(o => !o)}
+        onClick={() => { if (!open) analytics.track('ai_chat_opened'); setOpen(o => !o) }}
         aria-label="Assistente IA"
         title="Assistente Financeiro IA"
       >

@@ -57,6 +57,9 @@
         });
       }
     </script>
+    <!-- Runtime config injetado pelo backend (PostHog key, etc.) -->
+    <!-- Executado sincronamente antes do module script para garantir disponibilidade -->
+    <script src="/app-config.js"></script>
   </head>
   <body>
     <!-- O React injeta todo o app dentro desta div -->

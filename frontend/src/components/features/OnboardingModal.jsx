@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { authAPI, budgetAPI, goalsAPI } from '../../services/api.js'
 import { useUser, saveUser } from '../../hooks/useUser.js'
+import { analytics } from '../../services/analytics.js'
 
 export default function OnboardingModal() {
   const user = useUser()
@@ -19,6 +20,7 @@ export default function OnboardingModal() {
   const finish = async () => {
     setSaving(true)
     try { await authAPI.completeOnboarding() } catch {}
+    analytics.track('onboarding_completed')
     const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
     saveUser({ ...cur, onboardingComplete: true })
   }

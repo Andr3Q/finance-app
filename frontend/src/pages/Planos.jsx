@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { useUser } from '../hooks/useUser.js'
 import { paymentsAPI } from '../services/api.js'
+import { analytics } from '../services/analytics.js'
 
 const FAQ = [
   ['Quando o Pro estará disponível?',   'O plano Pro está em desenvolvimento final. Você será notificado por e-mail assim que for lançado com acesso antecipado.'],
@@ -134,6 +135,7 @@ export default function Planos() {
       navigate('/register?from=planos')
       return
     }
+    analytics.track('upgrade_clicked', { plan, period })
     const key = `${plan}_${period}`
     setLoading(key)
     // Abre janela imediatamente no clique — evita bloqueio de popup e dá resposta instantânea
