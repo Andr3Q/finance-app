@@ -69,7 +69,7 @@ const FEATURES = [
 
 const FREE_FEATURES = [
   'Dashboard com saldo do mês',
-  'Até 30 transações por mês',
+  'Até 20 transações por mês',
   'Categorias de gastos',
   'Relatório mensal em PDF',
 ]
@@ -227,7 +227,7 @@ export default function Landing() {
                 </div>
                 <div className="lp2-plan-badge">★ Recomendado</div>
               </div>
-              <div className="lp2-plan-price">R$ 19<small>,90/mês</small></div>
+              <div className="lp2-plan-price">R$ 9<small>,90/mês</small></div>
               <div className="lp2-plan-cancel">Cancele quando quiser · Sem fidelidade</div>
               <ul className="lp2-plan-feats">
                 {PRO_FEATURES.map((f, i) => (
