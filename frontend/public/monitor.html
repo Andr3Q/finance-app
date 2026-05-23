@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Finance App — Monitor</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0f14;--bg2:#12151c;--bg3:#181c25;--bg4:#1e2330;
+  --border:#ffffff0f;--border2:#ffffff18;
+  --text:#e2e8f0;--text2:#8892a4;--text3:#5a6478;
+  --green:#4ac46e;--green-bg:#4ac46e18;--green-border:#4ac46e30;
+  --blue:#4f8ef7;--blue-bg:#4f8ef718;--blue-border:#4f8ef730;
+  --purple:#7b2fff;--purple-bg:#7b2fff18;--purple-border:#7b2fff30;
+  --red:#ef4444;--red-bg:#ef444418;--red-border:#ef444430;
+  --yellow:#f59e0b;--yellow-bg:#f59e0b18;--yellow-border:#f59e0b30;
+  --radius:10px;--radius-sm:6px;
+}
+html{font-size:15px}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;line-height:1.5}
+
+/* ── Login gate ── */
+#gate{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.gate-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:32px 28px;width:100%;max-width:360px;text-align:center}
+.gate-logo{font-size:28px;margin-bottom:8px}
+.gate-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.gate-sub{color:var(--text2);font-size:13px;margin-bottom:24px}
+.gate-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:14px;padding:10px 14px;outline:none;transition:border .2s}
+.gate-input:focus{border-color:var(--green)}
+.gate-btn{width:100%;margin-top:12px;background:var(--green);border:none;border-radius:var(--radius-sm);color:#000;font-size:14px;font-weight:700;padding:11px;cursor:pointer;transition:opacity .2s}
+.gate-btn:hover{opacity:.88}
+.gate-err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
+
+/* ── App shell ── */
+#app{display:none;min-height:100vh}
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:0;z-index:100}
+.header-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:12px;height:56px}
+.header-logo{font-size:18px;font-weight:800;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px}
+.header-logo span{color:var(--green)}
+.header-badge{background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;color:var(--green);font-size:11px;font-weight:700;padding:2px 9px;letter-spacing:.4px}
+.header-spacer{flex:1}
+.header-refresh-info{color:var(--text3);font-size:12px;text-align:right;line-height:1.3}
+.header-refresh-info b{color:var(--text2)}
+.btn-refresh{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);font-size:12px;padding:6px 12px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
+.btn-refresh:hover{border-color:var(--green);color:var(--green)}
+.btn-refresh svg{transition:transform .4s}
+.btn-refresh.spinning svg{animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Toasts ── */
+#toasts{position:fixed;top:68px;right:16px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:300px}
+.toast{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;display:flex;align-items:flex-start;gap:8px;pointer-events:all;animation:toast-in .25s ease;box-shadow:0 4px 20px #0006}
+.toast.ok{border-left:3px solid var(--green);color:var(--green)}
+.toast.err{border-left:3px solid var(--red);color:var(--red)}
+.toast.warn{border-left:3px solid var(--yellow);color:var(--yellow)}
+.toast.info{border-left:3px solid var(--blue);color:var(--blue)}
+.toast-msg{flex:1;color:var(--text)}
+.toast-close{cursor:pointer;opacity:.5;font-size:14px;line-height:1;flex-shrink:0;background:none;border:none;color:var(--text);padding:0}
+.toast-close:hover{opacity:1}
+@keyframes toast-in{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.toast-out{animation:toast-out .2s ease forwards}
+@keyframes toast-out{to{opacity:0;transform:translateX(20px)}}
+
+/* ── Main ── */
+.main{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
+
+/* ── Status bar ── */
+.status-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.status-pill{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:5px 12px 5px 8px;font-size:12px;font-weight:600}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.s-ok .status-dot{background:var(--green);box-shadow:0 0 6px var(--green)}
+.s-warn .status-dot{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
+.s-err .status-dot{background:var(--red);box-shadow:0 0 6px var(--red);animation:blink 1s ease infinite}
+.s-load .status-dot{background:var(--text3)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Section title ── */
+.sec-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin:28px 0 10px}
+
+/* ── Grid ── */
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+
+/* ── Card ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden}
+.card.alert-err{border-color:var(--red-border);background:color-mix(in srgb,var(--bg2) 90%,#ef4444)}
+.card.alert-warn{border-color:var(--yellow-border);background:color-mix(in srgb,var(--bg2) 92%,#f59e0b)}
+.card-icon{width:32px;height:32px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;margin-bottom:10px;flex-shrink:0}
+.card-label{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.card-val{font-size:26px;font-weight:800;line-height:1.1}
+.card-sub{font-size:12px;color:var(--text3);margin-top:4px}
+.card-top{border-top:2px solid transparent;position:absolute;top:0;left:0;right:0;height:2px}
+
+/* ── Stat row ── */
+.stat-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.stat-row:last-child{border:none;padding-bottom:0}
+.stat-row-label{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.stat-row-val{font-size:13px;font-weight:700}
+
+/* ── Plan bar ── */
+.plan-bars{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.plan-bar-row{display:flex;align-items:center;gap:8px}
+.plan-bar-label{font-size:12px;color:var(--text2);width:36px;flex-shrink:0}
+.plan-bar-track{flex:1;background:var(--bg4);border-radius:4px;height:7px;overflow:hidden}
+.plan-bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+.plan-bar-count{font-size:12px;font-weight:700;width:28px;text-align:right;flex-shrink:0}
+
+/* ── Security cards ── */
+.sec-status-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sec-status-ico{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center}
+.sec-vuln-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.vuln-chip{border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700}
+.vuln-critical{background:#ef444425;color:#ef4444;border:1px solid #ef444440}
+.vuln-high{background:#f97316 25;color:#f97316;border:1px solid #f9731640}
+.vuln-moderate{background:#f59e0b25;color:#f59e0b;border:1px solid #f59e0b40}
+.vuln-low{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
+.btn-scan{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);font-size:12px;padding:6px 12px;cursor:pointer;transition:all .2s;margin-top:10px}
+.btn-scan:hover{border-color:var(--purple);color:var(--purple)}
+.btn-scan:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Memory bar ── */
+.mem-bar-track{background:var(--bg4);border-radius:4px;height:8px;overflow:hidden;margin:4px 0 2px}
+.mem-bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+
+/* ── Login table ── */
+.login-table{width:100%;border-collapse:collapse;font-size:12px}
+.login-table th{color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)}
+.login-table td{padding:7px 8px;border-bottom:1px solid var(--border);color:var(--text2)}
+.login-table tr:last-child td{border:none}
+.badge-ok{background:var(--green-bg);border:1px solid var(--green-border);border-radius:4px;color:var(--green);font-size:10px;font-weight:700;padding:1px 6px}
+.badge-fail{background:var(--red-bg);border:1px solid var(--red-border);border-radius:4px;color:var(--red);font-size:10px;font-weight:700;padding:1px 6px}
+
+/* ── Skeleton ── */
+.skel{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:200% 100%;animation:skel .9s ease infinite;border-radius:4px}
+@keyframes skel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  .grid-4{grid-template-columns:repeat(2,1fr)}
+  .grid-3{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .header-refresh-info{display:none}
+  .grid-4,.grid-3,.grid-2{grid-template-columns:1fr}
+  .main{padding:14px 12px 48px}
+  #toasts{width:calc(100vw - 32px)}
+  .login-table th:nth-child(3),.login-table td:nth-child(3),
+  .login-table th:nth-child(4),.login-table td:nth-child(4){display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ── Gate ── -->
+<div id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">📡</div>
+    <div class="gate-title">Finance App Monitor</div>
+    <div class="gate-sub">Digite o MONITOR_SECRET para continuar</div>
+    <input id="gate-input" class="gate-input" type="password" placeholder="monitor secret…" autocomplete="off" />
+    <button class="gate-btn" onclick="gateLogin()">Entrar</button>
+    <div class="gate-err" id="gate-err"></div>
+  </div>
+</div>
+
+<!-- ── App ── -->
+<div id="app">
+  <header class="header">
+    <div class="header-inner">
+      <a class="header-logo" href="#">📡 <span>Finance</span> Monitor</a>
+      <div class="header-badge">LIVE</div>
+      <div class="header-spacer"></div>
+      <div class="header-refresh-info">
+        Atualizado <b id="last-update">—</b><br>
+        Próximo em <b id="countdown">30s</b>
+      </div>
+      <button class="btn-refresh" id="btn-refresh" onclick="refreshAll()" title="Atualizar agora">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  <div id="toasts"></div>
+
+  <main class="main">
+
+    <!-- Status Bar -->
+    <div class="status-bar" id="status-bar">
+      <div class="status-pill s-load" id="pill-api"><span class="status-dot"></span>API</div>
+      <div class="status-pill s-load" id="pill-db"><span class="status-dot"></span>Database</div>
+      <div class="status-pill s-load" id="pill-npm"><span class="status-dot"></span>npm audit</div>
+      <div class="status-pill s-load" id="pill-trivy"><span class="status-dot"></span>Trivy</div>
+      <div class="status-pill s-load" id="pill-logins"><span class="status-dot"></span>Logins</div>
+    </div>
+
+    <!-- ── Métricas de Usuários ── -->
+    <div class="sec-title">Usuários</div>
+    <div class="grid-4" id="users-grid">
+      <div class="card"><div class="card-top" style="background:var(--blue)"></div><div class="card-icon" style="background:var(--blue-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div><div class="card-label">Total</div><div class="card-val" id="u-total"><span class="skel" style="width:50px;height:28px;display:block"></span></div><div class="card-sub" id="u-sub">carregando…</div></div>
+      <div class="card"><div class="card-top" style="background:var(--text3)"></div><div class="card-icon" style="background:var(--bg3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="card-label">Free</div><div class="card-val" id="u-free" style="color:var(--text2)"><span class="skel" style="width:40px;height:28px;display:block"></span></div><div class="card-sub" id="u-free-pct">—</div></div>
+      <div class="card"><div class="card-top" style="background:var(--green)"></div><div class="card-icon" style="background:var(--green-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div class="card-label">Pro</div><div class="card-val" id="u-pro" style="color:var(--green)"><span class="skel" style="width:40px;height:28px;display:block"></span></div><div class="card-sub" id="u-pro-pct">—</div></div>
+      <div class="card"><div class="card-top" style="background:var(--purple)"></div><div class="card-icon" style="background:var(--purple-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth="2" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div class="card-label">Elite</div><div class="card-val" id="u-elite" style="color:var(--purple)"><span class="skel" style="width:40px;height:28px;display:block"></span></div><div class="card-sub" id="u-elite-pct">—</div></div>
+    </div>
+
+    <!-- Barra de planos -->
+    <div class="card" style="margin-top:12px">
+      <div class="card-label" style="margin-bottom:12px">Distribuição de planos</div>
+      <div class="plan-bars" id="plan-bars">
+        <div class="plan-bar-row"><span class="plan-bar-label" style="color:var(--text2)">Free</span><div class="plan-bar-track"><div class="plan-bar-fill" id="bar-free" style="background:var(--text3);width:0%"></div></div><span class="plan-bar-count" id="cnt-free" style="color:var(--text2)">—</span></div>
+        <div class="plan-bar-row"><span class="plan-bar-label" style="color:var(--green)">Pro</span><div class="plan-bar-track"><div class="plan-bar-fill" id="bar-pro" style="background:var(--green);width:0%"></div></div><span class="plan-bar-count" id="cnt-pro" style="color:var(--green)">—</span></div>
+        <div class="plan-bar-row"><span class="plan-bar-label" style="color:var(--purple)">Elite</span><div class="plan-bar-track"><div class="plan-bar-fill" id="bar-elite" style="background:var(--purple);width:0%"></div></div><span class="plan-bar-count" id="cnt-elite" style="color:var(--purple)">—</span></div>
+      </div>
+    </div>
+
+    <!-- ── Transações ── -->
+    <div class="sec-title">Transações do mês</div>
+    <div class="grid-4">
+      <div class="card"><div class="card-top" style="background:var(--blue)"></div><div class="card-icon" style="background:var(--blue-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><div class="card-label">Hoje</div><div class="card-val" id="tx-today" style="color:var(--blue)">—</div><div class="card-sub">transações</div></div>
+      <div class="card"><div class="card-top" style="background:var(--blue)"></div><div class="card-icon" style="background:var(--blue-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="card-label">Mês</div><div class="card-val" id="tx-month" style="color:var(--blue)">—</div><div class="card-sub">transações</div></div>
+      <div class="card"><div class="card-top" style="background:var(--green)"></div><div class="card-icon" style="background:var(--green-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div class="card-label">Entradas</div><div class="card-val" id="tx-income" style="color:var(--green);font-size:18px">—</div><div class="card-sub">no mês</div></div>
+      <div class="card"><div class="card-top" style="background:var(--red)"></div><div class="card-icon" style="background:var(--red-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div><div class="card-label">Saídas</div><div class="card-val" id="tx-expense" style="color:var(--red);font-size:18px">—</div><div class="card-sub">no mês</div></div>
+    </div>
+
+    <!-- ── App Stats ── -->
+    <div class="sec-title">App</div>
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-label">Objetos ativos</div>
+        <div id="app-stats">
+          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/></svg>Metas</span><span class="stat-row-val" id="st-goals">—</span></div>
+          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/></svg>Parcelamentos</span><span class="stat-row-val" id="st-inst">—</span></div>
+          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/></svg>Contas fixas</span><span class="stat-row-val" id="st-budgets">—</span></div>
+          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth="2" strokeLinecap="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Push subs</span><span class="stat-row-val" id="st-push">—</span></div>
+          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Pagamentos proc.</span><span class="stat-row-val" id="st-pay">—</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Memória do processo</div>
+        <div id="mem-section">
+          <div style="margin-top:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)"><span>Heap usado</span><span id="mem-heap-used">—</span></div>
+            <div class="mem-bar-track"><div class="mem-bar-fill" id="mem-heap-bar" style="background:var(--blue);width:0%"></div></div>
+            <div style="font-size:11px;color:var(--text3)" id="mem-heap-total">de — total</div>
+          </div>
+          <div style="margin-top:14px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)"><span>RSS (real)</span><span id="mem-rss">—</span></div>
+          </div>
+          <div style="margin-top:14px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)"><span>Sistema livre</span><span id="mem-sys">—</span></div>
+            <div class="mem-bar-track"><div class="mem-bar-fill" id="mem-sys-bar" style="background:var(--green);width:0%"></div></div>
+            <div style="font-size:11px;color:var(--text3)" id="mem-sys-total">de — total</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Infra</div>
+        <div style="margin-top:10px">
+          <div class="stat-row"><span class="stat-row-label">Uptime</span><span class="stat-row-val" id="st-uptime" style="color:var(--green)">—</span></div>
+          <div class="stat-row"><span class="stat-row-label">Node.js</span><span class="stat-row-val" id="st-node" style="color:var(--blue)">—</span></div>
+          <div class="stat-row"><span class="stat-row-label">Ambiente</span><span class="stat-row-val" style="color:var(--green)">Cloud Run</span></div>
+          <div class="stat-row"><span class="stat-row-label">Região</span><span class="stat-row-val" style="color:var(--text2)">sa-east1</span></div>
+          <div class="stat-row"><span class="stat-row-label">Banco</span><span class="stat-row-val" id="st-db-ms" style="color:var(--text2)">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Segurança ── -->
+    <div class="sec-title">Segurança</div>
+    <div class="grid-2">
+      <div class="card" id="card-npm">
+        <div class="sec-status-row">
+          <div class="sec-status-ico" style="background:var(--bg3)" id="npm-ico">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700">npm audit</div>
+            <div style="font-size:11px;color:var(--text3)" id="npm-time">—</div>
+          </div>
+          <div style="flex:1"></div>
+          <div id="npm-status-chip"></div>
+        </div>
+        <div id="npm-vulns"></div>
+        <button class="btn-scan" id="btn-scan" onclick="triggerScan()" title="Iniciar scan manual">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          Rodar scan agora
+        </button>
+      </div>
+      <div class="card" id="card-trivy">
+        <div class="sec-status-row">
+          <div class="sec-status-ico" style="background:var(--bg3)" id="trivy-ico">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div>
+            <div style="font-size:13px;font-weight:700">Trivy (CVE)</div>
+            <div style="font-size:11px;color:var(--text3)" id="trivy-time">—</div>
+          </div>
+          <div style="flex:1"></div>
+          <div id="trivy-status-chip"></div>
+        </div>
+        <div id="trivy-vulns"></div>
+        <div style="font-size:12px;color:var(--text3);margin-top:10px">Scanner de vulnerabilidades em dependências e imagem Docker</div>
+      </div>
+    </div>
+
+    <!-- Logins suspeitos -->
+    <div class="card" style="margin-top:12px" id="card-logins-warn" hidden>
+      <div style="display:flex;align-items:center;gap:8px;color:var(--red)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span style="font-size:13px;font-weight:700" id="logins-warn-text">—</span>
+      </div>
+    </div>
+
+    <!-- ── Logs de Acesso ── -->
+    <div class="sec-title">Acessos recentes</div>
+    <div class="card">
+      <div style="overflow-x:auto">
+        <table class="login-table">
+          <thead><tr><th>E-mail</th><th>Status</th><th>IP</th><th>Quando</th></tr></thead>
+          <tbody id="logins-tbody">
+            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+'use strict'
+
+// ── Utilidades ──────────────────────────────────────────
+const $ = id => document.getElementById(id)
+const SECRET_KEY = 'monitor_secret_v1'
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B'
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB'
+  if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB'
+  return (b/1024/1024/1024).toFixed(2) + ' GB'
+}
+function fmtUptime(s) {
+  const d = Math.floor(s / 86400), h = Math.floor((s%86400)/3600),
+        m = Math.floor((s%3600)/60), sec = s % 60
+  if (d > 0) return `${d}d ${h}h ${m}m`
+  if (h > 0) return `${h}h ${m}m ${sec}s`
+  if (m > 0) return `${m}m ${sec}s`
+  return `${sec}s`
+}
+function fmtCurrency(v) {
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+function fmtTime(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  const now = new Date()
+  const diff = Math.floor((now - d) / 1000)
+  if (diff < 60) return 'agora'
+  if (diff < 3600) return `${Math.floor(diff/60)}min atrás`
+  if (diff < 86400) return `${Math.floor(diff/3600)}h atrás`
+  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+}
+function pct(a, total) {
+  if (!total) return 0
+  return Math.round((a / total) * 100)
+}
+
+// ── Toasts ──────────────────────────────────────────────
+const toastTimers = {}
+let toastId = 0
+
+function toast(msg, type = 'info', duration = 5000) {
+  const id = ++toastId
+  const el = document.createElement('div')
+  el.className = `toast ${type}`
+  el.innerHTML = `<span class="toast-msg">${msg}</span><button class="toast-close" onclick="dismissToast(${id})">✕</button>`
+  el.dataset.id = id
+  $('toasts').appendChild(el)
+  if (duration > 0) {
+    toastTimers[id] = setTimeout(() => dismissToast(id), duration)
+  }
+  return id
+}
+
+function dismissToast(id) {
+  clearTimeout(toastTimers[id])
+  const el = document.querySelector(`[data-id="${id}"]`)
+  if (!el) return
+  el.classList.add('toast-out')
+  setTimeout(() => el.remove(), 220)
+}
+
+// ── Gate ────────────────────────────────────────────────
+function getSecret() { return sessionStorage.getItem(SECRET_KEY) || '' }
+
+async function gateLogin() {
+  const val = $('gate-input').value.trim()
+  if (!val) { $('gate-err').textContent = 'Digite o secret.'; return }
+  $('gate-err').textContent = ''
+  try {
+    const r = await fetch('/api/monitor/dashboard', { headers: { 'x-monitor-secret': val } })
+    if (r.status === 401) { $('gate-err').textContent = 'Secret incorreto.'; return }
+    sessionStorage.setItem(SECRET_KEY, val)
+    $('gate').style.display = 'none'
+    $('app').style.display = 'block'
+    startApp(await r.json())
+  } catch {
+    $('gate-err').textContent = 'Erro de conexão. Verifique se o app está online.'
+  }
+}
+$('gate-input').addEventListener('keydown', e => e.key === 'Enter' && gateLogin())
+
+// Se já tem secret armazenado, tenta auto-login
+const savedSecret = getSecret()
+if (savedSecret) {
+  fetch('/api/monitor/dashboard', { headers: { 'x-monitor-secret': savedSecret } })
+    .then(async r => {
+      if (r.status === 401) { sessionStorage.removeItem(SECRET_KEY); return }
+      $('gate').style.display = 'none'
+      $('app').style.display = 'block'
+      startApp(await r.json())
+    })
+    .catch(() => {})
+}
+
+// ── Refresh loop ─────────────────────────────────────────
+let countdownVal = 30
+let countdownTimer = null
+
+function startCountdown() {
+  clearInterval(countdownTimer)
+  countdownVal = 30
+  $('countdown').textContent = countdownVal + 's'
+  countdownTimer = setInterval(() => {
+    countdownVal--
+    $('countdown').textContent = countdownVal + 's'
+    if (countdownVal <= 0) { refreshAll() }
+  }, 1000)
+}
+
+async function refreshAll() {
+  const btn = $('btn-refresh')
+  btn.classList.add('spinning')
+  try {
+    const r = await fetch('/api/monitor/dashboard', { headers: { 'x-monitor-secret': getSecret() } })
+    if (r.status === 401) { toast('Sessão expirada. Recarregue a página.', 'err', 0); return }
+    if (!r.ok) { toast('Erro ao buscar dados: ' + r.status, 'warn'); return }
+    const data = await r.json()
+    renderDashboard(data)
+  } catch (e) {
+    toast('Sem resposta do servidor.', 'err')
+    setPill('pill-api', 'err', 'API Offline')
+  } finally {
+    btn.classList.remove('spinning')
+    startCountdown()
+  }
+}
+
+// ── Render ───────────────────────────────────────────────
+let prevState = {}
+
+function startApp(data) {
+  renderDashboard(data)
+  startCountdown()
+  // Fetch health separado para latência real do banco
+  fetchHealth()
+}
+
+async function fetchHealth() {
+  try {
+    const r = await fetch('/health')
+    const d = await r.json()
+    $('st-db-ms').textContent = d.db_ms != null ? d.db_ms + ' ms' : '—'
+    setPill('pill-db', d.status === 'ok' ? 'ok' : 'err', 'Database ' + (d.status === 'ok' ? 'OK' : 'Degraded'))
+  } catch {
+    $('st-db-ms').textContent = 'offline'
+    setPill('pill-db', 'err', 'Database Offline')
+  }
+}
+
+function setPill(id, state, label) {
+  const el = $(id)
+  if (!el) return
+  el.className = `status-pill s-${state}`
+  el.innerHTML = `<span class="status-dot"></span>${label}`
+}
+
+function renderDashboard(d) {
+  const now = new Date()
+  $('last-update').textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+  // API pill
+  setPill('pill-api', 'ok', 'API OK')
+
+  // ── Usuários ──
+  const { users } = d
+  $('u-total').textContent  = users.total
+  $('u-free').textContent   = users.free
+  $('u-pro').textContent    = users.pro
+  $('u-elite').textContent  = users.elite
+  $('u-sub').textContent    = `atualizado ${fmtTime(d.timestamp)}`
+  $('u-free-pct').textContent  = pct(users.free,  users.total) + '% do total'
+  $('u-pro-pct').textContent   = pct(users.pro,   users.total) + '% do total'
+  $('u-elite-pct').textContent = pct(users.elite, users.total) + '% do total'
+
+  const maxUsers = Math.max(users.free, users.pro, users.elite, 1)
+  $('bar-free').style.width  = pct(users.free,  maxUsers) + '%'
+  $('bar-pro').style.width   = pct(users.pro,   maxUsers) + '%'
+  $('bar-elite').style.width = pct(users.elite, maxUsers) + '%'
+  $('cnt-free').textContent  = users.free
+  $('cnt-pro').textContent   = users.pro
+  $('cnt-elite').textContent = users.elite
+
+  // ── Transações ──
+  $('tx-today').textContent   = d.transactions.today
+  $('tx-month').textContent   = d.transactions.month
+  $('tx-income').textContent  = fmtCurrency(d.transactions.incomeMonth)
+  $('tx-expense').textContent = fmtCurrency(d.transactions.expenseMonth)
+
+  // ── App stats ──
+  $('st-goals').textContent   = d.goals
+  $('st-inst').textContent    = d.installments
+  $('st-budgets').textContent = d.budgets
+  $('st-push').textContent    = d.pushSubscribers
+  $('st-pay').textContent     = d.processedPayments
+  $('st-uptime').textContent  = fmtUptime(d.uptime)
+  $('st-node').textContent    = d.nodeVersion || '—'
+
+  // ── Memória ──
+  const { memory: m } = d
+  $('mem-heap-used').textContent  = fmtBytes(m.heapUsed)
+  $('mem-heap-total').textContent = `de ${fmtBytes(m.heapTotal)} total`
+  $('mem-heap-bar').style.width   = pct(m.heapUsed, m.heapTotal) + '%'
+  const heapPct = pct(m.heapUsed, m.heapTotal)
+  $('mem-heap-bar').style.background = heapPct > 85 ? 'var(--red)' : heapPct > 65 ? 'var(--yellow)' : 'var(--blue)'
+
+  $('mem-rss').textContent       = fmtBytes(m.rss)
+  const sysFreeGb = fmtBytes(m.sysFree)
+  const sysTotalGb = fmtBytes(m.sysTotal)
+  $('mem-sys').textContent       = sysFreeGb + ' livres'
+  $('mem-sys-total').textContent = `de ${sysTotalGb} total`
+  const sysUsedPct = pct(m.sysTotal - m.sysFree, m.sysTotal)
+  $('mem-sys-bar').style.width      = sysUsedPct + '%'
+  $('mem-sys-bar').style.background = sysUsedPct > 90 ? 'var(--red)' : sysUsedPct > 75 ? 'var(--yellow)' : 'var(--green)'
+
+  // ── Segurança — npm ──
+  renderSecTool('npm', d.security.npm, 'npm-ico', 'npm-time', 'npm-status-chip', 'npm-vulns', 'card-npm', 'pill-npm', 'npm audit')
+  renderSecTool('trivy', d.security.trivy, 'trivy-ico', 'trivy-time', 'trivy-status-chip', 'trivy-vulns', 'card-trivy', 'pill-trivy', 'Trivy')
+
+  // ── Logins suspeitos ──
+  const fl = d.security.failedLogins24h
+  const warnEl = $('card-logins-warn')
+  if (fl >= 10) {
+    warnEl.hidden = false
+    $('logins-warn-text').textContent = `⚠ ${fl} tentativas de login falhadas nas últimas 24h`
+    setPill('pill-logins', fl >= 20 ? 'err' : 'warn', `${fl} falhas 24h`)
+    if (!prevState.loginWarnSent || prevState.failedLogins24h !== fl) {
+      toast(`${fl} logins falhados nas últimas 24h`, fl >= 20 ? 'err' : 'warn', 8000)
+    }
+  } else {
+    warnEl.hidden = true
+    setPill('pill-logins', 'ok', 'Logins OK')
+  }
+
+  // ── Logins recentes ──
+  renderLogins(d.recentLogins)
+
+  // Alerta de heap alto
+  if (heapPct > 85 && prevState.heapPct <= 85) {
+    toast(`Heap do Node em ${heapPct}% — possível vazamento de memória`, 'warn', 10000)
+  }
+
+  prevState = { failedLogins24h: fl, heapPct, loginWarnSent: true }
+}
+
+function renderSecTool(tool, data, icoId, timeId, chipId, vulnsId, cardId, pillId, label) {
+  if (!data) {
+    $(timeId).textContent = 'scan não executado'
+    setPill(pillId, 'warn', label + ' Pendente')
+    return
+  }
+  $(timeId).textContent = fmtTime(data.runAt)
+
+  const isClean = data.status === 'clean'
+  const isErr   = data.status === 'error'
+  const hasCrit = data.details?.critical > 0
+  const hasHigh = data.details?.high > 0
+
+  // ícone
+  const icoColor = isClean ? 'var(--green)' : isErr ? 'var(--text3)' : hasCrit ? 'var(--red)' : 'var(--yellow)'
+  const icoBg    = isClean ? 'var(--green-bg)' : isErr ? 'var(--bg3)' : hasCrit ? 'var(--red-bg)' : 'var(--yellow-bg)'
+  $(icoId).style.background = icoBg
+  $(icoId).querySelector('svg').setAttribute('stroke', icoColor)
+
+  // chip de status
+  let chipHtml = ''
+  if (isClean) chipHtml = `<span style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:4px;color:var(--green);font-size:11px;font-weight:700;padding:2px 8px">✓ Limpo</span>`
+  else if (isErr) chipHtml = `<span style="background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);font-size:11px;font-weight:700;padding:2px 8px">Erro</span>`
+  else chipHtml = `<span style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:4px;color:var(--red);font-size:11px;font-weight:700;padding:2px 8px">⚠ ${data.count} vuln.</span>`
+  $(chipId).innerHTML = chipHtml
+
+  // vulns
+  let vulnsHtml = ''
+  if (!isClean && !isErr && data.details) {
+    const { critical = 0, high = 0, moderate = 0, low = 0 } = data.details
+    vulnsHtml = `<div class="sec-vuln-row">`
+    if (critical) vulnsHtml += `<span class="vuln-chip vuln-critical">${critical} Critical</span>`
+    if (high)     vulnsHtml += `<span class="vuln-chip vuln-high">${high} High</span>`
+    if (moderate) vulnsHtml += `<span class="vuln-chip vuln-moderate">${moderate} Moderate</span>`
+    if (low)      vulnsHtml += `<span class="vuln-chip vuln-low">${low} Low</span>`
+    vulnsHtml += `</div>`
+  }
+  $(vulnsId).innerHTML = vulnsHtml
+
+  // card alert
+  const card = $(cardId)
+  card.classList.toggle('alert-err',  !isClean && !isErr && hasCrit)
+  card.classList.toggle('alert-warn', !isClean && !isErr && !hasCrit && hasHigh)
+
+  // pill
+  setPill(pillId, isClean ? 'ok' : isErr ? 'warn' : hasCrit ? 'err' : 'warn', label + (isClean ? ' OK' : ' ' + data.count))
+}
+
+function renderLogins(logins) {
+  if (!logins || !logins.length) {
+    $('logins-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum acesso registrado</td></tr>`
+    return
+  }
+  $('logins-tbody').innerHTML = logins.map(l => `
+    <tr>
+      <td style="color:var(--text)">${l.email}</td>
+      <td><span class="${l.success ? 'badge-ok' : 'badge-fail'}">${l.success ? 'OK' : 'FALHOU'}</span></td>
+      <td style="font-family:monospace;font-size:11px">${l.ip}</td>
+      <td style="color:var(--text3)">${fmtTime(l.at)}</td>
+    </tr>`).join('')
+}
+
+// ── Scan manual ──────────────────────────────────────────
+async function triggerScan() {
+  const btn = $('btn-scan')
+  btn.disabled = true
+  btn.textContent = 'Iniciando scan…'
+  try {
+    const r = await fetch('/api/monitor/scan', {
+      method: 'POST',
+      headers: { 'x-monitor-secret': getSecret() },
+    })
+    if (r.ok) {
+      toast('Scan iniciado em background. Resultados em ~2min.', 'info', 6000)
+      btn.textContent = 'Scan em andamento…'
+      setTimeout(() => { btn.disabled = false; btn.textContent = 'Rodar scan agora' }, 30000)
+    } else {
+      toast('Erro ao iniciar scan: ' + r.status, 'warn')
+      btn.disabled = false
+      btn.textContent = 'Rodar scan agora'
+    }
+  } catch {
+    toast('Erro de rede ao iniciar scan.', 'err')
+    btn.disabled = false
+    btn.textContent = 'Rodar scan agora'
+  }
+}
+</script>
+</body>
+</html>
