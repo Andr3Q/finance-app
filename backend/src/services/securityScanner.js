@@ -8,11 +8,8 @@ const execFileAsync = promisify(execFile)
 const APP_DIR = path.resolve(__dirname, '../../')
 
 function findTrivy() {
-  const candidates = ['/usr/local/bin/trivy', '/tmp/trivy-bin/trivy']
-  for (const c of candidates) {
-    try { if (fs.existsSync(c)) return c } catch {}
-  }
-  return null
+  const bin = '/usr/local/bin/trivy'
+  try { return fs.existsSync(bin) ? bin : null } catch { return null }
 }
 
 async function runNpmAudit() {
