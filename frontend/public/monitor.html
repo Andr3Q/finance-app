@@ -20,20 +20,8 @@
 html{font-size:15px}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;line-height:1.5}
 
-/* ── Login gate ── */
-#gate{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
-.gate-box{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius);padding:32px 28px;width:100%;max-width:360px;text-align:center}
-.gate-logo{font-size:28px;margin-bottom:8px}
-.gate-title{font-size:18px;font-weight:700;margin-bottom:4px}
-.gate-sub{color:var(--text2);font-size:13px;margin-bottom:24px}
-.gate-input{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-size:14px;padding:10px 14px;outline:none;transition:border .2s}
-.gate-input:focus{border-color:var(--green)}
-.gate-btn{width:100%;margin-top:12px;background:var(--green);border:none;border-radius:var(--radius-sm);color:#000;font-size:14px;font-weight:700;padding:11px;cursor:pointer;transition:opacity .2s}
-.gate-btn:hover{opacity:.88}
-.gate-err{color:var(--red);font-size:13px;margin-top:10px;min-height:18px}
-
 /* ── App shell ── */
-#app{display:none;min-height:100vh}
+#app{display:block;min-height:100vh}
 .header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:0;z-index:100}
 .header-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:12px;height:56px}
 .header-logo{font-size:18px;font-weight:800;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px}
@@ -152,18 +140,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </style>
 </head>
 <body>
-
-<!-- ── Gate ── -->
-<div id="gate">
-  <div class="gate-box">
-    <div class="gate-logo">📡</div>
-    <div class="gate-title">Finance App Monitor</div>
-    <div class="gate-sub">Digite o MONITOR_SECRET para continuar</div>
-    <input id="gate-input" class="gate-input" type="password" placeholder="monitor secret…" autocomplete="off" />
-    <button class="gate-btn" onclick="gateLogin()">Entrar</button>
-    <div class="gate-err" id="gate-err"></div>
-  </div>
-</div>
 
 <!-- ── App ── -->
 <div id="app">
@@ -334,7 +310,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 // ── Utilidades ──────────────────────────────────────────
 const $ = id => document.getElementById(id)
-const SECRET_KEY = 'monitor_secret_v1'
 
 function fmtBytes(b) {
   if (b < 1024) return b + ' B'
@@ -393,38 +368,12 @@ function dismissToast(id) {
   setTimeout(() => el.remove(), 220)
 }
 
-// ── Gate ────────────────────────────────────────────────
-function getSecret() { return sessionStorage.getItem(SECRET_KEY) || '' }
-
-async function gateLogin() {
-  const val = $('gate-input').value.trim()
-  if (!val) { $('gate-err').textContent = 'Digite o secret.'; return }
-  $('gate-err').textContent = ''
-  try {
-    const r = await fetch('/api/monitor/dashboard', { headers: { 'x-monitor-secret': val } })
-    if (r.status === 401) { $('gate-err').textContent = 'Secret incorreto.'; return }
-    sessionStorage.setItem(SECRET_KEY, val)
-    $('gate').style.display = 'none'
-    $('app').style.display = 'block'
-    startApp(await r.json())
-  } catch {
-    $('gate-err').textContent = 'Erro de conexão. Verifique se o app está online.'
-  }
-}
-$('gate-input').addEventListener('keydown', e => e.key === 'Enter' && gateLogin())
-
-// Se já tem secret armazenado, tenta auto-login
-const savedSecret = getSecret()
-if (savedSecret) {
-  fetch('/api/monitor/dashboard', { headers: { 'x-monitor-secret': savedSecret } })
-    .then(async r => {
-      if (r.status === 401) { sessionStorage.removeItem(SECRET_KEY); return }
-      $('gate').style.display = 'none'
-      $('app').style.display = 'block'
-      startApp(await r.json())
-    })
-    .catch(() => {})
-}
+// Carrega dashboard ao abrir a página
+window.addEventListener('DOMContentLoaded', () => {
+  fetch('/api/monitor/dashboard')
+    .then(async r => { if (r.ok) startApp(await r.json()) })
+    .catch(() => toast('Sem resposta do servidor.', 'err'))
+})
 
 // ── Refresh loop ─────────────────────────────────────────
 let countdownVal = 30
@@ -445,12 +394,10 @@ async function refreshAll() {
   const btn = $('btn-refresh')
   btn.classList.add('spinning')
   try {
-    const r = await fetch('/api/monitor/dashboard', { headers: { 'x-monitor-secret': getSecret() } })
-    if (r.status === 401) { toast('Sessão expirada. Recarregue a página.', 'err', 0); return }
+    const r = await fetch('/api/monitor/dashboard')
     if (!r.ok) { toast('Erro ao buscar dados: ' + r.status, 'warn'); return }
-    const data = await r.json()
-    renderDashboard(data)
-  } catch (e) {
+    renderDashboard(await r.json())
+  } catch {
     toast('Sem resposta do servidor.', 'err')
     setPill('pill-api', 'err', 'API Offline')
   } finally {
@@ -644,10 +591,7 @@ async function triggerScan() {
   btn.disabled = true
   btn.textContent = 'Iniciando scan…'
   try {
-    const r = await fetch('/api/monitor/scan', {
-      method: 'POST',
-      headers: { 'x-monitor-secret': getSecret() },
-    })
+    const r = await fetch('/api/monitor/scan', { method: 'POST' })
     if (r.ok) {
       toast('Scan iniciado em background. Resultados em ~2min.', 'info', 6000)
       btn.textContent = 'Scan em andamento…'
