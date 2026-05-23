@@ -2739,6 +2739,18 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .cfg-inp:focus { border-color: rgba(74,196,110,.38); }
 .cfg-inp option { background: #1a1a1a; color: var(--t1); }
+.cfg-inp.inp-err { border-color: rgba(239,68,68,.5); }
+.cfg-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--t2);
+  letter-spacing: .3px;
+}
+.cfg-field-err {
+  font-size: 11px;
+  color: #ef4444;
+  margin-top: -2px;
+}
 .cfg-inp-num { width: 110px; flex-shrink: 0; }
 .cfg-inp-group {
   display: flex;

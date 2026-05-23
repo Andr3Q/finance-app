@@ -54,6 +54,7 @@ export const authAPI = {
   updateProfile:  (data)            => api.put('/auth/profile', data),
   upgradePro:     ()                => api.post('/auth/upgrade'),
   downgradeFree:  ()                => api.post('/auth/downgrade'),
+  changePassword:      (currentPassword, newPassword) => api.put('/auth/password', { currentPassword, newPassword }),
   deleteAccount:       (password) => api.delete('/auth/account', { data: { password } }),
   completeOnboarding: ()          => api.post('/auth/complete-onboarding'),
   referralStats:      ()          => api.get('/auth/referral-stats'),

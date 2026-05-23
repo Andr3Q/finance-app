@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail } = require('../services/emailService')
+const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail } = require('../services/emailService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
@@ -85,7 +85,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     if (usedReferralCode && typeof usedReferralCode === 'string' && /^[A-F0-9]{8}$/i.test(usedReferralCode)) {
       referrer = await prisma.user.findUnique({
         where:  { referralCode: usedReferralCode.toUpperCase() },
-        select: { id: true, plan: true, trialEndsAt: true, planExpiresAt: true },
+        select: { id: true, name: true, email: true, plan: true, trialEndsAt: true, planExpiresAt: true },
       })
     }
 
@@ -107,8 +107,11 @@ router.post('/register', registerLimiter, async (req, res) => {
       }
     })
 
-    // Reward referrer — fire-and-forget
-    if (referrer) rewardReferrer(referrer).catch(() => {})
+    // Reward referrer + notificar — fire-and-forget
+    if (referrer) {
+      rewardReferrer(referrer).catch(() => {})
+      sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
+    }
 
     // Welcome email — fire-and-forget
     sendWelcomeEmail(user.email, user.name, trialEndsAt).catch(() => {})
@@ -450,6 +453,41 @@ router.post('/downgrade', authMiddleware, async (req, res) => {
     res.json({ message: 'Plano alterado para Free.', user })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar plano.' })
+  }
+})
+
+// ── PUT /auth/password ──────────────────────────────────
+// Troca de senha autenticada. Exige senha atual + nova senha.
+router.put('/password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias.' })
+    }
+    if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 72) {
+      return res.status(400).json({ error: 'A nova senha deve ter entre 8 e 72 caracteres.' })
+    }
+    if (!PASSWORD_REGEX.test(newPassword)) {
+      return res.status(400).json({ error: 'A nova senha deve conter maiúscula, minúscula e número.' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { password: true } })
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    const match = await bcrypt.compare(currentPassword, user.password)
+    if (!match) return res.status(401).json({ error: 'Senha atual incorreta.' })
+
+    if (await bcrypt.compare(newPassword, user.password)) {
+      return res.status(400).json({ error: 'A nova senha não pode ser igual à senha atual.' })
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 12)
+    await prisma.user.update({ where: { id: req.userId }, data: { password: hashed } })
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth] password:', err.message)
+    res.status(500).json({ error: 'Erro ao alterar senha.' })
   }
 })
 
