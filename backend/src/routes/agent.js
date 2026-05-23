@@ -29,6 +29,28 @@ function requireGroq(res) {
   return true
 }
 
+// Verifica se o plano do usuário atende ao mínimo exigido.
+// Retorna true se OK, false + resposta 403 se insuficiente.
+// Usa limitReached:true para o interceptor do frontend não fazer logout.
+async function requirePlan(req, res, minimum) {
+  const RANKS = { free: 0, pro: 1, elite: 2 }
+  const user  = await prisma.user.findUnique({
+    where:  { id: req.userId },
+    select: { plan: true, planExpiresAt: true },
+  })
+  const expired = user?.planExpiresAt && user.planExpiresAt < new Date()
+  const plan    = expired ? 'free' : (user?.plan || 'free')
+  if ((RANKS[plan] ?? 0) < (RANKS[minimum] ?? 0)) {
+    res.status(403).json({
+      error:        `Esta funcionalidade requer o plano ${minimum === 'elite' ? 'Elite' : 'Pro'}.`,
+      limitReached: true,
+      requiredPlan: minimum,
+    })
+    return false
+  }
+  return true
+}
+
 // ── Retry para erros transitórios ───────────────────────
 // 429 = rate limit, 529 = Groq overloaded, 503 = servidor indisponível.
 // Backoff crescente: 1s, 2s, 4s. 429 espera o dobro (2s, 4s, 8s).
@@ -216,6 +238,7 @@ Ao analisar gastos, seja específico com valores. Ao criar transações, confirm
 // ── POST /api/agent/chat ────────────────────────────────
 router.post('/chat', async (req, res) => {
   if (!requireGroq(res)) return
+  if (!await requirePlan(req, res, 'pro')) return
 
   const { message, history } = req.body
 
@@ -293,6 +316,7 @@ router.post('/chat', async (req, res) => {
 // Usa modelo rápido (8B) — apenas 1 frase curta, velocidade > qualidade.
 router.post('/predict', async (req, res) => {
   if (!requireGroq(res)) return
+  if (!await requirePlan(req, res, 'pro')) return
   try {
     const { month, year, day: dayOfMonth } = nowBrasilia()
     const daysInMonth = new Date(year, month, 0).getDate()
@@ -345,6 +369,7 @@ Escreva UMA frase curta e direta prevendo como o usuário vai terminar o mês fi
 // ── POST /api/agent/monthly-report ─────────────────────
 router.post('/monthly-report', async (req, res) => {
   if (!requireGroq(res)) return
+  if (!await requirePlan(req, res, 'elite')) return
   try {
     const br    = nowBrasilia()
     const month = Number(req.body?.month) || br.month
