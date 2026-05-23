@@ -26,10 +26,31 @@ function setAuthCookie(res, token) {
 
 const router = express.Router()
 
+async function rewardReferrer(referrer) {
+  const BONUS_MS = 30 * 24 * 60 * 60 * 1000
+  const now      = new Date()
+  if (referrer.plan !== 'free' && referrer.planExpiresAt && referrer.planExpiresAt > now) {
+    await prisma.user.update({
+      where: { id: referrer.id },
+      data:  { planExpiresAt: new Date(referrer.planExpiresAt.getTime() + BONUS_MS) },
+    })
+  } else if (referrer.trialEndsAt && referrer.trialEndsAt > now) {
+    await prisma.user.update({
+      where: { id: referrer.id },
+      data:  { trialEndsAt: new Date(referrer.trialEndsAt.getTime() + BONUS_MS) },
+    })
+  } else {
+    await prisma.user.update({
+      where: { id: referrer.id },
+      data:  { plan: 'pro', trialEndsAt: new Date(now.getTime() + BONUS_MS) },
+    })
+  }
+}
+
 // ── POST /auth/register ─────────────────────────────────
 router.post('/register', registerLimiter, async (req, res) => {
   try {
-    const { name, email, password, salary } = req.body
+    const { name, email, password, salary, referralCode: usedReferralCode } = req.body
 
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Nome, e-mail e senha são obrigatórios.' })
@@ -59,8 +80,19 @@ router.post('/register', registerLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Salário inválido.' })
     }
 
+    // Lookup referrer before creating user
+    let referrer = null
+    if (usedReferralCode && typeof usedReferralCode === 'string' && /^[A-F0-9]{8}$/i.test(usedReferralCode)) {
+      referrer = await prisma.user.findUnique({
+        where:  { referralCode: usedReferralCode.toUpperCase() },
+        select: { id: true, plan: true, trialEndsAt: true, planExpiresAt: true },
+      })
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12)
-    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    const trialDays   = referrer ? 14 : 7
+    const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
+    const referralCode = crypto.randomBytes(4).toString('hex').toUpperCase()
     const user = await prisma.user.create({
       data: {
         name:        name.trim(),
@@ -70,15 +102,20 @@ router.post('/register', registerLimiter, async (req, res) => {
         reportEmail: normalizedEmail,
         plan:        'pro',
         trialEndsAt,
+        referralCode,
+        referredBy:  referrer ? usedReferralCode.toUpperCase() : null,
       }
     })
+
+    // Reward referrer — fire-and-forget
+    if (referrer) rewardReferrer(referrer).catch(() => {})
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
 
     res.status(201).json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan, isOnTrial: true, trialEndsAt: trialEndsAt.toISOString() }
+      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan, isOnTrial: true, trialEndsAt: trialEndsAt.toISOString(), referralCode }
     })
   } catch (error) {
     console.error('[auth] register:', error.message)
@@ -136,7 +173,7 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true }
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true }
 
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
@@ -167,6 +204,21 @@ router.get('/me', authMiddleware, async (req, res) => {
       if (daysLeft > 0 && daysLeft <= 7) {
         prisma.user.update({ where: { id: req.userId }, data: { renewalReminderSent: true } }).catch(() => {})
         sendRenewalReminderEmail(user.email, user.name, user.plan, daysLeft).catch(() => {})
+      }
+    }
+
+    // Lazy generate referral code for existing users who don't have one yet
+    if (!user.referralCode) {
+      let attempts = 0
+      while (attempts < 5) {
+        const code = crypto.randomBytes(4).toString('hex').toUpperCase()
+        try {
+          user = await prisma.user.update({ where: { id: req.userId }, data: { referralCode: code }, select: ME_SELECT })
+          break
+        } catch (e) {
+          if (e.code === 'P2002') { attempts++; continue }
+          break
+        }
       }
     }
 
@@ -377,6 +429,25 @@ router.post('/downgrade', authMiddleware, async (req, res) => {
     res.json({ message: 'Plano alterado para Free.', user })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar plano.' })
+  }
+})
+
+// ── GET /auth/referral-stats ────────────────────────────
+router.get('/referral-stats', authMiddleware, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { referralCode: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    const referredCount = await prisma.user.count({
+      where: { referredBy: user.referralCode },
+    })
+
+    res.json({ referralCode: user.referralCode, referredCount })
+  } catch {
+    res.status(500).json({ error: 'Erro ao buscar dados de referência.' })
   }
 })
 

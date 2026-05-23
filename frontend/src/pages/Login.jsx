@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
@@ -48,6 +48,7 @@ const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
 
 export default function Login({ isRegister = false }) {
   const navigate = useNavigate()
+  const refCode  = useRef(new URLSearchParams(window.location.search).get('ref') || '')
   const [mode,       setMode]       = useState(isRegister ? 'register' : 'login')
   const [loading,    setLoading]    = useState(false)
   const [serverErr,  setServerErr]  = useState('')
@@ -88,7 +89,7 @@ export default function Login({ isRegister = false }) {
       const fn   = mode === 'login' ? authAPI.login : authAPI.register
       const data = mode === 'login'
         ? { email: form.email.trim(), password: form.password }
-        : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: parseFloat(form.salary) || 0 }
+        : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: parseFloat(form.salary) || 0, referralCode: refCode.current || undefined }
       const res = await fn(data)
       if (res.data.token) sessionStorage.setItem('token', res.data.token)
       sessionStorage.setItem('user', JSON.stringify(res.data.user))
