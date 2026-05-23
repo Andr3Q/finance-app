@@ -351,35 +351,20 @@ export default function Goals() {
                 <div className="cfg-ch-title">Metas & Análises</div>
                 <div className="cfg-ch-sub">Objetivos financeiros e acompanhamento histórico</div>
               </div>
-              {!isFree && (
-                <button className="gls-btn-new"
-                  onClick={() => setModal('new')}
-                  disabled={isPro && goals.length >= proLimit}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  Nova meta
-                </button>
-              )}
+              <button className="gls-btn-new"
+                onClick={() => setModal('new')}
+                disabled={(isFree && goals.length >= 1) || (isPro && goals.length >= proLimit)}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nova meta
+              </button>
             </div>
 
             {/* ── Metas ── */}
             {loading ? (
               <div style={{ display:'flex', justifyContent:'center', padding:'40px 0' }}>
                 <span className="spinner" style={{ width: 22, height: 22, borderWidth: 2.5 }} />
-              </div>
-            ) : isFree ? (
-              <div className="gls-locked-state">
-                <div className="gls-locked-icon">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-                  </svg>
-                </div>
-                <span className="gls-locked-title">Metas financeiras</span>
-                <span className="gls-locked-sub">Disponível nos planos <strong>Pro</strong> e <strong>Elite</strong>. Defina objetivos, acompanhe o progresso e conquiste sua liberdade financeira.</span>
-                <button className="gls-btn-upgrade" onClick={() => navigate('/planos')}>
-                  Ver planos
-                </button>
               </div>
             ) : goals.length === 0 ? (
               <div className="gls-empty-state">
@@ -399,6 +384,15 @@ export default function Goals() {
               </div>
             ) : (
               <>
+                {isFree && goals.length >= 1 && (
+                  <div className="gls-pro-limit-banner">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    Limite de 1 meta no plano Free.{' '}
+                    <button className="gls-pro-limit-link" onClick={() => navigate('/planos')}>Fazer upgrade para criar mais</button>
+                  </div>
+                )}
                 {isPro && goals.length >= proLimit && (
                   <div className="gls-pro-limit-banner">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
