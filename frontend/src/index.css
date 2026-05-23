@@ -1201,9 +1201,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .lp2-plans-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 20px; max-width: 720px; margin: 0 auto;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px; max-width: 1020px; margin: 0 auto;
 }
+@media (max-width: 900px) { .lp2-plans-grid { grid-template-columns: 1fr; } }
 .lp2-plan-card {
   background: rgba(255,255,255,.03);
   border: 1px solid rgba(255,255,255,.08);
@@ -1219,6 +1220,28 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(90deg, transparent, #4ac46e, transparent);
 }
+.lp2-plan-elite {
+  background: linear-gradient(135deg, rgba(139,92,246,.1) 0%, rgba(109,40,217,.04) 100%);
+  border-color: rgba(139,92,246,.3);
+  position: relative; overflow: hidden;
+}
+.lp2-plan-elite::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, #a78bfa, transparent);
+}
+.lp2-plan-name-elite { color: #a78bfa; }
+.lp2-plan-badge-elite { background: rgba(139,92,246,.15); color: #a78bfa; border-color: rgba(139,92,246,.25); }
+.lp2-plan-price-elite { color: #a78bfa; }
+.lp2-feat-check-elite { background: rgba(139,92,246,.15); border-color: rgba(139,92,246,.25); color: #a78bfa; }
+.lp2-btn-plan-elite {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: linear-gradient(135deg, #7c3aed, #a78bfa);
+  color: #fff; border: none; border-radius: 12px;
+  padding: 13px; font-size: 14px; font-weight: 700;
+  font-family: var(--fd); cursor: pointer; margin-top: auto;
+  transition: opacity .15s;
+}
+.lp2-btn-plan-elite:hover { opacity: .88; }
 .lp2-plan-header {
   display: flex; align-items: flex-start; justify-content: space-between;
   margin-bottom: 20px;
