@@ -1230,7 +1230,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   background: linear-gradient(90deg, transparent, #a78bfa, transparent);
 }
 .lp2-plan-name-elite { color: #a78bfa; }
-.lp2-plan-badge-elite { background: rgba(139,92,246,.15); color: #a78bfa; border-color: rgba(139,92,246,.25); }
+.lp2-plan-badge-elite { background: linear-gradient(135deg, #7c3aed, #a78bfa) !important; color: #fff; border: none; }
 .lp2-plan-price-elite { color: #a78bfa; }
 .lp2-feat-check-elite { background: rgba(139,92,246,.15); border-color: rgba(139,92,246,.25); color: #a78bfa; }
 .lp2-btn-plan-elite {
