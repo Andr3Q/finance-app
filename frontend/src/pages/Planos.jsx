@@ -112,7 +112,7 @@ export default function Planos() {
   const [loading,   setLoading]  = useState(null) // 'pro_monthly' | 'pro_annual' | etc.
 
   const user   = useUser()
-  const isPro  = user.plan === 'pro' || user.plan === 'elite'
+  const plan   = user.plan || 'free'
   const location = useLocation()
 
   useEffect(() => {
@@ -201,7 +201,7 @@ export default function Planos() {
             <div className="pp1-card pp1-free">
               <div className="pp1-card-tier">Grátis</div>
               <div className="pp1-card-tagline">Ideal para começar</div>
-              {!isPro && <div className="pp1-current-badge">Plano atual</div>}
+              {plan === 'free' && <div className="pp1-current-badge">Plano atual</div>}
 
               <div className="pp1-price-block">
                 <div className="pp1-price">
@@ -224,10 +224,16 @@ export default function Planos() {
                 ))}
               </ul>
 
-              <button className="pp1-cta-ghost" disabled>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Plano atual
-              </button>
+              {plan === 'free' ? (
+                <button className="pp1-cta-ghost" disabled>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Plano atual
+                </button>
+              ) : (
+                <button className="pp1-cta-ghost pp1-cta-cancel" onClick={() => showToast('Para cancelar sua assinatura, acesse o Mercado Pago ou envie um e-mail para suporte@finance.com.br', 'warn')}>
+                  Cancelar assinatura
+                </button>
+              )}
             </div>
 
             {/* PRO */}
@@ -251,6 +257,7 @@ export default function Planos() {
                 Recomendado
               </div>
 
+              {plan === 'pro' && <div className="pp1-current-badge pp1-current-badge-pro">Plano atual</div>}
               <div className="pp1-card-tier pp1-tier-pro">Pro</div>
               <div className="pp1-card-tagline pp1-tagline-pro">Para quem quer controle total</div>
 
@@ -281,8 +288,8 @@ export default function Planos() {
                 )}
               </ul>
 
-              {isPro ? (
-                <div className="pp1-cta-is-pro">✨ Você já é Pro!</div>
+              {plan === 'pro' ? (
+                <div className="pp1-cta-is-pro">✨ Plano atual</div>
               ) : (
                 <button className="pp1-cta-pro" onClick={() => handleCheckout('pro', period)} disabled={!!loading}>
                   {loading === `pro_${period}` ? 'Aguarde…' : (
@@ -290,7 +297,7 @@ export default function Planos() {
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                       </svg>
-                      Assinar Pro
+                      {plan === 'elite' ? 'Mudar para Pro' : 'Assinar Pro'}
                     </>
                   )}
                 </button>
@@ -314,6 +321,7 @@ export default function Planos() {
               </div>
 
 
+              {plan === 'elite' && <div className="pp1-current-badge pp1-current-badge-elite">Plano atual</div>}
               <div className="pp1-card-tier pp1-tier-elite">Elite</div>
               <div className="pp1-card-tagline pp1-tagline-elite">Para quem quer o poder da IA</div>
 
@@ -344,8 +352,8 @@ export default function Planos() {
                 )}
               </ul>
 
-              {user.plan === 'elite'
-                ? <div className="pp1-cta-is-pro">⚡ Você já é Elite!</div>
+              {plan === 'elite'
+                ? <div className="pp1-cta-is-pro">⚡ Plano atual</div>
                 : <>
                     <button className="pp1-cta-elite" onClick={() => handleCheckout('elite', period)} disabled={!!loading}>
                       {loading === `elite_${period}` ? 'Aguarde…' : (
@@ -353,7 +361,7 @@ export default function Planos() {
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                           </svg>
-                          Assinar Elite
+                          {plan === 'pro' ? 'Fazer upgrade para Elite' : 'Assinar Elite'}
                         </>
                       )}
                     </button>
