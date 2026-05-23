@@ -184,4 +184,131 @@ async function sendRenewalReminderEmail(toEmail, userName, planName, daysLeft) {
   })
 }
 
-module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail }
+async function sendWelcomeEmail(toEmail, userName, trialEndsAt) {
+  const appUrl   = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+  const trialEnd = new Date(trialEndsAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #020d10, #061520); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(0,255,204,0.15);">
+        <h1 style="color: #00ffcc; margin: 0; font-size: 26px;">FinançasPro</h1>
+        <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">Seja bem-vindo(a)! 🎉</p>
+      </div>
+      <div style="background: #fff; padding: 28px; border-radius: 12px;">
+        <p style="color: #333; font-size: 16px; margin: 0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
+          Sua conta foi criada com sucesso. Você está no <strong style="color: #00ffcc;">Plano Pro</strong> com <strong>7 dias grátis</strong> — sem precisar de cartão de crédito.
+        </p>
+        <div style="background: #f0fff8; border-radius: 10px; padding: 16px; margin-bottom: 24px; border-left: 3px solid #00d084;">
+          <p style="margin: 0 0 8px; color: #333; font-size: 13px; font-weight: bold;">O que está incluído no seu trial Pro:</p>
+          <ul style="margin: 0; padding-left: 18px; color: #555; font-size: 13px; line-height: 1.8;">
+            <li>Assistente financeiro com IA</li>
+            <li>Relatórios e fechamentos mensais em PDF</li>
+            <li>Metas de economia e orçamento por categoria</li>
+            <li>Compras parceladas com controle automático</li>
+            <li>Autenticação em dois fatores (2FA)</li>
+          </ul>
+        </div>
+        <p style="color: #888; font-size: 13px; margin: 0 0 24px;">
+          Seu trial expira em <strong>${esc(trialEnd)}</strong>. Após isso, você pode assinar ou continuar no plano grátis.
+        </p>
+        <div style="text-align: center;">
+          <a href="${appUrl}" style="display: inline-block; background: linear-gradient(135deg, #00ffcc, #00a89a); color: #021a14; text-decoration: none; padding: 14px 36px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+            Acessar minha conta
+          </a>
+        </div>
+      </div>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    to:      toEmail,
+    subject: 'Bem-vindo(a) ao FinançasPro! Seu trial Pro começa agora 🎉',
+    html,
+  })
+}
+
+async function sendTrialExpiryEmail(toEmail, userName, daysLeft) {
+  const appUrl  = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+  const urgency = daysLeft <= 1 ? 'expira hoje' : `expira em ${daysLeft} ${daysLeft === 1 ? 'dia' : 'dias'}`
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #1a0a00, #2d1500); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(255,165,0,0.3);">
+        <h1 style="color: #ffaa00; margin: 0; font-size: 24px;">FinançasPro</h1>
+        <p style="color: #997a40; margin: 8px 0 0; font-size: 14px;">⏰ Seu trial está acabando</p>
+      </div>
+      <div style="background: #fff; padding: 28px; border-radius: 12px;">
+        <p style="color: #333; font-size: 15px; margin: 0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
+          Seu trial do <strong>Plano Pro</strong> <strong style="color: #e55;">${esc(urgency)}</strong>.
+          Assine agora para continuar com acesso completo.
+        </p>
+        <div style="background: #fff8f0; border-radius: 10px; padding: 16px; margin-bottom: 24px; border-left: 3px solid #ffaa00;">
+          <p style="margin: 0; color: #333; font-size: 13px; line-height: 1.6;">
+            Após o trial, sua conta migra para o plano Free e você perde acesso ao assistente IA, fechamentos em PDF e demais recursos premium.
+          </p>
+        </div>
+        <div style="text-align: center; margin-bottom: 16px;">
+          <a href="${appUrl}/planos" style="display: inline-block; background: #ffaa00; color: #1a0a00; text-decoration: none; padding: 14px 36px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+            Assinar Pro — R$ 9,90/mês
+          </a>
+        </div>
+        <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">Cancele quando quiser. Sem fidelidade.</p>
+      </div>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    to:      toEmail,
+    subject: `Seu trial Pro ${urgency} — FinançasPro`,
+    html,
+  })
+}
+
+async function sendPlanActivationEmail(toEmail, userName, plan, planExpiresAt) {
+  const appUrl    = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+  const planLabel = plan === 'elite' ? 'Elite' : 'Pro'
+  const expiresOn = new Date(planExpiresAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+  const color     = plan === 'elite' ? '#a855f7' : '#00ffcc'
+  const textColor = plan === 'elite' ? '#fff' : '#021a14'
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #020d10, #061520); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(0,255,204,0.15);">
+        <h1 style="color: ${color}; margin: 0; font-size: 24px;">FinançasPro</h1>
+        <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">Plano ${esc(planLabel)} ativado ✅</p>
+      </div>
+      <div style="background: #fff; padding: 28px; border-radius: 12px;">
+        <p style="color: #333; font-size: 15px; margin: 0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
+          Seu pagamento foi confirmado. O <strong style="color: ${color};">Plano ${esc(planLabel)}</strong> está ativo e você tem acesso completo a todos os recursos.
+        </p>
+        <div style="background: #f0fff8; border-radius: 10px; padding: 16px; margin-bottom: 24px; border-left: 3px solid ${color};">
+          <p style="margin: 0; color: #555; font-size: 13px; line-height: 1.6;">
+            Seu plano está ativo até <strong>${esc(expiresOn)}</strong>. Você receberá um aviso antes do vencimento para renovar.
+          </p>
+        </div>
+        <div style="text-align: center;">
+          <a href="${appUrl}" style="display: inline-block; background: ${color}; color: ${textColor}; text-decoration: none; padding: 14px 36px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+            Acessar minha conta
+          </a>
+        </div>
+      </div>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    to:      toEmail,
+    subject: `Plano ${planLabel} ativado com sucesso! — FinançasPro`,
+    html,
+  })
+}
+
+module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail }

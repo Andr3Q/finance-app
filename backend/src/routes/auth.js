@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendRenewalReminderEmail } = require('../services/emailService')
+const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail } = require('../services/emailService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
@@ -110,6 +110,9 @@ router.post('/register', registerLimiter, async (req, res) => {
     // Reward referrer — fire-and-forget
     if (referrer) rewardReferrer(referrer).catch(() => {})
 
+    // Welcome email — fire-and-forget
+    sendWelcomeEmail(user.email, user.name, trialEndsAt).catch(() => {})
+
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
 
@@ -179,7 +182,7 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true }
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true }
 
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
@@ -196,12 +199,23 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     // Rebaixa para free se o trial expirou (sem plano pago ativo)
+    let trialJustExpired = false
     if (user.trialEndsAt && user.trialEndsAt < now && (!user.planExpiresAt || user.planExpiresAt < now)) {
+      trialJustExpired = true
       user = await prisma.user.update({
         where:  { id: req.userId },
         data:   { plan: 'free', trialEndsAt: null },
         select: ME_SELECT,
       })
+    }
+
+    // Lembrete de trial expirando: dispara aos 3 dias restantes (apenas uma vez)
+    if (user.trialEndsAt && user.trialEndsAt > now && !user.trialReminderSent) {
+      const daysLeft = Math.ceil((user.trialEndsAt - now) / (1000 * 60 * 60 * 24))
+      if (daysLeft <= 3) {
+        prisma.user.update({ where: { id: req.userId }, data: { trialReminderSent: true } }).catch(() => {})
+        sendTrialExpiryEmail(user.email, user.name, daysLeft).catch(() => {})
+      }
     }
 
     // Lembrete de renovação lazy: dispara na primeira visita com ≤7 dias restantes (apenas planos pagos)
@@ -229,12 +243,13 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     const isOnTrial = !!user.trialEndsAt && user.trialEndsAt > now
-    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, ...userOut } = user
+    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, ...userOut } = user
     userOut.isOnTrial = isOnTrial
     if (isOnTrial) userOut.trialEndsAt = trialEndsAt.toISOString()
     if (userOut.plan !== 'free' && planExpiresAt) {
       userOut.planExpiresAt = planExpiresAt.toISOString()
     }
+    if (trialJustExpired) userOut.trialJustExpired = true
     res.json(userOut)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar usuário.' })

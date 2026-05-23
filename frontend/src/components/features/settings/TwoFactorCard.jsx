@@ -1,19 +1,73 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useUser, saveUser } from '../../../hooks/useUser.js'
 import { authAPI } from '../../../services/api.js'
+
+function BackupCodesModal({ codes, onClose }) {
+  const [copied, setCopied] = useState(false)
+
+  const copyAll = () => {
+    const text = codes.join('\n')
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+    } else {
+      const ta = document.createElement('textarea')
+      ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta)
+      setCopied(true); setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  return (
+    <div className="tfa-overlay">
+      <div className="tfa-modal" style={{ maxWidth: 420 }}>
+        <div className="tfa-modal-head">
+          <span>Códigos de recuperação</span>
+        </div>
+        <div className="tfa-modal-body">
+          <div className="tfa-backup-notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            Salve estes códigos em lugar seguro. Eles só aparecem <strong>uma vez</strong> e servem para acessar sua conta se perder o aplicativo.
+          </div>
+          <div className="tfa-backup-grid">
+            {codes.map((c, i) => (
+              <div key={i} className="tfa-backup-code">{c}</div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+            <button className="cfg-btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={copyAll}>
+              {copied ? '✓ Copiado!' : 'Copiar todos'}
+            </button>
+            <button className="cfg-btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={onClose}>
+              Já salvei
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function TwoFactorCard({ onMessage, onUpgrade }) {
   const user    = useUser()
   const isPro   = user.plan === 'pro' || user.plan === 'elite'
   const enabled = !!user.twoFactorEnabled
 
-  const [modal,    setModal]   = useState(null)  // 'setup' | 'disable'
-  const [qrCode,   setQrCode]  = useState('')
-  const [manualKey, setManualKey] = useState('')
-  const [code,     setCode]    = useState('')
-  const [password, setPassword] = useState('')
-  const [loading,  setLoading] = useState(false)
-  const [err,      setErr]     = useState('')
+  const [modal,       setModal]      = useState(null)  // 'setup' | 'disable' | 'regenerate'
+  const [qrCode,      setQrCode]     = useState('')
+  const [manualKey,   setManualKey]  = useState('')
+  const [code,        setCode]       = useState('')
+  const [password,    setPassword]   = useState('')
+  const [loading,     setLoading]    = useState(false)
+  const [err,         setErr]        = useState('')
+  const [backupCodes, setBackupCodes] = useState(null)   // string[] — mostrado uma vez
+  const [codesCount,  setCodesCount]  = useState(null)   // number
+
+  useEffect(() => {
+    if (enabled) {
+      authAPI.twoFABackupCodesCount().then(r => setCodesCount(r.data.count)).catch(() => {})
+    }
+  }, [enabled])
 
   const openSetup = async () => {
     if (!isPro) { onUpgrade('2FA'); return }
@@ -36,10 +90,12 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
     if (!/^\d{6}$/.test(code)) { setErr('Digite os 6 dígitos.'); return }
     setLoading(true); setErr('')
     try {
-      await authAPI.twoFAVerifySetup(code)
+      const res = await authAPI.twoFAVerifySetup(code)
       const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
       saveUser({ ...cur, twoFactorEnabled: true })
       setModal(null)
+      setCodesCount(res.data.backupCodes?.length || 10)
+      setBackupCodes(res.data.backupCodes || null)
       onMessage('2FA ativado com sucesso!')
     } catch (e) {
       setErr(e.response?.data?.error || 'Código incorreto.')
@@ -58,7 +114,26 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
       saveUser({ ...cur, twoFactorEnabled: false })
       setModal(null)
       setPassword('')
+      setCodesCount(null)
       onMessage('2FA desativado.')
+    } catch (e) {
+      setErr(e.response?.data?.error || 'Senha incorreta.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRegenerate = async e => {
+    e.preventDefault()
+    if (!password) { setErr('Digite sua senha.'); return }
+    setLoading(true); setErr('')
+    try {
+      const res = await authAPI.twoFARegenerateCodes(password)
+      setModal(null)
+      setPassword('')
+      setCodesCount(res.data.backupCodes?.length || 10)
+      setBackupCodes(res.data.backupCodes || null)
+      onMessage('Novos códigos de recuperação gerados.')
     } catch (e) {
       setErr(e.response?.data?.error || 'Senha incorreta.')
     } finally {
@@ -70,6 +145,8 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
 
   return (
     <>
+      {backupCodes && <BackupCodesModal codes={backupCodes} onClose={() => setBackupCodes(null)} />}
+
       <div className="cfg-card r11">
         <div className="cfg-card-head">
           <div className="cfg-ch-ico" style={{ background: enabled ? 'rgba(74,196,110,.1)' : 'rgba(255,255,255,.05)', border: enabled ? '1px solid rgba(74,196,110,.2)' : '1px solid var(--border)' }}>
@@ -90,7 +167,6 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
         </div>
 
         <div className="cfg-card-body">
-          {/* Usuário downgraded mas com 2FA ainda ativo — sempre pode desativar */}
           {!isPro && enabled && (
             <div className="tfa-row">
               <span className="tfa-desc" style={{ color: 'var(--orange)', fontSize: 11 }}>
@@ -119,12 +195,28 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
             </div>
           )}
           {isPro && enabled && (
-            <div className="tfa-row">
-              <span className="tfa-desc">Código solicitado em cada login.</span>
-              <button className="cfg-btn-danger" onClick={() => { setModal('disable'); setErr('') }} style={{ fontSize: 12, padding: '8px 14px' }}>
-                Desativar 2FA
-              </button>
-            </div>
+            <>
+              <div className="tfa-row">
+                <div>
+                  <span className="tfa-desc">Código solicitado em cada login.</span>
+                  {codesCount !== null && (
+                    <div className="tfa-backup-count" style={{ color: codesCount <= 2 ? 'var(--red)' : 'var(--t3)' }}>
+                      {codesCount === 0
+                        ? '⚠ Sem códigos de recuperação disponíveis'
+                        : `${codesCount} código${codesCount === 1 ? '' : 's'} de recuperação disponíve${codesCount === 1 ? 'l' : 'is'}`}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button className="cfg-btn-secondary" onClick={() => { setModal('regenerate'); setErr(''); setPassword('') }} style={{ fontSize: 12, padding: '8px 12px' }}>
+                    Regenerar códigos
+                  </button>
+                  <button className="cfg-btn-danger" onClick={() => { setModal('disable'); setErr('') }} style={{ fontSize: 12, padding: '8px 14px' }}>
+                    Desativar 2FA
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -194,6 +286,39 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
                 {err && <div className="tfa-err">{err}</div>}
                 <button type="submit" className="cfg-btn-danger" style={{ width: '100%', marginTop: 12, justifyContent: 'center' }} disabled={loading}>
                   {loading ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : 'Desativar 2FA'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal — regenerate backup codes */}
+      {modal === 'regenerate' && (
+        <div className="tfa-overlay" onClick={e => { if (e.target === e.currentTarget) close() }}>
+          <div className="tfa-modal">
+            <div className="tfa-modal-head">
+              <span>Regenerar códigos de recuperação</span>
+              <button className="tfa-modal-close" onClick={close}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="tfa-modal-body">
+              <p className="tfa-step-label">Os códigos anteriores serão invalidados. Digite sua senha para confirmar.</p>
+              <form onSubmit={handleRegenerate}>
+                <input
+                  className="tfa-code-input"
+                  type="password"
+                  placeholder="Sua senha"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setErr('') }}
+                  autoFocus
+                />
+                {err && <div className="tfa-err">{err}</div>}
+                <button type="submit" className="cfg-btn-primary" style={{ width: '100%', marginTop: 12, justifyContent: 'center' }} disabled={loading}>
+                  {loading ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : 'Gerar novos códigos'}
                 </button>
               </form>
             </div>

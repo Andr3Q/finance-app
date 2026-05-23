@@ -56,7 +56,7 @@ export default function Login({ isRegister = false }) {
   const [showPass,   setShowPass]   = useState(false)
   const [form,       setForm]       = useState({ name: '', email: '', password: '', salary: '' })
   const [termsOk,    setTermsOk]    = useState(false)
-  const [twoFA,      setTwoFA]      = useState({ active: false, tempToken: '', code: '' })
+  const [twoFA,      setTwoFA]      = useState({ active: false, tempToken: '', code: '', useBackup: false, backupCode: '' })
 
   const handleChange = e => {
     const { name, value } = e.target
@@ -104,6 +104,7 @@ export default function Login({ isRegister = false }) {
       } else {
         analytics.identify(res.data.user.id, { plan: res.data.user.plan })
         analytics.track('user_signed_up')
+        analytics.track('trial_started', { plan: res.data.user.plan })
       }
       navigate('/dashboard')
     } catch (err) {
@@ -131,6 +132,25 @@ export default function Login({ isRegister = false }) {
     }
   }
 
+  const handleBackupCode = async e => {
+    e.preventDefault()
+    const code = twoFA.backupCode.toUpperCase().replace(/[^A-F0-9-]/g, '')
+    if (!/^[A-F0-9]{4}-[A-F0-9]{4}$/.test(code)) { setServerErr('Formato inválido. Use XXXX-XXXX.'); return }
+    setLoading(true); setServerErr('')
+    try {
+      const res = await authAPI.twoFAUseBackupCode(twoFA.tempToken, code)
+      if (res.data.token) sessionStorage.setItem('token', res.data.token)
+      sessionStorage.setItem('user', JSON.stringify(res.data.user))
+      analytics.identify(res.data.user.id, { plan: res.data.user.plan })
+      analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true, backupCode: true })
+      navigate('/dashboard')
+    } catch (err) {
+      setServerErr(err.response?.data?.error || 'Código de recuperação inválido.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (twoFA.active) {
     return (
       <div className="lauth-2fa-screen">
@@ -141,33 +161,73 @@ export default function Login({ isRegister = false }) {
               <path d="M7 11V7a5 5 0 0110 0v4"/>
             </svg>
           </div>
-          <div className="lauth-box-title" style={{ marginBottom: 6 }}>Verificação em dois fatores</div>
-          <div className="lauth-box-sub" style={{ marginBottom: 24 }}>Digite o código de 6 dígitos do seu aplicativo autenticador.</div>
-          <form onSubmit={handleTwoFA} noValidate>
-            <div className="lauth-field">
-              <div className="lauth-input-wrap">
-                <input
-                  className="lauth-input"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\d{6}"
-                  maxLength={6}
-                  placeholder="000 000"
-                  value={twoFA.code}
-                  onChange={e => { setTwoFA(s => ({ ...s, code: e.target.value.replace(/\D/g,'') })); setServerErr('') }}
-                  style={{ textAlign: 'center', fontSize: 22, letterSpacing: '0.3em', fontFamily: 'monospace' }}
-                  autoFocus
-                />
-              </div>
-            </div>
-            {serverErr && <div className="lauth-server-err"><ErrIcon />{serverErr}</div>}
-            <button type="submit" className="lauth-btn-primary" disabled={loading}>
-              {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : 'Verificar'}
-            </button>
-            <button type="button" className="lauth-link" style={{ marginTop: 12, width: '100%', textAlign: 'center' }} onClick={() => setTwoFA({ active: false, tempToken: '', code: '' })}>
-              Voltar ao login
-            </button>
-          </form>
+          {!twoFA.useBackup ? (
+            <>
+              <div className="lauth-box-title" style={{ marginBottom: 6 }}>Verificação em dois fatores</div>
+              <div className="lauth-box-sub" style={{ marginBottom: 24 }}>Digite o código de 6 dígitos do seu aplicativo autenticador.</div>
+              <form onSubmit={handleTwoFA} noValidate>
+                <div className="lauth-field">
+                  <div className="lauth-inp-wrap">
+                    <input
+                      className="lauth-input"
+                      type="text"
+                      inputMode="numeric"
+                      pattern="\d{6}"
+                      maxLength={6}
+                      placeholder="000 000"
+                      value={twoFA.code}
+                      onChange={e => { setTwoFA(s => ({ ...s, code: e.target.value.replace(/\D/g,'') })); setServerErr('') }}
+                      style={{ textAlign: 'center', fontSize: 22, letterSpacing: '0.3em', fontFamily: 'monospace' }}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                {serverErr && <div className="lauth-server-err"><ErrIcon />{serverErr}</div>}
+                <button type="submit" className="lauth-btn-sub" disabled={loading} style={{ marginTop: 8 }}>
+                  {loading ? <div className="lauth-spinner" /> : <span>Verificar</span>}
+                </button>
+              </form>
+              <button type="button" className="lauth-link" style={{ marginTop: 16, width: '100%', textAlign: 'center', fontSize: 13 }} onClick={() => { setTwoFA(s => ({ ...s, useBackup: true, code: '' })); setServerErr('') }}>
+                Não tenho acesso ao app — usar código de recuperação
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="lauth-box-title" style={{ marginBottom: 6 }}>Código de recuperação</div>
+              <div className="lauth-box-sub" style={{ marginBottom: 24 }}>Digite um dos seus códigos de recuperação no formato <strong>XXXX-XXXX</strong>.</div>
+              <form onSubmit={handleBackupCode} noValidate>
+                <div className="lauth-field">
+                  <div className="lauth-inp-wrap">
+                    <input
+                      className="lauth-input"
+                      type="text"
+                      maxLength={9}
+                      placeholder="ABCD-1234"
+                      value={twoFA.backupCode}
+                      onChange={e => {
+                        let v = e.target.value.toUpperCase().replace(/[^A-F0-9-]/g, '')
+                        if (v.length === 4 && !v.includes('-') && twoFA.backupCode.length === 3) v = v + '-'
+                        setTwoFA(s => ({ ...s, backupCode: v }))
+                        setServerErr('')
+                      }}
+                      style={{ textAlign: 'center', fontSize: 20, letterSpacing: '0.15em', fontFamily: 'monospace' }}
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                {serverErr && <div className="lauth-server-err"><ErrIcon />{serverErr}</div>}
+                <button type="submit" className="lauth-btn-sub" disabled={loading} style={{ marginTop: 8 }}>
+                  {loading ? <div className="lauth-spinner" /> : <span>Entrar com código de recuperação</span>}
+                </button>
+              </form>
+              <button type="button" className="lauth-link" style={{ marginTop: 16, width: '100%', textAlign: 'center', fontSize: 13 }} onClick={() => { setTwoFA(s => ({ ...s, useBackup: false, backupCode: '' })); setServerErr('') }}>
+                Voltar para o código do aplicativo
+              </button>
+            </>
+          )}
+          <button type="button" className="lauth-link" style={{ marginTop: 8, width: '100%', textAlign: 'center', fontSize: 12, color: 'var(--t3)' }} onClick={() => setTwoFA({ active: false, tempToken: '', code: '', useBackup: false, backupCode: '' })}>
+            Voltar ao login
+          </button>
         </div>
       </div>
     )

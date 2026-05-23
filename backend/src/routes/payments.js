@@ -4,6 +4,7 @@ const { MercadoPagoConfig, Preference, Payment } = require('mercadopago')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { UUID_REGEX } = require('../utils/constants')
+const { sendPlanActivationEmail } = require('../services/emailService')
 const { apiLimiter } = require('../middleware/rateLimiter')
 
 const router  = express.Router()
@@ -144,15 +145,19 @@ router.post('/webhook', apiLimiter, async (req, res) => {
     const daysToAdd    = period === 'annual' ? 366 : 31
     const planExpiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000)
 
-    await prisma.$transaction([
-      prisma.processedPayment.create({
+    const activatedUser = await prisma.$transaction(async (tx) => {
+      await tx.processedPayment.create({
         data: { paymentId: String(dataId), userId, plan, period },
-      }),
-      prisma.user.update({
-        where: { id: userId },
-        data:  { plan, planExpiresAt, renewalReminderSent: false, trialEndsAt: null },
-      }),
-    ])
+      })
+      return tx.user.update({
+        where:  { id: userId },
+        data:   { plan, planExpiresAt, renewalReminderSent: false, trialEndsAt: null },
+        select: { email: true, name: true },
+      })
+    })
+
+    // E-mail de confirmação — fire-and-forget
+    sendPlanActivationEmail(activatedUser.email, activatedUser.name, plan, planExpiresAt).catch(() => {})
 
     console.log(`[payments] ${plan} ativado para ${userId} até ${planExpiresAt.toISOString().slice(0, 10)}`)
   } catch (err) {
