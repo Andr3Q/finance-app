@@ -1,23 +1,11 @@
 const express = require('express')
-const crypto  = require('crypto')
 const os      = require('os')
 const router  = express.Router()
 const prisma  = require('../lib/prisma')
 const { runAllScans } = require('../services/securityScanner')
 
-function monitorOnly(req, res, next) {
-  const secret   = process.env.MONITOR_SECRET
-  const incoming = req.headers['x-monitor-secret']
-  if (!secret || !incoming) return res.status(401).json({ error: 'Unauthorized' })
-  const a = Buffer.from(secret), b = Buffer.from(incoming)
-  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-  return next()
-}
-
 // GET /api/monitor/dashboard — retorna métricas completas do app
-router.get('/dashboard', monitorOnly, async (req, res) => {
+router.get('/dashboard', async (req, res) => {
   try {
     const now          = new Date()
     const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -120,7 +108,7 @@ router.get('/dashboard', monitorOnly, async (req, res) => {
 })
 
 // POST /api/monitor/scan — dispara scan de segurança manual
-router.post('/scan', monitorOnly, (req, res) => {
+router.post('/scan', (req, res) => {
   res.json({ ok: true, message: 'Scan iniciado em background' })
   runAllScans().catch(console.error)
 })
