@@ -1,610 +1,874 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Finance App — Monitor</title>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Finance Monitor</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --bg:#0d0f14;--bg2:#12151c;--bg3:#181c25;--bg4:#1e2330;
   --border:#ffffff0f;--border2:#ffffff18;
   --text:#e2e8f0;--text2:#8892a4;--text3:#5a6478;
-  --green:#4ac46e;--green-bg:#4ac46e18;--green-border:#4ac46e30;
-  --blue:#4f8ef7;--blue-bg:#4f8ef718;--blue-border:#4f8ef730;
-  --purple:#7b2fff;--purple-bg:#7b2fff18;--purple-border:#7b2fff30;
-  --red:#ef4444;--red-bg:#ef444418;--red-border:#ef444430;
-  --yellow:#f59e0b;--yellow-bg:#f59e0b18;--yellow-border:#f59e0b30;
-  --radius:10px;--radius-sm:6px;
+  --green:#4ac46e;--gbg:#4ac46e18;--gbrd:#4ac46e30;
+  --blue:#4f8ef7;--bbg:#4f8ef718;--bbrd:#4f8ef730;
+  --purple:#7b2fff;--pbg:#7b2fff18;--pbrd:#7b2fff30;
+  --red:#ef4444;--rbg:#ef444418;--rbrd:#ef444430;
+  --yellow:#f59e0b;--ybg:#f59e0b18;--ybrd:#f59e0b30;
+  --r:10px;--rs:6px;
+  --tab-h:48px;--header-h:56px;
 }
-html{font-size:15px}
+html{font-size:15px;-webkit-tap-highlight-color:transparent}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;line-height:1.5}
 
-/* ── App shell ── */
-#app{display:block;min-height:100vh}
-.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:0;z-index:100}
-.header-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:12px;height:56px}
-.header-logo{font-size:18px;font-weight:800;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:8px}
-.header-logo span{color:var(--green)}
-.header-badge{background:var(--green-bg);border:1px solid var(--green-border);border-radius:20px;color:var(--green);font-size:11px;font-weight:700;padding:2px 9px;letter-spacing:.4px}
-.header-spacer{flex:1}
-.header-refresh-info{color:var(--text3);font-size:12px;text-align:right;line-height:1.3}
-.header-refresh-info b{color:var(--text2)}
-.btn-refresh{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);font-size:12px;padding:6px 12px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:5px}
-.btn-refresh:hover{border-color:var(--green);color:var(--green)}
-.btn-refresh svg{transition:transform .4s}
-.btn-refresh.spinning svg{animation:spin .6s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+/* ── Header ── */
+.hdr{background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200}
+.hdr-inner{max-width:1300px;margin:0 auto;display:flex;align-items:center;gap:10px;height:var(--header-h);padding:0 16px}
+.hdr-logo{font-size:17px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:7px}
+.hdr-logo em{color:var(--green);font-style:normal}
+.live-badge{background:var(--gbg);border:1px solid var(--gbrd);border-radius:20px;color:var(--green);font-size:10px;font-weight:800;padding:2px 8px;letter-spacing:.5px}
+.hdr-space{flex:1}
+.hdr-clock{color:var(--text3);font-size:12px;text-align:right;line-height:1.4;display:flex;flex-direction:column;align-items:flex-end}
+.hdr-clock b{color:var(--text2);font-size:13px}
+.btn-rfr{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text2);font-size:12px;padding:6px 11px;cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .2s;white-space:nowrap}
+.btn-rfr:hover{border-color:var(--green);color:var(--green)}
+.btn-rfr svg{transition:transform .4s}
+.btn-rfr.spin svg{animation:rot .6s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
 
-/* ── Toasts ── */
-#toasts{position:fixed;top:68px;right:16px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:300px}
-.toast{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;display:flex;align-items:flex-start;gap:8px;pointer-events:all;animation:toast-in .25s ease;box-shadow:0 4px 20px #0006}
-.toast.ok{border-left:3px solid var(--green);color:var(--green)}
-.toast.err{border-left:3px solid var(--red);color:var(--red)}
-.toast.warn{border-left:3px solid var(--yellow);color:var(--yellow)}
-.toast.info{border-left:3px solid var(--blue);color:var(--blue)}
-.toast-msg{flex:1;color:var(--text)}
-.toast-close{cursor:pointer;opacity:.5;font-size:14px;line-height:1;flex-shrink:0;background:none;border:none;color:var(--text);padding:0}
-.toast-close:hover{opacity:1}
-@keyframes toast-in{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
-.toast-out{animation:toast-out .2s ease forwards}
-@keyframes toast-out{to{opacity:0;transform:translateX(20px)}}
+/* ── Status strip ── */
+.sstip{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;scrollbar-width:none}
+.sstip::-webkit-scrollbar{display:none}
+.sstip-inner{max-width:1300px;margin:0 auto;display:flex;gap:6px;padding:8px 0;white-space:nowrap}
+.pill{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;padding:4px 10px 4px 7px;font-size:11px;font-weight:700;cursor:default;transition:border-color .3s}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s,box-shadow .3s}
+.p-ok{border-color:var(--gbrd)}.p-ok .dot{background:var(--green);box-shadow:0 0 5px var(--green)}
+.p-warn{border-color:var(--ybrd)}.p-warn .dot{background:var(--yellow);box-shadow:0 0 5px var(--yellow)}
+.p-err{border-color:var(--rbrd)}.p-err .dot{background:var(--red);box-shadow:0 0 5px var(--red);animation:blk 1s ease infinite}
+.p-load .dot{background:var(--text3)}
+@keyframes blk{0%,100%{opacity:1}50%{opacity:.25}}
 
-/* ── Main ── */
-.main{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
+/* ── Tabs ── */
+.tabs{background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:var(--header-h);z-index:190;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs-inner{max-width:1300px;margin:0 auto;display:flex;padding:0 16px;min-width:max-content}
+.tab{height:var(--tab-h);display:flex;align-items:center;gap:7px;padding:0 16px;font-size:13px;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:color .2s,border-color .2s;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--text);border-bottom-color:var(--green)}
+.tab-ico{font-size:15px;line-height:1}
+.tab-badge{background:var(--rbg);border:1px solid var(--rbrd);border-radius:10px;color:var(--red);font-size:10px;font-weight:800;padding:1px 5px;line-height:1.4}
 
-/* ── Status bar ── */
-.status-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
-.status-pill{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:5px 12px 5px 8px;font-size:12px;font-weight:600}
-.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.s-ok .status-dot{background:var(--green);box-shadow:0 0 6px var(--green)}
-.s-warn .status-dot{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
-.s-err .status-dot{background:var(--red);box-shadow:0 0 6px var(--red);animation:blink 1s ease infinite}
-.s-load .status-dot{background:var(--text3)}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+/* ── Screens ── */
+.screen{display:none;max-width:1300px;margin:0 auto;padding:20px 16px 60px;animation:fadeIn .18s ease}
+.screen.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
-/* ── Section title ── */
-.sec-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin:28px 0 10px}
+/* ── Section label ── */
+.slbl{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin:24px 0 10px}
+.slbl:first-child{margin-top:0}
 
 /* ── Grid ── */
-.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 
 /* ── Card ── */
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden}
-.card.alert-err{border-color:var(--red-border);background:color-mix(in srgb,var(--bg2) 90%,#ef4444)}
-.card.alert-warn{border-color:var(--yellow-border);background:color-mix(in srgb,var(--bg2) 92%,#f59e0b)}
-.card-icon{width:32px;height:32px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;margin-bottom:10px;flex-shrink:0}
-.card-label{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.card-val{font-size:26px;font-weight:800;line-height:1.1}
-.card-sub{font-size:12px;color:var(--text3);margin-top:4px}
-.card-top{border-top:2px solid transparent;position:absolute;top:0;left:0;right:0;height:2px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden;transition:border-color .3s,background .3s}
+.card.e-err{border-color:var(--rbrd);background:color-mix(in srgb,var(--bg2) 88%,#ef4444)}
+.card.e-warn{border-color:var(--ybrd);background:color-mix(in srgb,var(--bg2) 90%,#f59e0b)}
+.ctop{position:absolute;top:0;left:0;right:0;height:2px}
+.cico{width:34px;height:34px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.clbl{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.cval{font-size:28px;font-weight:800;line-height:1.1}
+.csub{font-size:12px;color:var(--text3);margin-top:4px}
 
 /* ── Stat row ── */
-.stat-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
-.stat-row:last-child{border:none;padding-bottom:0}
-.stat-row-label{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:6px}
-.stat-row-val{font-size:13px;font-weight:700}
+.sr{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)}
+.sr:last-child{border:none;padding-bottom:0}
+.sr-lbl{font-size:13px;color:var(--text2);display:flex;align-items:center;gap:6px}
+.sr-val{font-size:13px;font-weight:700}
 
-/* ── Plan bar ── */
-.plan-bars{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-.plan-bar-row{display:flex;align-items:center;gap:8px}
-.plan-bar-label{font-size:12px;color:var(--text2);width:36px;flex-shrink:0}
-.plan-bar-track{flex:1;background:var(--bg4);border-radius:4px;height:7px;overflow:hidden}
-.plan-bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
-.plan-bar-count{font-size:12px;font-weight:700;width:28px;text-align:right;flex-shrink:0}
+/* ── Plan bars ── */
+.pbar-wrap{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.pbar-row{display:flex;align-items:center;gap:8px}
+.pbar-lbl{font-size:12px;width:38px;flex-shrink:0}
+.pbar-track{flex:1;background:var(--bg4);border-radius:4px;height:8px;overflow:hidden}
+.pbar-fill{height:100%;border-radius:4px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+.pbar-n{font-size:12px;font-weight:700;width:28px;text-align:right;flex-shrink:0}
 
-/* ── Security cards ── */
-.sec-status-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.sec-status-ico{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center}
-.sec-vuln-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.vuln-chip{border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700}
-.vuln-critical{background:#ef444425;color:#ef4444;border:1px solid #ef444440}
-.vuln-high{background:#f97316 25;color:#f97316;border:1px solid #f9731640}
-.vuln-moderate{background:#f59e0b25;color:#f59e0b;border:1px solid #f59e0b40}
-.vuln-low{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border)}
-.btn-scan{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);font-size:12px;padding:6px 12px;cursor:pointer;transition:all .2s;margin-top:10px}
+/* ── Mem bars ── */
+.mbar-track{background:var(--bg4);border-radius:4px;height:9px;overflow:hidden;margin:5px 0 3px}
+.mbar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+
+/* ── Security ── */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.sec-ico{width:38px;height:38px;border-radius:var(--rs);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .3s}
+.vrow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.vchip{border-radius:4px;padding:2px 9px;font-size:11px;font-weight:700}
+.vc-crit{background:#ef444420;color:#ef4444;border:1px solid #ef444440}
+.vc-high{background:#f9731620;color:#f97316;border:1px solid #f9731640}
+.vc-mod{background:var(--ybg);color:var(--yellow);border:1px solid var(--ybrd)}
+.vc-low{background:var(--bbg);color:var(--blue);border:1px solid var(--bbrd)}
+.btn-scan{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text2);font-size:12px;padding:7px 13px;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;margin-top:12px}
 .btn-scan:hover{border-color:var(--purple);color:var(--purple)}
 .btn-scan:disabled{opacity:.4;cursor:not-allowed}
 
-/* ── Memory bar ── */
-.mem-bar-track{background:var(--bg4);border-radius:4px;height:8px;overflow:hidden;margin:4px 0 2px}
-.mem-bar-fill{height:100%;border-radius:4px;transition:width .6s ease}
+/* ── Alert banner ── */
+.alert-ban{display:flex;align-items:center;gap:10px;background:var(--rbg);border:1px solid var(--rbrd);border-radius:var(--rs);padding:11px 14px;margin-bottom:12px}
+.alert-ban-warn{background:var(--ybg);border-color:var(--ybrd)}
+.alert-ban svg{flex-shrink:0}
+.alert-ban-msg{font-size:13px;font-weight:600}
 
 /* ── Login table ── */
-.login-table{width:100%;border-collapse:collapse;font-size:12px}
-.login-table th{color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border)}
-.login-table td{padding:7px 8px;border-bottom:1px solid var(--border);color:var(--text2)}
-.login-table tr:last-child td{border:none}
-.badge-ok{background:var(--green-bg);border:1px solid var(--green-border);border-radius:4px;color:var(--green);font-size:10px;font-weight:700;padding:1px 6px}
-.badge-fail{background:var(--red-bg);border:1px solid var(--red-border);border-radius:4px;color:var(--red);font-size:10px;font-weight:700;padding:1px 6px}
+.ltbl{width:100%;border-collapse:collapse;font-size:12px}
+.ltbl th{color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:7px 10px;text-align:left;border-bottom:1px solid var(--border2)}
+.ltbl td{padding:8px 10px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:middle}
+.ltbl tr:last-child td{border:none}
+.ltbl tr:hover td{background:var(--bg3)}
+.bok{background:var(--gbg);border:1px solid var(--gbrd);border-radius:4px;color:var(--green);font-size:10px;font-weight:700;padding:1px 7px}
+.bfail{background:var(--rbg);border:1px solid var(--rbrd);border-radius:4px;color:var(--red);font-size:10px;font-weight:700;padding:1px 7px}
 
-/* ── Skeleton ── */
-.skel{background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%);background-size:200% 100%;animation:skel .9s ease infinite;border-radius:4px}
-@keyframes skel{0%{background-position:200% 0}100%{background-position:-200% 0}}
+/* ── Toasts ── */
+#toasts{position:fixed;top:calc(var(--header-h) + 12px);right:14px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:290px}
+.toast{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:10px 13px;font-size:13px;display:flex;gap:8px;pointer-events:all;animation:tin .22s ease;box-shadow:0 4px 20px #0008}
+.toast.tok{border-left:3px solid var(--green)}
+.toast.terr{border-left:3px solid var(--red)}
+.toast.twarn{border-left:3px solid var(--yellow)}
+.toast.tinfo{border-left:3px solid var(--blue)}
+.toast-msg{flex:1;color:var(--text)}
+.toast-x{cursor:pointer;opacity:.45;font-size:14px;background:none;border:none;color:var(--text);padding:0;line-height:1}
+.toast-x:hover{opacity:1}
+@keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+.tout{animation:tout .2s ease forwards}
+@keyframes tout{to{opacity:0;transform:translateX(16px)}}
+
+/* ── Overview big numbers ── */
+.ov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ov-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 16px;display:flex;align-items:center;gap:14px}
+.ov-ico{width:42px;height:42px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ov-lbl{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.ov-val{font-size:24px;font-weight:800;line-height:1.2}
+.ov-sub{font-size:11px;color:var(--text3);margin-top:2px}
 
 /* ── Responsive ── */
-@media(max-width:900px){
-  .grid-4{grid-template-columns:repeat(2,1fr)}
-  .grid-3{grid-template-columns:repeat(2,1fr)}
+@media(max-width:860px){
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(2,1fr)}
+  .ov-grid{grid-template-columns:repeat(2,1fr)}
 }
-@media(max-width:600px){
-  .header-refresh-info{display:none}
-  .grid-4,.grid-3,.grid-2{grid-template-columns:1fr}
-  .main{padding:14px 12px 48px}
-  #toasts{width:calc(100vw - 32px)}
-  .login-table th:nth-child(3),.login-table td:nth-child(3),
-  .login-table th:nth-child(4),.login-table td:nth-child(4){display:none}
+@media(max-width:540px){
+  .g4,.g3,.g2{grid-template-columns:1fr}
+  .ov-grid{grid-template-columns:1fr}
+  .hdr-clock{display:none}
+  #toasts{width:calc(100vw - 28px)}
+  .screen{padding:14px 12px 72px}
+  .ltbl th:nth-child(4),.ltbl td:nth-child(4){display:none}
 }
 </style>
 </head>
 <body>
 
-<!-- ── App ── -->
-<div id="app">
-  <header class="header">
-    <div class="header-inner">
-      <a class="header-logo" href="#">📡 <span>Finance</span> Monitor</a>
-      <div class="header-badge">LIVE</div>
-      <div class="header-spacer"></div>
-      <div class="header-refresh-info">
-        Atualizado <b id="last-update">—</b><br>
-        Próximo em <b id="countdown">30s</b>
+<!-- ── Header ── -->
+<div class="hdr">
+  <div class="hdr-inner">
+    <div class="hdr-logo">📡 <em>Finance</em> Monitor</div>
+    <div class="live-badge">LIVE</div>
+    <div class="hdr-space"></div>
+    <div class="hdr-clock">
+      <b id="last-upd">—</b>
+      <span>próximo em <b id="countdown">30s</b></span>
+    </div>
+    <button class="btn-rfr" id="btn-rfr" onclick="doRefresh()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      Refresh
+    </button>
+  </div>
+</div>
+
+<!-- ── Status strip ── -->
+<div class="sstip">
+  <div class="sstip-inner">
+    <span class="pill p-load" id="p-api"><span class="dot"></span>API</span>
+    <span class="pill p-load" id="p-db"><span class="dot"></span>Database</span>
+    <span class="pill p-load" id="p-npm"><span class="dot"></span>npm audit</span>
+    <span class="pill p-load" id="p-trivy"><span class="dot"></span>Trivy</span>
+    <span class="pill p-load" id="p-logins"><span class="dot"></span>Logins</span>
+    <span class="pill p-load" id="p-mem"><span class="dot"></span>Memória</span>
+  </div>
+</div>
+
+<!-- ── Tabs ── -->
+<div class="tabs">
+  <div class="tabs-inner">
+    <button class="tab active" onclick="goTab('overview')" id="tab-overview"><span class="tab-ico">📊</span>Visão Geral</button>
+    <button class="tab" onclick="goTab('users')"    id="tab-users">   <span class="tab-ico">👥</span>Usuários</button>
+    <button class="tab" onclick="goTab('txs')"      id="tab-txs">     <span class="tab-ico">💳</span>Transações</button>
+    <button class="tab" onclick="goTab('app')"      id="tab-app">     <span class="tab-ico">⚙️</span>App & Dados</button>
+    <button class="tab" onclick="goTab('security')" id="tab-security"><span class="tab-ico">🔒</span>Segurança</button>
+    <button class="tab" onclick="goTab('system')"   id="tab-system">  <span class="tab-ico">🖥️</span>Sistema</button>
+    <button class="tab" onclick="goTab('access')"   id="tab-access">  <span class="tab-ico">📋</span>Acessos</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ── TELA 1 — Visão Geral ── -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="screen active" id="sc-overview">
+
+  <div class="slbl">Resumo geral</div>
+  <div class="ov-grid">
+    <div class="ov-card">
+      <div class="ov-ico" style="background:var(--bbg)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
       </div>
-      <button class="btn-refresh" id="btn-refresh" onclick="refreshAll()" title="Atualizar agora">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-        Refresh
+      <div><div class="ov-lbl">Usuários totais</div><div class="ov-val" id="ov-users">—</div><div class="ov-sub" id="ov-users-sub">—</div></div>
+    </div>
+    <div class="ov-card">
+      <div class="ov-ico" style="background:var(--gbg)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </div>
+      <div><div class="ov-lbl">Transações hoje</div><div class="ov-val" id="ov-tx-today" style="color:var(--green)">—</div><div class="ov-sub" id="ov-tx-month">— no mês</div></div>
+    </div>
+    <div class="ov-card">
+      <div class="ov-ico" style="background:var(--pbg)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div><div class="ov-lbl">Scans de segurança</div><div class="ov-val" id="ov-sec" style="color:var(--green)">—</div><div class="ov-sub" id="ov-sec-sub">—</div></div>
+    </div>
+    <div class="ov-card">
+      <div class="ov-ico" style="background:var(--gbg)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      </div>
+      <div><div class="ov-lbl">Entradas no mês</div><div class="ov-val" id="ov-income" style="color:var(--green);font-size:20px">—</div><div class="ov-sub" id="ov-expense" style="color:var(--red)">—</div></div>
+    </div>
+    <div class="ov-card">
+      <div class="ov-ico" style="background:var(--bbg)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div><div class="ov-lbl">Uptime do servidor</div><div class="ov-val" id="ov-uptime" style="color:var(--blue)">—</div><div class="ov-sub" id="ov-node">—</div></div>
+    </div>
+    <div class="ov-card">
+      <div class="ov-ico" style="background:var(--gbg)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div><div class="ov-lbl">Latência do banco</div><div class="ov-val" id="ov-dbms" style="color:var(--green)">—</div><div class="ov-sub">Cloud Run → Supabase</div></div>
+    </div>
+  </div>
+
+  <div class="slbl" style="margin-top:24px">Dados do app</div>
+  <div class="g4">
+    <div class="card"><div class="ctop" style="background:var(--green)"></div><div class="clbl">Metas</div><div class="cval" id="ov-goals" style="color:var(--green)">—</div></div>
+    <div class="card"><div class="ctop" style="background:var(--blue)"></div><div class="clbl">Parcelamentos</div><div class="cval" id="ov-inst" style="color:var(--blue)">—</div></div>
+    <div class="card"><div class="ctop" style="background:var(--yellow)"></div><div class="clbl">Contas fixas</div><div class="cval" id="ov-budgets" style="color:var(--yellow)">—</div></div>
+    <div class="card"><div class="ctop" style="background:var(--purple)"></div><div class="clbl">Push subs</div><div class="cval" id="ov-push" style="color:var(--purple)">—</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ── TELA 2 — Usuários ── -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="screen" id="sc-users">
+
+  <div class="slbl">Contagem por plano</div>
+  <div class="g4">
+    <div class="card">
+      <div class="ctop" style="background:var(--blue)"></div>
+      <div class="cico" style="background:var(--bbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+      <div class="clbl">Total</div>
+      <div class="cval" id="u-total">—</div>
+      <div class="csub" id="u-sub">—</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--text3)"></div>
+      <div class="cico" style="background:var(--bg3)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <div class="clbl">Free</div>
+      <div class="cval" id="u-free" style="color:var(--text2)">—</div>
+      <div class="csub" id="u-free-pct">—</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--green)"></div>
+      <div class="cico" style="background:var(--gbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <div class="clbl">Pro</div>
+      <div class="cval" id="u-pro" style="color:var(--green)">—</div>
+      <div class="csub" id="u-pro-pct">—</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--purple)"></div>
+      <div class="cico" style="background:var(--pbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+      <div class="clbl">Elite</div>
+      <div class="cval" id="u-elite" style="color:var(--purple)">—</div>
+      <div class="csub" id="u-elite-pct">—</div>
+    </div>
+  </div>
+
+  <div class="slbl">Distribuição de planos</div>
+  <div class="card">
+    <div class="pbar-wrap">
+      <div class="pbar-row">
+        <span class="pbar-lbl" style="color:var(--text2)">Free</span>
+        <div class="pbar-track"><div class="pbar-fill" id="bar-free" style="background:var(--text3);width:0%"></div></div>
+        <span class="pbar-n" id="cnt-free" style="color:var(--text2)">—</span>
+      </div>
+      <div class="pbar-row">
+        <span class="pbar-lbl" style="color:var(--green)">Pro</span>
+        <div class="pbar-track"><div class="pbar-fill" id="bar-pro" style="background:var(--green);width:0%"></div></div>
+        <span class="pbar-n" id="cnt-pro" style="color:var(--green)">—</span>
+      </div>
+      <div class="pbar-row">
+        <span class="pbar-lbl" style="color:var(--purple)">Elite</span>
+        <div class="pbar-track"><div class="pbar-fill" id="bar-elite" style="background:var(--purple);width:0%"></div></div>
+        <span class="pbar-n" id="cnt-elite" style="color:var(--purple)">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="slbl">Pagamentos processados</div>
+  <div class="card">
+    <div class="sr"><span class="sr-lbl">Total de pagamentos confirmados</span><span class="sr-val" id="u-payments">—</span></div>
+    <div class="sr"><span class="sr-lbl">Notificações push ativas</span><span class="sr-val" id="u-push" style="color:var(--purple)">—</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ── TELA 3 — Transações ── -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="screen" id="sc-txs">
+
+  <div class="slbl">Volume de transações</div>
+  <div class="g4">
+    <div class="card">
+      <div class="ctop" style="background:var(--blue)"></div>
+      <div class="cico" style="background:var(--bbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+      <div class="clbl">Hoje</div>
+      <div class="cval" id="tx-today" style="color:var(--blue)">—</div>
+      <div class="csub">transações</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--blue)"></div>
+      <div class="cico" style="background:var(--bbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <div class="clbl">Mês atual</div>
+      <div class="cval" id="tx-month" style="color:var(--blue)">—</div>
+      <div class="csub">transações</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--green)"></div>
+      <div class="cico" style="background:var(--gbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+      <div class="clbl">Entradas (mês)</div>
+      <div class="cval" id="tx-income" style="color:var(--green);font-size:20px">—</div>
+      <div class="csub">soma de todas as entradas</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--red)"></div>
+      <div class="cico" style="background:var(--rbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div>
+      <div class="clbl">Saídas (mês)</div>
+      <div class="cval" id="tx-expense" style="color:var(--red);font-size:20px">—</div>
+      <div class="csub">soma de todas as saídas</div>
+    </div>
+  </div>
+
+  <div class="slbl">Saldo do mês</div>
+  <div class="card">
+    <div class="sr"><span class="sr-lbl">Entradas</span><span class="sr-val" id="tx-inc2" style="color:var(--green)">—</span></div>
+    <div class="sr"><span class="sr-lbl">Saídas</span><span class="sr-val" id="tx-exp2" style="color:var(--red)">—</span></div>
+    <div class="sr"><span class="sr-lbl" style="font-weight:700;color:var(--text)">Saldo líquido</span><span class="sr-val" id="tx-balance" style="font-size:16px">—</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ── TELA 4 — App & Dados ── -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="screen" id="sc-app">
+
+  <div class="slbl">Objetos cadastrados</div>
+  <div class="g3">
+    <div class="card">
+      <div class="ctop" style="background:var(--green)"></div>
+      <div class="cico" style="background:var(--gbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div class="clbl">Metas financeiras</div>
+      <div class="cval" id="ap-goals" style="color:var(--green)">—</div>
+      <div class="csub">total de metas criadas</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--blue)"></div>
+      <div class="cico" style="background:var(--bbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+      <div class="clbl">Planos de parcelamento</div>
+      <div class="cval" id="ap-inst" style="color:var(--blue)">—</div>
+      <div class="csub">compras parceladas ativas</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--yellow)"></div>
+      <div class="cico" style="background:var(--ybg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <div class="clbl">Contas fixas</div>
+      <div class="cval" id="ap-budgets" style="color:var(--yellow)">—</div>
+      <div class="csub">contas recorrentes</div>
+    </div>
+  </div>
+
+  <div class="slbl">Notificações & Pagamentos</div>
+  <div class="g2">
+    <div class="card">
+      <div class="ctop" style="background:var(--purple)"></div>
+      <div class="cico" style="background:var(--pbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg></div>
+      <div class="clbl">Push subscriptions</div>
+      <div class="cval" id="ap-push" style="color:var(--purple)">—</div>
+      <div class="csub">dispositivos registrados para notificações</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--green)"></div>
+      <div class="cico" style="background:var(--gbg)"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+      <div class="clbl">Pagamentos processados</div>
+      <div class="cval" id="ap-pay" style="color:var(--green)">—</div>
+      <div class="csub">webhooks Mercado Pago confirmados</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ── TELA 5 — Segurança ── -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="screen" id="sc-security">
+
+  <div id="sec-alert-wrap"></div>
+
+  <div class="slbl">Análise de dependências</div>
+  <div class="g2">
+    <div class="card" id="card-npm">
+      <div class="sec-hdr">
+        <div class="sec-ico" id="npm-ico" style="background:var(--bg3)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700">npm audit</div>
+          <div style="font-size:11px;color:var(--text3)" id="npm-time">—</div>
+        </div>
+        <div id="npm-chip"></div>
+      </div>
+      <div id="npm-vulns"></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px">Vulnerabilidades em dependências Node.js</div>
+      <button class="btn-scan" id="btn-scan" onclick="doScan()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        Rodar scan agora
       </button>
     </div>
-  </header>
-
-  <div id="toasts"></div>
-
-  <main class="main">
-
-    <!-- Status Bar -->
-    <div class="status-bar" id="status-bar">
-      <div class="status-pill s-load" id="pill-api"><span class="status-dot"></span>API</div>
-      <div class="status-pill s-load" id="pill-db"><span class="status-dot"></span>Database</div>
-      <div class="status-pill s-load" id="pill-npm"><span class="status-dot"></span>npm audit</div>
-      <div class="status-pill s-load" id="pill-trivy"><span class="status-dot"></span>Trivy</div>
-      <div class="status-pill s-load" id="pill-logins"><span class="status-dot"></span>Logins</div>
-    </div>
-
-    <!-- ── Métricas de Usuários ── -->
-    <div class="sec-title">Usuários</div>
-    <div class="grid-4" id="users-grid">
-      <div class="card"><div class="card-top" style="background:var(--blue)"></div><div class="card-icon" style="background:var(--blue-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div><div class="card-label">Total</div><div class="card-val" id="u-total"><span class="skel" style="width:50px;height:28px;display:block"></span></div><div class="card-sub" id="u-sub">carregando…</div></div>
-      <div class="card"><div class="card-top" style="background:var(--text3)"></div><div class="card-icon" style="background:var(--bg3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div class="card-label">Free</div><div class="card-val" id="u-free" style="color:var(--text2)"><span class="skel" style="width:40px;height:28px;display:block"></span></div><div class="card-sub" id="u-free-pct">—</div></div>
-      <div class="card"><div class="card-top" style="background:var(--green)"></div><div class="card-icon" style="background:var(--green-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div class="card-label">Pro</div><div class="card-val" id="u-pro" style="color:var(--green)"><span class="skel" style="width:40px;height:28px;display:block"></span></div><div class="card-sub" id="u-pro-pct">—</div></div>
-      <div class="card"><div class="card-top" style="background:var(--purple)"></div><div class="card-icon" style="background:var(--purple-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth="2" strokeLinecap="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div><div class="card-label">Elite</div><div class="card-val" id="u-elite" style="color:var(--purple)"><span class="skel" style="width:40px;height:28px;display:block"></span></div><div class="card-sub" id="u-elite-pct">—</div></div>
-    </div>
-
-    <!-- Barra de planos -->
-    <div class="card" style="margin-top:12px">
-      <div class="card-label" style="margin-bottom:12px">Distribuição de planos</div>
-      <div class="plan-bars" id="plan-bars">
-        <div class="plan-bar-row"><span class="plan-bar-label" style="color:var(--text2)">Free</span><div class="plan-bar-track"><div class="plan-bar-fill" id="bar-free" style="background:var(--text3);width:0%"></div></div><span class="plan-bar-count" id="cnt-free" style="color:var(--text2)">—</span></div>
-        <div class="plan-bar-row"><span class="plan-bar-label" style="color:var(--green)">Pro</span><div class="plan-bar-track"><div class="plan-bar-fill" id="bar-pro" style="background:var(--green);width:0%"></div></div><span class="plan-bar-count" id="cnt-pro" style="color:var(--green)">—</span></div>
-        <div class="plan-bar-row"><span class="plan-bar-label" style="color:var(--purple)">Elite</span><div class="plan-bar-track"><div class="plan-bar-fill" id="bar-elite" style="background:var(--purple);width:0%"></div></div><span class="plan-bar-count" id="cnt-elite" style="color:var(--purple)">—</span></div>
-      </div>
-    </div>
-
-    <!-- ── Transações ── -->
-    <div class="sec-title">Transações do mês</div>
-    <div class="grid-4">
-      <div class="card"><div class="card-top" style="background:var(--blue)"></div><div class="card-icon" style="background:var(--blue-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div><div class="card-label">Hoje</div><div class="card-val" id="tx-today" style="color:var(--blue)">—</div><div class="card-sub">transações</div></div>
-      <div class="card"><div class="card-top" style="background:var(--blue)"></div><div class="card-icon" style="background:var(--blue-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="card-label">Mês</div><div class="card-val" id="tx-month" style="color:var(--blue)">—</div><div class="card-sub">transações</div></div>
-      <div class="card"><div class="card-top" style="background:var(--green)"></div><div class="card-icon" style="background:var(--green-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div><div class="card-label">Entradas</div><div class="card-val" id="tx-income" style="color:var(--green);font-size:18px">—</div><div class="card-sub">no mês</div></div>
-      <div class="card"><div class="card-top" style="background:var(--red)"></div><div class="card-icon" style="background:var(--red-bg)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2" strokeLinecap="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg></div><div class="card-label">Saídas</div><div class="card-val" id="tx-expense" style="color:var(--red);font-size:18px">—</div><div class="card-sub">no mês</div></div>
-    </div>
-
-    <!-- ── App Stats ── -->
-    <div class="sec-title">App</div>
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-label">Objetos ativos</div>
-        <div id="app-stats">
-          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/></svg>Metas</span><span class="stat-row-val" id="st-goals">—</span></div>
-          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/></svg>Parcelamentos</span><span class="stat-row-val" id="st-inst">—</span></div>
-          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--yellow)" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/></svg>Contas fixas</span><span class="stat-row-val" id="st-budgets">—</span></div>
-          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" strokeWidth="2" strokeLinecap="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Push subs</span><span class="stat-row-val" id="st-push">—</span></div>
-          <div class="stat-row"><span class="stat-row-label"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Pagamentos proc.</span><span class="stat-row-val" id="st-pay">—</span></div>
+    <div class="card" id="card-trivy">
+      <div class="sec-hdr">
+        <div class="sec-ico" id="trivy-ico" style="background:var(--bg3)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-label">Memória do processo</div>
-        <div id="mem-section">
-          <div style="margin-top:10px">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)"><span>Heap usado</span><span id="mem-heap-used">—</span></div>
-            <div class="mem-bar-track"><div class="mem-bar-fill" id="mem-heap-bar" style="background:var(--blue);width:0%"></div></div>
-            <div style="font-size:11px;color:var(--text3)" id="mem-heap-total">de — total</div>
-          </div>
-          <div style="margin-top:14px">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)"><span>RSS (real)</span><span id="mem-rss">—</span></div>
-          </div>
-          <div style="margin-top:14px">
-            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2)"><span>Sistema livre</span><span id="mem-sys">—</span></div>
-            <div class="mem-bar-track"><div class="mem-bar-fill" id="mem-sys-bar" style="background:var(--green);width:0%"></div></div>
-            <div style="font-size:11px;color:var(--text3)" id="mem-sys-total">de — total</div>
-          </div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:700">Trivy (CVE)</div>
+          <div style="font-size:11px;color:var(--text3)" id="trivy-time">—</div>
         </div>
+        <div id="trivy-chip"></div>
       </div>
-      <div class="card">
-        <div class="card-label">Infra</div>
-        <div style="margin-top:10px">
-          <div class="stat-row"><span class="stat-row-label">Uptime</span><span class="stat-row-val" id="st-uptime" style="color:var(--green)">—</span></div>
-          <div class="stat-row"><span class="stat-row-label">Node.js</span><span class="stat-row-val" id="st-node" style="color:var(--blue)">—</span></div>
-          <div class="stat-row"><span class="stat-row-label">Ambiente</span><span class="stat-row-val" style="color:var(--green)">Cloud Run</span></div>
-          <div class="stat-row"><span class="stat-row-label">Região</span><span class="stat-row-val" style="color:var(--text2)">sa-east1</span></div>
-          <div class="stat-row"><span class="stat-row-label">Banco</span><span class="stat-row-val" id="st-db-ms" style="color:var(--text2)">—</span></div>
-        </div>
-      </div>
+      <div id="trivy-vulns"></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px">Scanner de CVEs em imagem Docker e sistema de arquivos</div>
     </div>
+  </div>
 
-    <!-- ── Segurança ── -->
-    <div class="sec-title">Segurança</div>
-    <div class="grid-2">
-      <div class="card" id="card-npm">
-        <div class="sec-status-row">
-          <div class="sec-status-ico" style="background:var(--bg3)" id="npm-ico">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <div>
-            <div style="font-size:13px;font-weight:700">npm audit</div>
-            <div style="font-size:11px;color:var(--text3)" id="npm-time">—</div>
-          </div>
-          <div style="flex:1"></div>
-          <div id="npm-status-chip"></div>
-        </div>
-        <div id="npm-vulns"></div>
-        <button class="btn-scan" id="btn-scan" onclick="triggerScan()" title="Iniciar scan manual">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style="display:inline;vertical-align:middle;margin-right:4px"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-          Rodar scan agora
-        </button>
-      </div>
-      <div class="card" id="card-trivy">
-        <div class="sec-status-row">
-          <div class="sec-status-ico" style="background:var(--bg3)" id="trivy-ico">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text2)" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <div>
-            <div style="font-size:13px;font-weight:700">Trivy (CVE)</div>
-            <div style="font-size:11px;color:var(--text3)" id="trivy-time">—</div>
-          </div>
-          <div style="flex:1"></div>
-          <div id="trivy-status-chip"></div>
-        </div>
-        <div id="trivy-vulns"></div>
-        <div style="font-size:12px;color:var(--text3);margin-top:10px">Scanner de vulnerabilidades em dependências e imagem Docker</div>
-      </div>
-    </div>
+  <div class="slbl">Tentativas de acesso</div>
+  <div class="card">
+    <div class="sr"><span class="sr-lbl">Logins falhados (últimas 24h)</span><span class="sr-val" id="sec-fail24" style="color:var(--red)">—</span></div>
+    <div class="sr"><span class="sr-lbl">Logins bem-sucedidos (últimos 20)</span><span class="sr-val" id="sec-ok20" style="color:var(--green)">—</span></div>
+    <div class="sr"><span class="sr-lbl">Logins falhados (últimos 20)</span><span class="sr-val" id="sec-fail20" style="color:var(--red)">—</span></div>
+  </div>
+</div>
 
-    <!-- Logins suspeitos -->
-    <div class="card" style="margin-top:12px" id="card-logins-warn" hidden>
-      <div style="display:flex;align-items:center;gap:8px;color:var(--red)">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span style="font-size:13px;font-weight:700" id="logins-warn-text">—</span>
-      </div>
-    </div>
+<!-- ══════════════════════════════════════════════ -->
+<!-- ── TELA 6 — Sistema ── -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="screen" id="sc-system">
 
-    <!-- ── Logs de Acesso ── -->
-    <div class="sec-title">Acessos recentes</div>
+  <div class="slbl">Processo Node.js</div>
+  <div class="g2">
     <div class="card">
-      <div style="overflow-x:auto">
-        <table class="login-table">
-          <thead><tr><th>E-mail</th><th>Status</th><th>IP</th><th>Quando</th></tr></thead>
-          <tbody id="logins-tbody">
-            <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Carregando…</td></tr>
-          </tbody>
-        </table>
+      <div class="clbl">Heap de memória</div>
+      <div style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2)">
+          <span>Usado</span><span id="sys-heap-used" style="font-weight:700;color:var(--text)">—</span>
+        </div>
+        <div class="mbar-track"><div class="mbar-fill" id="sys-heap-bar" style="background:var(--blue);width:0%"></div></div>
+        <div style="font-size:11px;color:var(--text3)" id="sys-heap-total">de — total</div>
+      </div>
+      <div style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2)">
+          <span>RSS (memória real)</span><span id="sys-rss" style="font-weight:700;color:var(--text)">—</span>
+        </div>
       </div>
     </div>
+    <div class="card">
+      <div class="clbl">Memória do sistema</div>
+      <div style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2)">
+          <span>Em uso</span><span id="sys-mem-used" style="font-weight:700;color:var(--text)">—</span>
+        </div>
+        <div class="mbar-track"><div class="mbar-fill" id="sys-mem-bar" style="background:var(--green);width:0%"></div></div>
+        <div style="font-size:11px;color:var(--text3)" id="sys-mem-total">de — total</div>
+      </div>
+      <div style="margin-top:16px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text2)">
+          <span>Livre</span><span id="sys-mem-free" style="font-weight:700;color:var(--green)">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  </main>
+  <div class="slbl">Infraestrutura</div>
+  <div class="card">
+    <div class="sr"><span class="sr-lbl">Uptime do servidor</span><span class="sr-val" id="sys-uptime" style="color:var(--green)">—</span></div>
+    <div class="sr"><span class="sr-lbl">Versão Node.js</span><span class="sr-val" id="sys-node" style="color:var(--blue)">—</span></div>
+    <div class="sr"><span class="sr-lbl">Plataforma</span><span class="sr-val" style="color:var(--text2)">Google Cloud Run</span></div>
+    <div class="sr"><span class="sr-lbl">Região</span><span class="sr-val" style="color:var(--text2)">southamerica-east1</span></div>
+    <div class="sr"><span class="sr-lbl">Banco de dados</span><span class="sr-val" style="color:var(--text2)">Supabase PostgreSQL</span></div>
+    <div class="sr"><span class="sr-lbl">Latência DB</span><span class="sr-val" id="sys-dbms" style="color:var(--green)">—</span></div>
+    <div class="sr"><span class="sr-lbl">Ambiente</span><span class="sr-val" style="color:var(--green)">production</span></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ── TELA 7 — Acessos ── -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="screen" id="sc-access">
+
+  <div class="slbl">Últimos 20 acessos</div>
+  <div class="card" style="padding:0">
+    <div style="overflow-x:auto">
+      <table class="ltbl">
+        <thead>
+          <tr>
+            <th>E-mail</th>
+            <th>Status</th>
+            <th>IP</th>
+            <th>Quando</th>
+          </tr>
+        </thead>
+        <tbody id="access-tbody">
+          <tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">Carregando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script>
 'use strict'
-
-// ── Utilidades ──────────────────────────────────────────
 const $ = id => document.getElementById(id)
 
+// ── Tab navigation ───────────────────────────────
+const TABS = ['overview','users','txs','app','security','system','access']
+let activeTab = 'overview'
+
+function goTab(id) {
+  TABS.forEach(t => {
+    $('tab-' + t).classList.toggle('active', t === id)
+    $('sc-' + t).classList.toggle('active', t === id)
+  })
+  activeTab = id
+}
+
+// ── Utils ────────────────────────────────────────
 function fmtBytes(b) {
   if (b < 1024) return b + ' B'
-  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB'
-  if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB'
-  return (b/1024/1024/1024).toFixed(2) + ' GB'
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB'
+  if (b < 1073741824) return (b/1048576).toFixed(1) + ' MB'
+  return (b/1073741824).toFixed(2) + ' GB'
 }
 function fmtUptime(s) {
-  const d = Math.floor(s / 86400), h = Math.floor((s%86400)/3600),
-        m = Math.floor((s%3600)/60), sec = s % 60
-  if (d > 0) return `${d}d ${h}h ${m}m`
-  if (h > 0) return `${h}h ${m}m ${sec}s`
-  if (m > 0) return `${m}m ${sec}s`
+  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600),
+        m = Math.floor((s%3600)/60), sec = s%60
+  if (d) return `${d}d ${h}h ${m}m`
+  if (h) return `${h}h ${m}m ${sec}s`
+  if (m) return `${m}m ${sec}s`
   return `${sec}s`
 }
-function fmtCurrency(v) {
-  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+function fmtR(v) {
+  return 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})
 }
 function fmtTime(iso) {
   if (!iso) return '—'
-  const d = new Date(iso)
-  const now = new Date()
-  const diff = Math.floor((now - d) / 1000)
+  const diff = Math.floor((Date.now() - new Date(iso))/1000)
   if (diff < 60) return 'agora'
-  if (diff < 3600) return `${Math.floor(diff/60)}min atrás`
-  if (diff < 86400) return `${Math.floor(diff/3600)}h atrás`
-  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })
+  if (diff < 3600) return Math.floor(diff/60) + 'min atrás'
+  if (diff < 86400) return Math.floor(diff/3600) + 'h atrás'
+  return new Date(iso).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
 }
-function pct(a, total) {
-  if (!total) return 0
-  return Math.round((a / total) * 100)
-}
+function pct(a, b) { return b ? Math.round(a/b*100) : 0 }
 
-// ── Toasts ──────────────────────────────────────────────
-const toastTimers = {}
-let toastId = 0
-
-function toast(msg, type = 'info', duration = 5000) {
-  const id = ++toastId
+// ── Toasts ───────────────────────────────────────
+const ttimers = {}
+let tid = 0
+function toast(msg, type='info', dur=5000) {
+  const id = ++tid
   const el = document.createElement('div')
-  el.className = `toast ${type}`
-  el.innerHTML = `<span class="toast-msg">${msg}</span><button class="toast-close" onclick="dismissToast(${id})">✕</button>`
+  el.className = `toast t${type}`
   el.dataset.id = id
+  el.innerHTML = `<span class="toast-msg">${msg}</span><button class="toast-x" onclick="rmToast(${id})">✕</button>`
   $('toasts').appendChild(el)
-  if (duration > 0) {
-    toastTimers[id] = setTimeout(() => dismissToast(id), duration)
-  }
-  return id
+  if (dur > 0) ttimers[id] = setTimeout(() => rmToast(id), dur)
 }
-
-function dismissToast(id) {
-  clearTimeout(toastTimers[id])
+function rmToast(id) {
+  clearTimeout(ttimers[id])
   const el = document.querySelector(`[data-id="${id}"]`)
   if (!el) return
-  el.classList.add('toast-out')
+  el.classList.add('tout')
   setTimeout(() => el.remove(), 220)
 }
 
-// Carrega dashboard ao abrir a página
-window.addEventListener('DOMContentLoaded', () => {
-  fetch('/api/monitor/dashboard')
-    .then(async r => { if (r.ok) startApp(await r.json()) })
-    .catch(() => toast('Sem resposta do servidor.', 'err'))
-})
+// ── Pill helper ──────────────────────────────────
+function pill(id, state, label) {
+  const el = $(id); if (!el) return
+  el.className = `pill p-${state}`
+  el.innerHTML = `<span class="dot"></span>${label}`
+}
 
-// ── Refresh loop ─────────────────────────────────────────
-let countdownVal = 30
-let countdownTimer = null
-
-function startCountdown() {
-  clearInterval(countdownTimer)
-  countdownVal = 30
-  $('countdown').textContent = countdownVal + 's'
-  countdownTimer = setInterval(() => {
-    countdownVal--
-    $('countdown').textContent = countdownVal + 's'
-    if (countdownVal <= 0) { refreshAll() }
+// ── Countdown ────────────────────────────────────
+let cdVal = 30, cdTimer = null
+function startCd() {
+  clearInterval(cdTimer)
+  cdVal = 30
+  $('countdown').textContent = cdVal + 's'
+  cdTimer = setInterval(() => {
+    $('countdown').textContent = (--cdVal) + 's'
+    if (cdVal <= 0) doRefresh()
   }, 1000)
 }
 
-async function refreshAll() {
-  const btn = $('btn-refresh')
-  btn.classList.add('spinning')
+// ── Fetch + render ───────────────────────────────
+let prevData = null
+
+window.addEventListener('DOMContentLoaded', () => {
+  fetch('/api/monitor/dashboard')
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(d => { render(d); startCd(); fetchHealth() })
+    .catch(() => toast('Sem resposta do servidor.', 'err'))
+})
+
+async function doRefresh() {
+  const btn = $('btn-rfr')
+  btn.classList.add('spin')
   try {
     const r = await fetch('/api/monitor/dashboard')
-    if (!r.ok) { toast('Erro ao buscar dados: ' + r.status, 'warn'); return }
-    renderDashboard(await r.json())
-  } catch {
-    toast('Sem resposta do servidor.', 'err')
-    setPill('pill-api', 'err', 'API Offline')
-  } finally {
-    btn.classList.remove('spinning')
-    startCountdown()
-  }
-}
-
-// ── Render ───────────────────────────────────────────────
-let prevState = {}
-
-function startApp(data) {
-  renderDashboard(data)
-  startCountdown()
-  // Fetch health separado para latência real do banco
-  fetchHealth()
+    if (!r.ok) { toast('Erro ' + r.status, 'warn'); return }
+    render(await r.json())
+    fetchHealth()
+  } catch { toast('Sem resposta.', 'err'); pill('p-api','err','API Offline') }
+  finally   { btn.classList.remove('spin'); startCd() }
 }
 
 async function fetchHealth() {
   try {
-    const r = await fetch('/health')
-    const d = await r.json()
-    $('st-db-ms').textContent = d.db_ms != null ? d.db_ms + ' ms' : '—'
-    setPill('pill-db', d.status === 'ok' ? 'ok' : 'err', 'Database ' + (d.status === 'ok' ? 'OK' : 'Degraded'))
+    const d = await (await fetch('/health')).json()
+    const ms  = d.db_ms ?? '—'
+    const ok  = d.status === 'ok'
+    $('sys-dbms').textContent  = ms + (ms !== '—' ? ' ms' : '')
+    $('ov-dbms').textContent   = ms + (ms !== '—' ? ' ms' : '')
+    $('sys-dbms').style.color  = ok ? 'var(--green)' : 'var(--red)'
+    $('ov-dbms').style.color   = ok ? 'var(--green)' : 'var(--red)'
+    pill('p-db', ok ? 'ok' : 'err', 'Database ' + (ok ? 'OK' : 'Degraded'))
   } catch {
-    $('st-db-ms').textContent = 'offline'
-    setPill('pill-db', 'err', 'Database Offline')
+    $('sys-dbms').textContent = 'offline'
+    pill('p-db','err','Database Offline')
   }
 }
 
-function setPill(id, state, label) {
-  const el = $(id)
-  if (!el) return
-  el.className = `status-pill s-${state}`
-  el.innerHTML = `<span class="status-dot"></span>${label}`
-}
+function render(d) {
+  $('last-upd').textContent = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
+  pill('p-api','ok','API OK')
 
-function renderDashboard(d) {
-  const now = new Date()
-  $('last-update').textContent = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const u = d.users, tx = d.transactions, m = d.memory
+  const heapPct   = pct(m.heapUsed, m.heapTotal)
+  const sysUsePct = pct(m.sysTotal - m.sysFree, m.sysTotal)
 
-  // API pill
-  setPill('pill-api', 'ok', 'API OK')
+  // ── Overview ──
+  $('ov-users').textContent    = u.total
+  $('ov-users-sub').textContent= `${u.pro} Pro · ${u.elite} Elite`
+  $('ov-tx-today').textContent = tx.today
+  $('ov-tx-month').textContent = tx.month + ' no mês'
+  $('ov-income').textContent   = fmtR(tx.incomeMonth)
+  $('ov-expense').textContent  = '− ' + fmtR(tx.expenseMonth) + ' saídas'
+  $('ov-uptime').textContent   = fmtUptime(d.uptime)
+  $('ov-node').textContent     = d.nodeVersion || '—'
+  $('ov-goals').textContent    = d.goals
+  $('ov-inst').textContent     = d.installments
+  $('ov-budgets').textContent  = d.budgets
+  $('ov-push').textContent     = d.pushSubscribers
 
-  // ── Usuários ──
-  const { users } = d
-  $('u-total').textContent  = users.total
-  $('u-free').textContent   = users.free
-  $('u-pro').textContent    = users.pro
-  $('u-elite').textContent  = users.elite
-  $('u-sub').textContent    = `atualizado ${fmtTime(d.timestamp)}`
-  $('u-free-pct').textContent  = pct(users.free,  users.total) + '% do total'
-  $('u-pro-pct').textContent   = pct(users.pro,   users.total) + '% do total'
-  $('u-elite-pct').textContent = pct(users.elite, users.total) + '% do total'
+  // ── Users ──
+  $('u-total').textContent    = u.total
+  $('u-sub').textContent      = `${u.pro} Pro · ${u.elite} Elite · ${u.free} Free`
+  $('u-free').textContent     = u.free
+  $('u-pro').textContent      = u.pro
+  $('u-elite').textContent    = u.elite
+  $('u-free-pct').textContent = pct(u.free,  u.total) + '% do total'
+  $('u-pro-pct').textContent  = pct(u.pro,   u.total) + '% do total'
+  $('u-elite-pct').textContent= pct(u.elite, u.total) + '% do total'
+  const maxU = Math.max(u.free, u.pro, u.elite, 1)
+  $('bar-free').style.width  = pct(u.free,  maxU) + '%'
+  $('bar-pro').style.width   = pct(u.pro,   maxU) + '%'
+  $('bar-elite').style.width = pct(u.elite, maxU) + '%'
+  $('cnt-free').textContent  = u.free
+  $('cnt-pro').textContent   = u.pro
+  $('cnt-elite').textContent = u.elite
+  $('u-payments').textContent = d.processedPayments
+  $('u-push').textContent     = d.pushSubscribers
 
-  const maxUsers = Math.max(users.free, users.pro, users.elite, 1)
-  $('bar-free').style.width  = pct(users.free,  maxUsers) + '%'
-  $('bar-pro').style.width   = pct(users.pro,   maxUsers) + '%'
-  $('bar-elite').style.width = pct(users.elite, maxUsers) + '%'
-  $('cnt-free').textContent  = users.free
-  $('cnt-pro').textContent   = users.pro
-  $('cnt-elite').textContent = users.elite
+  // ── Transactions ──
+  const bal = tx.incomeMonth - tx.expenseMonth
+  $('tx-today').textContent   = tx.today
+  $('tx-month').textContent   = tx.month
+  $('tx-income').textContent  = fmtR(tx.incomeMonth)
+  $('tx-expense').textContent = fmtR(tx.expenseMonth)
+  $('tx-inc2').textContent    = fmtR(tx.incomeMonth)
+  $('tx-exp2').textContent    = fmtR(tx.expenseMonth)
+  $('tx-balance').textContent = fmtR(bal)
+  $('tx-balance').style.color = bal >= 0 ? 'var(--green)' : 'var(--red)'
 
-  // ── Transações ──
-  $('tx-today').textContent   = d.transactions.today
-  $('tx-month').textContent   = d.transactions.month
-  $('tx-income').textContent  = fmtCurrency(d.transactions.incomeMonth)
-  $('tx-expense').textContent = fmtCurrency(d.transactions.expenseMonth)
+  // ── App ──
+  $('ap-goals').textContent   = d.goals
+  $('ap-inst').textContent    = d.installments
+  $('ap-budgets').textContent = d.budgets
+  $('ap-push').textContent    = d.pushSubscribers
+  $('ap-pay').textContent     = d.processedPayments
 
-  // ── App stats ──
-  $('st-goals').textContent   = d.goals
-  $('st-inst').textContent    = d.installments
-  $('st-budgets').textContent = d.budgets
-  $('st-push').textContent    = d.pushSubscribers
-  $('st-pay').textContent     = d.processedPayments
-  $('st-uptime').textContent  = fmtUptime(d.uptime)
-  $('st-node').textContent    = d.nodeVersion || '—'
+  // ── System ──
+  $('sys-heap-used').textContent  = fmtBytes(m.heapUsed)
+  $('sys-heap-total').textContent = `de ${fmtBytes(m.heapTotal)} total`
+  $('sys-heap-bar').style.width   = heapPct + '%'
+  $('sys-heap-bar').style.background = heapPct>85?'var(--red)':heapPct>65?'var(--yellow)':'var(--blue)'
+  $('sys-rss').textContent        = fmtBytes(m.rss)
+  $('sys-mem-used').textContent   = fmtBytes(m.sysTotal - m.sysFree)
+  $('sys-mem-free').textContent   = fmtBytes(m.sysFree)
+  $('sys-mem-total').textContent  = `de ${fmtBytes(m.sysTotal)} total`
+  $('sys-mem-bar').style.width    = sysUsePct + '%'
+  $('sys-mem-bar').style.background = sysUsePct>90?'var(--red)':sysUsePct>75?'var(--yellow)':'var(--green)'
+  $('sys-uptime').textContent     = fmtUptime(d.uptime)
+  $('sys-node').textContent       = d.nodeVersion || '—'
+  pill('p-mem', heapPct>85?'err':heapPct>65?'warn':'ok', `Heap ${heapPct}%`)
 
-  // ── Memória ──
-  const { memory: m } = d
-  $('mem-heap-used').textContent  = fmtBytes(m.heapUsed)
-  $('mem-heap-total').textContent = `de ${fmtBytes(m.heapTotal)} total`
-  $('mem-heap-bar').style.width   = pct(m.heapUsed, m.heapTotal) + '%'
-  const heapPct = pct(m.heapUsed, m.heapTotal)
-  $('mem-heap-bar').style.background = heapPct > 85 ? 'var(--red)' : heapPct > 65 ? 'var(--yellow)' : 'var(--blue)'
+  // ── Security ──
+  renderSec('npm',   d.security.npm,   'npm-ico',   'npm-time',   'npm-chip',   'npm-vulns',   'card-npm',   'p-npm',   'npm audit')
+  renderSec('trivy', d.security.trivy, 'trivy-ico', 'trivy-time', 'trivy-chip', 'trivy-vulns', 'card-trivy', 'p-trivy', 'Trivy')
 
-  $('mem-rss').textContent       = fmtBytes(m.rss)
-  const sysFreeGb = fmtBytes(m.sysFree)
-  const sysTotalGb = fmtBytes(m.sysTotal)
-  $('mem-sys').textContent       = sysFreeGb + ' livres'
-  $('mem-sys-total').textContent = `de ${sysTotalGb} total`
-  const sysUsedPct = pct(m.sysTotal - m.sysFree, m.sysTotal)
-  $('mem-sys-bar').style.width      = sysUsedPct + '%'
-  $('mem-sys-bar').style.background = sysUsedPct > 90 ? 'var(--red)' : sysUsedPct > 75 ? 'var(--yellow)' : 'var(--green)'
-
-  // ── Segurança — npm ──
-  renderSecTool('npm', d.security.npm, 'npm-ico', 'npm-time', 'npm-status-chip', 'npm-vulns', 'card-npm', 'pill-npm', 'npm audit')
-  renderSecTool('trivy', d.security.trivy, 'trivy-ico', 'trivy-time', 'trivy-status-chip', 'trivy-vulns', 'card-trivy', 'pill-trivy', 'Trivy')
-
-  // ── Logins suspeitos ──
   const fl = d.security.failedLogins24h
-  const warnEl = $('card-logins-warn')
+  $('sec-fail24').textContent = fl
+  $('sec-fail24').style.color = fl >= 10 ? 'var(--red)' : fl > 0 ? 'var(--yellow)' : 'var(--green)'
+
+  // Alert banner na tela de segurança
+  const alertWrap = $('sec-alert-wrap')
+  alertWrap.innerHTML = ''
   if (fl >= 10) {
-    warnEl.hidden = false
-    $('logins-warn-text').textContent = `⚠ ${fl} tentativas de login falhadas nas últimas 24h`
-    setPill('pill-logins', fl >= 20 ? 'err' : 'warn', `${fl} falhas 24h`)
-    if (!prevState.loginWarnSent || prevState.failedLogins24h !== fl) {
-      toast(`${fl} logins falhados nas últimas 24h`, fl >= 20 ? 'err' : 'warn', 8000)
-    }
+    alertWrap.innerHTML = `<div class="alert-ban${fl>=20?'':' alert-ban-warn'}" style="margin-bottom:16px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="${fl>=20?'var(--red)':'var(--yellow)'}" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="alert-ban-msg" style="color:${fl>=20?'var(--red)':'var(--yellow)'}">${fl} tentativas de login falhadas nas últimas 24h</span></div>`
+    pill('p-logins', fl>=20?'err':'warn', `${fl} falhas 24h`)
+    if (!prevData || prevData.failedLogins24h !== fl) toast(`${fl} logins falhados nas últimas 24h`, fl>=20?'err':'warn', 8000)
   } else {
-    warnEl.hidden = true
-    setPill('pill-logins', 'ok', 'Logins OK')
+    pill('p-logins','ok','Logins OK')
   }
 
-  // ── Logins recentes ──
+  // badge na aba
+  const secTab = $('tab-security')
+  if (fl >= 10 || (d.security.npm && d.security.npm.status !== 'clean') || (d.security.trivy && d.security.trivy.status !== 'clean' && d.security.trivy.status !== 'unavailable')) {
+    if (!secTab.querySelector('.tab-badge')) secTab.insertAdjacentHTML('beforeend','<span class="tab-badge">!</span>')
+  } else {
+    secTab.querySelector('.tab-badge')?.remove()
+  }
+
+  // login stats
+  const ok20   = (d.recentLogins||[]).filter(l => l.success).length
+  const fail20 = (d.recentLogins||[]).filter(l => !l.success).length
+  $('sec-ok20').textContent   = ok20
+  $('sec-fail20').textContent = fail20
+
+  // heap alert toast
+  if (prevData && heapPct > 85 && pct(prevData.heapUsed, prevData.heapTotal) <= 85) {
+    toast(`Heap em ${heapPct}% — possível vazamento de memória`, 'warn', 10000)
+  }
+
+  // ── Access ──
   renderLogins(d.recentLogins)
 
-  // Alerta de heap alto
-  if (heapPct > 85 && prevState.heapPct <= 85) {
-    toast(`Heap do Node em ${heapPct}% — possível vazamento de memória`, 'warn', 10000)
-  }
+  // ── Overview security summary ──
+  const npmOk   = !d.security.npm   || d.security.npm.status   === 'clean'
+  const trivyOk = !d.security.trivy || d.security.trivy.status === 'clean' || d.security.trivy.status === 'unavailable'
+  $('ov-sec').textContent    = npmOk && trivyOk ? 'Limpo' : 'Alerta'
+  $('ov-sec').style.color    = npmOk && trivyOk ? 'var(--green)' : 'var(--red)'
+  $('ov-sec-sub').textContent= 'npm + Trivy'
 
-  prevState = { failedLogins24h: fl, heapPct, loginWarnSent: true }
+  prevData = { failedLogins24h: fl, heapUsed: m.heapUsed, heapTotal: m.heapTotal }
 }
 
-function renderSecTool(tool, data, icoId, timeId, chipId, vulnsId, cardId, pillId, label) {
+function renderSec(tool, data, icoId, timeId, chipId, vulnsId, cardId, pillId, label) {
   if (!data) {
     $(timeId).textContent = 'scan não executado'
-    setPill(pillId, 'warn', label + ' Pendente')
+    pill(pillId,'warn',label + ' Pendente')
     return
   }
   $(timeId).textContent = fmtTime(data.runAt)
+  const clean = data.status === 'clean'
+  const err   = data.status === 'error'
+  const unavail = data.status === 'unavailable'
+  const crit  = data.details?.critical > 0
+  const high  = data.details?.high     > 0
 
-  const isClean = data.status === 'clean'
-  const isErr   = data.status === 'error'
-  const hasCrit = data.details?.critical > 0
-  const hasHigh = data.details?.high > 0
-
-  // ícone
-  const icoColor = isClean ? 'var(--green)' : isErr ? 'var(--text3)' : hasCrit ? 'var(--red)' : 'var(--yellow)'
-  const icoBg    = isClean ? 'var(--green-bg)' : isErr ? 'var(--bg3)' : hasCrit ? 'var(--red-bg)' : 'var(--yellow-bg)'
+  const icoBg  = clean||unavail?'var(--gbg)':err?'var(--bg3)':crit?'var(--rbg)':'var(--ybg)'
+  const icoClr = clean||unavail?'var(--green)':err?'var(--text3)':crit?'var(--red)':'var(--yellow)'
   $(icoId).style.background = icoBg
-  $(icoId).querySelector('svg').setAttribute('stroke', icoColor)
+  $(icoId).querySelector('svg').setAttribute('stroke', icoClr)
 
-  // chip de status
-  let chipHtml = ''
-  if (isClean) chipHtml = `<span style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:4px;color:var(--green);font-size:11px;font-weight:700;padding:2px 8px">✓ Limpo</span>`
-  else if (isErr) chipHtml = `<span style="background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);font-size:11px;font-weight:700;padding:2px 8px">Erro</span>`
-  else chipHtml = `<span style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:4px;color:var(--red);font-size:11px;font-weight:700;padding:2px 8px">⚠ ${data.count} vuln.</span>`
-  $(chipId).innerHTML = chipHtml
+  let chip = ''
+  if (clean||unavail) chip = `<span style="background:var(--gbg);border:1px solid var(--gbrd);border-radius:4px;color:var(--green);font-size:11px;font-weight:700;padding:2px 9px">✓ Limpo</span>`
+  else if (err)       chip = `<span style="background:var(--bg3);border:1px solid var(--border2);border-radius:4px;color:var(--text2);font-size:11px;font-weight:700;padding:2px 9px">Erro</span>`
+  else                chip = `<span style="background:var(--rbg);border:1px solid var(--rbrd);border-radius:4px;color:var(--red);font-size:11px;font-weight:700;padding:2px 9px">⚠ ${data.count} vuln.</span>`
+  $(chipId).innerHTML = chip
 
-  // vulns
   let vulnsHtml = ''
-  if (!isClean && !isErr && data.details) {
-    const { critical = 0, high = 0, moderate = 0, low = 0 } = data.details
-    vulnsHtml = `<div class="sec-vuln-row">`
-    if (critical) vulnsHtml += `<span class="vuln-chip vuln-critical">${critical} Critical</span>`
-    if (high)     vulnsHtml += `<span class="vuln-chip vuln-high">${high} High</span>`
-    if (moderate) vulnsHtml += `<span class="vuln-chip vuln-moderate">${moderate} Moderate</span>`
-    if (low)      vulnsHtml += `<span class="vuln-chip vuln-low">${low} Low</span>`
-    vulnsHtml += `</div>`
+  if (!clean && !err && !unavail && data.details) {
+    const {critical:c=0,high:h=0,moderate:mo=0,low:l=0} = data.details
+    vulnsHtml = '<div class="vrow">'
+    if (c)  vulnsHtml += `<span class="vchip vc-crit">${c} Critical</span>`
+    if (h)  vulnsHtml += `<span class="vchip vc-high">${h} High</span>`
+    if (mo) vulnsHtml += `<span class="vchip vc-mod">${mo} Moderate</span>`
+    if (l)  vulnsHtml += `<span class="vchip vc-low">${l} Low</span>`
+    vulnsHtml += '</div>'
   }
   $(vulnsId).innerHTML = vulnsHtml
 
-  // card alert
-  const card = $(cardId)
-  card.classList.toggle('alert-err',  !isClean && !isErr && hasCrit)
-  card.classList.toggle('alert-warn', !isClean && !isErr && !hasCrit && hasHigh)
-
-  // pill
-  setPill(pillId, isClean ? 'ok' : isErr ? 'warn' : hasCrit ? 'err' : 'warn', label + (isClean ? ' OK' : ' ' + data.count))
+  $(cardId).classList.toggle('e-err',  !clean && !err && !unavail && crit)
+  $(cardId).classList.toggle('e-warn', !clean && !err && !unavail && !crit && high)
+  pill(pillId, clean||unavail?'ok':err?'warn':crit?'err':'warn', label + (clean||unavail?' OK':' '+data.count))
 }
 
 function renderLogins(logins) {
-  if (!logins || !logins.length) {
-    $('logins-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:20px">Nenhum acesso registrado</td></tr>`
+  if (!logins?.length) {
+    $('access-tbody').innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">Nenhum acesso registrado</td></tr>`
     return
   }
-  $('logins-tbody').innerHTML = logins.map(l => `
+  $('access-tbody').innerHTML = logins.map(l => `
     <tr>
-      <td style="color:var(--text)">${l.email}</td>
-      <td><span class="${l.success ? 'badge-ok' : 'badge-fail'}">${l.success ? 'OK' : 'FALHOU'}</span></td>
-      <td style="font-family:monospace;font-size:11px">${l.ip}</td>
+      <td style="color:var(--text);font-weight:500">${l.email}</td>
+      <td><span class="${l.success?'bok':'bfail'}">${l.success?'OK':'FALHOU'}</span></td>
+      <td style="font-family:monospace;font-size:11px;color:var(--text3)">${l.ip}</td>
       <td style="color:var(--text3)">${fmtTime(l.at)}</td>
     </tr>`).join('')
 }
 
-// ── Scan manual ──────────────────────────────────────────
-async function triggerScan() {
+// ── Scan manual ──────────────────────────────────
+async function doScan() {
   const btn = $('btn-scan')
   btn.disabled = true
-  btn.textContent = 'Iniciando scan…'
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="animation:rot .6s linear infinite"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Scan em andamento…`
   try {
-    const r = await fetch('/api/monitor/scan', { method: 'POST' })
-    if (r.ok) {
-      toast('Scan iniciado em background. Resultados em ~2min.', 'info', 6000)
-      btn.textContent = 'Scan em andamento…'
-      setTimeout(() => { btn.disabled = false; btn.textContent = 'Rodar scan agora' }, 30000)
-    } else {
-      toast('Erro ao iniciar scan: ' + r.status, 'warn')
+    const r = await fetch('/api/monitor/scan', {method:'POST'})
+    if (r.ok) toast('Scan iniciado. Resultados em ~2min.', 'info', 7000)
+    else toast('Erro ao iniciar scan: ' + r.status, 'warn')
+    setTimeout(() => {
       btn.disabled = false
-      btn.textContent = 'Rodar scan agora'
-    }
+      btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Rodar scan agora`
+    }, 30000)
   } catch {
-    toast('Erro de rede ao iniciar scan.', 'err')
+    toast('Erro de rede.', 'err')
     btn.disabled = false
-    btn.textContent = 'Rodar scan agora'
   }
 }
 </script>
