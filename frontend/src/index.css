@@ -8081,3 +8081,87 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   .ob-card { padding: 24px 20px; }
   .ob-title { font-size: 18px; }
 }
+
+/* ── Plan Expiry Banner ────────────────────────────────── */
+.expiry-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: rgba(255, 193, 7, 0.12);
+  border-bottom: 1px solid rgba(255, 193, 7, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: obFadeUp 0.3s ease;
+}
+
+.expiry-banner.expired {
+  background: rgba(255, 71, 87, 0.12);
+  border-bottom-color: rgba(255, 71, 87, 0.3);
+}
+
+.expiry-banner-ico {
+  color: var(--yellow);
+  flex-shrink: 0;
+}
+
+.expiry-banner.expired .expiry-banner-ico {
+  color: var(--red);
+}
+
+.expiry-banner-msg {
+  flex: 1;
+  font-size: 13px;
+  color: var(--t1);
+  line-height: 1.4;
+}
+
+.expiry-banner-cta {
+  background: var(--yellow);
+  border: none;
+  border-radius: 6px;
+  padding: 5px 14px;
+  color: #000;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--fn);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--tr);
+  flex-shrink: 0;
+}
+
+.expiry-banner.expired .expiry-banner-cta {
+  background: var(--red);
+  color: #fff;
+}
+
+.expiry-banner-cta:hover {
+  opacity: 0.85;
+}
+
+.expiry-banner-close {
+  background: transparent;
+  border: none;
+  color: var(--t3);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.expiry-banner-close:hover {
+  color: var(--t1);
+}
+
+@media (max-width: 480px) {
+  .expiry-banner { padding: 10px 12px; gap: 8px; }
+  .expiry-banner-msg { font-size: 12px; }
+}
