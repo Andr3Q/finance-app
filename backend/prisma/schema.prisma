@@ -30,9 +30,10 @@ model User {
   autoLaunchYear   Int?
   resetToken       String?
   resetTokenExpiry DateTime?
-  plan               String    @default("free")
-  planExpiresAt      DateTime?
-  onboardingComplete Boolean   @default(false)
+  plan                 String    @default("free")
+  planExpiresAt        DateTime?
+  onboardingComplete   Boolean   @default(false)
+  renewalReminderSent  Boolean   @default(false)
 
   transactions      Transaction[]
   budgets           Budget[]

@@ -141,4 +141,47 @@ async function sendResetEmail(toEmail, userName, resetLink) {
   })
 }
 
-module.exports = { sendMonthlyReport, sendResetEmail }
+async function sendRenewalReminderEmail(toEmail, userName, planName, daysLeft) {
+  const appUrl  = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+  const planLabel = planName === 'elite' ? 'Elite' : 'Pro'
+  const urgency   = daysLeft <= 1 ? 'expira hoje' : `expira em ${daysLeft} dias`
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #020d10, #061520); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(74,196,110,0.2);">
+        <h1 style="color: #4ac46e; margin: 0; font-size: 24px;">FinançasPro</h1>
+        <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">Aviso de renovação</p>
+      </div>
+      <div style="background: #fff; padding: 28px; border-radius: 12px;">
+        <p style="color: #333; font-size: 15px; margin: 0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
+          Seu plano <strong>${esc(planLabel)}</strong> <strong style="color: #e55;">${esc(urgency)}</strong>.
+          Para continuar aproveitando todos os recursos, renove agora.
+        </p>
+        <div style="background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 24px; border-left: 3px solid #4ac46e;">
+          <p style="margin: 0; color: #333; font-size: 13px; line-height: 1.6;">
+            Após o vencimento, sua conta retorna automaticamente para o plano Free e você perderá acesso ao assistente IA, relatórios avançados e outros recursos premium.
+          </p>
+        </div>
+        <div style="text-align: center; margin-bottom: 20px;">
+          <a href="${appUrl}/planos" style="display: inline-block; background: #4ac46e; color: #000; text-decoration: none; padding: 14px 36px; border-radius: 12px; font-weight: 700; font-size: 15px;">
+            Renovar plano ${esc(planLabel)}
+          </a>
+        </div>
+        <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+          Se já renovou, ignore este e-mail.
+        </p>
+      </div>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    to:      toEmail,
+    subject: `Seu plano ${planLabel} ${urgency} — FinançasPro`,
+    html,
+  })
+}
+
+module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail }

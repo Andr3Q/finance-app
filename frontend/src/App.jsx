@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
 import OnboardingModal from './components/features/OnboardingModal.jsx'
+import PlanExpiryBanner from './components/features/PlanExpiryBanner.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 import { authAPI } from './services/api.js'
 import { saveUser } from './hooks/useUser.js'
@@ -26,7 +27,7 @@ function isLoggedIn() {
 
 function PrivateRoute({ children }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />
-  return <>{children}<AgentChat /><OnboardingModal /></>
+  return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /></>
 }
 
 function HomeRoute() {
