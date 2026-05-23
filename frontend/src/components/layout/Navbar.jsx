@@ -125,9 +125,9 @@ export default function Navbar() {
   const navLinks = [
     { path: '/dashboard',    label: 'Dashboard',     Icon: HomeIcon   },
     { path: '/transactions', label: 'Transações',    Icon: TxIcon     },
-    { path: '/analytics',   label: 'Análises',      Icon: ChartIcon  },
-    { path: '/goals',       label: 'Metas',         Icon: TargetIcon },
-    { path: '/settings',    label: 'Configurações', Icon: GearIcon   },
+    { path: '/planos',       label: 'Planos',        Icon: BoltIcon   },
+    { path: '/goals',        label: 'Metas',         Icon: TargetIcon },
+    { path: '/settings',     label: 'Configurações', Icon: GearIcon   },
   ]
 
   return (
@@ -187,11 +187,6 @@ export default function Navbar() {
             ))}
 
             <div className="dsb-s-label">Conta</div>
-
-            <button className="dsb-s-item" onClick={() => navigate('/planos')}>
-              <BoltIcon />
-              {isPro ? 'Meu Plano' : 'Upgrade Pro'}
-            </button>
 
             {!appInstalled && (
               <button className="dsb-s-item" onClick={handleInstallClick} disabled={installing}>
