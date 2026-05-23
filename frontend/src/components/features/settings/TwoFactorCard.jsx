@@ -90,7 +90,18 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
         </div>
 
         <div className="cfg-card-body">
-          {!isPro && (
+          {/* Usuário downgraded mas com 2FA ainda ativo — sempre pode desativar */}
+          {!isPro && enabled && (
+            <div className="tfa-row">
+              <span className="tfa-desc" style={{ color: 'var(--orange)', fontSize: 11 }}>
+                Seu plano mudou para Grátis. Desative o 2FA ou faça upgrade para continuar usando.
+              </span>
+              <button className="cfg-btn-danger" onClick={() => { setModal('disable'); setErr('') }} style={{ fontSize: 12, padding: '8px 14px', flexShrink: 0 }}>
+                Desativar 2FA
+              </button>
+            </div>
+          )}
+          {!isPro && !enabled && (
             <div className="tfa-locked">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
