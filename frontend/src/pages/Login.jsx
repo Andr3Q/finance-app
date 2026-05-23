@@ -56,6 +56,7 @@ export default function Login({ isRegister = false }) {
   const [showPass,   setShowPass]   = useState(false)
   const [form,       setForm]       = useState({ name: '', email: '', password: '', salary: '' })
   const [termsOk,    setTermsOk]    = useState(false)
+  const [twoFA,      setTwoFA]      = useState({ active: false, tempToken: '', code: '' })
 
   const handleChange = e => {
     const { name, value } = e.target
@@ -91,6 +92,10 @@ export default function Login({ isRegister = false }) {
         ? { email: form.email.trim(), password: form.password }
         : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: parseFloat(form.salary) || 0, referralCode: refCode.current || undefined }
       const res = await fn(data)
+      if (res.data.requires2FA) {
+        setTwoFA({ active: true, tempToken: res.data.tempToken, code: '' })
+        return
+      }
       if (res.data.token) sessionStorage.setItem('token', res.data.token)
       sessionStorage.setItem('user', JSON.stringify(res.data.user))
       if (mode === 'login') {
@@ -106,6 +111,65 @@ export default function Login({ isRegister = false }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleTwoFA = async e => {
+    e.preventDefault()
+    if (!/^\d{6}$/.test(twoFA.code)) { setServerErr('Digite os 6 dígitos do seu aplicativo.'); return }
+    setLoading(true); setServerErr('')
+    try {
+      const res = await authAPI.twoFAVerifyLogin(twoFA.tempToken, twoFA.code)
+      if (res.data.token) sessionStorage.setItem('token', res.data.token)
+      sessionStorage.setItem('user', JSON.stringify(res.data.user))
+      analytics.identify(res.data.user.id, { plan: res.data.user.plan })
+      analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true })
+      navigate('/dashboard')
+    } catch (err) {
+      setServerErr(err.response?.data?.error || 'Código inválido.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (twoFA.active) {
+    return (
+      <div className="lauth-split">
+        <div className="lauth-left" />
+        <div className="lauth-right">
+          <div className="lauth-box">
+            <div className="lauth-box-head">
+              <div className="lauth-box-title">Verificação em dois fatores</div>
+              <div className="lauth-box-sub">Digite o código de 6 dígitos do seu aplicativo autenticador.</div>
+            </div>
+            <form onSubmit={handleTwoFA} noValidate>
+              <div className="lauth-field">
+                <label className="lauth-label">Código 2FA</label>
+                <div className="lauth-input-wrap">
+                  <input
+                    className="lauth-input"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d{6}"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={twoFA.code}
+                    onChange={e => { setTwoFA(s => ({ ...s, code: e.target.value.replace(/\D/g,'') })); setServerErr('') }}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              {serverErr && <div className="lauth-server-err"><ErrIcon />{serverErr}</div>}
+              <button type="submit" className="lauth-btn-primary" disabled={loading}>
+                {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : 'Verificar'}
+              </button>
+              <button type="button" className="lauth-link" style={{ marginTop: 12, width: '100%', textAlign: 'center' }} onClick={() => setTwoFA({ active: false, tempToken: '', code: '' })}>
+                Voltar ao login
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

@@ -157,6 +157,12 @@ router.post('/login', async (req, res) => {
     // Audit: registra login bem-sucedido em background
     prisma.loginAudit.create({ data: { email: normalizedEmail, success: true, ip, userAgent } }).catch(() => {})
 
+    // 2FA: se ativo, emite token temporário (5 min) e aguarda o código TOTP
+    if (user.twoFactorEnabled) {
+      const tempToken = jwt.sign({ userId: user.id, twofa: true }, process.env.JWT_SECRET, { expiresIn: '5m' })
+      return res.json({ requires2FA: true, tempToken })
+    }
+
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
 
@@ -173,7 +179,7 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true }
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true }
 
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
