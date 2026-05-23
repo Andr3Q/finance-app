@@ -114,6 +114,15 @@ if (isProd) {
     res.sendFile(path.join(publicPath, 'sw.js'))
   })
 
+  // Monitor: CSP própria para permitir scripts/estilos inline (ferramenta admin, não user-facing)
+  app.get('/monitor.html', (req, res) => {
+    res.setHeader('Content-Security-Policy',
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none';"
+    )
+    res.sendFile(path.join(publicPath, 'monitor.html'))
+  })
+
   app.use(express.static(publicPath, { maxAge: 0 }))
 }
 
