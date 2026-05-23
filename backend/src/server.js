@@ -41,6 +41,7 @@ const goalRoutes          = require('./routes/goals')
 const installmentRoutes   = require('./routes/installments')
 const paymentRoutes       = require('./routes/payments')
 const securityRoutes      = require('./routes/security')
+const monitorRoutes       = require('./routes/monitor')
 const { runAllScans }     = require('./services/securityScanner')
 
 const app        = express()
@@ -171,6 +172,7 @@ app.use('/api/goals',        goalRoutes)
 app.use('/api/installments', installmentRoutes)
 app.use('/api/payments',     paymentLimiter, paymentRoutes)
 app.use('/api/security',     apiLimiter,     securityRoutes)
+app.use('/api/monitor',      apiLimiter,     monitorRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
 // Cliente DEDICADO ao health check — completamente separado do pool principal.
