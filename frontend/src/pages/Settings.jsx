@@ -17,6 +17,7 @@ import RemindersCard       from '../components/features/settings/RemindersCard.j
 import ReferralCard        from '../components/features/settings/ReferralCard.jsx'
 import TwoFactorCard        from '../components/features/settings/TwoFactorCard.jsx'
 import ChangePasswordCard   from '../components/features/settings/ChangePasswordCard.jsx'
+import CancelPlanCard       from '../components/features/settings/CancelPlanCard.jsx'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -99,6 +100,7 @@ export default function Settings() {
             <TwoFactorCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <div className="cfg-sec-title r10">Conta</div>
+            <CancelPlanCard onMessage={showMsg} />
 
             {/* Sair — só aparece no mobile (desktop tem o botão na sidebar) */}
             <div className="cfg-card r10 cfg-mobile-only">

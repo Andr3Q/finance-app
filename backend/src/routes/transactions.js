@@ -339,6 +339,38 @@ router.post('/', dashboardLimiter, async (req, res) => {
           body:  `${type === 'income' ? '+' : '−'}R$ ${amountFmt} em ${catLabel}${descLabel}\nSaldo: R$ ${balanceFmt}`,
           url:   '/dashboard',
         })
+
+        // Alerta de limite de categoria (apenas para despesas com limite configurado)
+        if (type === 'expense') {
+          const limit = await prisma.categoryLimit.findUnique({
+            where: { userId_category: { userId: req.userId, category } },
+          })
+          if (limit && limit.amount > 0) {
+            const catTotal = await prisma.transaction.aggregate({
+              where:  { userId: req.userId, type: 'expense', category, month: currentMonth, year: currentYear, archived: false },
+              _sum:   { amount: true },
+            })
+            const spent = catTotal._sum.amount || 0
+            const pct   = spent / limit.amount
+            const spentFmt = spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+            const limitFmt = limit.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+
+            if (pct >= 1) {
+              await sendPushToUser(req.userId, {
+                title: `🚨 Limite de ${catLabel} atingido`,
+                body:  `Você gastou R$ ${spentFmt} de R$ ${limitFmt} (100%).`,
+                url:   '/transactions',
+              })
+            } else if (pct >= 0.8) {
+              const pctLabel = Math.round(pct * 100)
+              await sendPushToUser(req.userId, {
+                title: `⚠️ ${pctLabel}% do limite de ${catLabel}`,
+                body:  `R$ ${spentFmt} gastos de R$ ${limitFmt} neste mês.`,
+                url:   '/transactions',
+              })
+            }
+          }
+        }
       } catch (e) { console.error('Push error:', e.message) }
     })
 
