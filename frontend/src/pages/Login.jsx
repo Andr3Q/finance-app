@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
+import { analytics } from '../services/analytics.js'
 
 const EmailIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -91,6 +92,13 @@ export default function Login({ isRegister = false }) {
       const res = await fn(data)
       if (res.data.token) sessionStorage.setItem('token', res.data.token)
       sessionStorage.setItem('user', JSON.stringify(res.data.user))
+      if (mode === 'login') {
+        analytics.identify(res.data.user.id, { plan: res.data.user.plan })
+        analytics.track('user_logged_in', { plan: res.data.user.plan })
+      } else {
+        analytics.identify(res.data.user.id, { plan: res.data.user.plan })
+        analytics.track('user_signed_up')
+      }
       navigate('/dashboard')
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Ocorreu um erro. Tente novamente.')

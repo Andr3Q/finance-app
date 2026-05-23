@@ -7,6 +7,7 @@ import PlanExpiryBanner from './components/features/PlanExpiryBanner.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 import { authAPI } from './services/api.js'
 import { saveUser } from './hooks/useUser.js'
+import { analytics } from './services/analytics.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazy(() => import('./pages/Landing.jsx'))
@@ -49,7 +50,12 @@ export default function App() {
     // Se o cookie JWT expirou mas localStorage ainda tem dados, limpa e redireciona
     if (isLoggedIn()) {
       authAPI.me()
-        .then(res => { if (res.data) saveUser(res.data) })
+        .then(res => {
+          if (res.data) {
+            saveUser(res.data)
+            analytics.identify(res.data.id, { plan: res.data.plan })
+          }
+        })
         .catch((err) => {
           const status = err.response?.status
           if (status === 401 || status === 403) {
