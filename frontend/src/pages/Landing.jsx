@@ -196,12 +196,6 @@ export default function Landing() {
           <h2 className="lp2-section-title">Escolha seu plano</h2>
           <p className="lp2-section-sub">Controle total do seu dinheiro, no seu ritmo.</p>
 
-          {toast && (
-            <div className="toast tok" style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 400, whiteSpace: 'nowrap' }}>
-              Em breve! Você será notificado quando o Pro estiver disponível.
-            </div>
-          )}
-
           <div className="lp2-plans-grid">
             {/* Grátis */}
             <div className="lp2-plan-card">
