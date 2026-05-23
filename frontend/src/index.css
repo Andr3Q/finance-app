@@ -8165,3 +8165,42 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   .expiry-banner { padding: 10px 12px; gap: 8px; }
   .expiry-banner-msg { font-size: 12px; }
 }
+
+/* ── Goals: botão Depositar + modal ───────────────────── */
+.gls-act-dep {
+  color: var(--dep-c, var(--c));
+  border-color: color-mix(in srgb, var(--dep-c, var(--c)) 30%, transparent);
+  background: color-mix(in srgb, var(--dep-c, var(--c)) 8%, transparent);
+}
+
+.gls-act-dep:hover {
+  background: color-mix(in srgb, var(--dep-c, var(--c)) 16%, transparent);
+}
+
+.gls-dep-goal-name {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.gls-dep-progress {
+  margin-bottom: 20px;
+}
+
+.gls-dep-amounts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.gls-dep-sep {
+  color: var(--t2);
+}
+
+.gls-dep-rem {
+  margin-left: auto;
+  color: var(--t3);
+  font-size: 12px;
+}
