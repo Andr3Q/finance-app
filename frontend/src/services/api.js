@@ -56,6 +56,7 @@ export const authAPI = {
   downgradeFree:  ()                => api.post('/auth/downgrade'),
   deleteAccount:       (password) => api.delete('/auth/account', { data: { password } }),
   completeOnboarding: ()          => api.post('/auth/complete-onboarding'),
+  referralStats:      ()          => api.get('/auth/referral-stats'),
 }
 
 // ── Funções de transações ───────────────────────────────

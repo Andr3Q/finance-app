@@ -14,6 +14,7 @@ import CategoryLimitsCard  from '../components/features/settings/CategoryLimitsC
 import MonthlyCloseCard    from '../components/features/settings/MonthlyCloseCard.jsx'
 import InstallCard         from '../components/features/settings/InstallCard.jsx'
 import RemindersCard       from '../components/features/settings/RemindersCard.jsx'
+import ReferralCard        from '../components/features/settings/ReferralCard.jsx'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -83,6 +84,9 @@ export default function Settings() {
 
             <CategoryLimitsCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
             <MonthlyCloseCard   user={user} isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
+
+            <div className="cfg-sec-title r4">Indique e Ganhe</div>
+            <ReferralCard />
 
             <div className="cfg-sec-title r4">Lembretes</div>
             <RemindersCard />

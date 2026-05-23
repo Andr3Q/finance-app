@@ -33,6 +33,8 @@ model User {
   plan                 String    @default("free")
   planExpiresAt        DateTime?
   trialEndsAt          DateTime?
+  referralCode         String?   @unique
+  referredBy           String?
   onboardingComplete   Boolean   @default(false)
   renewalReminderSent  Boolean   @default(false)
 

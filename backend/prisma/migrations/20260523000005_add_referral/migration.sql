@@ -1,0 +1,2 @@
+ALTER TABLE "User" ADD COLUMN "referralCode" TEXT UNIQUE;
+ALTER TABLE "User" ADD COLUMN "referredBy" TEXT;
