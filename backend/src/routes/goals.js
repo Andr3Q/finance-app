@@ -36,19 +36,20 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Data de prazo inválida.' })
     }
 
-    // Verificação de plano: Free bloqueado, Pro limitado a 4, Elite ilimitado
+    // Verificação de plano: Free = 1 meta, Pro = 4, Elite = ilimitado
     const userData = await prisma.user.findUnique({
       where:  { id: req.userId },
       select: { plan: true, _count: { select: { goals: true } } },
     })
-    if (userData?.plan === 'free') {
+    const count = userData?._count.goals ?? 0
+    if (userData?.plan === 'free' && count >= 1) {
       return res.status(403).json({
-        error: 'Metas financeiras são exclusivas dos planos Pro e Elite.',
+        error: 'Crie mais metas com o plano Pro ou Elite.',
         limitReached: true,
         plan: 'free',
       })
     }
-    if (userData?.plan === 'pro' && userData._count.goals >= 4) {
+    if (userData?.plan === 'pro' && count >= 4) {
       return res.status(403).json({
         error: 'Limite de 4 metas atingido no plano Pro.',
         limitReached: true,
