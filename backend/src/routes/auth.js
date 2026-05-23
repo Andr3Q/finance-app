@@ -60,13 +60,16 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12)
+    const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     const user = await prisma.user.create({
       data: {
         name:        name.trim(),
         email:       normalizedEmail,
         password:    hashedPassword,
         salary:      parsedSalary,
-        reportEmail: normalizedEmail,  // era `email` — agora usa o e-mail normalizado
+        reportEmail: normalizedEmail,
+        plan:        'pro',
+        trialEndsAt,
       }
     })
 
@@ -75,7 +78,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan }
+      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan, isOnTrial: true, trialEndsAt: trialEndsAt.toISOString() }
     })
   } catch (error) {
     console.error('[auth] register:', error.message)
@@ -133,13 +136,15 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true }
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true }
 
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
-    // Rebaixa para free se o plano expirou
-    if (user.plan !== 'free' && user.planExpiresAt && user.planExpiresAt < new Date()) {
+    const now = new Date()
+
+    // Rebaixa para free se o plano pago expirou
+    if (user.plan !== 'free' && user.planExpiresAt && user.planExpiresAt < now && !user.trialEndsAt) {
       user = await prisma.user.update({
         where:  { id: req.userId },
         data:   { plan: 'free', planExpiresAt: null },
@@ -147,17 +152,28 @@ router.get('/me', authMiddleware, async (req, res) => {
       })
     }
 
-    // Lembrete de renovação lazy: dispara na primeira visita com ≤7 dias restantes
-    if (user.plan !== 'free' && user.planExpiresAt && !user.renewalReminderSent) {
-      const daysLeft = Math.ceil((user.planExpiresAt - new Date()) / (1000 * 60 * 60 * 24))
+    // Rebaixa para free se o trial expirou (sem plano pago ativo)
+    if (user.trialEndsAt && user.trialEndsAt < now && (!user.planExpiresAt || user.planExpiresAt < now)) {
+      user = await prisma.user.update({
+        where:  { id: req.userId },
+        data:   { plan: 'free', trialEndsAt: null },
+        select: ME_SELECT,
+      })
+    }
+
+    // Lembrete de renovação lazy: dispara na primeira visita com ≤7 dias restantes (apenas planos pagos)
+    if (user.plan !== 'free' && user.planExpiresAt && !user.trialEndsAt && !user.renewalReminderSent) {
+      const daysLeft = Math.ceil((user.planExpiresAt - now) / (1000 * 60 * 60 * 24))
       if (daysLeft > 0 && daysLeft <= 7) {
         prisma.user.update({ where: { id: req.userId }, data: { renewalReminderSent: true } }).catch(() => {})
         sendRenewalReminderEmail(user.email, user.name, user.plan, daysLeft).catch(() => {})
       }
     }
 
-    const { planExpiresAt, renewalReminderSent: _rrs, ...userOut } = user
-    // Inclui planExpiresAt para planos pagos — frontend usa para exibir banner de expiração
+    const isOnTrial = !!user.trialEndsAt && user.trialEndsAt > now
+    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, ...userOut } = user
+    userOut.isOnTrial = isOnTrial
+    if (isOnTrial) userOut.trialEndsAt = trialEndsAt.toISOString()
     if (userOut.plan !== 'free' && planExpiresAt) {
       userOut.planExpiresAt = planExpiresAt.toISOString()
     }

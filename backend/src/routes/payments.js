@@ -150,7 +150,7 @@ router.post('/webhook', apiLimiter, async (req, res) => {
       }),
       prisma.user.update({
         where: { id: userId },
-        data:  { plan, planExpiresAt, renewalReminderSent: false },
+        data:  { plan, planExpiresAt, renewalReminderSent: false, trialEndsAt: null },
       }),
     ])
 

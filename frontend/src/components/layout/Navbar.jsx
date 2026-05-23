@@ -217,7 +217,13 @@ export default function Navbar() {
             </div>
             <div className="dsb-s-user-info">
               <div className="dsb-s-user-name">{user.name || 'Usuário'}</div>
-              <div className="dsb-s-user-role">{user.plan === 'elite' ? 'Plano Elite ⚡' : isPro ? 'Plano Pro ✨' : 'Plano Grátis'}</div>
+              <div className="dsb-s-user-role">
+                {user.isOnTrial
+                  ? `Trial Pro — ${Math.max(0, Math.ceil((new Date(user.trialEndsAt) - Date.now()) / 86400000))} dias`
+                  : user.plan === 'elite' ? 'Plano Elite ⚡'
+                  : isPro ? 'Plano Pro ✨'
+                  : 'Plano Grátis'}
+              </div>
             </div>
           </div>
           <button className="dsb-s-logout-btn" onClick={logout}>
