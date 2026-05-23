@@ -15,6 +15,7 @@ import MonthlyCloseCard    from '../components/features/settings/MonthlyCloseCar
 import InstallCard         from '../components/features/settings/InstallCard.jsx'
 import RemindersCard       from '../components/features/settings/RemindersCard.jsx'
 import ReferralCard        from '../components/features/settings/ReferralCard.jsx'
+import TwoFactorCard       from '../components/features/settings/TwoFactorCard.jsx'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -91,6 +92,9 @@ export default function Settings() {
             <div className="cfg-sec-title r4">Lembretes</div>
             <RemindersCard />
             <InstallCard />
+
+            <div className="cfg-sec-title r10">Segurança</div>
+            <TwoFactorCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <div className="cfg-sec-title r10">Conta</div>
 

@@ -57,6 +57,10 @@ export const authAPI = {
   deleteAccount:       (password) => api.delete('/auth/account', { data: { password } }),
   completeOnboarding: ()          => api.post('/auth/complete-onboarding'),
   referralStats:      ()          => api.get('/auth/referral-stats'),
+  twoFASetup:         ()          => api.post('/auth/2fa/setup'),
+  twoFAVerifySetup:   (token)     => api.post('/auth/2fa/verify-setup', { token }),
+  twoFADisable:       (password)  => api.post('/auth/2fa/disable', { password }),
+  twoFAVerifyLogin:   (tempToken, token) => api.post('/auth/2fa/verify-login', { tempToken, token }),
 }
 
 // ── Funções de transações ───────────────────────────────

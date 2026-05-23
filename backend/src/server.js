@@ -42,6 +42,7 @@ const installmentRoutes   = require('./routes/installments')
 const paymentRoutes       = require('./routes/payments')
 const securityRoutes      = require('./routes/security')
 const monitorRoutes       = require('./routes/monitor')
+const twoFactorRoutes     = require('./routes/twoFactor')
 const { runAllScans }     = require('./services/securityScanner')
 
 const app        = express()
@@ -285,6 +286,7 @@ app.use('/api/installments', installmentRoutes)
 app.use('/api/payments',     paymentLimiter, paymentRoutes)
 app.use('/api/security',     apiLimiter,     securityRoutes)
 app.use('/api/monitor',      apiLimiter,     monitorRoutes)
+app.use('/api/auth/2fa',     apiLimiter,     twoFactorRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
 // Cliente DEDICADO ao health check — completamente separado do pool principal.
