@@ -14,9 +14,22 @@ const CATEGORIES = [
   { value: 'other',     label: 'Outros'      },
 ]
 
-export default function TransactionForm({ onClose, onSuccess }) {
-  const [type,    setType]    = useState('expense')
-  const [form,    setForm]    = useState({ description: '', amount: '', category: 'food' })
+// Converte Date/ISO string → "YYYY-MM-DD" para input[type=date]
+function toDateInput(val) {
+  if (!val) return new Date().toISOString().slice(0, 10)
+  try { return new Date(val).toISOString().slice(0, 10) } catch { return '' }
+}
+
+export default function TransactionForm({ onClose, onSuccess, initialData, editingId }) {
+  const isEdit = !!editingId
+
+  const [type,    setType]    = useState(initialData?.type || 'expense')
+  const [form,    setForm]    = useState({
+    description: initialData?.description || '',
+    amount:      initialData?.amount      || '',
+    category:    initialData?.category    || 'food',
+    date:        toDateInput(initialData?.date),
+  })
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
 
@@ -31,15 +44,21 @@ export default function TransactionForm({ onClose, onSuccess }) {
     setLoading(true)
     setError('')
     try {
-      await transactionsAPI.create({
+      const payload = {
         description: form.description,
         amount:      form.amount,
         type,
         category: type === 'income' ? 'income' : form.category,
-      })
+      }
+      if (isEdit) {
+        payload.date = form.date
+        await transactionsAPI.update(editingId, payload)
+      } else {
+        await transactionsAPI.create(payload)
+      }
       onSuccess()
     } catch (err) {
-      setError(err.response?.data?.error || 'Erro ao registrar.')
+      setError(err.response?.data?.error || (isEdit ? 'Erro ao atualizar.' : 'Erro ao registrar.'))
       setLoading(false)
     }
   }
@@ -56,7 +75,7 @@ export default function TransactionForm({ onClose, onSuccess }) {
         {/* Header */}
         <div className="mhdr">
           <div className="mtitle">
-            {isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
+            {isEdit ? 'Editar Transação' : isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
           </div>
           <button className="mcls" onClick={onClose}>
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
@@ -117,6 +136,20 @@ export default function TransactionForm({ onClose, onSuccess }) {
             />
           </div>
 
+          {/* Data — só exibida na edição */}
+          {isEdit && (
+            <div className="fg">
+              <label className="lbl">Data</label>
+              <input
+                className="inp"
+                name="date"
+                type="date"
+                value={form.date}
+                onChange={handleChange}
+              />
+            </div>
+          )}
+
           {error && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
@@ -146,7 +179,7 @@ export default function TransactionForm({ onClose, onSuccess }) {
                   <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
                   </svg>
-                  {isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
+                  {isEdit ? 'Salvar alterações' : isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
                 </>
               )}
             </button>

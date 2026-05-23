@@ -349,6 +349,58 @@ router.post('/', dashboardLimiter, async (req, res) => {
   }
 })
 
+// ── PUT /transactions/:id ───────────────────────────────
+router.put('/:id', dashboardLimiter, async (req, res) => {
+  const { id } = req.params
+  if (!UUID_REGEX.test(id)) return res.status(400).json({ error: 'ID inválido.' })
+
+  const { description, amount, type, category, date } = req.body
+  const data = {}
+
+  if (description !== undefined) data.description = String(description).slice(0, 255).trim()
+
+  if (amount !== undefined) {
+    const n = Number(amount)
+    if (!Number.isFinite(n) || n <= 0 || n > MAX_AMOUNT) {
+      return res.status(400).json({ error: 'Valor inválido.' })
+    }
+    data.amount = n
+  }
+
+  if (type !== undefined) {
+    if (!['expense', 'income'].includes(type)) return res.status(400).json({ error: 'Tipo inválido.' })
+    data.type = type
+  }
+
+  if (category !== undefined) {
+    if (!VALID_CATEGORIES.includes(category)) return res.status(400).json({ error: 'Categoria inválida.' })
+    data.category = category
+  }
+
+  if (date !== undefined) {
+    const d = new Date(date)
+    if (isNaN(d.getTime())) return res.status(400).json({ error: 'Data inválida.' })
+    data.date  = d
+    data.month = d.getMonth() + 1
+    data.year  = d.getFullYear()
+  }
+
+  if (Object.keys(data).length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
+
+  try {
+    const existing = await prisma.transaction.findFirst({
+      where: { id, userId: req.userId, archived: false },
+    })
+    if (!existing) return res.status(404).json({ error: 'Transação não encontrada.' })
+
+    const updated = await prisma.transaction.update({ where: { id }, data })
+    res.json(updated)
+  } catch (error) {
+    console.error('Erro ao atualizar transação:', error)
+    res.status(500).json({ error: 'Erro ao atualizar transação.' })
+  }
+})
+
 // ── DELETE /transactions/:id ────────────────────────────
 // Remove uma transação pelo ID (apenas se pertencer ao usuário)
 router.delete('/:id', dashboardLimiter, async (req, res) => {
