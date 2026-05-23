@@ -3,6 +3,7 @@ import { budgetAPI, transactionsAPI } from '../../../services/api.js'
 import { invalidateCache } from '../../../services/cache.js'
 import { useUser } from '../../../hooks/useUser.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
+import { analytics } from '../../../services/analytics.js'
 
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
@@ -46,6 +47,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       onMessage('Conta fixa adicionada!')
     } catch (err) {
       if (err.response?.data?.limitReached) {
+        analytics.track('limit_reached', { feature: 'budgets' })
         onUpgrade?.('Você atingiu o limite de 15 contas fixas do plano Gratuito. Faça upgrade para adicionar contas ilimitadas.')
       } else {
         onMessage(err.response?.data?.error || 'Erro ao adicionar conta fixa.', 'error')

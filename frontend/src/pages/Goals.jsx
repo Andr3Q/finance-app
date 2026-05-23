@@ -329,6 +329,7 @@ export default function Goals() {
       fetchGoals(true)
     } catch (err) {
       if (err.response?.data?.limitReached) {
+        analytics.track('limit_reached', { feature: 'goals' })
         setModal(null)
         navigate('/planos')
         return
