@@ -120,7 +120,10 @@ export default function Planos() {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const status = params.get('payment')
-    if (status === 'success') showToast('Pagamento aprovado! Seu plano foi ativado. 🎉', 'success')
+    if (status === 'success') {
+      showToast('Pagamento aprovado! Seu plano foi ativado. 🎉', 'success')
+      analytics.track('payment_completed')
+    }
     if (status === 'pending') showToast('Pagamento pendente. Você receberá confirmação em breve.', 'warn')
     if (status === 'failure') showToast('Pagamento não aprovado. Tente novamente.', 'error')
   }, [])

@@ -8766,8 +8766,62 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   text-align: center;
 }
 
+/* Backup codes — grid 2×5 */
+.tfa-backup-notice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: rgba(255,160,0,.08);
+  border: 1px solid rgba(255,160,0,.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--t2);
+  line-height: 1.5;
+  margin-bottom: 16px;
+  text-align: left;
+}
+.tfa-backup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.tfa-backup-code {
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+  color: var(--t1);
+  text-align: center;
+}
+.tfa-backup-count {
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 3px;
+}
+.cfg-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--s2);
+  color: var(--t2);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.cfg-btn-secondary:hover { background: var(--s3); color: var(--t1); }
+
 @media (max-width: 480px) {
   .tfa-row { flex-direction: column; align-items: flex-start; }
+  .tfa-backup-grid { grid-template-columns: 1fr; }
 }
 
 /* ── Login: tela 2FA ──────────────────────────────────── */
@@ -8796,3 +8850,38 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   justify-content: center;
   margin: 0 auto 20px;
 }
+.lauth-box-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--t1);
+  line-height: 1.2;
+}
+.lauth-box-sub {
+  font-size: 13px;
+  color: var(--t3);
+  line-height: 1.5;
+}
+.lauth-link {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--cp);
+  font-size: 13px;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lauth-link:hover { opacity: .8; }
+.lauth-input {
+  width: 100%;
+  background: var(--s2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: var(--t1);
+  font-size: 15px;
+  outline: none;
+  transition: border-color .15s;
+  box-sizing: border-box;
+}
+.lauth-input:focus { border-color: var(--cp); }

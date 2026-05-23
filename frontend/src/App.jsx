@@ -54,6 +54,7 @@ export default function App() {
           if (res.data) {
             saveUser(res.data)
             analytics.identify(res.data.id, { plan: res.data.plan })
+            if (res.data.trialJustExpired) analytics.track('trial_expired')
           }
         })
         .catch((err) => {

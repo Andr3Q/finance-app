@@ -57,10 +57,13 @@ export const authAPI = {
   deleteAccount:       (password) => api.delete('/auth/account', { data: { password } }),
   completeOnboarding: ()          => api.post('/auth/complete-onboarding'),
   referralStats:      ()          => api.get('/auth/referral-stats'),
-  twoFASetup:         ()          => api.post('/auth/2fa/setup'),
-  twoFAVerifySetup:   (token)     => api.post('/auth/2fa/verify-setup', { token }),
-  twoFADisable:       (password)  => api.post('/auth/2fa/disable', { password }),
-  twoFAVerifyLogin:   (tempToken, token) => api.post('/auth/2fa/verify-login', { tempToken, token }),
+  twoFASetup:              ()                    => api.post('/auth/2fa/setup'),
+  twoFAVerifySetup:        (token)               => api.post('/auth/2fa/verify-setup', { token }),
+  twoFADisable:            (password)            => api.post('/auth/2fa/disable', { password }),
+  twoFAVerifyLogin:        (tempToken, token)    => api.post('/auth/2fa/verify-login', { tempToken, token }),
+  twoFAUseBackupCode:      (tempToken, backupCode) => api.post('/auth/2fa/use-backup-code', { tempToken, backupCode }),
+  twoFABackupCodesCount:   ()                    => api.get('/auth/2fa/backup-codes-count'),
+  twoFARegenerateCodes:    (password)            => api.post('/auth/2fa/regenerate-backup-codes', { password }),
 }
 
 // ── Funções de transações ───────────────────────────────

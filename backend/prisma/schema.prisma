@@ -39,8 +39,10 @@ model User {
   twoFactorEnabled     Boolean   @default(false)
   onboardingComplete   Boolean   @default(false)
   renewalReminderSent  Boolean   @default(false)
+  trialReminderSent    Boolean   @default(false)
 
   transactions      Transaction[]
+  twoFactorBackupCodes TwoFactorBackupCode[]
   budgets           Budget[]
   categoryLimits    CategoryLimit[]
   pushSubscriptions PushSubscription[]
@@ -143,6 +145,21 @@ model InstallmentPlan {
   user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ── Tabela: two_factor_backup_codes ────────────────────
+// Códigos de recuperação 2FA (10 por usuário, HMAC-SHA256)
+model TwoFactorBackupCode {
+  id        String    @id @default(uuid())
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("two_factor_backup_codes")
 }
 
 // ── Tabela: security_scans ──────────────────────────────

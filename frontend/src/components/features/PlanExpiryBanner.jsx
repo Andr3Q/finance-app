@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser.js'
+import { analytics } from '../../services/analytics.js'
 
 const DISMISS_KEY       = 'expiry-banner-dismissed'
 const TRIAL_DISMISS_KEY = 'trial-banner-dismissed'
@@ -10,6 +11,14 @@ export default function PlanExpiryBanner() {
   const navigate = useNavigate()
   const [dismissedExpiry, setDismissedExpiry] = useState(() => !!sessionStorage.getItem(DISMISS_KEY))
   const [dismissedTrial,  setDismissedTrial]  = useState(() => !!sessionStorage.getItem(TRIAL_DISMISS_KEY))
+
+  useEffect(() => {
+    if (!user.id) return
+    if (user.isOnTrial && user.trialEndsAt) {
+      const daysLeft = Math.ceil((new Date(user.trialEndsAt) - Date.now()) / (1000 * 60 * 60 * 24))
+      if (daysLeft <= 3) analytics.track('trial_expiring', { daysLeft })
+    }
+  }, [user.id])
 
   if (!user.id) return null
 
