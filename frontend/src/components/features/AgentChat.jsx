@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { agentAPI } from '../../services/api.js'
+import { useUser } from '../../hooks/useUser.js'
 
 const SUGGESTIONS = [
   'Quanto gastei esse mês?',
@@ -15,6 +17,9 @@ export default function AgentChat() {
   const [history, setHistory] = useState([])  // { role, content }
   const bottomRef             = useRef(null)
   const inputRef              = useRef(null)
+  const navigate              = useNavigate()
+  const user                  = useUser()
+  const isPro                 = user.plan === 'pro' || user.plan === 'elite'
 
   useEffect(() => {
     if (open) {
@@ -103,7 +108,25 @@ export default function AgentChat() {
 
           {/* Mensagens */}
           <div className="agent-messages">
-            {history.length === 0 ? (
+            {!isPro ? (
+              <div className="agent-welcome">
+                <div className="agent-welcome-ico" style={{ background: 'rgba(123,47,255,.12)', border: '1px solid rgba(123,47,255,.25)' }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="1.5" strokeLinecap="round">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                  </svg>
+                </div>
+                <div className="agent-welcome-title">Assistente IA</div>
+                <div className="agent-welcome-sub" style={{ marginBottom: 16 }}>
+                  Analise gastos, tire dúvidas e registre transações por texto. Disponível no plano <strong style={{ color: '#4ac46e' }}>Pro</strong>.
+                </div>
+                <button
+                  onClick={() => { setOpen(false); navigate('/planos') }}
+                  style={{ background: 'linear-gradient(135deg,#4ac46e,#3aaa5e)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                >
+                  Ver planos →
+                </button>
+              </div>
+            ) : history.length === 0 ? (
               <div className="agent-welcome">
                 <div className="agent-welcome-ico">
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -149,8 +172,8 @@ export default function AgentChat() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
-          <div className="agent-input-wrap">
+          {/* Input — só exibido para Pro/Elite */}
+          {isPro && <div className="agent-input-wrap">
             <textarea
               ref={inputRef}
               className="agent-input"
@@ -173,7 +196,7 @@ export default function AgentChat() {
                 <polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
             </button>
-          </div>
+          </div>}
         </div>
       )}
     </>
