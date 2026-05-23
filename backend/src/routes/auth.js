@@ -5,6 +5,7 @@ const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail } = require('../services/emailService')
+const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
@@ -218,6 +219,12 @@ router.get('/me', authMiddleware, async (req, res) => {
       if (daysLeft <= 3) {
         prisma.user.update({ where: { id: req.userId }, data: { trialReminderSent: true } }).catch(() => {})
         sendTrialExpiryEmail(user.email, user.name, daysLeft).catch(() => {})
+        const urgencyMsg = daysLeft <= 1 ? 'Seu trial expira hoje!' : `Seu trial expira em ${daysLeft} dias.`
+        sendPushToUser(req.userId, {
+          title: '⏰ Trial Pro expirando',
+          body:  `${urgencyMsg} Assine para manter todos os recursos.`,
+          url:   '/planos',
+        }).catch(() => {})
       }
     }
 
