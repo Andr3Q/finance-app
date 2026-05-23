@@ -6,7 +6,7 @@ const speakeasy  = require('speakeasy')
 const QRCode     = require('qrcode')
 const prisma     = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { apiLimiter }  = require('../middleware/rateLimiter')
+const { twoFALimiter } = require('../middleware/rateLimiter')
 
 const router = express.Router()
 
@@ -46,7 +46,7 @@ function verifyTotp(encryptedSecret, token) {
 
 // ── POST /auth/2fa/setup ────────────────────────────────
 // Gera segredo + QR code. Salva segredo (não ativa ainda).
-router.post('/setup', authMiddleware, apiLimiter, async (req, res) => {
+router.post('/setup', authMiddleware, twoFALimiter, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where:  { id: req.userId },
@@ -81,7 +81,7 @@ router.post('/setup', authMiddleware, apiLimiter, async (req, res) => {
 
 // ── POST /auth/2fa/verify-setup ─────────────────────────
 // Valida o código e ativa 2FA.
-router.post('/verify-setup', authMiddleware, apiLimiter, async (req, res) => {
+router.post('/verify-setup', authMiddleware, twoFALimiter, async (req, res) => {
   try {
     const { token } = req.body
     if (!token || typeof token !== 'string' || !/^\d{6}$/.test(token)) {
@@ -117,7 +117,7 @@ router.post('/verify-setup', authMiddleware, apiLimiter, async (req, res) => {
 
 // ── POST /auth/2fa/disable ──────────────────────────────
 // Desativa 2FA. Exige senha para confirmar.
-router.post('/disable', authMiddleware, apiLimiter, async (req, res) => {
+router.post('/disable', authMiddleware, twoFALimiter, async (req, res) => {
   try {
     const { password } = req.body
     if (!password) return res.status(400).json({ error: 'Senha obrigatória.' })
@@ -149,7 +149,7 @@ router.post('/disable', authMiddleware, apiLimiter, async (req, res) => {
 // ── POST /auth/2fa/verify-login ─────────────────────────
 // Valida TOTP durante login. Recebe tempToken (JWT 5min) + código.
 // Sem authMiddleware — usa o tempToken como credencial.
-router.post('/verify-login', apiLimiter, async (req, res) => {
+router.post('/verify-login', twoFALimiter, async (req, res) => {
   try {
     const { tempToken, token } = req.body
     if (!tempToken) return res.status(400).json({ error: 'Token temporário ausente.' })
@@ -168,9 +168,12 @@ router.post('/verify-login', apiLimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where:  { id: payload.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, twoFactorSecret: true },
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, twoFactorSecret: true, twoFactorEnabled: true },
     })
-    if (!user?.twoFactorSecret) return res.status(401).json({ error: 'Usuário não encontrado.' })
+    // Garante que 2FA ainda está ativo (pode ter sido desativado após emissão do tempToken)
+    if (!user?.twoFactorEnabled || !user?.twoFactorSecret) {
+      return res.status(401).json({ error: 'Usuário não encontrado.' })
+    }
 
     if (!verifyTotp(user.twoFactorSecret, token)) {
       return res.status(401).json({ error: 'Código incorreto.' })

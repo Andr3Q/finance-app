@@ -79,6 +79,14 @@ const paymentLimiter = rateLimit({
   message:      { error: 'Muitas tentativas de pagamento. Tente novamente em 15 minutos.' },
 })
 
+// 2FA: 10 tentativas / 15 min por IP — TOTP tem 10^6 possibilidades, impede brute-force
+const twoFALimiter = rateLimit({
+  ...opts,
+  windowMs: 15 * 60 * 1000,
+  max:      10,
+  message:  { error: 'Muitas tentativas de verificação. Tente novamente em 15 minutos.' },
+})
+
 module.exports = {
   apiLimiter,
   authLimiter,
@@ -89,4 +97,5 @@ module.exports = {
   dashboardLimiter,
   reportLimiter,
   paymentLimiter,
+  twoFALimiter,
 }

@@ -133,40 +133,41 @@ export default function Login({ isRegister = false }) {
 
   if (twoFA.active) {
     return (
-      <div className="lauth-split">
-        <div className="lauth-left" />
-        <div className="lauth-right">
-          <div className="lauth-box">
-            <div className="lauth-box-head">
-              <div className="lauth-box-title">Verificação em dois fatores</div>
-              <div className="lauth-box-sub">Digite o código de 6 dígitos do seu aplicativo autenticador.</div>
-            </div>
-            <form onSubmit={handleTwoFA} noValidate>
-              <div className="lauth-field">
-                <label className="lauth-label">Código 2FA</label>
-                <div className="lauth-input-wrap">
-                  <input
-                    className="lauth-input"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="\d{6}"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={twoFA.code}
-                    onChange={e => { setTwoFA(s => ({ ...s, code: e.target.value.replace(/\D/g,'') })); setServerErr('') }}
-                    autoFocus
-                  />
-                </div>
-              </div>
-              {serverErr && <div className="lauth-server-err"><ErrIcon />{serverErr}</div>}
-              <button type="submit" className="lauth-btn-primary" disabled={loading}>
-                {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : 'Verificar'}
-              </button>
-              <button type="button" className="lauth-link" style={{ marginTop: 12, width: '100%', textAlign: 'center' }} onClick={() => setTwoFA({ active: false, tempToken: '', code: '' })}>
-                Voltar ao login
-              </button>
-            </form>
+      <div className="lauth-2fa-screen">
+        <div className="lauth-2fa-box">
+          <div className="lauth-2fa-ico">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
           </div>
+          <div className="lauth-box-title" style={{ marginBottom: 6 }}>Verificação em dois fatores</div>
+          <div className="lauth-box-sub" style={{ marginBottom: 24 }}>Digite o código de 6 dígitos do seu aplicativo autenticador.</div>
+          <form onSubmit={handleTwoFA} noValidate>
+            <div className="lauth-field">
+              <div className="lauth-input-wrap">
+                <input
+                  className="lauth-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  placeholder="000 000"
+                  value={twoFA.code}
+                  onChange={e => { setTwoFA(s => ({ ...s, code: e.target.value.replace(/\D/g,'') })); setServerErr('') }}
+                  style={{ textAlign: 'center', fontSize: 22, letterSpacing: '0.3em', fontFamily: 'monospace' }}
+                  autoFocus
+                />
+              </div>
+            </div>
+            {serverErr && <div className="lauth-server-err"><ErrIcon />{serverErr}</div>}
+            <button type="submit" className="lauth-btn-primary" disabled={loading}>
+              {loading ? <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} /> : 'Verificar'}
+            </button>
+            <button type="button" className="lauth-link" style={{ marginTop: 12, width: '100%', textAlign: 'center' }} onClick={() => setTwoFA({ active: false, tempToken: '', code: '' })}>
+              Voltar ao login
+            </button>
+          </form>
         </div>
       </div>
     )

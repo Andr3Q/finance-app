@@ -274,6 +274,9 @@ app.get('/monitor.html', (req, res) => {
 })
 
 // ── Rotas da API ────────────────────────────────────────
+// 2FA deve ser registrado ANTES de /api/auth para evitar que authLimiter
+// (5 req/15min em prod) consuma a quota de tentativas de login ao verificar TOTP
+app.use('/api/auth/2fa',     twoFactorRoutes)
 app.use('/api/auth',          authLimiter, authRoutes)
 app.use('/api/transactions',  transactionRoutes)
 app.use('/api/budget',        budgetRoutes)
@@ -286,7 +289,6 @@ app.use('/api/installments', installmentRoutes)
 app.use('/api/payments',     paymentLimiter, paymentRoutes)
 app.use('/api/security',     apiLimiter,     securityRoutes)
 app.use('/api/monitor',      apiLimiter,     monitorRoutes)
-app.use('/api/auth/2fa',     apiLimiter,     twoFactorRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
 // Cliente DEDICADO ao health check — completamente separado do pool principal.
