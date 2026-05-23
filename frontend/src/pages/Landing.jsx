@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const CheckIcon = () => (
@@ -95,11 +94,8 @@ const ELITE_FEATURES = [
 ]
 
 export default function Landing() {
-  const [toast, setToast] = useState(false)
-
   const handleProClick = () => {
-    setToast(true)
-    setTimeout(() => setToast(false), 4000)
+    window.location.href = '/planos'
   }
 
   return (
@@ -251,9 +247,9 @@ export default function Landing() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5" strokeLinecap="round">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
-                Assinar Pro — Em breve
+                Assinar Pro
               </button>
-              <div className="lp2-plan-note">Para começar, sem cartão de crédito</div>
+              <div className="lp2-plan-note">Cartão de crédito ou Pix</div>
             </div>
 
             {/* Elite */}
@@ -279,9 +275,9 @@ export default function Landing() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#fbbf24" stroke="none">
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
-                Assinar Elite — Em breve
+                Assinar Elite
               </button>
-              <div className="lp2-plan-note">Para começar, sem cartão de crédito</div>
+              <div className="lp2-plan-note">Cartão de crédito ou Pix</div>
             </div>
           </div>
         </div>
