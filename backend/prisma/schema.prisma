@@ -35,6 +35,8 @@ model User {
   trialEndsAt          DateTime?
   referralCode         String?   @unique
   referredBy           String?
+  twoFactorSecret      String?
+  twoFactorEnabled     Boolean   @default(false)
   onboardingComplete   Boolean   @default(false)
   renewalReminderSent  Boolean   @default(false)
 
