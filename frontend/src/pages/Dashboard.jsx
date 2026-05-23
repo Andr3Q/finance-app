@@ -67,6 +67,7 @@ export default function Dashboard() {
   // Predição IA — cache em sessionStorage (apaga ao fechar a aba, não persiste dados financeiros)
   useEffect(() => {
     if (!summary || !transactions.length) return
+    if (!isPro) return
     const d = new Date()
     const key = `ai-predict-${d.getMonth() + 1}-${d.getFullYear()}`
     try {
@@ -415,7 +416,14 @@ export default function Dashboard() {
                   )
                 }
               >
-                {predLoading ? (
+                {!isPro ? (
+                  <div className="anl-empty" style={{ flexDirection: 'column', gap: 10 }}>
+                    <span style={{ fontSize: 12 }}>Disponível no plano <strong style={{ color: '#4ac46e' }}>Pro</strong></span>
+                    <button onClick={() => navigate('/planos')} style={{ background: 'rgba(74,196,110,.12)', border: '1px solid rgba(74,196,110,.25)', borderRadius: 6, padding: '5px 12px', color: '#4ac46e', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                      Ver planos →
+                    </button>
+                  </div>
+                ) : predLoading ? (
                   <div className="anl-loading">
                     <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />
                   </div>
