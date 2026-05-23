@@ -63,6 +63,7 @@ export const transactionsAPI = {
   list:           (params)     => api.get('/transactions', { params }),
   summary:        ()           => api.get('/transactions/summary'),
   create:         (data)       => api.post('/transactions', data),
+  update:         (id, data)   => api.put(`/transactions/${id}`, data),
   remove:         (id)         => api.delete(`/transactions/${id}`),
   autoLaunch:     ()           => api.post('/transactions/auto-launch'),
   importCSV:      (formData)   => api.post('/transactions/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
