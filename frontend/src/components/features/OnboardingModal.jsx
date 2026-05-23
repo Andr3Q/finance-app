@@ -15,12 +15,13 @@ export default function OnboardingModal() {
   const [gTitle,       setGTitle]       = useState('')
   const [gAmount,      setGAmount]      = useState('')
 
-  if (!user.id || user.onboardingComplete) return null
+  if (!user.id || user.onboardingComplete || !sessionStorage.getItem('just_registered')) return null
 
   const finish = async () => {
     setSaving(true)
     try { await authAPI.completeOnboarding() } catch {}
     analytics.track('onboarding_completed')
+    sessionStorage.removeItem('just_registered')
     const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
     saveUser({ ...cur, onboardingComplete: true })
   }

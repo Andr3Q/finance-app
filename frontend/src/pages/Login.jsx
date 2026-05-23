@@ -102,6 +102,7 @@ export default function Login({ isRegister = false }) {
         analytics.identify(res.data.user.id, { plan: res.data.user.plan })
         analytics.track('user_logged_in', { plan: res.data.user.plan })
       } else {
+        sessionStorage.setItem('just_registered', '1')
         analytics.identify(res.data.user.id, { plan: res.data.user.plan })
         analytics.track('user_signed_up')
         analytics.track('trial_started', { plan: res.data.user.plan })
