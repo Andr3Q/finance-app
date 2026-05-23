@@ -129,12 +129,13 @@ model InstallmentPlan {
   totalInstallments Int                              // Total de parcelas (12)
   paidInstallments  Int      @default(0)             // Quantas já foram pagas
   amount            Float                            // Valor de cada parcela
-  startMonth        Int                              // Mês da 1ª parcela
-  startYear         Int                              // Ano da 1ª parcela
-  createdAt         DateTime @default(now())
+  startMonth          Int                            // Mês da 1ª parcela
+  startYear           Int                            // Ano da 1ª parcela
+  lastTransactionId   String?                        // ID da transação criada na última parcela paga (usado pelo /unpay)
+  createdAt           DateTime @default(now())
 
-  userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }

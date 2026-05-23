@@ -109,6 +109,10 @@ export default function Transactions() {
     try {
       await installmentsAPI.unpay(id)
       fetchInstallments()
+      invalidateCache(CACHE_KEY)
+      fetchTransactions(true)
+      invalidateCache('dashboard')
+      window.dispatchEvent(new CustomEvent('budget-updated'))
       showToast('Parcela desfeita.')
     } catch (err) {
       showToast(err.response?.data?.error || 'Erro ao desfazer parcela.', false)
