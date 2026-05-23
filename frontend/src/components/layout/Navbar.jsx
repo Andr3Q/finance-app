@@ -232,16 +232,16 @@ export default function Navbar() {
         <div className="dsb-topbar-right">
           {user.plan === 'elite'
             ? (
-              <button className="dsb-topbar-elite" onClick={() => navigate('/planos')} style={{ cursor:'pointer', background:'none', border:'none', padding:0 }}>
+              <span className="dsb-topbar-elite" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
                 <span className="dsb-elite-shimmer" />
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="#fbbf24" stroke="none" style={{ flexShrink:0 }}>
                   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
                 ELITE
-              </button>
+              </span>
             )
             : isPro
-              ? <button className="dsb-topbar-pro" onClick={() => navigate('/planos')} style={{ cursor:'pointer', background:'none', border:'none', padding:0 }}>PRO ✨</button>
+              ? <span className="dsb-topbar-pro" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>PRO ✨</span>
               : <button className="dsb-topbar-upgrade" onClick={() => navigate('/planos')}>⚡ Upgrade</button>
           }
 
