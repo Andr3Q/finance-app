@@ -135,7 +135,7 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     let user = await prisma.user.findUnique({
       where:  { id: req.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true }
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true }
     })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
@@ -144,7 +144,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       user = await prisma.user.update({
         where:  { id: req.userId },
         data:   { plan: 'free', planExpiresAt: null },
-        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true }
+        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true }
       })
     }
 
@@ -152,6 +152,19 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.json(userOut)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar usuário.' })
+  }
+})
+
+// ── POST /auth/complete-onboarding ─────────────────────
+router.post('/complete-onboarding', authMiddleware, async (req, res) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.userId },
+      data:  { onboardingComplete: true },
+    })
+    res.json({ ok: true })
+  } catch {
+    res.status(500).json({ error: 'Erro ao finalizar onboarding.' })
   }
 })
 
