@@ -32,6 +32,7 @@ model User {
   resetTokenExpiry DateTime?
   plan                 String    @default("free")
   planExpiresAt        DateTime?
+  trialEndsAt          DateTime?
   onboardingComplete   Boolean   @default(false)
   renewalReminderSent  Boolean   @default(false)
 
