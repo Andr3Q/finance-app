@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { useUser } from '../hooks/useUser.js'
 import { paymentsAPI } from '../services/api.js'
@@ -111,9 +111,10 @@ export default function Planos() {
   const [toast,     setToast]    = useState(null)
   const [loading,   setLoading]  = useState(null) // 'pro_monthly' | 'pro_annual' | etc.
 
-  const user   = useUser()
-  const plan   = user.plan || 'free'
+  const user     = useUser()
+  const plan     = user.plan || 'free'
   const location = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -129,6 +130,10 @@ export default function Planos() {
   }
 
   const handleCheckout = async (plan, period) => {
+    if (!user.id) {
+      navigate('/register?from=planos')
+      return
+    }
     const key = `${plan}_${period}`
     setLoading(key)
     // Abre janela imediatamente no clique — evita bloqueio de popup e dá resposta instantânea

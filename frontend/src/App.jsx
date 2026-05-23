@@ -84,7 +84,7 @@ export default function App() {
           <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
           <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
           <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
-          <Route path="/planos"       element={<PrivateRoute><Planos /></PrivateRoute>} />
+          <Route path="/planos"       element={<Planos />} />
           <Route path="/privacidade"  element={<PrivacyPolicy />} />
           <Route path="/termos"       element={<TermsOfUse />} />
         </Routes>
