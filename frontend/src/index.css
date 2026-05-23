@@ -6496,6 +6496,16 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   margin-bottom: 10px;
 }
 .pp1-cta-pro:hover { opacity: .9; transform: translateY(-1px); }
+.pp1-current-badge-pro {
+  color: #4ac46e;
+  background: rgba(74,196,110,.08);
+  border-color: rgba(74,196,110,.2);
+}
+.pp1-current-badge-elite {
+  color: #a78bfa;
+  background: rgba(167,139,250,.08);
+  border-color: rgba(167,139,250,.2);
+}
 .pp1-cta-ghost {
   width: 100%;
   padding: 12px 20px;
@@ -6511,6 +6521,17 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   justify-content: center;
   gap: 7px;
   margin-bottom: 10px;
+}
+.pp1-cta-cancel {
+  cursor: pointer;
+  color: rgba(239,68,68,.7);
+  border-color: rgba(239,68,68,.15);
+  background: rgba(239,68,68,.05);
+  transition: background .2s, color .2s;
+}
+.pp1-cta-cancel:hover {
+  background: rgba(239,68,68,.1);
+  color: #ef4444;
 }
 .pp1-cta-is-pro {
   text-align: center;
