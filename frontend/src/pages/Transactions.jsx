@@ -9,6 +9,26 @@ import { CategoryIcon } from '../components/ui/icons.jsx'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
 
+function exportCSV(rows) {
+  const header = ['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor (R$)']
+  const lines  = rows.map(t => {
+    const date = new Date(t.date).toLocaleDateString('pt-BR')
+    const desc = (t.description || CATEGORY_LABELS[t.category] || t.category).replace(/"/g, '""')
+    const cat  = (CATEGORY_LABELS[t.category] || t.category).replace(/"/g, '""')
+    const type = t.type === 'income' ? 'Entrada' : 'Saída'
+    const val  = (t.type === 'income' ? t.amount : -t.amount).toFixed(2).replace('.', ',')
+    return `"${date}","${desc}","${cat}","${type}","${val}"`
+  })
+  const csv  = [header.join(','), ...lines].join('\r\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `transacoes-${new Date().toISOString().slice(0, 7)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 const CACHE_KEY = 'transactions:list'
 
 export default function Transactions() {
@@ -520,6 +540,13 @@ export default function Transactions() {
                 <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
               Importar CSV
+            </button>
+            <button className="tx1-btn-ghost" onClick={() => exportCSV(filtered)} disabled={filtered.length === 0}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Exportar CSV
             </button>
             <button className="tx1-btn-primary" onClick={() => setShowForm(true)}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
