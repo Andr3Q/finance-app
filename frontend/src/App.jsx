@@ -13,7 +13,6 @@ const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'))
 const ResetPassword  = lazy(() => import('./pages/ResetPassword.jsx'))
 const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
-const Analytics      = lazy(() => import('./pages/Analytics.jsx'))
 const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
 const Planos         = lazy(() => import('./pages/Planos.jsx'))
@@ -82,7 +81,7 @@ export default function App() {
           <Route path="/reset-password"  element={<ResetPassword />} />
           <Route path="/dashboard"    element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
-          <Route path="/analytics"    element={<PrivateRoute><Analytics /></PrivateRoute>} />
+          <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
           <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
           <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
           <Route path="/planos"       element={<PrivateRoute><Planos /></PrivateRoute>} />
