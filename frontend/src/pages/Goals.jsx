@@ -31,6 +31,67 @@ const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out
 
 const EMPTY_FORM = { title: '', targetAmount: '', currentAmount: '', color: '#4ac46e', deadline: '' }
 
+function DepositModal({ goal, onConfirm, onCancel, saving }) {
+  const [amount, setAmount] = useState('')
+  const pct     = goal.targetAmount > 0
+    ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
+    : 0
+  const remaining = Math.max(0, goal.targetAmount - goal.currentAmount)
+
+  return (
+    <div className="gls-modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
+      <div className="gls-modal" style={{ maxWidth: 380 }}>
+        <div className="gls-modal-head">
+          <span>Depositar na meta</span>
+          <button className="gls-modal-close" onClick={onCancel}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div className="gls-modal-body">
+          <div className="gls-dep-goal-name" style={{ color: goal.color }}>{goal.title}</div>
+          <div className="gls-dep-progress">
+            <div className="gls-card-bar" style={{ marginBottom: 6 }}>
+              <div className="gls-card-bar-fill" style={{ width: `${pct}%`, background: goal.color }} />
+            </div>
+            <div className="gls-dep-amounts">
+              <span style={{ color: goal.color }}>R$ {fmt(goal.currentAmount)}</span>
+              <span className="gls-dep-sep">de R$ {fmt(goal.targetAmount)}</span>
+              {remaining > 0 && <span className="gls-dep-rem">faltam R$ {fmt(remaining)}</span>}
+            </div>
+          </div>
+          <label className="gls-label">Valor a depositar</label>
+          <div className="gls-input-prefix">
+            <span>R$</span>
+            <CurrencyInput
+              className="gls-input-inner"
+              placeholder="0,00"
+              value={amount}
+              onChange={setAmount}
+              autoFocus
+            />
+          </div>
+        </div>
+        <div className="gls-modal-foot">
+          <button className="gls-btn-ghost" onClick={onCancel} disabled={saving}>Cancelar</button>
+          <button
+            className="gls-btn-save"
+            style={{ background: goal.color }}
+            onClick={() => onConfirm(parseFloat(amount) || 0)}
+            disabled={saving || !(parseFloat(amount) > 0)}
+          >
+            {saving
+              ? <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />
+              : null}
+            Depositar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function GoalForm({ initial, onSave, onCancel, saving }) {
   const [form, setForm] = useState(initial || EMPTY_FORM)
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
@@ -176,9 +237,10 @@ export default function Goals() {
   const navigate              = useNavigate()
   const [goals,   setGoals]   = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal,   setModal]   = useState(null)
-  const [saving,  setSaving]  = useState(false)
-  const [toast,   setToast]   = useState(null)
+  const [modal,        setModal]        = useState(null)
+  const [depositGoal,  setDepositGoal]  = useState(null)
+  const [saving,       setSaving]       = useState(false)
+  const [toast,        setToast]        = useState(null)
 
   const [history,       setHistory]       = useState([])
   const [subs,          setSubs]          = useState([])
@@ -270,6 +332,24 @@ export default function Goals() {
         return
       }
       showToast(err.response?.data?.error || 'Erro ao salvar meta.', false)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeposit = async (amount) => {
+    if (!depositGoal || amount <= 0) return
+    setSaving(true)
+    try {
+      const newAmount = depositGoal.currentAmount + amount
+      await goalsAPI.update(depositGoal.id, { currentAmount: newAmount })
+      const done = newAmount >= depositGoal.targetAmount
+      showToast(done ? 'Meta atingida! Parabéns!' : 'Depósito registrado!')
+      setDepositGoal(null)
+      invalidateCache(CACHE_KEY)
+      fetchGoals(true)
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Erro ao registrar depósito.', false)
     } finally {
       setSaving(false)
     }
@@ -434,6 +514,16 @@ export default function Goals() {
                             </div>
                           )}
                           <div className="gls-card-actions">
+                            {!done && (
+                              <button className="gls-act-btn gls-act-dep" style={{ '--dep-c': g.color }} onClick={() => setDepositGoal(g)}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                                  <circle cx="12" cy="12" r="10"/>
+                                  <line x1="12" y1="8" x2="12" y2="16"/>
+                                  <polyline points="8 12 12 16 16 12"/>
+                                </svg>
+                                Depositar
+                              </button>
+                            )}
                             <button className="gls-act-btn" onClick={() => setModal({ ...g, deadline: g.deadline ? g.deadline.slice(0,10) : '' })}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                                 <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
@@ -530,6 +620,15 @@ export default function Goals() {
           initial={modal === 'new' ? null : modal}
           onSave={handleSave}
           onCancel={() => setModal(null)}
+          saving={saving}
+        />
+      )}
+
+      {depositGoal && (
+        <DepositModal
+          goal={depositGoal}
+          onConfirm={handleDeposit}
+          onCancel={() => setDepositGoal(null)}
           saving={saving}
         />
       )}
