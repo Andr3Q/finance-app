@@ -77,20 +77,36 @@ router.patch('/:id/pay', async (req, res) => {
     }
 
     const nextPaid = plan.paidInstallments + 1
+    const { month, year } = nowBrasilia()
 
-    const updated = await prisma.installmentPlan.update({
-      where: { id: plan.id },
-      data:  { paidInstallments: nextPaid },
+    // Cria transação e atualiza plano atomicamente — se um falhar, nada persiste
+    const { updatedPlan, transaction } = await prisma.$transaction(async (db) => {
+      const transaction = await db.transaction.create({
+        data: {
+          description: `${plan.name} (parcela ${nextPaid}/${plan.totalInstallments})`,
+          amount:      plan.amount,
+          type:        'expense',
+          category:    'shopping',
+          month,
+          year,
+          userId:      req.userId,
+        },
+      })
+      const updatedPlan = await db.installmentPlan.update({
+        where: { id: plan.id },
+        data:  { paidInstallments: nextPaid, lastTransactionId: transaction.id },
+      })
+      return { updatedPlan, transaction }
     })
 
-    res.json(updated)
+    res.json({ plan: updatedPlan, transaction })
   } catch (err) {
     console.error('Erro ao pagar parcela:', err)
     res.status(500).json({ error: 'Erro ao registrar pagamento.' })
   }
 })
 
-// PATCH /installments/:id/unpay — desfaz a última parcela paga
+// PATCH /installments/:id/unpay — desfaz a última parcela paga e remove a transação criada
 router.patch('/:id/unpay', async (req, res) => {
   if (!UUID_REGEX.test(req.params.id)) return res.status(400).json({ error: 'ID inválido.' })
   try {
@@ -102,10 +118,22 @@ router.patch('/:id/unpay', async (req, res) => {
       return res.status(400).json({ error: 'Nenhuma parcela paga para desfazer.' })
     }
 
-    const updated = await prisma.installmentPlan.update({
-      where: { id: plan.id },
-      data:  { paidInstallments: plan.paidInstallments - 1 },
-    })
+    const ops = [
+      prisma.installmentPlan.update({
+        where: { id: plan.id },
+        data:  { paidInstallments: plan.paidInstallments - 1, lastTransactionId: null },
+      }),
+    ]
+    // Remove a transação vinculada se existir (deleteMany é safe — não lança erro se não existir)
+    if (plan.lastTransactionId) {
+      ops.push(
+        prisma.transaction.deleteMany({
+          where: { id: plan.lastTransactionId, userId: req.userId },
+        })
+      )
+    }
+
+    const [updated] = await prisma.$transaction(ops)
     res.json(updated)
   } catch (err) {
     console.error('Erro ao desfazer parcela:', err)
