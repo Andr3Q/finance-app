@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail } = require('../services/emailService')
+const { sendResetEmail, sendRenewalReminderEmail } = require('../services/emailService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
@@ -133,10 +133,9 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    let user = await prisma.user.findUnique({
-      where:  { id: req.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true }
-    })
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true }
+
+    let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
     // Rebaixa para free se o plano expirou
@@ -144,11 +143,24 @@ router.get('/me', authMiddleware, async (req, res) => {
       user = await prisma.user.update({
         where:  { id: req.userId },
         data:   { plan: 'free', planExpiresAt: null },
-        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true }
+        select: ME_SELECT,
       })
     }
 
-    const { planExpiresAt, ...userOut } = user
+    // Lembrete de renovação lazy: dispara na primeira visita com ≤7 dias restantes
+    if (user.plan !== 'free' && user.planExpiresAt && !user.renewalReminderSent) {
+      const daysLeft = Math.ceil((user.planExpiresAt - new Date()) / (1000 * 60 * 60 * 24))
+      if (daysLeft > 0 && daysLeft <= 7) {
+        prisma.user.update({ where: { id: req.userId }, data: { renewalReminderSent: true } }).catch(() => {})
+        sendRenewalReminderEmail(user.email, user.name, user.plan, daysLeft).catch(() => {})
+      }
+    }
+
+    const { planExpiresAt, renewalReminderSent: _rrs, ...userOut } = user
+    // Inclui planExpiresAt para planos pagos — frontend usa para exibir banner de expiração
+    if (userOut.plan !== 'free' && planExpiresAt) {
+      userOut.planExpiresAt = planExpiresAt.toISOString()
+    }
     res.json(userOut)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar usuário.' })
