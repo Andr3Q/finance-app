@@ -17,6 +17,8 @@ RUN npm install --legacy-peer-deps
 
 # Copia o código e compila para produção
 COPY frontend/ ./
+# Injeta timestamp de build no sw.js para forçar atualização do cache a cada deploy
+RUN sed -i "s/__BUILD_TS__/$(date +%s)/g" public/sw.js
 RUN npm run build
 # Resultado: pasta /frontend/dist com HTML/CSS/JS otimizados
 

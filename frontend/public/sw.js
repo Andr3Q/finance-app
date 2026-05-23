@@ -1,4 +1,5 @@
-const CACHE_NAME = 'finance-v9'
+const CACHE_VERSION = '__BUILD_TS__'
+const CACHE_NAME = `finance-${CACHE_VERSION}`
 const STATIC_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/logo-icon.png']
 
 self.addEventListener('install', e => {
