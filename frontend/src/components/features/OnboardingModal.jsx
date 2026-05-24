@@ -6,17 +6,18 @@ import { analytics } from '../../services/analytics.js'
 export default function OnboardingModal() {
   const user = useUser()
 
-  const [step,         setStep]         = useState(1)
-  const [saving,       setSaving]       = useState(false)
-  const [salary,       setSalary]       = useState(() => user.salary > 0 ? String(user.salary) : '')
-  const [bName,        setBName]        = useState('')
-  const [bAmount,      setBAmount]      = useState('')
-  const [budgetsAdded, setBudgetsAdded] = useState(0)
-  const [budgetErr,    setBudgetErr]    = useState('')
-  const [gTitle,       setGTitle]       = useState('')
-  const [gAmount,      setGAmount]      = useState('')
+  const [step,           setStep]           = useState(1)
+  const [saving,         setSaving]         = useState(false)
+  const [salary,         setSalary]         = useState(() => user.salary > 0 ? String(user.salary) : '')
+  const [bName,          setBName]          = useState('')
+  const [bAmount,        setBAmount]        = useState('')
+  const [budgetsAdded,   setBudgetsAdded]   = useState(0)
+  const [budgetErr,      setBudgetErr]      = useState('')
+  const [gTitle,         setGTitle]         = useState('')
+  const [gAmount,        setGAmount]        = useState('')
+  const [justRegistered] = useState(() => { try { return !!sessionStorage.getItem('just_registered') } catch { return false } })
 
-  if (!user.id || user.onboardingComplete || !sessionStorage.getItem('just_registered')) return null
+  if (!user.id || user.onboardingComplete || !justRegistered) return null
 
   const finish = async () => {
     setSaving(true)
