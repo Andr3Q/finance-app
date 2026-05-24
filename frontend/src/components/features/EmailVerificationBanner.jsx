@@ -6,7 +6,7 @@ export default function EmailVerificationBanner() {
   const user = useUser()
   const [sent,      setSent]      = useState(false)
   const [loading,   setLoading]   = useState(false)
-  const [dismissed, setDismissed] = useState(() => !!sessionStorage.getItem('email-verify-dismissed'))
+  const [dismissed, setDismissed] = useState(() => { try { return !!sessionStorage.getItem('email-verify-dismissed') } catch { return false } })
 
   if (!user.id || user.emailVerified || dismissed) return null
 

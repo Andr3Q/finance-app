@@ -4,11 +4,13 @@ import { initAnalytics } from '../../services/analytics.js'
 const CONSENT_KEY = 'analytics-consent'
 
 export function hasConsent() {
-  return localStorage.getItem(CONSENT_KEY) === 'accepted'
+  try { return localStorage.getItem(CONSENT_KEY) === 'accepted' } catch { return false }
 }
 
 export default function CookieBanner() {
-  const [visible, setVisible] = useState(() => !localStorage.getItem(CONSENT_KEY))
+  const [visible, setVisible] = useState(() => {
+    try { return !localStorage.getItem(CONSENT_KEY) } catch { return false }
+  })
 
   if (!visible) return null
 

@@ -197,7 +197,7 @@ function SubscriptionsList({ data, loading }) {
       <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
     </div>
   )
-  if (!data.length) return (
+  if (!Array.isArray(data) || !data.length) return (
     <div className="anl-empty">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="1.5" strokeLinecap="round">
         <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
