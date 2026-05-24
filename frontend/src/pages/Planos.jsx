@@ -156,6 +156,10 @@ export default function Planos() {
       navigate('/register?from=planos')
       return
     }
+    if (!user.emailVerified) {
+      showToast('Verifique seu e-mail antes de assinar. Acesse Configurações para reenviar o link.', 'warn')
+      return
+    }
     analytics.track('upgrade_clicked', { plan, period })
     const key = `${plan}_${period}`
     setLoading(key)

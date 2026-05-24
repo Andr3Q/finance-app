@@ -19,7 +19,8 @@ const ELITE_EXTRAS = [
 export default function UpgradeModal({ onClose, reason }) {
   const navigate = useNavigate()
   const user     = useUser()
-  const [closing, setClosing] = useState(false)
+  const [closing,   setClosing]   = useState(false)
+  const [emailWarn, setEmailWarn] = useState(false)
 
   const isTrialEligible = user.plan === 'free' && !user.isOnTrial
 
@@ -29,6 +30,10 @@ export default function UpgradeModal({ onClose, reason }) {
   }
 
   const goPlanos = () => {
+    if (!user.emailVerified) {
+      setEmailWarn(true)
+      return
+    }
     setClosing(true)
     setTimeout(() => { setClosing(false); onClose(); navigate('/planos') }, 200)
   }
@@ -70,6 +75,14 @@ export default function UpgradeModal({ onClose, reason }) {
               padding: '6px 12px', background: 'rgba(255,71,87,.08)', borderRadius: 8,
             }}>
               {reason}
+            </div>
+          )}
+          {emailWarn && (
+            <div style={{
+              fontSize: 12, color: '#f59e0b', marginTop: 10,
+              padding: '6px 12px', background: 'rgba(245,158,11,.08)', borderRadius: 8,
+            }}>
+              Verifique seu e-mail antes de assinar. Acesse Configurações para reenviar o link.
             </div>
           )}
         </div>

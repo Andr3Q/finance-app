@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import Navbar from '../components/layout/Navbar.jsx'
-import { transactionsAPI, budgetAPI, goalsAPI } from '../services/api.js'
+import { transactionsAPI, budgetAPI, goalsAPI, installmentsAPI } from '../services/api.js'
 import { MONTHS, CATEGORY_LABELS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
 
@@ -22,24 +22,27 @@ export default function Calendar() {
   const [month,        setMonth]        = useState(now.getMonth() + 1)
   const [year,         setYear]         = useState(now.getFullYear())
   const [selectedDay,  setSelectedDay]  = useState(now.getDate())
-  const [transactions, setTransactions] = useState([])
-  const [budgets,      setBudgets]      = useState([])
-  const [goals,        setGoals]        = useState([])
-  const [loading,      setLoading]      = useState(true)
+  const [transactions,  setTransactions]  = useState([])
+  const [budgets,       setBudgets]       = useState([])
+  const [goals,         setGoals]         = useState([])
+  const [installments,  setInstallments]  = useState([])
+  const [loading,       setLoading]       = useState(true)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [txRes, budgetRes, goalsRes] = await Promise.all([
+      const [txRes, budgetRes, goalsRes, instRes] = await Promise.all([
         transactionsAPI.list({ month, year, limit: 200 }),
         budgetAPI.list(),
         goalsAPI.list(),
+        installmentsAPI.list(),
       ])
       setTransactions(txRes.data?.data || [])
       setBudgets(budgetRes.data || [])
       setGoals(goalsRes.data || [])
+      setInstallments(instRes.data || [])
     } catch {
-      setTransactions([]); setBudgets([]); setGoals([])
+      setTransactions([]); setBudgets([]); setGoals([]); setInstallments([])
     } finally {
       setLoading(false)
     }
@@ -78,6 +81,13 @@ export default function Calendar() {
     const d = new Date(g.deadline)
     if (d.getMonth() + 1 !== month || d.getFullYear() !== year) return
     push(d.getDate(), { kind: 'goal', goal: g })
+  })
+  installments.forEach(plan => {
+    const offset = (year - plan.startYear) * 12 + (month - plan.startMonth)
+    if (offset < 0 || offset >= plan.totalInstallments) return
+    const installmentNum = offset + 1
+    if (installmentNum <= plan.paidInstallments) return
+    push(1, { kind: 'installment', plan, installmentNum })
   })
 
   const cells          = buildCalendar(year, month)
@@ -128,10 +138,11 @@ export default function Calendar() {
                     {cells.map((day, i) => {
                       if (!day) return <div key={`e${i}`} className="cal-cell empty" />
                       const events     = evByDay[day] || []
-                      const hasIncome  = events.some(e => e.kind === 'income')
-                      const hasExpense = events.some(e => e.kind === 'expense')
-                      const hasBudget  = events.some(e => e.kind === 'budget')
-                      const hasGoal    = events.some(e => e.kind === 'goal')
+                      const hasIncome      = events.some(e => e.kind === 'income')
+                      const hasExpense     = events.some(e => e.kind === 'expense')
+                      const hasBudget      = events.some(e => e.kind === 'budget')
+                      const hasGoal        = events.some(e => e.kind === 'goal')
+                      const hasInstallment = events.some(e => e.kind === 'installment')
                       const isToday    = day === today
                       const isSel      = day === selectedDay
                       return (
@@ -142,10 +153,11 @@ export default function Calendar() {
                         >
                           <span className="cal-day-num">{day}</span>
                           <div className="cal-dots">
-                            {hasExpense && <span className="cal-dot cal-dot-exp" />}
-                            {hasIncome  && <span className="cal-dot cal-dot-inc" />}
-                            {hasBudget  && <span className="cal-dot cal-dot-bud" />}
-                            {hasGoal    && <span className="cal-dot cal-dot-gol" />}
+                            {hasExpense     && <span className="cal-dot cal-dot-exp" />}
+                            {hasIncome      && <span className="cal-dot cal-dot-inc" />}
+                            {hasBudget      && <span className="cal-dot cal-dot-bud" />}
+                            {hasGoal        && <span className="cal-dot cal-dot-gol" />}
+                            {hasInstallment && <span className="cal-dot cal-dot-ins" />}
                           </div>
                         </div>
                       )
@@ -158,6 +170,7 @@ export default function Calendar() {
                   <span className="cal-leg"><span className="cal-dot cal-dot-inc"/><span>Entrada</span></span>
                   <span className="cal-leg"><span className="cal-dot cal-dot-bud"/><span>Conta fixa</span></span>
                   <span className="cal-leg"><span className="cal-dot cal-dot-gol"/><span>Meta</span></span>
+                  <span className="cal-leg"><span className="cal-dot cal-dot-ins"/><span>Parcela</span></span>
                 </div>
               </div>
 
@@ -235,6 +248,21 @@ function CalEvent({ ev }) {
         <span className="cal-ev-sub">Vencimento</span>
       </div>
       <span className="cal-ev-amt cal-ev-amt-bud">R$ {fmt(ev.budget.amount)}</span>
+    </div>
+  )
+
+  if (ev.kind === 'installment') return (
+    <div className="cal-ev-item cal-ev-ins">
+      <div className="cal-ev-ico cal-ev-ico-ins">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+        </svg>
+      </div>
+      <div className="cal-ev-info">
+        <span className="cal-ev-name">{ev.plan.name}</span>
+        <span className="cal-ev-sub">Parcela {ev.installmentNum}/{ev.plan.totalInstallments}</span>
+      </div>
+      <span className="cal-ev-amt cal-ev-amt-ins">R$ {fmt(ev.plan.amount)}</span>
     </div>
   )
 

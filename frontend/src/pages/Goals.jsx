@@ -254,6 +254,8 @@ export default function Goals() {
   const [reportYear,  setReportYear]  = useState(now.getFullYear())
   const reportRef = useRef(null)
 
+  const [activeTab, setActiveTab] = useState('metas')
+
   const plan    = user?.plan ?? null
   const isFree  = plan === 'free'
   const isPro   = plan === 'pro'
@@ -435,22 +437,47 @@ export default function Goals() {
                 <div className="cfg-ch-title">Metas & Análises</div>
                 <div className="cfg-ch-sub">Objetivos financeiros e acompanhamento histórico</div>
               </div>
-              <button className="gls-btn-new"
-                onClick={() => setModal('new')}
-                disabled={(isFree && goals.length >= 1) || (isPro && goals.length >= proLimit)}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Nova meta
-              </button>
+              {activeTab === 'metas' && (
+                <button className="gls-btn-new"
+                  onClick={() => setModal('new')}
+                  disabled={(isFree && goals.length >= 1) || (isPro && goals.length >= proLimit)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Nova meta
+                </button>
+              )}
+            </div>
+
+            {/* ── Tabs ── */}
+            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--bd)', paddingBottom:0 }}>
+              {[
+                { key:'metas',       label:'Metas' },
+                { key:'historico',   label:'Histórico' },
+                { key:'assinaturas', label:'Assinaturas' },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  style={{
+                    padding:'8px 16px', fontSize:13, fontWeight:600, cursor:'pointer',
+                    background:'transparent', border:'none', borderBottom:'2px solid',
+                    borderBottomColor: activeTab === t.key ? 'var(--cp)' : 'transparent',
+                    color: activeTab === t.key ? 'var(--cp)' : 'var(--t3)',
+                    marginBottom:-1, transition:'color .15s, border-color .15s',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
             {/* ── Metas ── */}
-            {loading ? (
+            {activeTab === 'metas' && loading ? (
               <div style={{ display:'flex', justifyContent:'center', padding:'40px 0' }}>
                 <span className="spinner" style={{ width: 22, height: 22, borderWidth: 2.5 }} />
               </div>
-            ) : goals.length === 0 ? (
+            ) : activeTab === 'metas' && goals.length === 0 ? (
               <div className="gls-empty-state">
                 <div className="gls-empty-icon">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -466,7 +493,7 @@ export default function Goals() {
                   Criar primeira meta
                 </button>
               </div>
-            ) : (
+            ) : activeTab === 'metas' ? (
               <>
                 {isFree && goals.length >= 1 && (
                   <div className="gls-pro-limit-banner">
@@ -549,40 +576,28 @@ export default function Goals() {
                   })}
                 </div>
               </>
-            )}
+            ) : null}
 
             {/* ── Histórico de Gastos ── */}
-            <div className="cfg-sec-title" style={{ marginTop: 32 }}>Histórico de gastos</div>
-            <GradCard
-              iconBg="rgba(79,142,247,.1)" iconBorder="rgba(79,142,247,.25)"
-              icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
-              title="Evolução mensal"
-              sub="Entradas e saídas dos últimos 6 meses"
-            >
-              {loadingHist ? (
-                <div className="anl-loading"><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /></div>
-              ) : history.length > 0 ? (
-                <BarChart data={history} />
-              ) : (
-                <div className="anl-empty"><span>Sem dados de histórico ainda</span></div>
-              )}
-            </GradCard>
-
-            {/* ── Detector de Assinaturas ── */}
-            <div className="cfg-sec-title">Detector de assinaturas</div>
-            <GradCard
-              iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
-              icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>}
-              title="Gastos recorrentes detectados"
-              sub="Transações que se repetem em meses diferentes"
-            >
-              <SubscriptionsList data={subs} loading={loadingSubs} />
-            </GradCard>
-
-            {/* ── Relatório IA (Elite only) ── */}
-            {isElite && (
+            {activeTab === 'historico' && (
               <>
-                <div className="cfg-sec-title">Relatório com IA</div>
+                <GradCard
+                  iconBg="rgba(79,142,247,.1)" iconBorder="rgba(79,142,247,.25)"
+                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
+                  title="Evolução mensal"
+                  sub="Entradas e saídas dos últimos 6 meses"
+                >
+                  {loadingHist ? (
+                    <div className="anl-loading"><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /></div>
+                  ) : history.length > 0 ? (
+                    <BarChart data={history} />
+                  ) : (
+                    <div className="anl-empty"><span>Sem dados de histórico ainda</span></div>
+                  )}
+                </GradCard>
+
+                {/* ── Relatório IA (Elite only) ── */}
+                {isElite && (
                 <GradCard
                   iconBg="rgba(255,140,66,.1)" iconBorder="rgba(255,140,66,.25)"
                   icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff8c42" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>}
@@ -594,7 +609,7 @@ export default function Goals() {
                       {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                     </select>
                     <select className="anl-report-select" value={reportYear} onChange={e => setReportYear(+e.target.value)}>
-                      {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                      {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                     <button className="anl-report-btn" onClick={generateReport} disabled={reportLoading}>
                       {reportLoading
@@ -612,7 +627,20 @@ export default function Goals() {
                     <div className="anl-report-text" ref={reportRef}>{report}</div>
                   )}
                 </GradCard>
+                )}
               </>
+            )}
+
+            {/* ── Detector de Assinaturas ── */}
+            {activeTab === 'assinaturas' && (
+              <GradCard
+                iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
+                icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>}
+                title="Gastos recorrentes detectados"
+                sub="Transações que se repetem em meses diferentes"
+              >
+                <SubscriptionsList data={subs} loading={loadingSubs} />
+              </GradCard>
             )}
 
           </div>

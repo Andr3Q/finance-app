@@ -68,6 +68,7 @@ export const authAPI = {
   exportData:              ()                    => api.get('/auth/export-data', { responseType: 'blob' }),
   verifyEmail:             (token)               => api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`),
   resendVerification:      ()                    => api.post('/auth/resend-verification'),
+  updateNotifPrefs:        (prefs)               => api.put('/auth/notifications', prefs),
 }
 
 // ── Funções de transações ───────────────────────────────

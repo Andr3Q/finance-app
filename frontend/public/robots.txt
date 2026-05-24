@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /planos
+Allow: /privacidade
+Allow: /termos
+
+# Rotas privadas — autenticadas, sem conteúdo indexável
+Disallow: /dashboard
+Disallow: /transactions
+Disallow: /goals
+Disallow: /settings
+Disallow: /calendar
+Disallow: /api/
+
+Sitemap: https://finance-app-1042158013294.southamerica-east1.run.app/sitemap.xml

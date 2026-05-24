@@ -8390,6 +8390,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .cal-dot-inc { background: var(--green); }
 .cal-dot-bud { background: var(--orange); }
 .cal-dot-gol { background: var(--cp); }
+.cal-dot-ins { background: #06b6d4; }
 
 .cal-legend {
   display: flex;
@@ -8486,6 +8487,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .cal-ev-ico-inc { background: rgba(0,208,132,.12);  color: var(--green);  }
 .cal-ev-ico-bud { background: rgba(255,140,66,.12); color: var(--orange); }
 .cal-ev-ico-gol { background: rgba(123,47,255,.12); color: var(--cp);     }
+.cal-ev-ico-ins { background: rgba(6,182,212,.12);  color: #06b6d4;       }
 
 .cal-ev-info {
   flex: 1;
@@ -8520,6 +8522,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .cal-ev-amt-inc { color: var(--green);  }
 .cal-ev-amt-bud { color: var(--orange); }
 .cal-ev-amt-gol { color: var(--cp);     }
+.cal-ev-amt-ins { color: #06b6d4;       }
 
 @media (max-width: 768px) {
   .cal-layout { grid-template-columns: 1fr; }
