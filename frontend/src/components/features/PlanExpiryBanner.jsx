@@ -19,8 +19,8 @@ const REASONS = [
 export default function PlanExpiryBanner() {
   const user     = useUser()
   const navigate = useNavigate()
-  const [dismissedExpiry, setDismissedExpiry] = useState(() => !!sessionStorage.getItem(DISMISS_KEY))
-  const [dismissedTrial,  setDismissedTrial]  = useState(() => !!sessionStorage.getItem(TRIAL_DISMISS_KEY))
+  const [dismissedExpiry, setDismissedExpiry] = useState(() => { try { return !!sessionStorage.getItem(DISMISS_KEY) } catch { return false } })
+  const [dismissedTrial,  setDismissedTrial]  = useState(() => { try { return !!sessionStorage.getItem(TRIAL_DISMISS_KEY) } catch { return false } })
 
   const [showSurvey,    setShowSurvey]    = useState(false)
   const [surveyReason,  setSurveyReason]  = useState('')
