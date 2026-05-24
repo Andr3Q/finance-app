@@ -11,7 +11,7 @@ function buildUrl() {
   const params = new URLSearchParams()
 
   if (!base.includes('connection_limit')) {
-    params.set('connection_limit', isPgBouncer ? '1' : (isProd ? '8' : '5'))
+    params.set('connection_limit', isPgBouncer ? '1' : (isProd ? '3' : '5'))
   }
   if (!base.includes('pool_timeout'))    params.set('pool_timeout',    '30')
   if (!base.includes('connect_timeout')) params.set('connect_timeout', '10')
