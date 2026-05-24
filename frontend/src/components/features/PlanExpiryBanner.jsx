@@ -19,8 +19,9 @@ const REASONS = [
 export default function PlanExpiryBanner() {
   const user     = useUser()
   const navigate = useNavigate()
-  const [dismissedExpiry, setDismissedExpiry] = useState(() => { try { return !!sessionStorage.getItem(DISMISS_KEY) } catch { return false } })
-  const [dismissedTrial,  setDismissedTrial]  = useState(() => { try { return !!sessionStorage.getItem(TRIAL_DISMISS_KEY) } catch { return false } })
+  const [dismissedExpiry,  setDismissedExpiry]  = useState(() => { try { return !!sessionStorage.getItem(DISMISS_KEY) } catch { return false } })
+  const [dismissedTrial,   setDismissedTrial]   = useState(() => { try { return !!sessionStorage.getItem(TRIAL_DISMISS_KEY) } catch { return false } })
+  const [trialJustExpired, setTrialJustExpired] = useState(() => { try { return !!sessionStorage.getItem('trial_just_expired') } catch { return false } })
 
   const [showSurvey,    setShowSurvey]    = useState(false)
   const [surveyReason,  setSurveyReason]  = useState('')
@@ -138,7 +139,7 @@ export default function PlanExpiryBanner() {
   )
 
   // ── Banner de trial expirado (plano caiu para free) ───
-  if (user.plan === 'free' && sessionStorage.getItem('trial_just_expired')) {
+  if (user.plan === 'free' && trialJustExpired) {
     return (
       <>
         {surveyModal}
@@ -149,7 +150,7 @@ export default function PlanExpiryBanner() {
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           <span className="expiry-banner-msg">Seu trial Pro encerrou. Assine agora e retome todos os recursos premium.</span>
-          <button className="expiry-banner-cta" onClick={() => { sessionStorage.removeItem('trial_just_expired'); navigate('/planos') }}>
+          <button className="expiry-banner-cta" onClick={() => { try { sessionStorage.removeItem('trial_just_expired') } catch {} setTrialJustExpired(false); navigate('/planos') }}>
             Assinar Pro
           </button>
         </div>

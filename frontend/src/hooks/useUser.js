@@ -5,7 +5,7 @@ function readUser() {
 }
 
 export function saveUser(data) {
-  sessionStorage.setItem('user', JSON.stringify(data))
+  try { sessionStorage.setItem('user', JSON.stringify(data)) } catch {}
   window.dispatchEvent(new CustomEvent('user-updated', { detail: data }))
 }
 
