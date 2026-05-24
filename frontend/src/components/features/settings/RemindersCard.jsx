@@ -17,8 +17,6 @@ export default function RemindersCard() {
     })
     .sort((a, b) => a.daysLeft - b.daysLeft)
 
-  if (!upcoming.length) return null
-
   const urgencyColor = (d) => d <= 2 ? '#ff4757' : d <= 5 ? '#ff8c42' : '#4ac46e'
 
   return (
@@ -35,6 +33,12 @@ export default function RemindersCard() {
         </div>
       </div>
       <div className="cfg-card-body">
+        {!upcoming.length ? (
+          <div style={{ textAlign: 'center', padding: '4px 0 6px', color: 'var(--t3)', fontSize: 12, lineHeight: 1.5 }}>
+            Nenhum vencimento próximo.<br />
+            Cadastre contas fixas com dia de vencimento para ver lembretes aqui.
+          </div>
+        ) : (
         <div className="rmdr-list">
           {upcoming.map(b => (
             <div key={b.id} className="rmdr-item">
@@ -47,6 +51,7 @@ export default function RemindersCard() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   )
