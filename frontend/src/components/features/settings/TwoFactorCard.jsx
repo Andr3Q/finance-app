@@ -296,6 +296,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
                   className="tfa-code-input"
                   type="password"
                   placeholder="Sua senha"
+                  autoComplete="current-password"
                   value={password}
                   onChange={e => { setPassword(e.target.value); setErr('') }}
                   autoFocus
@@ -329,6 +330,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
                   className="tfa-code-input"
                   type="password"
                   placeholder="Sua senha"
+                  autoComplete="current-password"
                   value={password}
                   onChange={e => { setPassword(e.target.value); setErr('') }}
                   autoFocus

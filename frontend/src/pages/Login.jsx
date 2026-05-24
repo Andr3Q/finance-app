@@ -404,9 +404,10 @@ export default function Login({ isRegister = false }) {
                 <div className="lauth-inp-wrap">
                   <span className="lauth-inp-ico"><MoneyIcon /></span>
                   <input
-                    id="f-salary" name="salary" type="number"
+                    id="f-salary" name="salary" type="text"
                     placeholder="0,00"
-                    min="0" step="0.01"
+                    inputMode="decimal"
+                    autoComplete="off"
                     value={form.salary}
                     onChange={handleChange}
                   />
@@ -441,9 +442,9 @@ export default function Login({ isRegister = false }) {
                   />
                   <span style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.5 }}>
                     Li e aceito os{' '}
-                    <Link to="/termos" target="_blank" style={{ color: 'var(--c)', textDecoration: 'none' }}>Termos de Uso</Link>
+                    <Link to="/termos" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--c)', textDecoration: 'none' }}>Termos de Uso</Link>
                     {' '}e a{' '}
-                    <Link to="/privacidade" target="_blank" style={{ color: 'var(--c)', textDecoration: 'none' }}>Política de Privacidade</Link>
+                    <Link to="/privacidade" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--c)', textDecoration: 'none' }}>Política de Privacidade</Link>
                   </span>
                 </label>
                 {fieldErrs.terms && (

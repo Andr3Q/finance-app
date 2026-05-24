@@ -1595,11 +1595,12 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   border: 1px solid rgba(255,255,255,.08);
   border-radius: 12px;
   padding: 13px 14px 13px 42px;
-  font-size: 14px; font-family: 'Sora', sans-serif;
+  font-size: 16px; font-family: 'Sora', sans-serif;
   color: #fff; outline: none;
   transition: border-color .2s, background .2s, box-shadow .2s;
   -webkit-appearance: none;
   appearance: none;
+  min-height: 48px;
 }
 .lauth-split input::placeholder { color: rgba(255,255,255,.16); }
 .lauth-split input:focus {
@@ -2727,15 +2728,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   border: 1px solid rgba(255,255,255,.09);
   border-radius: 10px;
   color: var(--t1);
-  font-size: 13px;
+  font-size: 16px;
   font-family: var(--ff);
-  padding: 10px 14px;
+  padding: 11px 14px;
   outline: none;
   transition: border-color .15s;
   width: 100%;
   box-sizing: border-box;
   appearance: none;
   -webkit-appearance: none;
+  min-height: 44px;
 }
 .cfg-inp:focus { border-color: rgba(74,196,110,.38); }
 .cfg-inp option { background: #1a1a1a; color: var(--t1); }
@@ -7655,9 +7657,9 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .gls-modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
 .gls-label { font-size: 12px; font-weight: 600; color: var(--t2); font-family: 'Sora', sans-serif; margin-bottom: -6px; }
 .gls-input {
-  height: 38px; padding: 0 12px; border-radius: 10px; width: 100%; box-sizing: border-box;
+  height: 44px; padding: 0 12px; border-radius: 10px; width: 100%; box-sizing: border-box;
   background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
-  color: var(--t1); font-size: 13px; font-family: 'Sora', sans-serif;
+  color: var(--t1); font-size: 16px; font-family: 'Sora', sans-serif;
 }
 .gls-input:focus { outline: none; border-color: rgba(74,196,110,.5); }
 .gls-input-prefix {
@@ -7665,8 +7667,8 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
   border-radius: 10px; overflow: hidden;
 }
-.gls-input-prefix span { padding: 0 12px; font-size: 12.5px; color: var(--t2); border-right: 1px solid rgba(255,255,255,.08); height: 38px; display: flex; align-items: center; flex-shrink: 0; }
-.gls-input-inner { flex: 1; height: 38px; padding: 0 12px; background: transparent; border: none; color: var(--t1); font-size: 13px; font-family: 'Sora', sans-serif; }
+.gls-input-prefix span { padding: 0 12px; font-size: 14px; color: var(--t2); border-right: 1px solid rgba(255,255,255,.08); height: 44px; display: flex; align-items: center; flex-shrink: 0; }
+.gls-input-inner { flex: 1; height: 44px; padding: 0 12px; background: transparent; border: none; color: var(--t1); font-size: 16px; font-family: 'Sora', sans-serif; }
 .gls-input-inner:focus { outline: none; }
 .gls-colors { display: flex; gap: 10px; }
 .gls-color-dot {
@@ -8763,7 +8765,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   background: var(--s2);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 11px 14px;
+  padding: 13px 14px;
   font-size: 18px;
   color: var(--t1);
   text-align: center;
