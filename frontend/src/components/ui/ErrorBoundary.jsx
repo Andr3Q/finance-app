@@ -1,5 +1,20 @@
 import { Component } from 'react'
 
+// Detecta falha de carregamento de chunk JS (deploy novo invalida hashes antigos)
+function isChunkError(error) {
+  const msg = error?.message || ''
+  return (
+    msg.includes('Failed to fetch') ||
+    msg.includes('dynamically imported module') ||
+    msg.includes('Importing a module script failed') ||
+    msg.includes('error loading dynamically imported module') ||
+    msg.includes('Unable to preload CSS') ||
+    (error?.name === 'ChunkLoadError')
+  )
+}
+
+let _reloaded = false
+
 export default class ErrorBoundary extends Component {
   state = { error: null }
 
@@ -8,7 +23,12 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('[ErrorBoundary] Crash capturado:', error, info.componentStack)
+    console.error('[ErrorBoundary]', error?.message, info?.componentStack?.split('\n')[1])
+    // Chunk stale após deploy novo → recarrega uma vez automaticamente
+    if (isChunkError(error) && !_reloaded) {
+      _reloaded = true
+      window.location.reload()
+    }
   }
 
   render() {
