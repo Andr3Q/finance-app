@@ -102,6 +102,41 @@ export default function ReferralCard() {
           </button>
         </div>
 
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, marginBottom: 4 }}>
+          <button
+            className="cfg-btn-secondary"
+            style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
+            onClick={() => {
+              if (navigator.share && referralLink) {
+                navigator.share({ title: 'FinançasPro', text: 'Controle suas finanças com IA! Use meu link e ganhe 14 dias de trial:', url: referralLink }).catch(() => {})
+              } else if (referralLink) {
+                window.open(`https://wa.me/?text=${encodeURIComponent(`Controle suas finanças com IA! Use meu link e ganhe 14 dias de trial grátis: ${referralLink}`)}`, '_blank')
+              }
+            }}
+            disabled={!referralLink}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5 }}>
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+            Compartilhar
+          </button>
+          <button
+            className="cfg-btn-secondary"
+            style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
+            onClick={() => {
+              if (referralLink) window.open(`mailto:?subject=Experimente o FinançasPro&body=Controle suas finanças com IA! Use meu link e ganhe 14 dias grátis: ${referralLink}`, '_blank')
+            }}
+            disabled={!referralLink}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 5 }}>
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            E-mail
+          </button>
+        </div>
+
         <div className="ref-stats">
           {loading
             ? <span className="ref-stats-loading">Carregando...</span>

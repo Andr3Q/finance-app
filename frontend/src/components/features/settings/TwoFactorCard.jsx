@@ -3,7 +3,8 @@ import { useUser, saveUser } from '../../../hooks/useUser.js'
 import { authAPI } from '../../../services/api.js'
 
 function BackupCodesModal({ codes, onClose }) {
-  const [copied, setCopied] = useState(false)
+  const [copied,    setCopied]    = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
 
   const copyAll = () => {
     const text = codes.join('\n')
@@ -34,12 +35,28 @@ function BackupCodesModal({ codes, onClose }) {
               <div key={i} className="tfa-backup-code">{c}</div>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, margin: '16px 0 12px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={e => setConfirmed(e.target.checked)}
+              style={{ accentColor: 'var(--cp)', width: 15, height: 15, flexShrink: 0, marginTop: 2 }}
+            />
+            <span style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.5 }}>
+              Já anotei meus códigos de recuperação em lugar seguro.
+            </span>
+          </label>
+          <div style={{ display: 'flex', gap: 10 }}>
             <button className="cfg-btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={copyAll}>
               {copied ? '✓ Copiado!' : 'Copiar todos'}
             </button>
-            <button className="cfg-btn-primary" style={{ flex: 1, justifyContent: 'center' }} onClick={onClose}>
-              Já salvei
+            <button
+              className="cfg-btn-primary"
+              style={{ flex: 1, justifyContent: 'center', opacity: confirmed ? 1 : 0.45, cursor: confirmed ? 'pointer' : 'not-allowed' }}
+              onClick={confirmed ? onClose : undefined}
+              disabled={!confirmed}
+            >
+              Fechar
             </button>
           </div>
         </div>

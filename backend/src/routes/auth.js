@@ -4,9 +4,9 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest } = require('../services/emailService')
+const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
-const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter } = require('../middleware/rateLimiter')
+const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
 
@@ -94,17 +94,23 @@ router.post('/register', registerLimiter, async (req, res) => {
     const trialDays   = referrer ? 14 : 7
     const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
     const referralCode = crypto.randomBytes(4).toString('hex').toUpperCase()
+    const verifyToken  = crypto.randomBytes(32).toString('hex')
+    const verifyHash   = crypto.createHash('sha256').update(verifyToken).digest('hex')
+    const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
     const user = await prisma.user.create({
       data: {
-        name:        name.trim(),
-        email:       normalizedEmail,
-        password:    hashedPassword,
-        salary:      parsedSalary,
-        reportEmail: normalizedEmail,
-        plan:        'pro',
+        name:               name.trim(),
+        email:              normalizedEmail,
+        password:           hashedPassword,
+        salary:             parsedSalary,
+        reportEmail:        normalizedEmail,
+        plan:               'pro',
         trialEndsAt,
         referralCode,
-        referredBy:  referrer ? usedReferralCode.toUpperCase() : null,
+        referredBy:         referrer ? usedReferralCode.toUpperCase() : null,
+        emailVerified:      false,
+        emailVerifyToken:   verifyHash,
+        emailVerifyExpiry:  verifyExpiry,
       }
     })
 
@@ -114,8 +120,12 @@ router.post('/register', registerLimiter, async (req, res) => {
       sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
     }
 
-    // Welcome email — fire-and-forget
+    const appUrl     = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+    const verifyLink = `${appUrl}/verify-email?token=${verifyToken}`
+
+    // Welcome + verification emails — fire-and-forget
     sendWelcomeEmail(user.email, user.name, trialEndsAt).catch(() => {})
+    sendVerificationEmail(user.email, user.name, verifyLink).catch(() => {})
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
@@ -186,7 +196,7 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true }
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true }
 
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
@@ -194,13 +204,16 @@ router.get('/me', authMiddleware, async (req, res) => {
     const now = new Date()
 
     // Rebaixa para free se o plano pago expirou
+    let planJustExpired = false
     if (user.plan !== 'free' && user.planExpiresAt && user.planExpiresAt < now && !user.trialEndsAt) {
+      planJustExpired = true
       user = await prisma.user.update({
         where:  { id: req.userId },
         data:   { plan: 'free', planExpiresAt: null },
         select: ME_SELECT,
       })
     }
+    if (planJustExpired) sendPlanExpiredEmail(user.email, user.name, 'paid').catch(() => {})
 
     // Rebaixa para free se o trial expirou (sem plano pago ativo)
     let trialJustExpired = false
@@ -212,6 +225,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         select: ME_SELECT,
       })
     }
+    if (trialJustExpired) sendPlanExpiredEmail(user.email, user.name, 'trial').catch(() => {})
 
     // Lembrete de trial expirando: dispara aos 3 dias restantes (apenas uma vez)
     if (user.trialEndsAt && user.trialEndsAt > now && !user.trialReminderSent) {
@@ -275,7 +289,8 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     const isOnTrial = !!user.trialEndsAt && user.trialEndsAt > now
-    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, ...userOut } = user
+    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, emailVerified, ...userOut } = user
+    userOut.emailVerified = emailVerified
     userOut.isOnTrial = isOnTrial
     if (isOnTrial) userOut.trialEndsAt = trialEndsAt.toISOString()
     if (userOut.plan !== 'free' && planExpiresAt) {
@@ -359,10 +374,15 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
     if (!user) return res.status(400).json({ error: 'Link inválido ou expirado. Solicite um novo.' })
 
     const hashedPassword = await bcrypt.hash(password, 12)
-    await prisma.user.update({
-      where: { id: user.id },
-      data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null }
-    })
+    // Desativa 2FA junto com o reset — o link de e-mail prova identidade do dono da conta.
+    // Sem isso, usuário que perdeu senha + backup codes fica permanentemente bloqueado.
+    await prisma.$transaction([
+      prisma.twoFactorBackupCode.deleteMany({ where: { userId: user.id } }),
+      prisma.user.update({
+        where: { id: user.id },
+        data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null, twoFactorEnabled: false, twoFactorSecret: null },
+      }),
+    ])
 
     res.json({ message: 'Senha redefinida com sucesso! Faça login com a nova senha.' })
   } catch (error) {
@@ -520,9 +540,64 @@ router.put('/password', authMiddleware, async (req, res) => {
   }
 })
 
+// ── GET /auth/verify-email ──────────────────────────────
+// Pública — o token no link do e-mail é o mecanismo de autenticação
+router.get('/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Token inválido.' })
+    }
+    const hash = crypto.createHash('sha256').update(token).digest('hex')
+    const user = await prisma.user.findFirst({
+      where: { emailVerifyToken: hash, emailVerifyExpiry: { gt: new Date() } },
+    })
+    if (!user) return res.status(400).json({ error: 'Link inválido ou expirado. Solicite um novo na página de configurações.' })
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
+    })
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth] verify-email:', err.message)
+    res.status(500).json({ error: 'Erro ao verificar e-mail.' })
+  }
+})
+
+// ── POST /auth/resend-verification ─────────────────────
+router.post('/resend-verification', authMiddleware, verifyEmailLimiter, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { email: true, name: true, emailVerified: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+    if (user.emailVerified) return res.status(400).json({ error: 'E-mail já verificado.' })
+
+    const rawToken  = crypto.randomBytes(32).toString('hex')
+    const hash      = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const expiry    = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+    await prisma.user.update({
+      where: { id: req.userId },
+      data:  { emailVerifyToken: hash, emailVerifyExpiry: expiry },
+    })
+
+    const appUrl     = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+    const verifyLink = `${appUrl}/verify-email?token=${rawToken}`
+    sendVerificationEmail(user.email, user.name, verifyLink).catch(() => {})
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth] resend-verification:', err.message)
+    res.status(500).json({ error: 'Erro ao reenviar verificação.' })
+  }
+})
+
 // ── GET /auth/export-data ───────────────────────────────
 // LGPD Art. 15: direito de acesso. Retorna todos os dados do usuário em JSON.
-router.get('/export-data', authMiddleware, async (req, res) => {
+router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
   try {
     const [user, transactions, budgets, goals, installments, categoryLimits] = await Promise.all([
       prisma.user.findUnique({

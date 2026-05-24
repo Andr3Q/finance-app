@@ -66,6 +66,8 @@ export const authAPI = {
   twoFABackupCodesCount:   ()                    => api.get('/auth/2fa/backup-codes-count'),
   twoFARegenerateCodes:    (password)            => api.post('/auth/2fa/regenerate-backup-codes', { password }),
   exportData:              ()                    => api.get('/auth/export-data', { responseType: 'blob' }),
+  verifyEmail:             (token)               => api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+  resendVerification:      ()                    => api.post('/auth/resend-verification'),
 }
 
 // ── Funções de transações ───────────────────────────────
@@ -133,6 +135,7 @@ export const installmentsAPI = {
 
 export const paymentsAPI = {
   createPreference: (plan, period) => api.post('/payments/create-preference', { plan, period }),
+  history:          ()             => api.get('/payments/history'),
 }
 
 export default api

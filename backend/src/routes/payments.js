@@ -165,4 +165,20 @@ router.post('/webhook', apiLimiter, async (req, res) => {
   }
 })
 
+// ── GET /payments/history ───────────────────────────────
+// Retorna os últimos pagamentos processados do usuário
+router.get('/history', authMiddleware, async (req, res) => {
+  try {
+    const payments = await prisma.processedPayment.findMany({
+      where:   { userId: req.userId },
+      orderBy: { processedAt: 'desc' },
+      take:    20,
+      select:  { paymentId: true, plan: true, period: true, processedAt: true },
+    })
+    res.json(payments)
+  } catch {
+    res.status(500).json({ error: 'Erro ao buscar histórico de pagamentos.' })
+  }
+})
+
 module.exports = router
