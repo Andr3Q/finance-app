@@ -40,6 +40,9 @@ router.post('/subscribe', async (req, res) => {
     if (!hostOk) {
       return res.status(400).json({ error: 'Serviço de notificação não reconhecido.' })
     }
+    if (parsedUrl.port !== '' && parsedUrl.port !== '443') {
+      return res.status(400).json({ error: 'Porta não permitida no endpoint.' })
+    }
     await prisma.pushSubscription.upsert({
       where:  { endpoint },
       create: { endpoint, p256dh: keys.p256dh, auth: keys.auth, userId: req.userId },

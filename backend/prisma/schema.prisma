@@ -212,5 +212,7 @@ model LoginAudit {
   createdAt DateTime @default(now())
 
   @@index([email, createdAt])
+  @@index([success, createdAt])
+  @@index([ip, createdAt])
   @@map("login_audits")
 }

@@ -263,7 +263,7 @@ app.get('/monitor.html', (req, res) => {
     // Em dev o arquivo é servido pelo Vite — não passa por aqui
     return res.status(404).send('Use o servidor Vite em desenvolvimento.')
   }
-  if (!MONITOR_PWD) return res.status(503).send('MONITOR_SECRET não configurado.')
+  if (!MONITOR_PWD) return res.status(503).send('Painel de monitoramento indisponível.')
   const token = req.cookies?._ms
   if (!token || !monitorSafeEq(token, monitorSessionToken())) {
     return res.redirect('/monitor-login')
@@ -374,6 +374,10 @@ app.use((err, req, res, _next) => {
   // Foreign key constraint violation
   if (err.code === 'P2003') {
     return res.status(400).json({ error: 'Referência inválida.' })
+  }
+  // Connection pool timeout
+  if (err.code === 'P2024') {
+    return res.status(503).json({ error: 'Serviço temporariamente indisponível.' })
   }
 
   const reqId = req.id || '-'
