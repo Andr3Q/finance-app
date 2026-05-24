@@ -44,6 +44,7 @@ model User {
   emailVerified        Boolean   @default(false)
   emailVerifyToken     String?
   emailVerifyExpiry    DateTime?
+  planPeriod           String?   @default("monthly")
 
   transactions      Transaction[]
   twoFactorBackupCodes TwoFactorBackupCode[]

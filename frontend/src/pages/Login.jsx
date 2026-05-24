@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
+import PasswordStrength from '../components/ui/PasswordStrength.jsx'
 
 const EmailIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -391,6 +392,7 @@ export default function Login({ isRegister = false }) {
               {fieldErrs.password && (
                 <div className="lauth-field-err"><ErrIcon /> {fieldErrs.password}</div>
               )}
+              {mode === 'register' && <PasswordStrength password={form.password} />}
             </div>
 
             {/* Salário — só no cadastro */}

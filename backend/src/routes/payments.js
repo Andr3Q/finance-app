@@ -151,7 +151,7 @@ router.post('/webhook', apiLimiter, async (req, res) => {
       })
       return tx.user.update({
         where:  { id: userId },
-        data:   { plan, planExpiresAt, renewalReminderSent: false, trialEndsAt: null },
+        data:   { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
         select: { email: true, name: true },
       })
     })

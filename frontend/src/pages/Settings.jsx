@@ -170,7 +170,7 @@ export default function Settings() {
       </div>
 
       {upgradeModal && (
-        <UpgradeModal reason={upgradeModal} onClose={() => { setUpgradeModal(null); navigate('/planos') }} />
+        <UpgradeModal reason={upgradeModal} onClose={() => setUpgradeModal(null)} />
       )}
 
       {deleteModal && (
