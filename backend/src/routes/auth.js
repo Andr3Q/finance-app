@@ -196,7 +196,7 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true }
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true }
 
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
@@ -242,10 +242,11 @@ router.get('/me', authMiddleware, async (req, res) => {
       }
     }
 
-    // Lembrete de renovação lazy: dispara na primeira visita com ≤7 dias restantes (apenas planos pagos)
+    // Lembrete de renovação lazy: 30 dias antes para planos anuais, 7 dias para mensais
     if (user.plan !== 'free' && user.planExpiresAt && !user.trialEndsAt && !user.renewalReminderSent) {
-      const daysLeft = Math.ceil((user.planExpiresAt - now) / (1000 * 60 * 60 * 24))
-      if (daysLeft > 0 && daysLeft <= 7) {
+      const daysLeft        = Math.ceil((user.planExpiresAt - now) / (1000 * 60 * 60 * 24))
+      const reminderThreshold = user.planPeriod === 'annual' ? 30 : 7
+      if (daysLeft > 0 && daysLeft <= reminderThreshold) {
         prisma.user.update({ where: { id: req.userId }, data: { renewalReminderSent: true } }).catch(() => {})
         sendRenewalReminderEmail(user.email, user.name, user.plan, daysLeft).catch(() => {})
       }
@@ -289,7 +290,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     const isOnTrial = !!user.trialEndsAt && user.trialEndsAt > now
-    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, emailVerified, ...userOut } = user
+    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, emailVerified, planPeriod: _pp, ...userOut } = user
     userOut.emailVerified = emailVerified
     userOut.isOnTrial = isOnTrial
     if (isOnTrial) userOut.trialEndsAt = trialEndsAt.toISOString()
