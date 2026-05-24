@@ -89,7 +89,7 @@ export default function Dashboard() {
       .catch(() => {})
       .finally(() => { if (!cancelled) setPredLoading(false) })
     return () => { cancelled = true }
-  }, [summary, transactions.length])
+  }, [summary, transactions.length, isPro])
 
   useEffect(() => {
     let cancelled = false

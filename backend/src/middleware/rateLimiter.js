@@ -13,9 +13,8 @@ const apiLimiter = rateLimit({
 // Autenticação: 20 tentativas / 15 min por IP (dev) — em prod usar 5
 const authLimiter = rateLimit({
   ...opts,
-  windowMs:               15 * 60 * 1000,
-  max:                    process.env.NODE_ENV === 'production' ? 5 : 20,
-  skipSuccessfulRequests: true,
+  windowMs: 15 * 60 * 1000,
+  max:      process.env.NODE_ENV === 'production' ? 5 : 20,
   message:  { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 })
 

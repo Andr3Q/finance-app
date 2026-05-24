@@ -22,14 +22,24 @@ router.get('/', async (req, res) => {
   }
 })
 
+const MAX_AMOUNT = 999_999_999.99
+const MAX_TITLE  = 80
+
 router.post('/', async (req, res) => {
   try {
     const { title, targetAmount, currentAmount, color, deadline } = req.body
     if (!title || typeof title !== 'string' || !title.trim())
       return res.status(400).json({ error: 'Título é obrigatório.' })
+    if (title.trim().length > MAX_TITLE)
+      return res.status(400).json({ error: `Título deve ter no máximo ${MAX_TITLE} caracteres.` })
     const parsed = parseFloat(targetAmount)
     if (!parsed || parsed <= 0)
       return res.status(400).json({ error: 'Valor-alvo deve ser maior que zero.' })
+    if (parsed > MAX_AMOUNT)
+      return res.status(400).json({ error: 'Valor-alvo muito alto.' })
+    const parsedCurrent = Math.max(0, parseFloat(currentAmount) || 0)
+    if (parsedCurrent > MAX_AMOUNT)
+      return res.status(400).json({ error: 'Valor atual muito alto.' })
     if (color !== undefined && !HEX_COLOR.test(color))
       return res.status(400).json({ error: 'Cor inválida. Use formato #RRGGBB.' })
     if (deadline !== undefined && deadline !== null && deadline !== '') {
@@ -60,9 +70,9 @@ router.post('/', async (req, res) => {
 
     const goal = await prisma.goal.create({
       data: {
-        title:         title.trim().slice(0, 80),
+        title:         title.trim(),
         targetAmount:  parsed,
-        currentAmount: Math.max(0, parseFloat(currentAmount) || 0),
+        currentAmount: parsedCurrent,
         color:         HEX_COLOR.test(color) ? color : '#4ac46e',
         deadline:      deadline ? new Date(deadline) : null,
         userId:        req.userId,
@@ -90,18 +100,23 @@ router.patch('/:id', async (req, res) => {
   const { title, targetAmount, currentAmount, color, deadline } = req.body
   const data = {}
 
-  if (title !== undefined)
-    data.title = String(title).trim().slice(0, 80)
+  if (title !== undefined) {
+    const t = String(title).trim()
+    if (t.length > MAX_TITLE) return res.status(400).json({ error: `Título deve ter no máximo ${MAX_TITLE} caracteres.` })
+    data.title = t
+  }
 
   if (targetAmount !== undefined) {
     const v = parseFloat(targetAmount)
     if (isNaN(v) || v <= 0) return res.status(400).json({ error: 'Valor-alvo inválido.' })
+    if (v > MAX_AMOUNT) return res.status(400).json({ error: 'Valor-alvo muito alto.' })
     data.targetAmount = v
   }
 
   if (currentAmount !== undefined) {
     const v = parseFloat(currentAmount)
     if (isNaN(v) || v < 0) return res.status(400).json({ error: 'Valor atual inválido.' })
+    if (v > MAX_AMOUNT) return res.status(400).json({ error: 'Valor atual muito alto.' })
     data.currentAmount = v
   }
 

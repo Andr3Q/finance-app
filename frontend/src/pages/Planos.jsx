@@ -167,7 +167,10 @@ export default function Planos() {
     const win = window.open('about:blank', '_blank')
     try {
       const { data } = await paymentsAPI.createPreference(plan, period)
-      if (!data.checkoutUrl?.startsWith('https://www.mercadopago.com.br/')) throw new Error('URL inválida')
+      try {
+        const parsed = new URL(data.checkoutUrl ?? '')
+        if (parsed.protocol !== 'https:' || parsed.hostname !== 'www.mercadopago.com.br') throw new Error()
+      } catch { throw new Error('URL inválida') }
       win.location.href = data.checkoutUrl
     } catch {
       win.close()
