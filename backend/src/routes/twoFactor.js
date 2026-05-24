@@ -200,7 +200,7 @@ router.post('/verify-login', twoFALimiter, async (req, res) => {
 
     let payload
     try {
-      payload = jwt.verify(tempToken, process.env.JWT_SECRET)
+      payload = jwt.verify(tempToken, process.env.JWT_SECRET, { algorithms: ['HS256'] })
     } catch {
       return res.status(401).json({ error: 'Token expirado. Faça login novamente.' })
     }
@@ -241,7 +241,7 @@ router.post('/use-backup-code', twoFALimiter, async (req, res) => {
 
     let payload
     try {
-      payload = jwt.verify(tempToken, process.env.JWT_SECRET)
+      payload = jwt.verify(tempToken, process.env.JWT_SECRET, { algorithms: ['HS256'] })
     } catch {
       return res.status(401).json({ error: 'Token expirado. Faça login novamente.' })
     }

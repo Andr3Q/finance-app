@@ -63,8 +63,9 @@ async function withRetry(fn, retries = 2) {
       const isOverloaded  = err.status === 529 || err.status === 503
       const retryable     = isRateLimit || isOverloaded
       if (retryable && attempt < retries) {
-        const base  = isRateLimit ? 2000 : 1000
-        await new Promise(r => setTimeout(r, base * Math.pow(2, attempt)))
+        const base   = isRateLimit ? 2000 : 1000
+        const jitter = Math.floor(Math.random() * 500)
+        await new Promise(r => setTimeout(r, base * Math.pow(2, attempt) + jitter))
         continue
       }
       throw err
@@ -247,6 +248,9 @@ router.post('/chat', async (req, res) => {
   }
   if (message.length > 2000) {
     return res.status(400).json({ error: 'Mensagem muito longa.' })
+  }
+  if (history !== undefined && (!Array.isArray(history) || history.length > 40)) {
+    return res.status(400).json({ error: 'Histórico inválido.' })
   }
 
   const messages = [

@@ -105,3 +105,15 @@ services:
 # ───────────────────────────────────────────────────────
 volumes:
   postgres_data:
+
+# ───────────────────────────────────────────────────────
+# 🌐 Rede com IPv6 — necessário para conectar ao Supabase
+# (host direto db.*.supabase.co resolve apenas IPv6)
+# ───────────────────────────────────────────────────────
+networks:
+  default:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: "172.20.0.0/16"
+        - subnet: "fd00::/80"

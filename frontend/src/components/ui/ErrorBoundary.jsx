@@ -23,7 +23,9 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    console.error('[ErrorBoundary]', error?.message, info?.componentStack?.split('\n')[1])
+    if (import.meta.env.DEV) {
+      console.error('[ErrorBoundary]', error?.message, info?.componentStack?.split('\n')[1])
+    }
     // Chunk stale após deploy novo → recarrega uma vez automaticamente
     if (isChunkError(error) && !_reloaded) {
       _reloaded = true
