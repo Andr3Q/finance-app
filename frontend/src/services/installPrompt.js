@@ -10,6 +10,8 @@ export function markInstalled()   { localStorage.setItem(INSTALLED_KEY, '1') }
 export function clearInstalled()  { localStorage.removeItem(INSTALLED_KEY) }
 
 export function isInstalled() {
-  if (window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone) return true
-  return localStorage.getItem(INSTALLED_KEY) === '1'
+  try {
+    if (window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone) return true
+    return localStorage.getItem(INSTALLED_KEY) === '1'
+  } catch { return false }
 }
