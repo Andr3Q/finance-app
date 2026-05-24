@@ -58,9 +58,9 @@ export default function App() {
             saveUser(res.data)
             analytics.identify(res.data.id, { plan: res.data.plan })
             if (res.data.trialJustExpired) {
-            analytics.track('trial_expired')
-            sessionStorage.setItem('trial_just_expired', '1')
-          }
+              analytics.track('trial_expired')
+              sessionStorage.setItem('trial_just_expired', '1')
+            }
           }
         })
         .catch((err) => {
@@ -69,6 +69,12 @@ export default function App() {
             sessionStorage.removeItem('user')
             sessionStorage.removeItem('token')
             window.location.href = '/login'
+          }
+          // 429: rate limited — retry silently after 20s sem derrubar o app
+          if (status === 429) {
+            setTimeout(() => {
+              authAPI.me().then(res => { if (res.data) saveUser(res.data) }).catch(() => {})
+            }, 20000)
           }
         })
     }

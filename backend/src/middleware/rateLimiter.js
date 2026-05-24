@@ -10,16 +10,13 @@ const apiLimiter = rateLimit({
   message:  { error: 'Muitas requisições. Tente novamente em 15 minutos.' },
 })
 
-// Autenticação: 20 tentativas / 15 min por IP (dev) — em prod usar 5.
-// skipSuccessfulRequests: true é NECESSÁRIO aqui porque authLimiter cobre
-// todos os endpoints /api/auth/* (incluindo /auth/me chamado a cada carregamento).
-// Sem isso, uso legítimo bate no limite em segundos. O brute-force é bloqueado
-// pois tentativas inválidas de login sempre falham e contam.
-const authLimiter = rateLimit({
+// Login: 10 tentativas / 15 min por IP — aplicado SOMENTE ao POST /auth/login.
+// Não usar skipSuccessfulRequests aqui: logins inválidos sempre falham e devem contar.
+// Aplicar em rota estreita evita bloquear /auth/me e /auth/logout quando o limite estoura.
+const loginLimiter = rateLimit({
   ...opts,
-  windowMs:               15 * 60 * 1000,
-  max:                    process.env.NODE_ENV === 'production' ? 5 : 20,
-  skipSuccessfulRequests: true,
+  windowMs: 15 * 60 * 1000,
+  max:      process.env.NODE_ENV === 'production' ? 10 : 50,
   message:  { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 })
 
@@ -65,7 +62,7 @@ const reportLimiter = rateLimit({
   message:      { error: 'Limite de fechamentos mensais atingido. Tente novamente em 1 hora.' },
 })
 
-// Registro de conta: 5 por hora por IP (independente de authLimiter que usa skipSuccessful)
+// Registro de conta: 5 por hora por IP
 const registerLimiter = rateLimit({
   ...opts,
   windowMs: 60 * 60 * 1000,
@@ -111,7 +108,7 @@ const verifyEmailLimiter = rateLimit({
 
 module.exports = {
   apiLimiter,
-  authLimiter,
+  loginLimiter,
   registerLimiter,
   agentLimiter,
   forgotPasswordLimiter,
