@@ -41,14 +41,16 @@ export default function CancelPlanCard({ onMessage }) {
               <line x1="9" y1="9" x2="15" y2="15"/>
             </svg>
           </div>
-          <div style={{ flex: 1 }}>
+          <div>
             <div className="cfg-ch-title">Cancelar plano {planLabel}</div>
             <div className="cfg-ch-sub">Sua conta retorna para o plano Grátis imediatamente.</div>
           </div>
+        </div>
+        <div className="cfg-card-body" style={{ paddingTop: 0 }}>
           <button
             className="cfg-btn-danger"
             onClick={() => setModal(true)}
-            style={{ flexShrink: 0, fontSize: 12, padding: '8px 14px' }}
+            style={{ width: '100%', justifyContent: 'center' }}
           >
             Cancelar plano
           </button>
