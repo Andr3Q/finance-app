@@ -289,6 +289,7 @@ router.post('/', dashboardLimiter, async (req, res) => {
       }
     })
     const txCount = userData._count.transactions
+    // Elite não tem limite de transações — sem bloco de limite aqui (intencional)
     if (userData?.plan === 'free' && txCount >= 20) {
       return res.status(403).json({
         error: 'Limite de 20 transações por mês atingido no plano Gratuito.',

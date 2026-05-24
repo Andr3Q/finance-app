@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail } = require('../services/emailService')
+const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter } = require('../middleware/rateLimiter')
 
@@ -186,7 +186,7 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true }
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true }
 
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
@@ -237,6 +237,28 @@ router.get('/me', authMiddleware, async (req, res) => {
       }
     }
 
+    // Digest semanal lazy: dispara na primeira visita após 7+ dias do último envio
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    if (!user.weeklyDigestSentAt || user.weeklyDigestSentAt < sevenDaysAgo) {
+      const since = user.weeklyDigestSentAt || sevenDaysAgo
+      prisma.transaction.findMany({
+        where: { userId: req.userId, date: { gte: since }, archived: false },
+      }).then(async (txs) => {
+        if (txs.length === 0) return
+        const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+        const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+        const catCount = {}
+        txs.filter(t => t.type === 'expense').forEach(t => { catCount[t.category] = (catCount[t.category] || 0) + t.amount })
+        const topCategory = Object.keys(catCount).sort((a, b) => catCount[b] - catCount[a])[0] || null
+        await prisma.user.update({ where: { id: req.userId }, data: { weeklyDigestSentAt: now } })
+        sendWeeklyDigest(user.email, user.name, {
+          totalExpenses, totalIncome, topCategory,
+          transactionCount: txs.length,
+          balance: totalIncome - totalExpenses,
+        }).catch(() => {})
+      }).catch(() => {})
+    }
+
     // Lazy generate referral code for existing users who don't have one yet
     if (!user.referralCode) {
       let attempts = 0
@@ -253,7 +275,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     const isOnTrial = !!user.trialEndsAt && user.trialEndsAt > now
-    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, ...userOut } = user
+    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, ...userOut } = user
     userOut.isOnTrial = isOnTrial
     if (isOnTrial) userOut.trialEndsAt = trialEndsAt.toISOString()
     if (userOut.plan !== 'free' && planExpiresAt) {
@@ -495,6 +517,43 @@ router.put('/password', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('[auth] password:', err.message)
     res.status(500).json({ error: 'Erro ao alterar senha.' })
+  }
+})
+
+// ── GET /auth/export-data ───────────────────────────────
+// LGPD Art. 15: direito de acesso. Retorna todos os dados do usuário em JSON.
+router.get('/export-data', authMiddleware, async (req, res) => {
+  try {
+    const [user, transactions, budgets, goals, installments, categoryLimits] = await Promise.all([
+      prisma.user.findUnique({
+        where:  { id: req.userId },
+        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, referredBy: true, createdAt: true, twoFactorEnabled: true, onboardingComplete: true },
+      }),
+      prisma.transaction.findMany({ where: { userId: req.userId }, orderBy: { date: 'desc' } }),
+      prisma.budget.findMany({ where: { userId: req.userId } }),
+      prisma.goal.findMany({ where: { userId: req.userId } }),
+      prisma.installmentPlan.findMany({ where: { userId: req.userId } }),
+      prisma.categoryLimit.findMany({ where: { userId: req.userId } }),
+    ])
+
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    const exportData = {
+      exportedAt:     new Date().toISOString(),
+      profile:        user,
+      transactions,
+      budgets,
+      goals,
+      installmentPlans: installments,
+      categoryLimits,
+    }
+
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="financaspro-dados-${new Date().toISOString().slice(0,10)}.json"`)
+    res.json(exportData)
+  } catch (err) {
+    console.error('[auth] export-data:', err.message)
+    res.status(500).json({ error: 'Erro ao exportar dados.' })
   }
 })
 

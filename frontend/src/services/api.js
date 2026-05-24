@@ -65,6 +65,7 @@ export const authAPI = {
   twoFAUseBackupCode:      (tempToken, backupCode) => api.post('/auth/2fa/use-backup-code', { tempToken, backupCode }),
   twoFABackupCodesCount:   ()                    => api.get('/auth/2fa/backup-codes-count'),
   twoFARegenerateCodes:    (password)            => api.post('/auth/2fa/regenerate-backup-codes', { password }),
+  exportData:              ()                    => api.get('/auth/export-data', { responseType: 'blob' }),
 }
 
 // ── Funções de transações ───────────────────────────────

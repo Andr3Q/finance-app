@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
-import { useUser } from '../hooks/useUser.js'
-import { paymentsAPI } from '../services/api.js'
+import { useUser, saveUser } from '../hooks/useUser.js'
+import { paymentsAPI, authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
 
 const FAQ = [
@@ -117,15 +117,33 @@ export default function Planos() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  const pollRef = useRef(null)
+
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const status = params.get('payment')
+    if (status === 'pending') showToast('Pagamento pendente. Você receberá confirmação em breve.', 'warn')
+    if (status === 'failure') showToast('Pagamento não aprovado. Tente novamente.', 'error')
     if (status === 'success') {
       showToast('Pagamento aprovado! Seu plano foi ativado. 🎉', 'success')
       analytics.track('payment_completed')
+      // Polling: verifica se o plano foi atualizado (webhook pode demorar alguns segundos)
+      const initialPlan = user.plan
+      let attempts = 0
+      pollRef.current = setInterval(async () => {
+        attempts++
+        if (attempts > 10) { clearInterval(pollRef.current); return } // máx 30s
+        try {
+          const res = await authAPI.me()
+          if (res.data.plan !== initialPlan) {
+            clearInterval(pollRef.current)
+            const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
+            saveUser({ ...cur, ...res.data })
+          }
+        } catch {}
+      }, 3000)
     }
-    if (status === 'pending') showToast('Pagamento pendente. Você receberá confirmação em breve.', 'warn')
-    if (status === 'failure') showToast('Pagamento não aprovado. Tente novamente.', 'error')
+    return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [])
 
   const showToast = (msg, type = 'success') => {
