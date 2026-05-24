@@ -10,11 +10,16 @@ const apiLimiter = rateLimit({
   message:  { error: 'Muitas requisições. Tente novamente em 15 minutos.' },
 })
 
-// Autenticação: 20 tentativas / 15 min por IP (dev) — em prod usar 5
+// Autenticação: 20 tentativas / 15 min por IP (dev) — em prod usar 5.
+// skipSuccessfulRequests: true é NECESSÁRIO aqui porque authLimiter cobre
+// todos os endpoints /api/auth/* (incluindo /auth/me chamado a cada carregamento).
+// Sem isso, uso legítimo bate no limite em segundos. O brute-force é bloqueado
+// pois tentativas inválidas de login sempre falham e contam.
 const authLimiter = rateLimit({
   ...opts,
-  windowMs: 15 * 60 * 1000,
-  max:      process.env.NODE_ENV === 'production' ? 5 : 20,
+  windowMs:               15 * 60 * 1000,
+  max:                    process.env.NODE_ENV === 'production' ? 5 : 20,
+  skipSuccessfulRequests: true,
   message:  { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 })
 
