@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { authAPI } from '../../../services/api.js'
+import PasswordStrength from '../../ui/PasswordStrength.jsx'
 
 const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
 
@@ -94,6 +95,7 @@ export default function ChangePasswordCard({ onMessage }) {
           <form onSubmit={handleSubmit} noValidate>
             {field('current', 'Senha atual', 'current', '••••••••')}
             {field('next',    'Nova senha',  'next',    'Mínimo 8 caracteres')}
+            <PasswordStrength password={form.next} />
 
             <div className="cfg-field">
               <label className="cfg-label">Confirmar nova senha</label>

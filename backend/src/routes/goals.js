@@ -130,18 +130,30 @@ router.patch('/:id', async (req, res) => {
     })
     res.json(updated)
 
-    // Push de conclusão: dispara quando meta cruza 100% pela primeira vez
-    if (
-      prevGoal &&
-      prevGoal.currentAmount < prevGoal.targetAmount &&
-      updated.currentAmount >= updated.targetAmount
-    ) {
-      const goalTitle = updated.title || prevGoal.title
-      sendPushToUser(req.userId, {
-        title: '🎯 Meta concluída!',
-        body:  `Parabéns! Você atingiu sua meta "${goalTitle}".`,
-        url:   '/goals',
-      }).catch(() => {})
+    if (prevGoal && updated.targetAmount > 0 && prevGoal.targetAmount > 0) {
+      const prevPct = prevGoal.currentAmount / prevGoal.targetAmount
+      const newPct  = updated.currentAmount  / updated.targetAmount
+      const title   = updated.title || prevGoal.title
+
+      if (prevPct < 0.5 && newPct >= 0.5 && newPct < 1) {
+        sendPushToUser(req.userId, {
+          title: '🎯 Metade do caminho!',
+          body:  `Você já chegou a 50% da meta "${title}". Continue assim!`,
+          url:   '/goals',
+        }).catch(() => {})
+      } else if (prevPct < 0.75 && newPct >= 0.75 && newPct < 1) {
+        sendPushToUser(req.userId, {
+          title: '🚀 Quase lá!',
+          body:  `Falta pouco! Você atingiu 75% da meta "${title}".`,
+          url:   '/goals',
+        }).catch(() => {})
+      } else if (prevPct < 1 && newPct >= 1) {
+        sendPushToUser(req.userId, {
+          title: '🏆 Meta concluída!',
+          body:  `Parabéns! Você atingiu sua meta "${title}".`,
+          url:   '/goals',
+        }).catch(() => {})
+      }
     }
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Meta não encontrada.' })

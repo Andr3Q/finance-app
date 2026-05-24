@@ -5,6 +5,7 @@ import AgentChat from './components/features/AgentChat.jsx'
 import OnboardingModal from './components/features/OnboardingModal.jsx'
 import PlanExpiryBanner from './components/features/PlanExpiryBanner.jsx'
 import EmailVerificationBanner from './components/features/EmailVerificationBanner.jsx'
+import CookieBanner from './components/features/CookieBanner.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 import { authAPI } from './services/api.js'
 import { saveUser } from './hooks/useUser.js'
@@ -24,6 +25,7 @@ const Planos         = lazy(() => import('./pages/Planos.jsx'))
 const Calendar       = lazy(() => import('./pages/Calendar.jsx'))
 const PrivacyPolicy  = lazy(() => import('./pages/PrivacyPolicy.jsx'))
 const TermsOfUse     = lazy(() => import('./pages/TermsOfUse.jsx'))
+const NotFound       = lazy(() => import('./pages/NotFound.jsx'))
 
 function isLoggedIn() {
   try { return !!JSON.parse(sessionStorage.getItem('user') || 'null') } catch { return false }
@@ -86,6 +88,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <CookieBanner />
       <InstallBanner />
       <Suspense fallback={<PageLoader />}>
         <Routes>
@@ -104,6 +107,7 @@ export default function App() {
           <Route path="/planos"       element={<Planos />} />
           <Route path="/privacidade"  element={<PrivacyPolicy />} />
           <Route path="/termos"       element={<TermsOfUse />} />
+          <Route path="*"             element={<NotFound />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
