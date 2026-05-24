@@ -45,6 +45,11 @@ model User {
   emailVerifyToken     String?
   emailVerifyExpiry    DateTime?
   planPeriod           String?   @default("monthly")
+  notifBudgetAlert     Boolean   @default(true)
+  notifBudgetReminder  Boolean   @default(true)
+  budgetAlertMonth     Int?
+  budgetAlertYear      Int?
+  budgetReminderSentAt DateTime?
 
   transactions      Transaction[]
   twoFactorBackupCodes TwoFactorBackupCode[]

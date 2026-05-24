@@ -196,7 +196,7 @@ router.post('/login', async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true }
+    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true }
 
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
@@ -274,6 +274,41 @@ router.get('/me', authMiddleware, async (req, res) => {
       }).catch(() => {})
     }
 
+    // Lembrete de contas fixas lazy: uma vez por dia, avisa sobre vencimentos em até 3 dias
+    if (user.notifBudgetReminder) {
+      const today = new Date(now)
+      today.setHours(0, 0, 0, 0)
+      const lastSent = user.budgetReminderSentAt ? new Date(user.budgetReminderSentAt) : null
+      const alreadySentToday = lastSent && lastSent >= today
+      if (!alreadySentToday) {
+        prisma.budget.findMany({ where: { userId: req.userId, dueDay: { not: null } } })
+          .then(async budgets => {
+            if (!budgets.length) return
+            const todayDay = now.getDate()
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+            const upcoming = budgets
+              .map(b => {
+                const diff = b.dueDay >= todayDay
+                  ? b.dueDay - todayDay
+                  : daysInMonth - todayDay + b.dueDay
+                return { ...b, daysLeft: diff }
+              })
+              .filter(b => b.daysLeft <= 3)
+            if (!upcoming.length) return
+            await prisma.user.update({ where: { id: req.userId }, data: { budgetReminderSentAt: now } })
+            for (const b of upcoming) {
+              const when = b.daysLeft === 0 ? 'vence hoje' : b.daysLeft === 1 ? 'vence amanhã' : `vence em ${b.daysLeft} dias`
+              const amt  = b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+              await sendPushToUser(req.userId, {
+                title: `📅 ${b.name} ${when}`,
+                body:  `R$ ${amt} — não esqueça de pagar.`,
+                url:   '/settings',
+              })
+            }
+          }).catch(() => {})
+      }
+    }
+
     // Lazy generate referral code for existing users who don't have one yet
     if (!user.referralCode) {
       let attempts = 0
@@ -290,7 +325,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     const isOnTrial = !!user.trialEndsAt && user.trialEndsAt > now
-    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, emailVerified, planPeriod: _pp, ...userOut } = user
+    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, emailVerified, planPeriod: _pp, budgetReminderSentAt: _brs, ...userOut } = user
     userOut.emailVerified = emailVerified
     userOut.isOnTrial = isOnTrial
     if (isOnTrial) userOut.trialEndsAt = trialEndsAt.toISOString()
@@ -649,6 +684,21 @@ router.get('/referral-stats', authMiddleware, async (req, res) => {
     res.json({ referralCode: user.referralCode, referredCount })
   } catch {
     res.status(500).json({ error: 'Erro ao buscar dados de referência.' })
+  }
+})
+
+// ── PUT /auth/notifications ──────────────────────────────
+router.put('/notifications', authMiddleware, async (req, res) => {
+  try {
+    const { notifBudgetAlert, notifBudgetReminder } = req.body
+    const data = {}
+    if (typeof notifBudgetAlert   === 'boolean') data.notifBudgetAlert   = notifBudgetAlert
+    if (typeof notifBudgetReminder === 'boolean') data.notifBudgetReminder = notifBudgetReminder
+    if (!Object.keys(data).length) return res.status(400).json({ error: 'Nenhum campo válido.' })
+    await prisma.user.update({ where: { id: req.userId }, data })
+    res.json({ ok: true })
+  } catch {
+    res.status(500).json({ error: 'Erro ao salvar preferências.' })
   }
 })
 
