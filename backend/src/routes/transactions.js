@@ -323,7 +323,7 @@ router.post('/', dashboardLimiter, async (req, res) => {
         const [expenses, incomes, user, budgets] = await Promise.all([
           prisma.transaction.aggregate({ where: { userId: req.userId, type: 'expense', month: currentMonth, year: currentYear, archived: false }, _sum: { amount: true } }),
           prisma.transaction.aggregate({ where: { userId: req.userId, type: 'income',  month: currentMonth, year: currentYear, archived: false }, _sum: { amount: true } }),
-          prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true } }),
+          prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, notifBudgetAlert: true, budgetAlertMonth: true, budgetAlertYear: true } }),
           prisma.budget.aggregate({ where: { userId: req.userId }, _sum: { amount: true } }),
         ])
         const totalExpenses  = expenses._sum.amount || 0
@@ -369,6 +369,27 @@ router.post('/', dashboardLimiter, async (req, res) => {
                 body:  `R$ ${spentFmt} gastos de R$ ${limitFmt} neste mês.`,
                 url:   '/transactions',
               })
+            }
+          }
+
+          // Alerta de orçamento geral: 80% do salário + entradas gastos no mês (1x por mês)
+          if (user?.notifBudgetAlert) {
+            const alreadySent = user.budgetAlertMonth === currentMonth && user.budgetAlertYear === currentYear
+            if (!alreadySent) {
+              const monthlyIncome = (user.salary || 0) + totalIncomes
+              if (monthlyIncome > 0 && totalExpenses / monthlyIncome >= 0.8) {
+                await prisma.user.update({
+                  where: { id: req.userId },
+                  data:  { budgetAlertMonth: currentMonth, budgetAlertYear: currentYear },
+                })
+                const pct      = Math.round((totalExpenses / monthlyIncome) * 100)
+                const expFmt   = totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                await sendPushToUser(req.userId, {
+                  title: `⚠️ ${pct}% do orçamento mensal usado`,
+                  body:  `Você gastou R$ ${expFmt} este mês. Fique de olho!`,
+                  url:   '/dashboard',
+                })
+              }
             }
           }
         }
@@ -604,7 +625,7 @@ router.post('/import', dashboardLimiter, upload.single('file'), async (req, res)
         .toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
       const amount = parseFloat(amountStr)
 
-      if (!isNaN(amount) && amount !== 0) {
+      if (!isNaN(amount) && amount !== 0 && Math.abs(amount) <= MAX_AMOUNT) {
         transactions.push({
           description: String(description).substring(0, 255),
           amount:      Math.abs(amount),

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { notificationsAPI } from '../../../services/api.js'
+import { notificationsAPI, authAPI } from '../../../services/api.js'
+import { useUser, saveUser } from '../../../hooks/useUser.js'
 import CfgToggle from './CfgToggle.jsx'
 
 function urlBase64ToUint8Array(base64String) {
@@ -10,6 +11,8 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export default function NotificationsCard({ isPro, onMessage, onUpgrade }) {
+  const user = useUser()
+
   const [notifStatus,  setNotifStatus]  = useState(() => {
     if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
       return 'unsupported'
@@ -18,13 +21,17 @@ export default function NotificationsCard({ isPro, onMessage, onUpgrade }) {
   })
   const [notifLoading, setNotifLoading] = useState(false)
 
-  const handleToggle = async () => {
+  const [budgetAlert,    setBudgetAlert]    = useState(user.notifBudgetAlert    ?? true)
+  const [budgetReminder, setBudgetReminder] = useState(user.notifBudgetReminder ?? true)
+  const [prefLoading,    setPrefLoading]    = useState(null) // 'alert' | 'reminder'
+
+  const handleTogglePush = async () => {
     if (notifStatus === 'unsupported' || notifLoading) return
     if (notifStatus === 'denied') {
       onMessage('Bloqueado — Ajustes > Finance > Notificações', 'error')
       return
     }
-    const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+    const isIOS        = /iPhone|iPad|iPod/.test(navigator.userAgent)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || !!navigator.standalone
     if (isIOS && !isStandalone) {
       onMessage('Adicione o app à tela inicial e abra de lá para ativar notificações.', 'error')
@@ -51,7 +58,6 @@ export default function NotificationsCard({ isPro, onMessage, onUpgrade }) {
         return
       }
       setNotifStatus('granted')
-      setNotifLoading(false)
       onMessage('Notificações ativadas!')
       const [{ data }, reg] = await Promise.all([
         notificationsAPI.getVapidKey(),
@@ -72,6 +78,25 @@ export default function NotificationsCard({ isPro, onMessage, onUpgrade }) {
     }
   }
 
+  const handlePref = async (key, newValue, setter) => {
+    if (notifStatus !== 'granted') {
+      onMessage('Ative as notificações primeiro.', 'error')
+      return
+    }
+    setPrefLoading(key)
+    setter(newValue)
+    try {
+      await authAPI.updateNotifPrefs({ [key]: newValue })
+      const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
+      saveUser({ ...cur, [key]: newValue })
+    } catch {
+      setter(!newValue) // reverte em caso de erro
+      onMessage('Erro ao salvar preferência.', 'error')
+    } finally {
+      setPrefLoading(null)
+    }
+  }
+
   return (
     <div className="cfg-card r8">
       <div className="cfg-card-head">
@@ -88,6 +113,7 @@ export default function NotificationsCard({ isPro, onMessage, onUpgrade }) {
       </div>
       <div className="cfg-notif-list">
 
+        {/* Push geral */}
         <div className="cfg-notif-row">
           <div className="cfg-notif-info">
             <div className="cfg-notif-label">Avisos de transações</div>
@@ -96,34 +122,52 @@ export default function NotificationsCard({ isPro, onMessage, onUpgrade }) {
               {notifStatus === 'denied'      && 'Bloqueado — habilite em Configurações > Finance.'}
               {notifStatus === 'granted'     && 'Ativo — você recebe avisos de gastos e saldo.'}
               {notifStatus === 'default'     && 'Receba avisos a cada transação registrada.'}
-              {notifStatus === 'loading'     && 'Verificando...'}
             </div>
           </div>
-          {notifStatus !== 'unsupported' && notifStatus !== 'loading' && (
+          {notifStatus !== 'unsupported' && (
             <CfgToggle
               on={notifStatus === 'granted'}
               disabled={notifStatus === 'denied' || notifLoading}
-              onChange={handleToggle}
+              onChange={handleTogglePush}
             />
           )}
         </div>
 
+        {/* Lembrete de contas fixas */}
         <div className="cfg-notif-row">
           <div className="cfg-notif-info">
             <div className="cfg-notif-label">Lembrete de contas fixas</div>
-            <div className="cfg-notif-desc">Receba lembretes das suas despesas fixas.</div>
+            <div className="cfg-notif-desc">
+              {budgetReminder
+                ? 'Aviso até 3 dias antes do vencimento de cada conta.'
+                : 'Lembretes de vencimento desativados.'}
+            </div>
           </div>
-          <CfgToggle on={false} onChange={() => {}} />
+          <CfgToggle
+            on={budgetReminder}
+            disabled={prefLoading === 'notifBudgetReminder' || notifStatus !== 'granted'}
+            onChange={() => handlePref('notifBudgetReminder', !budgetReminder, setBudgetReminder)}
+          />
         </div>
 
+        {/* Alerta de orçamento */}
         <div className="cfg-notif-row">
           <div className="cfg-notif-info">
             <div className="cfg-notif-label">Alerta de orçamento</div>
-            <div className="cfg-notif-desc">Notificação ao atingir 80% do limite.</div>
+            <div className="cfg-notif-desc">
+              {budgetAlert
+                ? 'Aviso quando você atingir 80% do orçamento mensal.'
+                : 'Alerta de orçamento desativado.'}
+            </div>
           </div>
-          <CfgToggle on={false} onChange={() => {}} />
+          <CfgToggle
+            on={budgetAlert}
+            disabled={prefLoading === 'notifBudgetAlert' || notifStatus !== 'granted'}
+            onChange={() => handlePref('notifBudgetAlert', !budgetAlert, setBudgetAlert)}
+          />
         </div>
 
+        {/* Relatório PDF */}
         <div className="cfg-notif-row" style={{ borderBottom: 'none' }}>
           <div className="cfg-notif-info">
             <div className="cfg-notif-label">Relatório PDF por e-mail</div>
