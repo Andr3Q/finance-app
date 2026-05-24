@@ -6,7 +6,7 @@ const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
-const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
+const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
 
@@ -141,7 +141,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 })
 
 // ── POST /auth/login ────────────────────────────────────
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body
 

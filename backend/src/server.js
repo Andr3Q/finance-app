@@ -29,7 +29,7 @@ const compression  = require('compression')
 const cookieParser = require('cookie-parser')
 const crypto       = require('crypto')
 
-const { apiLimiter, authLimiter, agentLimiter, paymentLimiter } = require('./middleware/rateLimiter')
+const { apiLimiter, agentLimiter, paymentLimiter } = require('./middleware/rateLimiter')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -274,10 +274,9 @@ app.get('/monitor.html', (req, res) => {
 })
 
 // ── Rotas da API ────────────────────────────────────────
-// 2FA deve ser registrado ANTES de /api/auth para evitar que authLimiter
-// (5 req/15min em prod) consuma a quota de tentativas de login ao verificar TOTP
+// 2FA deve ser registrado ANTES de /api/auth (prefixo mais específico primeiro)
 app.use('/api/auth/2fa',     twoFactorRoutes)
-app.use('/api/auth',          authLimiter, authRoutes)
+app.use('/api/auth',          authRoutes)
 app.use('/api/transactions',  transactionRoutes)
 app.use('/api/budget',        budgetRoutes)
 app.use('/api/reports',       reportRoutes)

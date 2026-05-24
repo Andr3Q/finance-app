@@ -36,16 +36,17 @@ export default function Dashboard() {
     if (invalidate) invalidateCache('dashboard')
     const cached = getCache('dashboard')
     if (cached) {
-      setSummary(cached.summary)
-      setTransactions(cached.transactions)
+      setSummary(cached.summary || null)
+      setTransactions(Array.isArray(cached.transactions) ? cached.transactions : [])
       setLimits(cached.limits || [])
       setBudgets(cached.budgets || [])
       setLoading(false)
     }
     try {
       const { data } = await transactionsAPI.dashboard()
-      setSummary(data.summary)
-      setTransactions(data.transactions)
+      if (!data || typeof data !== 'object') throw new Error('invalid response')
+      setSummary(data.summary || null)
+      setTransactions(Array.isArray(data.transactions) ? data.transactions : [])
       setLimits(data.limits || [])
       setBudgets(data.budgets || [])
       setCache('dashboard', data)
@@ -94,7 +95,7 @@ export default function Dashboard() {
   useEffect(() => {
     let cancelled = false
     goalsAPI.list()
-      .then(({ data }) => { if (!cancelled) setGoals(data.slice(0, 3)) })
+      .then(({ data }) => { if (!cancelled) setGoals(Array.isArray(data) ? data.slice(0, 3) : []) })
       .catch(() => {})
     return () => { cancelled = true }
   }, [])
