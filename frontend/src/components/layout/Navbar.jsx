@@ -26,7 +26,6 @@ function greeting() {
 function BellIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> }
 function HomeIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> }
 function TxIcon()     { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> }
-function ChartIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> }
 function TargetIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> }
 function GearIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg> }
 function BoltIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> }
@@ -66,13 +65,7 @@ export default function Navbar() {
   const [showGuide,    setShowGuide]    = useState(false)
   const [showBell,     setShowBell]     = useState(false)
   const [bellDismissed,setBellDismissed]= useState(false)
-  const [clock,        setClock]        = useState(() => new Date())
   const bellRef = useRef(null)
-
-  useEffect(() => {
-    const id = setInterval(() => setClock(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [])
 
   const salaryNotif = getSalaryNotif()
   const hasNotif    = !!salaryNotif && !bellDismissed
@@ -92,9 +85,9 @@ export default function Navbar() {
 
   const logout = async () => {
     analytics.reset()
+    try { await authAPI.logout() } catch { /* ignora erros de rede no logout */ }
     sessionStorage.removeItem('user')
     sessionStorage.removeItem('token')
-    try { await authAPI.logout() } catch { /* ignora erros de rede no logout */ }
     navigate('/login', { replace: true })
   }
 
@@ -120,8 +113,6 @@ export default function Navbar() {
   const isActive  = (path) => location.pathname === path
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
-  const dateStr   = `${WEEKDAYS[clock.getDay()]}, ${clock.getDate()} de ${MONTHS[clock.getMonth()]} de ${clock.getFullYear()}`
-  const timeStr   = clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const pageTitle = location.pathname === '/dashboard'
     ? `${greeting()}${firstName ? `, ${firstName}` : ''}`
     : ROUTE_TITLES[location.pathname] || 'Finance'
@@ -237,11 +228,7 @@ export default function Navbar() {
       <header className="dsb-topbar">
         <div className="dsb-topbar-left">
           <div className="dsb-topbar-title">{pageTitle}</div>
-          <div className="dsb-topbar-sub">
-            <span className="dsb-topbar-date">{dateStr}</span>
-            <span className="dsb-topbar-dot">·</span>
-            <span className="dsb-topbar-time">{timeStr}</span>
-          </div>
+          <ClockDisplay />
         </div>
         <div className="dsb-topbar-right">
           {user.plan === 'elite'
@@ -332,6 +319,24 @@ export default function Navbar() {
 
       {showGuide && <InstallGuide onClose={() => setShowGuide(false)} />}
     </>
+  )
+}
+
+/* ── Clock Display — isolated so only this re-renders every second ── */
+function ClockDisplay() {
+  const [clock, setClock] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setClock(new Date()), 1000)
+    return () => clearInterval(id)
+  }, [])
+  const dateStr = `${WEEKDAYS[clock.getDay()]}, ${clock.getDate()} de ${MONTHS[clock.getMonth()]} de ${clock.getFullYear()}`
+  const timeStr = clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  return (
+    <div className="dsb-topbar-sub">
+      <span className="dsb-topbar-date">{dateStr}</span>
+      <span className="dsb-topbar-dot">·</span>
+      <span className="dsb-topbar-time">{timeStr}</span>
+    </div>
   )
 }
 

@@ -133,28 +133,30 @@ router.post('/webhook', apiLimiter, async (req, res) => {
     if (!['pro', 'elite'].includes(plan))        return
     if (!['monthly', 'annual'].includes(period)) return
 
-    // Deduplicação: ignora webhook já processado (MP pode reenviar a mesma notificação)
-    const alreadyProcessed = await prisma.processedPayment.findUnique({
-      where: { paymentId: String(dataId) },
-    })
-    if (alreadyProcessed) {
-      console.log(`[payments] webhook duplicado ignorado: ${dataId}`)
-      return
-    }
-
-    const daysToAdd    = period === 'annual' ? 366 : 31
+    const daysToAdd     = period === 'annual' ? 366 : 31
     const planExpiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000)
 
-    const activatedUser = await prisma.$transaction(async (tx) => {
-      await tx.processedPayment.create({
-        data: { paymentId: String(dataId), userId, plan, period },
+    // Deduplicação atômica: processedPayment.create falha com P2002 se já existir,
+    // garantindo que plano nunca seja ativado duas vezes mesmo com webhooks concorrentes.
+    let activatedUser
+    try {
+      activatedUser = await prisma.$transaction(async (tx) => {
+        await tx.processedPayment.create({
+          data: { paymentId: String(dataId), userId, plan, period },
+        })
+        return tx.user.update({
+          where:  { id: userId },
+          data:   { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
+          select: { email: true, name: true },
+        })
       })
-      return tx.user.update({
-        where:  { id: userId },
-        data:   { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
-        select: { email: true, name: true },
-      })
-    })
+    } catch (txErr) {
+      if (txErr.code === 'P2002') {
+        console.log(`[payments] webhook duplicado ignorado: ${dataId}`)
+        return
+      }
+      throw txErr
+    }
 
     // E-mail de confirmação — fire-and-forget
     sendPlanActivationEmail(activatedUser.email, activatedUser.name, plan, planExpiresAt).catch(() => {})

@@ -276,8 +276,12 @@ router.get('/me', authMiddleware, async (req, res) => {
 
     // Lembrete de contas fixas lazy: uma vez por dia, avisa sobre vencimentos em até 3 dias
     if (user.notifBudgetReminder) {
-      const today = new Date(now)
-      today.setHours(0, 0, 0, 0)
+      // "hoje" calculado no fuso de São Paulo (UTC-3) para não disparar o lembrete
+      // um dia antes/depois da meia-noite local caso o servidor esteja em UTC.
+      const SP_OFFSET_MS = 3 * 60 * 60 * 1000
+      const nowInSP      = new Date(now.getTime() - SP_OFFSET_MS)
+      const todayStartSP = new Date(Date.UTC(nowInSP.getUTCFullYear(), nowInSP.getUTCMonth(), nowInSP.getUTCDate()))
+      const today        = new Date(todayStartSP.getTime() + SP_OFFSET_MS) // meia-noite SP em UTC
       const lastSent = user.budgetReminderSentAt ? new Date(user.budgetReminderSentAt) : null
       const alreadySentToday = lastSent && lastSent >= today
       if (!alreadySentToday) {

@@ -339,6 +339,7 @@ export default function Transactions() {
                     <input
                       className="cfg-inp cfg-inp-num"
                       type="number"
+                      inputMode="numeric"
                       placeholder="Nº parcelas"
                       min="2" max="360"
                       value={newParc.total}
