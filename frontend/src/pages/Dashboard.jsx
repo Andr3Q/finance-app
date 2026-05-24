@@ -27,6 +27,8 @@ export default function Dashboard() {
   const [predLoading,  setPredLoading]  = useState(false)
   const [goals,        setGoals]        = useState([])
 
+  const isPro = user.plan === 'pro' || user.plan === 'elite'
+
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 4000)
@@ -127,7 +129,6 @@ export default function Dashboard() {
   }
 
   const pct        = summary?.percentUsed || 0
-  const isPro      = user.plan === 'pro' || user.plan === 'elite'
   const now        = new Date()
 
   const healthLabel =
