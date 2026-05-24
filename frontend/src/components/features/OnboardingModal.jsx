@@ -12,6 +12,7 @@ export default function OnboardingModal() {
   const [bName,        setBName]        = useState('')
   const [bAmount,      setBAmount]      = useState('')
   const [budgetsAdded, setBudgetsAdded] = useState(0)
+  const [budgetErr,    setBudgetErr]    = useState('')
   const [gTitle,       setGTitle]       = useState('')
   const [gAmount,      setGAmount]      = useState('')
 
@@ -51,12 +52,17 @@ export default function OnboardingModal() {
   const handleAddBudget = async () => {
     if (!bName.trim() || !(parseFloat(bAmount) > 0) || saving) return
     setSaving(true)
+    setBudgetErr('')
     try {
       await budgetAPI.create({ name: bName.trim(), amount: parseFloat(bAmount) })
       setBudgetsAdded(n => n + 1)
       setBName('')
       setBAmount('')
-    } catch {}
+    } catch (err) {
+      if (err.response?.data?.limitReached) {
+        setBudgetErr('Limite de contas do seu plano atingido. Você pode adicionar mais após o trial.')
+      }
+    }
     setSaving(false)
   }
 
@@ -132,10 +138,16 @@ export default function OnboardingModal() {
                 />
               </div>
             </div>
+            {budgetErr && (
+              <div style={{ fontSize: 12, color: '#f59e0b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {budgetErr}
+              </div>
+            )}
             <button
               className="ob-add"
               onClick={handleAddBudget}
-              disabled={!bName.trim() || !(parseFloat(bAmount) > 0) || saving}
+              disabled={!bName.trim() || !(parseFloat(bAmount) > 0) || saving || !!budgetErr}
             >
               {saving ? '...' : '+ Adicionar conta'}
             </button>

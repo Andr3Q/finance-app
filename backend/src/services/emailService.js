@@ -349,6 +349,83 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
   })
 }
 
+async function sendPlanExpiredEmail(toEmail, userName, wasTrialOrPaid) {
+  const appUrl = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+  const subject = wasTrialOrPaid === 'trial'
+    ? 'Seu trial Pro encerrou — FinançasPro'
+    : 'Seu plano expirou — FinançasPro'
+  const headline = wasTrialOrPaid === 'trial'
+    ? 'Seu trial de 7 dias encerrou'
+    : 'Seu plano expirou'
+  const detail = wasTrialOrPaid === 'trial'
+    ? 'Seu período de avaliação gratuita do <strong>Plano Pro</strong> chegou ao fim. Sua conta agora está no plano Grátis.'
+    : 'Seu plano foi encerrado por falta de renovação. Sua conta agora está no plano Grátis.'
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
+      <div style="background:linear-gradient(135deg,#1a0a00,#2d1500);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(239,68,68,0.3);">
+        <h1 style="color:#ef4444;margin:0;font-size:24px;">FinançasPro</h1>
+        <p style="color:#997a40;margin:8px 0 0;font-size:14px;">⏰ ${esc(headline)}</p>
+      </div>
+      <div style="background:#fff;padding:28px;border-radius:12px;">
+        <p style="color:#333;font-size:15px;margin:0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">${detail}</p>
+        <div style="background:#fff5f5;border-radius:10px;padding:16px;margin-bottom:24px;border-left:3px solid #ef4444;">
+          <p style="margin:0;color:#333;font-size:13px;line-height:1.6;">
+            Seus dados continuam salvos. Para recuperar acesso ao assistente IA, relatórios PDF e demais recursos premium, assine agora:
+          </p>
+        </div>
+        <div style="text-align:center;margin-bottom:16px;">
+          <a href="${appUrl}/planos" style="display:inline-block;background:#4ac46e;color:#000;text-decoration:none;padding:14px 36px;border-radius:12px;font-weight:700;font-size:15px;">
+            Ver planos — a partir de R$ 9,90/mês
+          </a>
+        </div>
+        <p style="color:#999;font-size:12px;text-align:center;margin:0;">Cancele quando quiser. Sem fidelidade.</p>
+      </div>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">FinançasPro — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    to:      toEmail,
+    subject,
+    html,
+  })
+}
+
+async function sendVerificationEmail(toEmail, userName, verifyLink) {
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
+      <div style="background:linear-gradient(135deg,#020d10,#061520);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(0,255,204,0.15);">
+        <h1 style="color:#00ffcc;margin:0;font-size:24px;">FinançasPro</h1>
+        <p style="color:#5a8a78;margin:8px 0 0;font-size:14px;">Confirme seu e-mail</p>
+      </div>
+      <div style="background:#fff;padding:28px;border-radius:12px;">
+        <p style="color:#333;font-size:15px;margin:0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 24px;">
+          Clique no botão abaixo para confirmar seu endereço de e-mail e ativar sua conta completamente.
+        </p>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${verifyLink}" style="display:inline-block;background:linear-gradient(135deg,#00ffcc,#00a89a);color:#021a14;text-decoration:none;padding:14px 36px;border-radius:12px;font-weight:700;font-size:15px;">
+            Confirmar meu e-mail
+          </a>
+        </div>
+        <p style="color:#999;font-size:12px;line-height:1.5;margin:0;">
+          Este link expira em <strong>24 horas</strong>. Se não foi você, ignore este e-mail.
+        </p>
+      </div>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">FinançasPro — Seu controle financeiro pessoal</p>
+    </div>
+  `
+  await transporter.sendMail({
+    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    to:      toEmail,
+    subject: 'Confirme seu e-mail — FinançasPro',
+    html,
+  })
+}
+
 async function sendWeeklyDigest(toEmail, userName, weekData) {
   const appUrl = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
   const { totalExpenses, totalIncome, topCategory, transactionCount, balance } = weekData
@@ -391,4 +468,4 @@ async function sendWeeklyDigest(toEmail, userName, weekData) {
   })
 }
 
-module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest }
+module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail }
