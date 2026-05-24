@@ -114,6 +114,42 @@ export default function Settings() {
               </button>
             </div>
 
+            {/* Exportar dados — LGPD Art. 15 */}
+            <div className="cfg-card">
+              <div className="cfg-card-head">
+                <div className="cfg-ch-ico">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div className="cfg-ch-title">Exportar meus dados</div>
+                  <div className="cfg-ch-sub">Baixe um arquivo JSON com todos os seus dados (LGPD Art. 15).</div>
+                </div>
+                <button
+                  className="cfg-btn-secondary"
+                  style={{ flexShrink: 0, fontSize: 12, padding: '8px 14px' }}
+                  onClick={async () => {
+                    try {
+                      const res = await authAPI.exportData()
+                      const url = URL.createObjectURL(res.data)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `financaspro-dados-${new Date().toISOString().slice(0,10)}.json`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    } catch {
+                      showMsg('Erro ao exportar dados.', 'error')
+                    }
+                  }}
+                >
+                  Exportar
+                </button>
+              </div>
+            </div>
+
             {/* Excluir conta — aparece em todos os dispositivos */}
             <div className="cfg-card">
               <button
