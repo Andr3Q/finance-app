@@ -40,6 +40,7 @@ model User {
   onboardingComplete   Boolean   @default(false)
   renewalReminderSent  Boolean   @default(false)
   trialReminderSent    Boolean   @default(false)
+  weeklyDigestSentAt   DateTime?
 
   transactions      Transaction[]
   twoFactorBackupCodes TwoFactorBackupCode[]

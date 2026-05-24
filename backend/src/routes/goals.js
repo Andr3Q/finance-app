@@ -1,6 +1,7 @@
 const express        = require('express')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
+const { sendPushToUser } = require('../services/pushService')
 
 const router = express.Router()
 router.use(authMiddleware)
@@ -77,6 +78,15 @@ router.patch('/:id', async (req, res) => {
   if (!validId(req.params.id))
     return res.status(400).json({ error: 'ID inválido.' })
 
+  // Pre-fetch para detectar conclusão de meta
+  let prevGoal = null
+  try {
+    prevGoal = await prisma.goal.findUnique({
+      where:  { id: req.params.id, userId: req.userId },
+      select: { currentAmount: true, targetAmount: true, title: true },
+    })
+  } catch {}
+
   const { title, targetAmount, currentAmount, color, deadline } = req.body
   const data = {}
 
@@ -114,12 +124,25 @@ router.patch('/:id', async (req, res) => {
     return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
 
   try {
-    // update com userId = ownership check + update em 1 query (sem findFirst prévio)
     const updated = await prisma.goal.update({
       where: { id: req.params.id, userId: req.userId },
       data,
     })
     res.json(updated)
+
+    // Push de conclusão: dispara quando meta cruza 100% pela primeira vez
+    if (
+      prevGoal &&
+      prevGoal.currentAmount < prevGoal.targetAmount &&
+      updated.currentAmount >= updated.targetAmount
+    ) {
+      const goalTitle = updated.title || prevGoal.title
+      sendPushToUser(req.userId, {
+        title: '🎯 Meta concluída!',
+        body:  `Parabéns! Você atingiu sua meta "${goalTitle}".`,
+        url:   '/goals',
+      }).catch(() => {})
+    }
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Meta não encontrada.' })
     res.status(500).json({ error: 'Erro ao atualizar meta.' })
