@@ -19,6 +19,7 @@ import TwoFactorCard        from '../components/features/settings/TwoFactorCard.
 import ChangePasswordCard   from '../components/features/settings/ChangePasswordCard.jsx'
 import CancelPlanCard       from '../components/features/settings/CancelPlanCard.jsx'
 import PaymentHistoryCard   from '../components/features/settings/PaymentHistoryCard.jsx'
+import EmailVerifyCard      from '../components/features/settings/EmailVerifyCard.jsx'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -77,6 +78,7 @@ export default function Settings() {
             <SettingsHero user={user} isPro={isPro} />
 
             <div className="cfg-sec-title r2">Perfil</div>
+            <EmailVerifyCard onMessage={showMsg} />
             <ProfileCard user={user} />
 
             <div className="cfg-sec-title r4">Financeiro</div>

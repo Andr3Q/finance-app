@@ -4,7 +4,6 @@ import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
 import OnboardingModal from './components/features/OnboardingModal.jsx'
 import PlanExpiryBanner from './components/features/PlanExpiryBanner.jsx'
-import EmailVerificationBanner from './components/features/EmailVerificationBanner.jsx'
 import CookieBanner from './components/features/CookieBanner.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 import { authAPI } from './services/api.js'
@@ -33,7 +32,7 @@ function isLoggedIn() {
 
 function PrivateRoute({ children }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />
-  return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /><EmailVerificationBanner /></>
+  return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /></>
 }
 
 function HomeRoute() {
