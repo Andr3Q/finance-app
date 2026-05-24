@@ -4,6 +4,7 @@ import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
 import OnboardingModal from './components/features/OnboardingModal.jsx'
 import PlanExpiryBanner from './components/features/PlanExpiryBanner.jsx'
+import EmailVerificationBanner from './components/features/EmailVerificationBanner.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 import { authAPI } from './services/api.js'
 import { saveUser } from './hooks/useUser.js'
@@ -14,6 +15,7 @@ const Landing        = lazy(() => import('./pages/Landing.jsx'))
 const Login          = lazy(() => import('./pages/Login.jsx'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'))
 const ResetPassword  = lazy(() => import('./pages/ResetPassword.jsx'))
+const VerifyEmail    = lazy(() => import('./pages/VerifyEmail.jsx'))
 const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
 const Goals          = lazy(() => import('./pages/Goals.jsx'))
@@ -29,7 +31,7 @@ function isLoggedIn() {
 
 function PrivateRoute({ children }) {
   if (!isLoggedIn()) return <Navigate to="/login" replace />
-  return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /></>
+  return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /><EmailVerificationBanner /></>
 }
 
 function HomeRoute() {
@@ -54,7 +56,10 @@ export default function App() {
           if (res.data) {
             saveUser(res.data)
             analytics.identify(res.data.id, { plan: res.data.plan })
-            if (res.data.trialJustExpired) analytics.track('trial_expired')
+            if (res.data.trialJustExpired) {
+            analytics.track('trial_expired')
+            sessionStorage.setItem('trial_just_expired', '1')
+          }
           }
         })
         .catch((err) => {
@@ -89,6 +94,7 @@ export default function App() {
           <Route path="/register"        element={<Login isRegister />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password"  element={<ResetPassword />} />
+          <Route path="/verify-email"    element={<VerifyEmail />} />
           <Route path="/dashboard"    element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
           <Route path="/analytics"    element={<Navigate to="/goals" replace />} />

@@ -41,6 +41,9 @@ model User {
   renewalReminderSent  Boolean   @default(false)
   trialReminderSent    Boolean   @default(false)
   weeklyDigestSentAt   DateTime?
+  emailVerified        Boolean   @default(false)
+  emailVerifyToken     String?
+  emailVerifyExpiry    DateTime?
 
   transactions      Transaction[]
   twoFactorBackupCodes TwoFactorBackupCode[]

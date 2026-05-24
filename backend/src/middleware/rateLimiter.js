@@ -87,6 +87,24 @@ const twoFALimiter = rateLimit({
   message:  { error: 'Muitas tentativas de verificação. Tente novamente em 15 minutos.' },
 })
 
+// Export de dados: 5 por hora por usuário — cada chamada faz 6 joins pesados
+const exportLimiter = rateLimit({
+  ...opts,
+  windowMs:     60 * 60 * 1000,
+  max:          5,
+  keyGenerator: (req) => req.userId || req.ip,
+  message:      { error: 'Limite de exportações atingido. Tente novamente em 1 hora.' },
+})
+
+// Verificação de e-mail: 3 reenvios / hora por usuário
+const verifyEmailLimiter = rateLimit({
+  ...opts,
+  windowMs:     60 * 60 * 1000,
+  max:          3,
+  keyGenerator: (req) => req.userId || req.ip,
+  message:      { error: 'Muitas tentativas de reenvio. Tente novamente em 1 hora.' },
+})
+
 module.exports = {
   apiLimiter,
   authLimiter,
@@ -98,4 +116,6 @@ module.exports = {
   reportLimiter,
   paymentLimiter,
   twoFALimiter,
+  exportLimiter,
+  verifyEmailLimiter,
 }
