@@ -3,6 +3,7 @@ const os      = require('os')
 const router  = express.Router()
 const prisma  = require('../lib/prisma')
 const logger  = require('../lib/logger')
+const { clientErrorLimiter } = require('../middleware/rateLimiter')
 const { runAllScans } = require('../services/securityScanner')
 
 // GET /api/monitor/dashboard — retorna métricas completas do app
@@ -29,6 +30,9 @@ router.get('/dashboard', async (req, res) => {
       failedLogins24h,
       securityNpm,
       securityTrivy,
+      recentErrors,
+      errorCount24h,
+      errorCount7d,
     ] = await Promise.all([
       prisma.user.groupBy({ by: ['plan'], _count: { _all: true } }),
       prisma.transaction.count({ where: { date: { gte: startOfDay },   archived: false } }),
@@ -48,6 +52,18 @@ router.get('/dashboard', async (req, res) => {
       prisma.loginAudit.count({ where: { success: false, createdAt: { gte: last24h } } }),
       prisma.securityScan.findFirst({ where: { tool: 'npm_audit' }, orderBy: { runAt: 'desc' } }),
       prisma.securityScan.findFirst({ where: { tool: 'trivy'     }, orderBy: { runAt: 'desc' } }),
+      // ── ErrorLog — bug tracking in-house ─────────────────
+      prisma.errorLog.findMany({
+        orderBy: { createdAt: 'desc' },
+        take:    50,
+        select: {
+          id: true, createdAt: true, source: true,
+          message: true, stack: true,
+          path: true, method: true, statusCode: true, requestId: true,
+        },
+      }),
+      prisma.errorLog.count({ where: { createdAt: { gte: last24h } } }),
+      prisma.errorLog.count({ where: { createdAt: { gte: last7d  } } }),
     ])
 
     // Distribuição de planos
@@ -116,6 +132,11 @@ router.get('/dashboard', async (req, res) => {
         agent:   (l.userAgent || '').slice(0, 60),
         at:      l.createdAt,
       })),
+      errors: {
+        count24h: errorCount24h,
+        count7d:  errorCount7d,
+        recent:   recentErrors,
+      },
     })
   } catch (err) {
     logger.error({ msg: '[monitor] dashboard', err: err.message })
@@ -127,6 +148,38 @@ router.get('/dashboard', async (req, res) => {
 router.post('/scan', (req, res) => {
   res.json({ ok: true, message: 'Scan iniciado em background' })
   runAllScans().catch(console.error)
+})
+
+// POST /api/monitor/client-error — recebe erros JavaScript do frontend
+// Endpoint PÚBLICO (sem autenticação) — usuários não autenticados precisam reportar erros.
+// Protegido por clientErrorLimiter (10/15min por IP) para evitar inundação do banco.
+router.post('/client-error', clientErrorLimiter, async (req, res) => {
+  try {
+    const { message, stack, url, filename, line, col } = req.body || {}
+
+    // Valida: precisa de uma mensagem de string não vazia
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.json({ ok: false })
+    }
+
+    await prisma.errorLog.create({
+      data: {
+        source:  'frontend',
+        message: String(message).slice(0, 500),
+        stack:   stack    ? String(stack).slice(0, 3000) : null,
+        path:    url      ? String(url).slice(0, 300)   : null,
+        extra:   {
+          filename: filename ?? null,
+          line:     line     ?? null,
+          col:      col      ?? null,
+        },
+      },
+    })
+    res.json({ ok: true })
+  } catch {
+    // Nunca retorna 500 — evitaria loop infinito se o próprio handler de erro quebrasse
+    res.json({ ok: false })
+  }
 })
 
 module.exports = router

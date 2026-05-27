@@ -63,6 +63,9 @@ const errorHandler        = require('./interfaces/http/middlewares/errorHandler'
 // ── Logger estruturado (pino) ───────────────────────────
 const logger = require('./lib/logger')
 
+// ── Prisma principal (para ErrorLog no handler global) ──
+const prisma = require('./lib/prisma')
+
 // ── Buffer circular APM — sem banco, sem estado persistente ─────────
 // Armazena as últimas 2000 requisições em memória para calcular P50/P95
 // e taxa de erros em tempo real no dashboard do monitor.
@@ -429,9 +432,29 @@ app.use((err, req, res, _next) => {
     return res.status(503).json({ error: 'Serviço temporariamente indisponível.' })
   }
 
-  const reqId = req.id || '-'
+  const reqId     = req.id || '-'
+  const statusCode = err.status || 500
   logger.error({ msg: 'Exceção não tratada', reqId, method: req.method, path: req.path, err: err.message })
-  res.status(err.status || 500).json({ error: 'Erro interno do servidor.' })
+
+  // ── Bug tracking in-house — salva 5xx no ErrorLog ───────
+  // Fire-and-forget: .catch(() => {}) garante que uma falha no DB
+  // nunca impeça a resposta HTTP de ser enviada ao cliente.
+  if (statusCode >= 500) {
+    prisma.errorLog.create({
+      data: {
+        source:    'backend',
+        message:   err.message?.slice(0, 500) ?? 'Unknown error',
+        stack:     err.stack?.slice(0, 3000)  ?? null,
+        path:      req.path,
+        method:    req.method,
+        statusCode,
+        requestId: req.id || null,
+        userId:    req.userId || null,
+      },
+    }).catch(() => {})
+  }
+
+  res.status(statusCode).json({ error: 'Erro interno do servidor.' })
 })
 
 // ── API 404 — deve vir antes do SPA catch-all ──────────
@@ -478,6 +501,13 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     runAllScans().catch(() => {})
     setInterval(() => runAllScans().catch(() => {}), 6 * 3_600_000)
   }, 3 * 60_000)
+
+  // Limpeza diária: remove erros com mais de 30 dias (mantém DB enxuto)
+  setInterval(() => {
+    const cutoff = new Date(Date.now() - 30 * 24 * 3_600_000)
+    prisma.errorLog.deleteMany({ where: { createdAt: { lt: cutoff } } })
+      .catch(() => {})
+  }, 24 * 3_600_000)
 })
 
 // ── Graceful shutdown ───────────────────────────────────

@@ -195,6 +195,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <span class="pill p-load" id="p-logins"><span class="dot"></span>Logins</span>
     <span class="pill p-load" id="p-mem"><span class="dot"></span>Memória</span>
     <span class="pill p-load" id="p-apm"><span class="dot"></span>Performance</span>
+    <span class="pill p-load" id="p-errors"><span class="dot"></span>Erros</span>
   </div>
 </div>
 
@@ -208,10 +209,44 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <button class="tab" onclick="goTab('security')" id="tab-security"><span class="tab-ico">🔒</span>Segurança</button>
     <button class="tab" onclick="goTab('system')"   id="tab-system">  <span class="tab-ico">🖥️</span>Sistema</button>
     <button class="tab" onclick="goTab('access')"   id="tab-access">  <span class="tab-ico">📋</span>Acessos</button>
+    <button class="tab" onclick="goTab('errors')"   id="tab-errors">  <span class="tab-ico">🔴</span>Erros</button>
   </div>
 </div>
 
 <div id="toasts"></div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- ── TELA 8 — Erros ── -->
+<!-- ══════════════════════════════════════════════ -->
+<div class="screen" id="sc-errors">
+
+  <div class="slbl">Resumo (últimas 24h / 7 dias)</div>
+  <div class="g3">
+    <div class="card">
+      <div class="ctop" style="background:var(--red)"></div>
+      <div class="clbl">Erros 24h</div>
+      <div class="cval" id="err-24h" style="color:var(--red)">—</div>
+      <div class="csub">backend + frontend</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--yellow)"></div>
+      <div class="clbl">Erros 7 dias</div>
+      <div class="cval" id="err-7d" style="color:var(--yellow)">—</div>
+      <div class="csub">últimos 7 dias</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--blue)"></div>
+      <div class="clbl">Total recentes</div>
+      <div class="cval" id="err-total" style="color:var(--blue)">—</div>
+      <div class="csub">últimos 50 registros</div>
+    </div>
+  </div>
+
+  <div class="slbl">Log de erros (últimos 50)</div>
+  <div id="err-list">
+    <div class="card" style="color:var(--text3);text-align:center;padding:28px">Carregando…</div>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════ -->
 <!-- ── TELA 1 — Visão Geral ── -->
@@ -580,7 +615,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 const $ = id => document.getElementById(id)
 
 // ── Tab navigation ───────────────────────────────
-const TABS = ['overview','users','txs','app','security','system','access']
+const TABS = ['overview','users','txs','app','security','system','access','errors']
 let activeTab = 'overview'
 
 function goTab(id) {
@@ -831,6 +866,9 @@ function render(d) {
   // ── Access ──
   renderLogins(d.recentLogins)
 
+  // ── Errors ──
+  renderErrors(d)
+
   // ── Overview security summary ──
   const npmOk   = !d.security.npm   || d.security.npm.status   === 'clean'
   const trivyOk = !d.security.trivy || d.security.trivy.status === 'clean' || d.security.trivy.status === 'unavailable'
@@ -844,6 +882,7 @@ function render(d) {
     heapTotal:  m.heapTotal,
     p95_ms:     d.apm?.p95_ms    ?? 0,
     errors5xx:  d.apm?.errors5xx ?? 0,
+    errors24h:  d.errors?.count24h ?? 0,
   }
 }
 
@@ -900,6 +939,80 @@ function renderLogins(logins) {
       <td style="font-family:monospace;font-size:11px;color:var(--text3)">${l.ip}</td>
       <td style="color:var(--text3)">${fmtTime(l.at)}</td>
     </tr>`).join('')
+}
+
+// ── Erros ────────────────────────────────────────
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+}
+
+function toggleStack(id) {
+  const el = $(id)
+  if (!el) return
+  const visible = el.style.display !== 'none'
+  el.style.display = visible ? 'none' : 'block'
+  const btn = el.previousElementSibling
+  if (btn) btn.textContent = (visible ? '▶' : '▼') + ' Stack trace'
+}
+
+function renderErrors(d) {
+  if (!d.errors) return
+
+  const { count24h, count7d, recent } = d.errors
+  $('err-24h').textContent  = count24h ?? '—'
+  $('err-7d').textContent   = count7d  ?? '—'
+  $('err-total').textContent = recent?.length ?? '—'
+
+  pill('p-errors',
+    count24h > 20 ? 'err' : count24h > 5 ? 'warn' : 'ok',
+    `Erros ${count24h ?? '—'}/24h`)
+
+  // Badge numérico na aba
+  const errTab = $('tab-errors')
+  if (count24h > 0) {
+    let badge = errTab.querySelector('.tab-badge')
+    if (!badge) {
+      badge = document.createElement('span')
+      badge.className = 'tab-badge'
+      errTab.appendChild(badge)
+    }
+    badge.textContent = count24h
+  } else {
+    errTab.querySelector('.tab-badge')?.remove()
+  }
+
+  // Toast na transição de limiar
+  if (prevData && count24h > 10 && (prevData.errors24h ?? 0) <= 10)
+    toast(`🔴 ${count24h} erros nas últimas 24h`, 'err', 10000)
+
+  // Lista de erros
+  const list = $('err-list')
+  if (!recent?.length) {
+    list.innerHTML = '<div class="card" style="color:var(--green);text-align:center;padding:28px">✅ Nenhum erro registrado</div>'
+    return
+  }
+
+  list.innerHTML = recent.map(e => {
+    const isBackend = e.source === 'backend'
+    const srcColor  = isBackend ? 'var(--purple)' : 'var(--blue)'
+    const srcLabel  = isBackend ? 'BACKEND' : 'FRONTEND'
+    const stackId   = `stk-${e.id}`
+    const hasStack  = e.stack && e.stack.trim()
+    return `
+    <div class="card" style="margin-bottom:8px">
+      <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <span style="background:${srcColor}18;border:1px solid ${srcColor}30;border-radius:4px;color:${srcColor};font-size:10px;font-weight:700;padding:2px 8px;flex-shrink:0">${srcLabel}</span>
+        ${e.statusCode ? `<span style="background:var(--rbg);border:1px solid var(--rbrd);border-radius:4px;color:var(--red);font-size:10px;font-weight:700;padding:2px 8px;flex-shrink:0">${e.statusCode}</span>` : ''}
+        <span style="font-size:13px;font-weight:600;color:var(--text);flex:1;word-break:break-word">${escHtml(e.message)}</span>
+        <span style="font-size:11px;color:var(--text3);white-space:nowrap;flex-shrink:0">${fmtTime(e.createdAt)}</span>
+      </div>
+      ${e.path ? `<div style="font-size:11px;color:var(--text3);margin-top:6px;font-family:monospace">${escHtml(e.method ?? '')} ${escHtml(e.path)}</div>` : ''}
+      ${hasStack ? `
+        <button onclick="toggleStack('${stackId}')" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--text3);font-size:11px;padding:3px 8px;cursor:pointer;margin-top:8px">▶ Stack trace</button>
+        <pre id="${stackId}" style="display:none;margin-top:8px;font-size:11px;color:var(--text2);background:var(--bg3);border-radius:6px;padding:10px;overflow-x:auto;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto">${escHtml(e.stack)}</pre>
+      ` : ''}
+    </div>`
+  }).join('')
 }
 
 // ── Scan manual ──────────────────────────────────
