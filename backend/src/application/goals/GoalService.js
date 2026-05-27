@@ -2,7 +2,6 @@
 const Goal                = require('../../domain/entities/Goal')
 const { ForbiddenError }  = require('../../domain/errors')
 const goalRepository      = require('../../infrastructure/repositories/GoalRepository')
-const prisma              = require('../../lib/prisma')
 const { sendPushToUser }  = require('../../services/pushService')
 
 /**
@@ -31,13 +30,8 @@ class GoalService {
     // 1. Validar dados (pode lançar ValidationError)
     const payload = Goal.validateCreate(body)
 
-    // 2. Verificar limite do plano — usa _count incluso na query de usuário
-    const user = await prisma.user.findUnique({
-      where:  { id: userId },
-      select: { plan: true, _count: { select: { goals: true } } },
-    })
-    const plan  = user?.plan ?? 'free'
-    const count = user?._count?.goals ?? 0
+    // 2. Verificar limite do plano — query isolada no repositório
+    const { plan, count } = await goalRepository.findUserPlanAndCount(userId)
     const limit = Goal.limitForPlan(plan)
 
     if (count >= limit) {

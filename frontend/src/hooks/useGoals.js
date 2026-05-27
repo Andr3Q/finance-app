@@ -15,6 +15,7 @@ const CACHE_TTL = 60_000 // 1 minuto
  * @returns {{
  *   goals: Goal[],
  *   loading: boolean,
+ *   error: Error|null,
  *   fetchGoals: (force?: boolean) => Promise<void>,
  *   createGoal: (data: object) => Promise<Goal>,
  *   updateGoal: (id: string, data: object) => Promise<Goal>,
@@ -24,6 +25,7 @@ const CACHE_TTL = 60_000 // 1 minuto
 export function useGoals() {
   const [goals,   setGoals]   = useState([])
   const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState(null)
 
   const fetchGoals = useCallback(async (force = false) => {
     if (!force) {
@@ -31,10 +33,13 @@ export function useGoals() {
       if (cached) { setGoals(cached); setLoading(false); return }
     }
     setLoading(true)
+    setError(null)
     try {
       const { data } = await goalsAPI.list()
       setCache(CACHE_KEY, data, CACHE_TTL)
       setGoals(data)
+    } catch (err) {
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -60,5 +65,5 @@ export function useGoals() {
     await fetchGoals(true)
   }, [fetchGoals])
 
-  return { goals, loading, fetchGoals, createGoal, updateGoal, deleteGoal }
+  return { goals, loading, error, fetchGoals, createGoal, updateGoal, deleteGoal }
 }
