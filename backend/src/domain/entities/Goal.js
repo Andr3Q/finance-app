@@ -28,7 +28,7 @@ class Goal {
       throw new ValidationError(`Título deve ter no máximo ${MAX_TITLE} caracteres.`, 'title')
 
     const parsed = parseFloat(targetAmount)
-    if (!parsed || parsed <= 0)
+    if (isNaN(parsed) || parsed <= 0)
       throw new ValidationError('Valor-alvo deve ser maior que zero.', 'targetAmount')
     if (parsed > MAX_AMOUNT)
       throw new ValidationError('Valor-alvo muito alto.', 'targetAmount')
@@ -68,6 +68,8 @@ class Goal {
 
     if (title !== undefined) {
       const t = String(title).trim()
+      if (!t)
+        throw new ValidationError('Título não pode ser vazio.', 'title')
       if (t.length > MAX_TITLE)
         throw new ValidationError(`Título deve ter no máximo ${MAX_TITLE} caracteres.`, 'title')
       payload.title = t
