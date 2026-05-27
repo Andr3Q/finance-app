@@ -194,6 +194,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <span class="pill p-load" id="p-trivy"><span class="dot"></span>Trivy</span>
     <span class="pill p-load" id="p-logins"><span class="dot"></span>Logins</span>
     <span class="pill p-load" id="p-mem"><span class="dot"></span>Memória</span>
+    <span class="pill p-load" id="p-apm"><span class="dot"></span>Performance</span>
   </div>
 </div>
 
@@ -525,6 +526,28 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="sr"><span class="sr-lbl">Latência DB</span><span class="sr-val" id="sys-dbms" style="color:var(--green)">—</span></div>
     <div class="sr"><span class="sr-lbl">Ambiente</span><span class="sr-val" style="color:var(--green)">production</span></div>
   </div>
+
+  <div class="slbl">Performance — APM (últimas 1h / 5min)</div>
+  <div class="g3">
+    <div class="card">
+      <div class="ctop" style="background:var(--blue)"></div>
+      <div class="clbl">Resposta P95</div>
+      <div class="cval" id="apm-p95" style="color:var(--blue)">—</div>
+      <div class="csub">95% das requisições abaixo deste tempo</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--red)"></div>
+      <div class="clbl">Erros 5xx (1h)</div>
+      <div class="cval" id="apm-err" style="color:var(--green)">—</div>
+      <div class="csub">erros internos do servidor</div>
+    </div>
+    <div class="card">
+      <div class="ctop" style="background:var(--green)"></div>
+      <div class="clbl">Req / minuto</div>
+      <div class="cval" id="apm-rpm" style="color:var(--green)">—</div>
+      <div class="csub">média dos últimos 5 minutos</div>
+    </div>
+  </div>
 </div>
 
 <!-- ══════════════════════════════════════════════ -->
@@ -747,6 +770,26 @@ function render(d) {
   $('sys-node').textContent       = d.nodeVersion || '—'
   pill('p-mem', heapPct>85?'err':heapPct>65?'warn':'ok', `Heap ${heapPct}%`)
 
+  // ── APM ──
+  if (d.apm) {
+    const { p95_ms, errors5xx, reqPerMin } = d.apm
+    $('apm-p95').textContent = p95_ms > 0 ? p95_ms + 'ms' : '—'
+    $('apm-p95').style.color = p95_ms > 2000 ? 'var(--red)' : p95_ms > 1000 ? 'var(--yellow)' : 'var(--blue)'
+    $('apm-err').textContent = errors5xx != null ? errors5xx : '—'
+    $('apm-err').style.color = errors5xx > 5 ? 'var(--red)' : errors5xx > 0 ? 'var(--yellow)' : 'var(--green)'
+    $('apm-rpm').textContent = reqPerMin > 0 ? reqPerMin : '—'
+    $('apm-rpm').style.color = 'var(--green)'
+    pill('p-apm', p95_ms > 2000 ? 'err' : p95_ms > 1000 ? 'warn' : 'ok',
+         `P95 ${p95_ms > 0 ? p95_ms + 'ms' : '—'}`)
+    // Toasts só na transição — evita spam a cada refresh de 30s
+    if (prevData && p95_ms > 2000 && (prevData.p95_ms ?? 0) <= 2000)
+      toast('⚠️ P95 acima de 2s — servidor lento', 'warn', 8000)
+    if (prevData && errors5xx > 5 && (prevData.errors5xx ?? 0) <= 5)
+      toast(`🔴 ${errors5xx} erros 5xx na última hora`, 'err', 8000)
+  } else {
+    pill('p-apm', 'warn', 'Performance —')
+  }
+
   // ── Security ──
   renderSec('npm',   d.security.npm,   'npm-ico',   'npm-time',   'npm-chip',   'npm-vulns',   'card-npm',   'p-npm',   'npm audit')
   renderSec('trivy', d.security.trivy, 'trivy-ico', 'trivy-time', 'trivy-chip', 'trivy-vulns', 'card-trivy', 'p-trivy', 'Trivy')
@@ -795,7 +838,13 @@ function render(d) {
   $('ov-sec').style.color    = npmOk && trivyOk ? 'var(--green)' : 'var(--red)'
   $('ov-sec-sub').textContent= 'npm + Trivy'
 
-  prevData = { failedLogins24h: fl, heapUsed: m.heapUsed, heapTotal: m.heapTotal }
+  prevData = {
+    failedLogins24h: fl,
+    heapUsed:   m.heapUsed,
+    heapTotal:  m.heapTotal,
+    p95_ms:     d.apm?.p95_ms    ?? 0,
+    errors5xx:  d.apm?.errors5xx ?? 0,
+  }
 }
 
 function renderSec(tool, data, icoId, timeId, chipId, vulnsId, cardId, pillId, label) {
