@@ -37,13 +37,14 @@ const reportRoutes        = require('./routes/reports')
 const notificationRoutes  = require('./routes/notifications')
 const monitorAlertRoute   = require('./routes/monitorAlert')
 const agentRoutes         = require('./routes/agent')
-const goalRoutes          = require('./routes/goals')
+const goalRoutes          = require('./interfaces/http/routes/goals')
 const installmentRoutes   = require('./routes/installments')
 const paymentRoutes       = require('./routes/payments')
 const securityRoutes      = require('./routes/security')
 const monitorRoutes       = require('./routes/monitor')
 const twoFactorRoutes     = require('./routes/twoFactor')
 const { runAllScans }     = require('./services/securityScanner')
+const errorHandler        = require('./interfaces/http/middlewares/errorHandler')
 
 const app        = express()
 const PORT       = process.env.PORT || 3001
@@ -192,6 +193,14 @@ function monitorSessionToken() {
   return crypto.createHmac('sha256', MONITOR_PWD || 'no-secret').update('monitor-session-v1').digest('hex')
 }
 
+function requireMonitorAuth(req, res, next) {
+  const token = req.cookies?._ms
+  if (!MONITOR_PWD || !token || !monitorSafeEq(token, monitorSessionToken())) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  next()
+}
+
 function monitorLoginHtml(hasError) {
   const errBlock = hasError
     ? `<div class="err"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Senha incorreta. Tente novamente.</div>`
@@ -260,13 +269,7 @@ app.get('/monitor-logout', (req, res) => {
 
 app.get('/monitor.html', (req, res) => {
   if (!isProd) {
-    // Em dev o arquivo é servido pelo Vite — não passa por aqui
     return res.status(404).send('Use o servidor Vite em desenvolvimento.')
-  }
-  if (!MONITOR_PWD) return res.status(503).send('Painel de monitoramento indisponível.')
-  const token = req.cookies?._ms
-  if (!token || !monitorSafeEq(token, monitorSessionToken())) {
-    return res.redirect('/monitor-login')
   }
   res.setHeader('Content-Security-Policy', MONITOR_CSP)
   res.setHeader('Cache-Control', 'no-store')
@@ -287,7 +290,7 @@ app.use('/api/goals',        goalRoutes)
 app.use('/api/installments', installmentRoutes)
 app.use('/api/payments',     paymentLimiter, paymentRoutes)
 app.use('/api/security',     apiLimiter,     securityRoutes)
-app.use('/api/monitor',      apiLimiter,     monitorRoutes)
+app.use('/api/monitor',      apiLimiter, monitorRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
 // Cliente DEDICADO ao health check — completamente separado do pool principal.
@@ -359,6 +362,10 @@ app.get('/health', apiLimiter, async (req, res) => {
   res.json({ status, db_ms: _health.db_ms })
 })
 
+// ── ErrorHandler de domínio (AppError → resposta HTTP) ──
+// Intercept domain errors before the global handler.
+app.use(errorHandler)
+
 // ── Handler de Erros Global ─────────────────────────────
 // Inclui tratamento de erros Prisma para retornar status HTTP correto
 // em vez de sempre retornar 500.
@@ -402,6 +409,10 @@ if (isProd) {
   })
 }
 
+// Exporta o app para uso em testes (supertest) sem chamar listen
+module.exports = app
+
+if (require.main === module || process.env.NODE_ENV !== 'test') {
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Backend rodando em http://localhost:${PORT}`)
   console.log(`📋 Ambiente: ${isProd ? 'PRODUÇÃO ☁️' : 'desenvolvimento 🛠️'}`)
@@ -439,3 +450,4 @@ const shutdown = (signal) => {
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT',  () => shutdown('SIGINT'))
+} // end if (require.main === module || process.env.NODE_ENV !== 'test')

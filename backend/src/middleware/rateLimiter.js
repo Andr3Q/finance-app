@@ -1,6 +1,7 @@
 const rateLimit = require('express-rate-limit')
 
-const opts = { standardHeaders: true, legacyHeaders: false }
+const skip = () => process.env.NODE_ENV === 'test'
+const opts = { standardHeaders: true, legacyHeaders: false, skip }
 
 // Limite geral de API: 200 req / 15 min por IP
 const apiLimiter = rateLimit({

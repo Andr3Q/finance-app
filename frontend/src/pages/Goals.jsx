@@ -1,17 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { analytics } from '../services/analytics.js'
 import GradCard from '../components/ui/GradCard.jsx'
-import { goalsAPI, transactionsAPI, agentAPI } from '../services/api.js'
+import { transactionsAPI, agentAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
+import { useGoals } from '../hooks/useGoals.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
-import { getCache, setCache, invalidateCache } from '../services/cache.js'
+import { getCache, setCache } from '../services/cache.js'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt, fmtDate } from '../utils/format.js'
-
-const CACHE_KEY     = 'goals:list'
 const CACHE_HISTORY = 'analytics:history'
 const CACHE_SUBS    = 'analytics:subs'
 const TTL_5MIN      = 5 * 60_000
@@ -234,10 +233,9 @@ function SubscriptionsList({ data, loading }) {
 }
 
 export default function Goals() {
-  const user                  = useUser()
-  const navigate              = useNavigate()
-  const [goals,   setGoals]   = useState([])
-  const [loading, setLoading] = useState(true)
+  const user     = useUser()
+  const navigate = useNavigate()
+  const { goals, loading, fetchGoals, createGoal, updateGoal, deleteGoal } = useGoals()
   const [modal,        setModal]        = useState(null)
   const [depositGoal,  setDepositGoal]  = useState(null)
   const [saving,       setSaving]       = useState(false)
@@ -266,22 +264,6 @@ export default function Goals() {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 3500)
   }
-
-  const fetchGoals = useCallback(async (force = false) => {
-    if (!force) {
-      const cached = getCache(CACHE_KEY)
-      if (cached) { setGoals(cached); setLoading(false); return }
-    }
-    try {
-      const { data } = await goalsAPI.list()
-      setCache(CACHE_KEY, data, 60_000)
-      setGoals(data)
-    } catch (err) {
-      if (err.response) showToast('Erro ao carregar metas.', false)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
   useEffect(() => {
     fetchGoals()
@@ -319,16 +301,14 @@ export default function Goals() {
     setSaving(true)
     try {
       if (modal?.id) {
-        await goalsAPI.update(modal.id, form)
+        await updateGoal(modal.id, form)
         showToast('Meta atualizada!')
       } else {
-        await goalsAPI.create(form)
+        await createGoal(form)
         analytics.track('goal_created', { targetAmount: form.targetAmount })
         showToast('Meta criada!')
       }
       setModal(null)
-      invalidateCache(CACHE_KEY)
-      fetchGoals(true)
     } catch (err) {
       if (err.response?.data?.limitReached) {
         analytics.track('limit_reached', { feature: 'goals' })
@@ -347,13 +327,11 @@ export default function Goals() {
     setSaving(true)
     try {
       const newAmount = depositGoal.currentAmount + amount
-      await goalsAPI.update(depositGoal.id, { currentAmount: newAmount })
+      await updateGoal(depositGoal.id, { currentAmount: newAmount })
       const done = newAmount >= depositGoal.targetAmount
       analytics.track('goal_deposit_made', { amount, goalReached: done })
       showToast(done ? 'Meta atingida! Parabéns!' : 'Depósito registrado!')
       setDepositGoal(null)
-      invalidateCache(CACHE_KEY)
-      fetchGoals(true)
     } catch (err) {
       showToast(err.response?.data?.error || 'Erro ao registrar depósito.', false)
     } finally {
@@ -364,10 +342,8 @@ export default function Goals() {
   const handleDelete = async (id) => {
     if (!window.confirm('Remover esta meta?')) return
     try {
-      await goalsAPI.remove(id)
+      await deleteGoal(id)
       showToast('Meta removida.')
-      invalidateCache(CACHE_KEY)
-      fetchGoals(true)
     } catch {
       showToast('Erro ao remover meta.', false)
     }
