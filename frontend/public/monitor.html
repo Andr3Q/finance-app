@@ -22,14 +22,14 @@
   /* NR Teal — accent interativo */
   --blue:#007e8a;--bbg:rgba(0,126,138,0.12);--bbrd:rgba(0,126,138,0.28);
   --r:3px;--rs:2px;
-  --tab-h:48px;--header-h:56px;
+  --header-h:48px;--sidebar-w:220px;
 }
 html{font-size:15px;-webkit-tap-highlight-color:transparent}
 body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;line-height:1.5}
 
 /* ── Header ── */
 .hdr{background:var(--bg2);border-bottom:1px solid var(--border2);position:sticky;top:0;z-index:200}
-.hdr-inner{max-width:1300px;margin:0 auto;display:flex;align-items:center;gap:10px;height:var(--header-h);padding:0 16px}
+.hdr-inner{max-width:none;margin:0;display:flex;align-items:center;gap:10px;height:var(--header-h);padding:0 16px}
 .hdr-logo{font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;letter-spacing:0.2px}
 .hdr-logo em{color:var(--blue);font-style:normal}
 .live-badge{background:rgba(0,126,138,0.18);border:1px solid var(--bbrd);border-radius:var(--r);color:var(--blue);font-size:10px;font-weight:700;padding:2px 7px;letter-spacing:0.5px}
@@ -42,30 +42,33 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
 .btn-rfr.spin svg{animation:rot .6s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
 
-/* ── Status strip ── */
-.sstip{background:var(--bg2);border-bottom:1px solid var(--border2);padding:0 16px;overflow-x:auto;scrollbar-width:none}
-.sstip::-webkit-scrollbar{display:none}
-.sstip-inner{max-width:1300px;margin:0 auto;display:flex;gap:6px;padding:8px 0;white-space:nowrap}
-.pill{display:inline-flex;align-items:center;gap:5px;background:rgba(0,126,138,0.08);border:1px solid var(--border2);border-radius:var(--r);padding:4px 10px 4px 8px;font-size:11px;font-weight:700;cursor:default;transition:border-color .3s}
+/* ── Sidebar layout ── */
+.app-layout{display:flex;height:calc(100vh - var(--header-h))}
+.sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border2);position:sticky;top:var(--header-h);height:calc(100vh - var(--header-h));overflow-y:auto;overflow-x:hidden;scrollbar-width:none;display:flex;flex-direction:column;padding:8px 0 16px;z-index:150}
+.sidebar::-webkit-scrollbar{display:none}
+.sb-section{font-size:9px;font-weight:700;color:var(--text3);letter-spacing:1px;padding:14px 16px 4px;text-transform:uppercase}
+.sb-status{display:flex;flex-direction:column;gap:2px;padding:4px 10px 8px}
+.sb-toggle{display:none;background:none;border:none;color:var(--text2);cursor:pointer;padding:4px;margin-right:4px;align-items:center}
+/* ── Status pills (sidebar) ── */
+.pill{display:flex;align-items:center;gap:7px;background:transparent;border:none;border-radius:0;padding:4px 6px;font-size:11px;font-weight:600;cursor:default;transition:color .3s}
 .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s,box-shadow .3s}
-.p-ok{border-color:var(--gbrd)}.p-ok .dot{background:var(--green);box-shadow:0 0 5px var(--green)}
-.p-warn{border-color:var(--ybrd)}.p-warn .dot{background:var(--yellow);box-shadow:0 0 5px var(--yellow)}
-.p-err{border-color:var(--rbrd)}.p-err .dot{background:var(--red);box-shadow:0 0 5px var(--red);animation:blk 1s ease infinite}
-.p-load .dot{background:var(--text3)}
+.p-ok{color:var(--green)}.p-ok .dot{background:var(--green);box-shadow:0 0 5px var(--green)}
+.p-warn{color:var(--yellow)}.p-warn .dot{background:var(--yellow);box-shadow:0 0 5px var(--yellow)}
+.p-err{color:var(--red)}.p-err .dot{background:var(--red);box-shadow:0 0 5px var(--red);animation:blk 1s ease infinite}
+.p-load{color:var(--text3)}.p-load .dot{background:var(--text3)}
 @keyframes blk{0%,100%{opacity:1}50%{opacity:.25}}
-
-/* ── Tabs ── */
-.tabs{background:var(--bg2);border-bottom:1px solid var(--border2);position:sticky;top:var(--header-h);z-index:190;overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tabs-inner{max-width:1300px;margin:0 auto;display:flex;padding:0 16px;min-width:max-content}
-.tab{height:var(--tab-h);display:flex;align-items:center;gap:7px;padding:0 14px;font-size:13px;font-weight:600;color:var(--text3);letter-spacing:0.2px;cursor:pointer;border-bottom:2px solid transparent;transition:color .2s,border-color .2s,background .2s;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none}
-.tab:hover{color:var(--text2);background:rgba(0,126,138,0.06)}
-.tab.active{color:var(--text);border-bottom-color:var(--blue)}
+/* ── Nav tabs (sidebar) ── */
+.tab{height:auto;display:flex;align-items:center;gap:10px;padding:9px 16px;font-size:13px;font-weight:600;color:var(--text3);letter-spacing:0.1px;cursor:pointer;border-left:2px solid transparent;border-top:none;border-right:none;border-bottom:none;background:none;width:100%;justify-content:flex-start;border-radius:0;transition:color .15s,background .15s,border-color .15s;white-space:nowrap}
+.tab:hover{color:var(--text2);background:rgba(0,126,138,0.07);border-left-color:rgba(0,126,138,0.4)}
+.tab.active{color:var(--text);background:rgba(0,126,138,0.12);border-left-color:var(--blue)}
 .tab-ico{display:flex;align-items:center;flex-shrink:0}
+.tab-lbl{flex:1}
 .tab-badge{background:var(--rbg);border:1px solid var(--rbrd);border-radius:var(--r);color:var(--red);font-size:10px;font-weight:800;padding:1px 5px;line-height:1.4}
+/* ── Content area ── */
+.content{flex:1;height:calc(100vh - var(--header-h));overflow-y:auto;overflow-x:hidden}
 
 /* ── Screens ── */
-.screen{display:none;max-width:1300px;margin:0 auto;padding:20px 18px 56px;animation:fadeIn .15s ease}
+.screen{display:none;max-width:1100px;margin:0 auto;padding:24px 24px 64px;animation:fadeIn .15s ease}
 .screen.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
@@ -150,25 +153,50 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
 @keyframes tout{to{opacity:0;transform:translateX(16px)}}
 
 /* ── Overview KPI cards ── */
-.ov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.ov-grid{display:grid;gap:12px}
 .ov-card{background:var(--bg3);border:1px solid var(--border2);border-left:2px solid var(--border2);border-radius:var(--r);padding:16px 14px 16px 16px;display:block}
 .ov-lbl{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
 .ov-val{font-size:24px;font-weight:300;line-height:1.2;margin-top:6px}
 .ov-sub{font-size:11px;color:var(--text3);margin-top:3px}
 
+/* ── Asymmetric grids ── */
+#sc-overview .ov-grid{grid-template-columns:2fr 1fr 1fr;grid-template-areas:"users txday sec" "income uptime dbms"}
+#sc-overview .ov-grid .ov-card:nth-child(1){grid-area:users}
+#sc-overview .ov-grid .ov-card:nth-child(2){grid-area:txday}
+#sc-overview .ov-grid .ov-card:nth-child(3){grid-area:sec}
+#sc-overview .ov-grid .ov-card:nth-child(4){grid-area:income}
+#sc-overview .ov-grid .ov-card:nth-child(5){grid-area:uptime}
+#sc-overview .ov-grid .ov-card:nth-child(6){grid-area:dbms}
+#sc-overview .ov-grid .ov-card:nth-child(1) .ov-val,
+#sc-overview .ov-grid .ov-card:nth-child(4) .ov-val{font-size:32px}
+#sc-users .ga-users{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+#sc-users .ga-users .g4{grid-template-columns:1fr 1fr}
+#sc-errors .g3 .cval{font-size:32px}
+#sc-system .g3 .cval{font-size:32px}
+
 /* ── Responsive ── */
 @media(max-width:860px){
   .g4{grid-template-columns:repeat(2,1fr)}
   .g3{grid-template-columns:repeat(2,1fr)}
-  .ov-grid{grid-template-columns:repeat(2,1fr)}
+  #sc-overview .ov-grid{grid-template-columns:1fr 1fr;grid-template-areas:"users txday" "sec income" "uptime dbms"}
+  #sc-users .ga-users{grid-template-columns:1fr}
+}
+@media(max-width:768px){
+  .sb-toggle{display:flex}
+  .app-layout{flex-direction:column;height:auto}
+  .sidebar{position:fixed;left:-100%;top:0;bottom:0;width:240px;height:100vh;z-index:300;transition:left .25s ease;padding-top:52px}
+  .sidebar.sb-open{left:0;box-shadow:4px 0 24px rgba(0,14,14,.8)}
+  .sidebar.sb-open::after{content:'';position:fixed;inset:0;z-index:-1;background:rgba(0,0,0,.5)}
+  .content{height:auto;padding-bottom:20px}
 }
 @media(max-width:540px){
   .g4,.g3,.g2{grid-template-columns:1fr}
-  .ov-grid{grid-template-columns:1fr}
+  #sc-overview .ov-grid{grid-template-columns:1fr;grid-template-areas:"users" "txday" "sec" "income" "uptime" "dbms"}
   .hdr-clock{display:none}
   #toasts{width:calc(100vw - 28px)}
   .screen{padding:14px 12px 68px}
   .ltbl th:nth-child(4),.ltbl td:nth-child(4){display:none}
+  #sc-users .ga-users{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -177,6 +205,9 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
 <!-- ── Header ── -->
 <div class="hdr">
   <div class="hdr-inner">
+    <button class="sb-toggle" id="sb-toggle" onclick="toggleSidebar()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
     <div class="hdr-logo"><em><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><circle cx="12" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg></em> Finance Monitor</div>
     <div class="live-badge">LIVE</div>
     <div class="hdr-space"></div>
@@ -191,9 +222,24 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
   </div>
 </div>
 
-<!-- ── Status strip ── -->
-<div class="sstip">
-  <div class="sstip-inner">
+<div id="toasts"></div>
+
+<div class="app-layout">
+
+<!-- ── Sidebar ── -->
+<nav class="sidebar" id="sidebar">
+  <div class="sb-section">NAVEGAÇÃO</div>
+  <button class="tab active" onclick="goTab('overview')" id="tab-overview"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg></span><span class="tab-lbl">Visão Geral</span></button>
+  <button class="tab" onclick="goTab('users')" id="tab-users"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="tab-lbl">Usuários</span></button>
+  <button class="tab" onclick="goTab('txs')" id="tab-txs"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span><span class="tab-lbl">Transações</span></button>
+  <button class="tab" onclick="goTab('app')" id="tab-app"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span><span class="tab-lbl">App & Dados</span></button>
+  <button class="tab" onclick="goTab('security')" id="tab-security"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span class="tab-lbl">Segurança</span></button>
+  <button class="tab" onclick="goTab('system')" id="tab-system"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="14" x2="4" y2="14"/></svg></span><span class="tab-lbl">Sistema</span></button>
+  <button class="tab" onclick="goTab('access')" id="tab-access"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><span class="tab-lbl">Acessos</span></button>
+  <button class="tab" onclick="goTab('errors')" id="tab-errors"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span><span class="tab-lbl">Erros</span></button>
+
+  <div class="sb-section">STATUS</div>
+  <div class="sb-status">
     <span class="pill p-load" id="p-api"><span class="dot"></span>API</span>
     <span class="pill p-load" id="p-db"><span class="dot"></span>Database</span>
     <span class="pill p-load" id="p-npm"><span class="dot"></span>npm audit</span>
@@ -203,23 +249,9 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
     <span class="pill p-load" id="p-apm"><span class="dot"></span>Performance</span>
     <span class="pill p-load" id="p-errors"><span class="dot"></span>Erros</span>
   </div>
-</div>
+</nav>
 
-<!-- ── Tabs ── -->
-<div class="tabs">
-  <div class="tabs-inner">
-    <button class="tab active" onclick="goTab('overview')" id="tab-overview"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="18" y="3" width="4" height="18"/><rect x="10" y="8" width="4" height="13"/><rect x="2" y="13" width="4" height="8"/></svg></span>Visão Geral</button>
-    <button class="tab" onclick="goTab('users')"    id="tab-users">   <span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Usuários</button>
-    <button class="tab" onclick="goTab('txs')"      id="tab-txs">     <span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>Transações</button>
-    <button class="tab" onclick="goTab('app')"      id="tab-app">     <span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>App & Dados</button>
-    <button class="tab" onclick="goTab('security')" id="tab-security"><span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>Segurança</button>
-    <button class="tab" onclick="goTab('system')"   id="tab-system">  <span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="2" x2="9" y2="4"/><line x1="15" y1="2" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="22"/><line x1="15" y1="20" x2="15" y2="22"/><line x1="20" y1="9" x2="22" y2="9"/><line x1="20" y1="14" x2="22" y2="14"/><line x1="2" y1="9" x2="4" y2="9"/><line x1="2" y1="14" x2="4" y2="14"/></svg></span>Sistema</button>
-    <button class="tab" onclick="goTab('access')"   id="tab-access">  <span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span>Acessos</button>
-    <button class="tab" onclick="goTab('errors')"   id="tab-errors">  <span class="tab-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>Erros</button>
-  </div>
-</div>
-
-<div id="toasts"></div>
+<main class="content">
 
 <!-- ══════════════════════════════════════════════ -->
 <!-- ── TELA 8 — Erros ── -->
@@ -296,7 +328,7 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
         <span class="ov-lbl">Entradas no mês</span>
         <span class="card-ico" style="color:var(--green)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
       </div>
-      <div class="ov-val" id="ov-income" style="color:var(--green);font-size:20px">—</div>
+      <div class="ov-val" id="ov-income" style="color:var(--green)">—</div>
       <div class="ov-sub" id="ov-expense" style="color:var(--red)">—</div>
     </div>
     <div class="ov-card" style="border-left-color:var(--blue)">
@@ -331,59 +363,58 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
 <!-- ══════════════════════════════════════════════ -->
 <div class="screen" id="sc-users">
 
-  <div class="slbl">Contagem por plano</div>
-  <div class="g4">
+  <div class="ga-users">
     <div class="card" style="border-left-color:var(--blue)">
-      <div class="card-head">
-        <span class="clbl">Total</span>
-        <span class="card-ico" style="color:var(--blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>
+      <div class="pbar-wrap">
+        <div class="pbar-row">
+          <span class="pbar-lbl" style="color:var(--text2)">Free</span>
+          <div class="pbar-track"><div class="pbar-fill" id="bar-free" style="background:var(--text3);width:0%"></div></div>
+          <span class="pbar-n" id="cnt-free" style="color:var(--text2)">—</span>
+        </div>
+        <div class="pbar-row">
+          <span class="pbar-lbl" style="color:var(--green)">Pro</span>
+          <div class="pbar-track"><div class="pbar-fill" id="bar-pro" style="background:var(--green);width:0%"></div></div>
+          <span class="pbar-n" id="cnt-pro" style="color:var(--green)">—</span>
+        </div>
+        <div class="pbar-row">
+          <span class="pbar-lbl" style="color:var(--purple)">Elite</span>
+          <div class="pbar-track"><div class="pbar-fill" id="bar-elite" style="background:var(--purple);width:0%"></div></div>
+          <span class="pbar-n" id="cnt-elite" style="color:var(--purple)">—</span>
+        </div>
       </div>
-      <div class="cval" id="u-total">—</div>
-      <div class="csub" id="u-sub">—</div>
     </div>
-    <div class="card" style="border-left-color:var(--text3)">
-      <div class="card-head">
-        <span class="clbl">Free</span>
-        <span class="card-ico" style="color:var(--text2)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+    <div class="g4">
+      <div class="card" style="border-left-color:var(--blue)">
+        <div class="card-head">
+          <span class="clbl">Total</span>
+          <span class="card-ico" style="color:var(--blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span>
+        </div>
+        <div class="cval" id="u-total">—</div>
+        <div class="csub" id="u-sub">—</div>
       </div>
-      <div class="cval" id="u-free" style="color:var(--text2)">—</div>
-      <div class="csub" id="u-free-pct">—</div>
-    </div>
-    <div class="card" style="border-left-color:var(--green)">
-      <div class="card-head">
-        <span class="clbl">Pro</span>
-        <span class="card-ico" style="color:var(--green)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <div class="card" style="border-left-color:var(--text3)">
+        <div class="card-head">
+          <span class="clbl">Free</span>
+          <span class="card-ico" style="color:var(--text2)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+        </div>
+        <div class="cval" id="u-free" style="color:var(--text2)">—</div>
+        <div class="csub" id="u-free-pct">—</div>
       </div>
-      <div class="cval" id="u-pro" style="color:var(--green)">—</div>
-      <div class="csub" id="u-pro-pct">—</div>
-    </div>
-    <div class="card" style="border-left-color:var(--purple)">
-      <div class="card-head">
-        <span class="clbl">Elite</span>
-        <span class="card-ico" style="color:var(--purple)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <div class="card" style="border-left-color:var(--green)">
+        <div class="card-head">
+          <span class="clbl">Pro</span>
+          <span class="card-ico" style="color:var(--green)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+        </div>
+        <div class="cval" id="u-pro" style="color:var(--green)">—</div>
+        <div class="csub" id="u-pro-pct">—</div>
       </div>
-      <div class="cval" id="u-elite" style="color:var(--purple)">—</div>
-      <div class="csub" id="u-elite-pct">—</div>
-    </div>
-  </div>
-
-  <div class="slbl">Distribuição de planos</div>
-  <div class="card" style="border-left-color:var(--blue)">
-    <div class="pbar-wrap">
-      <div class="pbar-row">
-        <span class="pbar-lbl" style="color:var(--text2)">Free</span>
-        <div class="pbar-track"><div class="pbar-fill" id="bar-free" style="background:var(--text3);width:0%"></div></div>
-        <span class="pbar-n" id="cnt-free" style="color:var(--text2)">—</span>
-      </div>
-      <div class="pbar-row">
-        <span class="pbar-lbl" style="color:var(--green)">Pro</span>
-        <div class="pbar-track"><div class="pbar-fill" id="bar-pro" style="background:var(--green);width:0%"></div></div>
-        <span class="pbar-n" id="cnt-pro" style="color:var(--green)">—</span>
-      </div>
-      <div class="pbar-row">
-        <span class="pbar-lbl" style="color:var(--purple)">Elite</span>
-        <div class="pbar-track"><div class="pbar-fill" id="bar-elite" style="background:var(--purple);width:0%"></div></div>
-        <span class="pbar-n" id="cnt-elite" style="color:var(--purple)">—</span>
+      <div class="card" style="border-left-color:var(--purple)">
+        <div class="card-head">
+          <span class="clbl">Elite</span>
+          <span class="card-ico" style="color:var(--purple)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+        </div>
+        <div class="cval" id="u-elite" style="color:var(--purple)">—</div>
+        <div class="csub" id="u-elite-pct">—</div>
       </div>
     </div>
   </div>
@@ -652,6 +683,10 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
     </div>
   </div>
 </div>
+
+</main>
+</div>
+<!-- END APP-LAYOUT -->
 
 <script>
 'use strict'
@@ -1075,6 +1110,11 @@ async function doScan() {
     toast('Erro de rede.', 'err')
     btn.disabled = false
   }
+}
+
+// ── Sidebar toggle (mobile) ──────────────────────
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('sb-open')
 }
 </script>
 </body>
