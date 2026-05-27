@@ -33,6 +33,9 @@ router.get('/dashboard', async (req, res) => {
       recentErrors,
       errorCount24h,
       errorCount7d,
+      activeUsers24h,
+      newUsersToday,
+      errorsBySource,
     ] = await Promise.all([
       prisma.user.groupBy({ by: ['plan'], _count: { _all: true } }),
       prisma.transaction.count({ where: { date: { gte: startOfDay },   archived: false } }),
@@ -64,6 +67,18 @@ router.get('/dashboard', async (req, res) => {
       }),
       prisma.errorLog.count({ where: { createdAt: { gte: last24h } } }),
       prisma.errorLog.count({ where: { createdAt: { gte: last7d  } } }),
+      // ── Métricas de engajamento ───────────────────────────
+      prisma.loginAudit.findMany({
+        where: { success: true, createdAt: { gte: last24h } },
+        select: { email: true },
+        distinct: ['email'],
+      }).then(r => r.length),                        // activeUsers24h
+      prisma.user.count({ where: { createdAt: { gte: startOfDay } } }), // newUsersToday
+      prisma.errorLog.groupBy({
+        by: ['source'],
+        _count: { _all: true },
+        where: { createdAt: { gte: last24h } },
+      }),                                            // errorsBySource
     ])
 
     // Distribuição de planos
@@ -132,10 +147,14 @@ router.get('/dashboard', async (req, res) => {
         agent:   (l.userAgent || '').slice(0, 60),
         at:      l.createdAt,
       })),
+      activeUsers24h,
+      newUsersToday,
       errors: {
         count24h: errorCount24h,
         count7d:  errorCount7d,
         recent:   recentErrors,
+        backend:  errorsBySource.find(e => e.source === 'backend')?._count._all  ?? 0,
+        frontend: errorsBySource.find(e => e.source === 'frontend')?._count._all ?? 0,
       },
     })
   } catch (err) {
