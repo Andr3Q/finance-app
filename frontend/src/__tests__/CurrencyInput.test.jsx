@@ -61,7 +61,8 @@ describe('CurrencyInput', () => {
 
   it('não atualiza display quando field está focado e value externo muda', () => {
     const onChange = vi.fn()
-    const { input, rerender } = render(<CurrencyInput value={100} onChange={onChange} />)
+    const { rerender } = render(<CurrencyInput value={100} onChange={onChange} />)
+    const input = screen.getByRole('textbox')
     fireEvent.focus(input)
     rerender(<CurrencyInput value={200} onChange={onChange} />)
     expect(input.value).toBe('100,00')
@@ -69,7 +70,8 @@ describe('CurrencyInput', () => {
 
   it('atualiza display quando field não está focado e value externo muda', () => {
     const onChange = vi.fn()
-    const { input, rerender } = render(<CurrencyInput value={100} onChange={onChange} />)
+    const { rerender } = render(<CurrencyInput value={100} onChange={onChange} />)
+    const input = screen.getByRole('textbox')
     rerender(<CurrencyInput value={250} onChange={onChange} />)
     expect(input.value).toBe('250,00')
   })

@@ -34,7 +34,7 @@ describe('PasswordStrength', () => {
 
   it('renderiza 4 barras de indicador', () => {
     const { container } = render(<PasswordStrength password="Password1!" />)
-    const bars = container.querySelectorAll('div > div > div')
+    const bars = container.querySelectorAll('div > div > div > div')
     expect(bars.length).toBe(4)
   })
 })
