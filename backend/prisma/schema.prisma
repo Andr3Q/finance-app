@@ -216,3 +216,25 @@ model LoginAudit {
   @@index([ip, createdAt])
   @@map("login_audits")
 }
+
+// ── Tabela: error_logs ──────────────────────────────────
+// Rastreamento de erros in-house — captura exceções do backend (5xx)
+// e erros JavaScript do frontend (window.onerror / unhandledrejection).
+// Limpeza automática: erros com > 30 dias são deletados diariamente.
+model ErrorLog {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  source     String   // 'backend' | 'frontend'
+  message    String
+  stack      String?  @db.Text
+  path       String?
+  method     String?
+  statusCode Int?
+  requestId  String?
+  userId     String?  // opcional — pode ser null para usuários não autenticados
+  extra      Json?    // dados flexíveis: filename, line, col (erros frontend)
+
+  @@index([createdAt])
+  @@index([source, createdAt])
+  @@map("error_logs")
+}
