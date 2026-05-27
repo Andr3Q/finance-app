@@ -1,24 +1,180 @@
-name: Deploy
+# ══════════════════════════════════════════════════════════════════
+# CD — Deploy para Cloud Run
+#
+# Dispara em:
+#   • Push na branch main (= merge de PR aprovada)
+#   • workflow_dispatch (deploy manual, inclusive com flag de rollback)
+#
+# Fluxo obrigatório antes do deploy:
+#   test-backend → test-frontend → build-check → test-e2e
+#                                                      ↓
+#                                              [ deploy ] → health check → ✅
+#                                                                       ↓ falhou
+#                                                                  [ rollback ]
+#
+# Segredos necessários (configurar em Settings > Secrets > Actions):
+#   GCP_SA_KEY  — JSON da Service Account com roles:
+#                 roles/run.developer, roles/storage.objectAdmin,
+#                 roles/iam.serviceAccountUser, roles/cloudbuild.builds.builder
+# ══════════════════════════════════════════════════════════════════
+name: CD — Deploy para Cloud Run
 
-# Dispara automaticamente a cada push na branch main
 on:
   push:
     branches: [main]
 
-  # Permite rodar manualmente pelo painel do GitHub Actions
   workflow_dispatch:
+    inputs:
+      modo:
+        description: 'Modo de execução'
+        required: true
+        type: choice
+        default: deploy
+        options:
+          - deploy          # Deploy completo com testes
+          - rollback        # Reverte para a revisão anterior sem testes
+          - deploy-skip-e2e # Deploy direto (emergência) — pula E2E
 
-# Garante que só um deploy roda por vez — o mais recente cancela o anterior
+# Só um deploy por vez — o mais recente cancela o anterior
 concurrency:
   group: deploy-production
   cancel-in-progress: true
 
+# ─────────────────────────────────────────────────────────────────
+# JOBS DE TESTE (re-executados antes de todo deploy)
+# Cópia intencional do ci.yml — o CD nunca confia em um CI externo.
+# "Deploy nunca sobe código não-testado neste momento."
+# ─────────────────────────────────────────────────────────────────
+
 jobs:
-  deploy:
-    name: Deploy para Cloud Run
+  # ── 1. Testes Backend ────────────────────────────────────────
+  test-backend:
+    name: 🧪 Backend · Jest
     runs-on: ubuntu-latest
+    if: github.event.inputs.modo != 'rollback'
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm test
+        env:
+          NODE_ENV: test
+
+  # ── 2. Testes Frontend ───────────────────────────────────────
+  test-frontend:
+    name: 🧪 Frontend · Vitest
+    runs-on: ubuntu-latest
+    if: github.event.inputs.modo != 'rollback'
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run test:run
+
+  # ── 3. Build de Produção ─────────────────────────────────────
+  build-check:
+    name: 🏗️ Build de Produção
+    runs-on: ubuntu-latest
+    if: github.event.inputs.modo != 'rollback'
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  # ── 4. Testes E2E ────────────────────────────────────────────
+  test-e2e:
+    name: 🎭 E2E · Playwright
+    runs-on: ubuntu-latest
+    needs: [test-frontend, build-check]
+    # Pula apenas em rollback ou deploy-skip-e2e (emergência)
+    if: |
+      github.event.inputs.modo != 'rollback' &&
+      github.event.inputs.modo != 'deploy-skip-e2e'
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm ci
+        working-directory: frontend
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-chromium-${{ runner.os }}-
+      - name: Instalar Chromium (sem cache)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Instalar system deps (com cache)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npm run test:e2e
+        env:
+          CI: true
+      - name: Upload relatório (em falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────
+  # 5. DEPLOY — só roda se TODOS os testes passarem
+  # ─────────────────────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy · Cloud Run
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend, test-e2e]
+    environment: production
+
+    # Roda se:
+    #   a) todos os jobs de teste passaram (push normal ou deploy manual), OU
+    #   b) modo rollback (sem testes, revertendo para revisão anterior)
+    if: |
+      always() && (
+        (
+          needs.test-backend.result == 'success' &&
+          needs.test-frontend.result == 'success' &&
+          (needs.test-e2e.result == 'success' || needs.test-e2e.result == 'skipped')
+        ) ||
+        github.event.inputs.modo == 'rollback'
+      )
+
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      PROJECT:      financaspro-2024
+      SERVICE:      finance-app
+      REGION:       southamerica-east1
+      HEALTH_URL:   https://finance-app-1042158013294.southamerica-east1.run.app/health
 
     steps:
       - name: Checkout
@@ -32,9 +188,94 @@ jobs:
       - name: Configurar Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Deploy para Cloud Run
+      # ── ROLLBACK (modo manual) ──────────────────────────────
+      - name: Rollback para revisão anterior
+        if: github.event.inputs.modo == 'rollback'
         run: |
-          gcloud run deploy finance-app \
-            --source . \
-            --region southamerica-east1 \
+          echo "🔄 Iniciando rollback..."
+          PREV=$(gcloud run revisions list \
+            --service "$SERVICE" --region "$REGION" \
+            --format="value(name)" \
+            --sort-by="~createTime" \
+            --limit=2 | tail -1)
+
+          if [[ -z "$PREV" ]]; then
+            echo "❌ Nenhuma revisão anterior encontrada."
+            exit 1
+          fi
+
+          echo "⏪ Revertendo para: $PREV"
+          gcloud run services update-traffic "$SERVICE" \
+            --region "$REGION" \
+            --to-revisions="${PREV}=100" \
             --quiet
+
+          echo "✅ Rollback concluído → $PREV (100% do tráfego)"
+
+      # ── DEPLOY NORMAL ──────────────────────────────────────
+      - name: Capturar revisão atual (para rollback em falha)
+        if: github.event.inputs.modo != 'rollback'
+        id: current-revision
+        run: |
+          CURRENT=$(gcloud run services describe "$SERVICE" \
+            --region "$REGION" \
+            --format="value(status.latestReadyRevisionName)" 2>/dev/null || echo "")
+          echo "name=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "📌 Revisão atual: ${CURRENT:-nenhuma}"
+
+      - name: Deploy para Cloud Run
+        if: github.event.inputs.modo != 'rollback'
+        run: |
+          echo "🚀 Iniciando deploy..."
+          gcloud run deploy "$SERVICE" \
+            --source . \
+            --region "$REGION" \
+            --quiet
+          echo "✅ Deploy enviado — aguardando health check..."
+
+      - name: Health check (3 tentativas · 20s de intervalo)
+        if: github.event.inputs.modo != 'rollback'
+        id: health-check
+        run: |
+          MAX=3; WAIT=20; OK=false
+          for i in $(seq 1 $MAX); do
+            echo "🏥 Health check $i/$MAX → $HEALTH_URL"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+              --max-time 15 "$HEALTH_URL" || echo "000")
+            echo "   HTTP $STATUS"
+            if [[ "$STATUS" == "200" ]]; then
+              echo "✅ Serviço saudável!"
+              OK=true
+              break
+            fi
+            [[ $i -lt $MAX ]] && echo "   Aguardando ${WAIT}s..." && sleep $WAIT
+          done
+          $OK || { echo "FAILED=true" >> "$GITHUB_OUTPUT"; exit 1; }
+
+      - name: Rollback automático (health check falhou)
+        if: failure() && steps.health-check.outputs.FAILED == 'true' && steps.current-revision.outputs.name != ''
+        run: |
+          PREV="${{ steps.current-revision.outputs.name }}"
+          echo "🔄 Health check falhou — revertendo para $PREV"
+          gcloud run services update-traffic "$SERVICE" \
+            --region "$REGION" \
+            --to-revisions="${PREV}=100" \
+            --quiet
+          echo "✅ Rollback automático concluído → $PREV"
+          exit 1   # garante que o job seja marcado como falho
+
+      - name: Resumo do deploy
+        if: success() && github.event.inputs.modo != 'rollback'
+        run: |
+          NEW=$(gcloud run services describe "$SERVICE" \
+            --region "$REGION" \
+            --format="value(status.latestReadyRevisionName)")
+          echo "## ✅ Deploy concluído" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Serviço** | \`$SERVICE\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Revisão** | \`$NEW\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Região** | \`$REGION\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **URL** | $HEALTH_URL |" >> "$GITHUB_STEP_SUMMARY"

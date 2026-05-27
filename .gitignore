@@ -52,6 +52,13 @@ backend/.trivy-cache/
 coverage/
 .nyc_output/
 
+# ── Playwright (artefatos locais — CI usa upload-artifact) ──────
+playwright-report/
+test-results/
+
+# ── Claude Code (configuração local da IDE) ─────────────────────
+.claude/
+
 # ── Protótipos / assets gerados ───────────────────────
 frontend/financaspro-v*.html
 wave-preview.html

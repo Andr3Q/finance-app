@@ -1,0 +1,176 @@
+# ══════════════════════════════════════════════════════════════════
+# CI — Testes e Qualidade
+#
+# Dispara em:
+#   • Push em qualquer branch (exceto main)
+#   • Pull Request aberta/atualizada com destino main
+#
+# Jobs:
+#   1. test-backend  — Jest (201 testes unitários)
+#   2. test-frontend — Vitest (141 testes unitários)
+#   3. build-check   — Vite build de produção
+#   4. test-e2e      — Playwright (91 testes E2E) ← depende de 2 e 3
+#
+# Se QUALQUER job falhar → PR não pode ser mergeada (Branch Protection).
+# ══════════════════════════════════════════════════════════════════
+name: CI — Testes e Qualidade
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 1. TESTES BACKEND — Jest
+  # ─────────────────────────────────────────────────────────────
+  test-backend:
+    name: 🧪 Backend · Jest (201 testes)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Rodar testes
+        run: npm test
+        env:
+          NODE_ENV: test
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. TESTES FRONTEND — Vitest
+  # ─────────────────────────────────────────────────────────────
+  test-frontend:
+    name: 🧪 Frontend · Vitest (141 testes)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Rodar testes
+        run: npm run test:run
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. BUILD DE PRODUÇÃO — verifica que o Vite não quebra
+  # ─────────────────────────────────────────────────────────────
+  build-check:
+    name: 🏗️ Build de Produção (Vite)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Build de produção
+        run: npm run build
+
+      - name: Upload do artefato de build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-${{ github.sha }}
+          path: frontend/dist
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────
+  # 4. TESTES E2E — Playwright (depende de 2 e 3 passarem)
+  # ─────────────────────────────────────────────────────────────
+  test-e2e:
+    name: 🎭 E2E · Playwright (91 testes)
+    runs-on: ubuntu-latest
+    needs: [test-frontend, build-check]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências raiz (inclui @playwright/test)
+        run: npm ci
+
+      - name: Instalar dependências do frontend (servidor de dev)
+        run: npm ci
+        working-directory: frontend
+
+      - name: Cache de browsers Playwright
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-chromium-${{ runner.os }}-
+
+      - name: Instalar Chromium + dependências de sistema
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Instalar apenas dependências de sistema (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Rodar testes E2E
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload do relatório Playwright (apenas em falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload de screenshots/vídeos (apenas em falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-${{ github.sha }}
+          path: test-results/
+          retention-days: 7

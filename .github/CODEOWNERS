@@ -1,0 +1,24 @@
+# ══════════════════════════════════════════════════════════════════
+# CODEOWNERS — Revisores obrigatórios por área
+#
+# Qualquer PR para main requer aprovação de pelo menos 1 dono.
+# GitHub solicita revisão automaticamente quando um PR é aberto.
+#
+# Ative a regra em:
+#   Settings → Branches → Branch protection rules → main
+#   ✅ Require a pull request before merging
+#   ✅ Require approvals (mínimo: 1)
+#   ✅ Require review from Code Owners
+#   ✅ Require status checks to pass (CI — Testes e Qualidade)
+# ══════════════════════════════════════════════════════════════════
+
+# Dono padrão: qualquer mudança requer revisão
+* @Andr3Q
+
+# Arquitetura e domínio — requer atenção extra
+backend/src/domain/     @Andr3Q
+backend/src/application/ @Andr3Q
+
+# Pipeline de CI/CD — protegida contra alterações silenciosas
+.github/workflows/      @Andr3Q
+deploy.sh               @Andr3Q

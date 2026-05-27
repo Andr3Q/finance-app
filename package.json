@@ -16,9 +16,28 @@
     "db:generate": "cd backend && npx prisma generate",
     "db:reset": "cd backend && npx prisma migrate reset",
     "install:all": "cd backend && npm install && cd ../frontend && npm install",
-    "lint": "cd backend && npm run lint && cd ../frontend && npm run lint"
+    "lint": "cd backend && npm run lint && cd ../frontend && npm run lint",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "main": "index.js",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andr3Q/finance-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Andr3Q/finance-app/issues"
+  },
+  "homepage": "https://github.com/Andr3Q/finance-app#readme"
 }
