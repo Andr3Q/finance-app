@@ -14,6 +14,20 @@ if (!process.env.DATABASE_URL) {
   require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 }
 
+// ── Sentry — inicializar antes de qualquer require de rota ──────────
+// Require CONDICIONAL: @sentry/node v10 usa OpenTelemetry que patcha o
+// sistema de módulos no load-time. Só carregamos quando SENTRY_DSN está
+// definido — isso evita interferência com Jest (que nunca define SENTRY_DSN).
+let Sentry = null
+if (process.env.SENTRY_DSN) {
+  Sentry = require('@sentry/node')
+  Sentry.init({
+    dsn:              process.env.SENTRY_DSN,
+    environment:      process.env.NODE_ENV ?? 'production',
+    tracesSampleRate: 0.1, // 10% das requisições (quota free: 10k/mês)
+  })
+}
+
 // ── Validação de variáveis obrigatórias na inicialização ─
 const REQUIRED_ENV = ['JWT_SECRET', 'DATABASE_URL']
 const missing = REQUIRED_ENV.filter(k => !process.env[k])
@@ -46,6 +60,15 @@ const twoFactorRoutes     = require('./routes/twoFactor')
 const { runAllScans }     = require('./services/securityScanner')
 const errorHandler        = require('./interfaces/http/middlewares/errorHandler')
 
+// ── Logger estruturado (pino) ───────────────────────────
+const logger = require('./lib/logger')
+
+// ── Buffer circular APM — sem banco, sem estado persistente ─────────
+// Armazena as últimas 2000 requisições em memória para calcular P50/P95
+// e taxa de erros em tempo real no dashboard do monitor.
+const _apm = { reqs: [], MAX: 2000 }
+global._apm = _apm
+
 const app        = express()
 const PORT       = process.env.PORT || 3001
 const isProd     = process.env.NODE_ENV === 'production'
@@ -62,6 +85,20 @@ app.use((req, res, next) => {
   const id = crypto.randomUUID()
   req.id = id
   res.setHeader('X-Request-Id', id)
+  next()
+})
+
+// ── Request logging estruturado + APM tracking ──────────
+// Registra cada resposta com método, path, status e latência.
+// Em produção o JSON vai para Cloud Run → GCP Log Explorer.
+app.use((req, res, next) => {
+  const start = Date.now()
+  res.on('finish', () => {
+    const ms = Date.now() - start
+    _apm.reqs.push({ path: req.path, ms, status: res.statusCode, ts: Date.now() })
+    if (_apm.reqs.length > _apm.MAX) _apm.reqs.shift()
+    logger.info({ method: req.method, path: req.path, status: res.statusCode, ms, reqId: req.id })
+  })
   next()
 })
 
@@ -341,7 +378,7 @@ async function refreshHealth() {
     // Marca degraded só após 3 falhas consecutivas — reconexões transitórias são normais
     const ok = _healthFailStreak < 3
     Object.assign(_health, { ts: Date.now(), ok, db_ms: Date.now() - t0 })
-    if (!ok) console.error(`[HEALTH] DB indisponível (streak ${_healthFailStreak}): ${err.message}`)
+    if (!ok) logger.error({ msg: '[HEALTH] DB indisponível', streak: _healthFailStreak, err: err.message })
   }
 }
 
@@ -361,6 +398,11 @@ app.get('/health', apiLimiter, async (req, res) => {
   if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms })
   res.json({ status, db_ms: _health.db_ms })
 })
+
+// ── Sentry error handler — captura todas as exceções não tratadas ───
+// Deve ficar ANTES do handler de domínio para enviar o erro ao Sentry
+// antes de formatar a resposta HTTP.
+if (Sentry) Sentry.setupExpressErrorHandler(app)
 
 // ── ErrorHandler de domínio (AppError → resposta HTTP) ──
 // Intercept domain errors before the global handler.
@@ -388,7 +430,7 @@ app.use((err, req, res, _next) => {
   }
 
   const reqId = req.id || '-'
-  console.error(`[ERROR] ${reqId} ${req.method} ${req.path}:`, err.message)
+  logger.error({ msg: 'Exceção não tratada', reqId, method: req.method, path: req.path, err: err.message })
   res.status(err.status || 500).json({ error: 'Erro interno do servidor.' })
 })
 
@@ -414,10 +456,10 @@ module.exports = app
 
 if (require.main === module || process.env.NODE_ENV !== 'test') {
 const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Backend rodando em http://localhost:${PORT}`)
-  console.log(`📋 Ambiente: ${isProd ? 'PRODUÇÃO ☁️' : 'desenvolvimento 🛠️'}`)
+  logger.info({ msg: `Backend rodando em http://localhost:${PORT}`, port: PORT })
+  logger.info({ msg: `Ambiente: ${isProd ? 'PRODUÇÃO' : 'desenvolvimento'}`, isProd })
   if (isProd && allowedOrigins.length === 0) {
-    console.warn('⚠️  ALLOWED_ORIGINS não configurado — CORS bloqueará todas as origens em produção!')
+    logger.warn({ msg: 'ALLOWED_ORIGINS não configurado — CORS bloqueará todas as origens em produção!' })
   }
   // Conecta e aquece o cache do health imediatamente
   prismaHealth.$connect()
@@ -440,13 +482,13 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 
 // ── Graceful shutdown ───────────────────────────────────
 const shutdown = (signal) => {
-  console.log(`[${signal}] Encerrando servidor...`)
+  logger.info({ msg: 'Encerrando servidor...', signal })
   server.close(async () => {
     await prismaHealth.$disconnect()
-    console.log('Servidor encerrado.')
+    logger.info({ msg: 'Servidor encerrado.' })
     process.exit(0)
   })
-  setTimeout(() => { console.error('Forçando encerramento.'); process.exit(1) }, 15000)
+  setTimeout(() => { logger.error({ msg: 'Forçando encerramento — timeout atingido.' }); process.exit(1) }, 15000)
 }
 process.on('SIGTERM', () => shutdown('SIGTERM'))
 process.on('SIGINT',  () => shutdown('SIGINT'))

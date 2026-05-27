@@ -2,6 +2,7 @@ const express = require('express')
 const os      = require('os')
 const router  = express.Router()
 const prisma  = require('../lib/prisma')
+const logger  = require('../lib/logger')
 const { runAllScans } = require('../services/securityScanner')
 
 // GET /api/monitor/dashboard — retorna métricas completas do app
@@ -60,10 +61,25 @@ router.get('/dashboard', async (req, res) => {
     // Máscara de e-mail: jo***@gmail.com
     const maskEmail = (e) => e.replace(/^(.{2})(.*)(@.+)$/, (_, a, b, c) => a + '*'.repeat(Math.min(b.length, 4)) + c)
 
+    // ── APM — métricas de performance em tempo real ──────
+    // Usa o buffer circular global populado pelo middleware de logging em server.js.
+    // Sem estado persistente: reinicia com o servidor (suficiente para trends em tempo real).
+    const apmBuf = global._apm ?? { reqs: [] }
+    const nowMs  = Date.now()
+    const last1h   = apmBuf.reqs.filter(r => nowMs - r.ts < 3_600_000)
+    const last5min = apmBuf.reqs.filter(r => nowMs - r.ts <   300_000)
+
+    const sortedMs = [...last1h].map(r => r.ms).sort((a, b) => a - b)
+    const p50 = sortedMs.length ? (sortedMs[Math.floor(sortedMs.length * 0.50)] ?? 0) : 0
+    const p95 = sortedMs.length ? (sortedMs[Math.floor(sortedMs.length * 0.95)] ?? 0) : 0
+    const errors5xx = last1h.filter(r => r.status >= 500).length
+    const reqPerMin = last5min.length ? Number((last5min.length / 5).toFixed(1)) : 0
+
     res.json({
       timestamp: now.toISOString(),
       uptime:    Math.floor(process.uptime()),
       nodeVersion: process.version,
+      apm: { p50_ms: p50, p95_ms: p95, errors5xx, reqPerMin },
       memory: {
         heapUsed:    mem.heapUsed,
         heapTotal:   mem.heapTotal,
@@ -102,7 +118,7 @@ router.get('/dashboard', async (req, res) => {
       })),
     })
   } catch (err) {
-    console.error('[monitor] dashboard:', err.message)
+    logger.error({ msg: '[monitor] dashboard', err: err.message })
     res.status(500).json({ error: err.message })
   }
 })
