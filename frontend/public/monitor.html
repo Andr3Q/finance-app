@@ -10,17 +10,17 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* New Relic — dark teal hierarchy */
-  --bg:#000e0e;--bg2:#0a1414;--bg3:#111b1b;--bg4:#162020;
-  --border:rgba(112,204,211,0.10);--border2:rgba(112,204,211,0.18);
-  --text:#d8f0f0;--text2:rgba(200,238,238,0.72);--text3:rgba(160,220,220,0.50);
+  /* Pure black + green terminal */
+  --bg:#050505;--bg2:#0c0c0c;--bg3:#121212;--bg4:#181818;
+  --border:rgba(74,196,110,0.10);--border2:rgba(74,196,110,0.18);
+  --text:#e6fced;--text2:rgba(214,252,227,0.72);--text3:rgba(167,244,196,0.50);
   /* Semantic status colors — INVARIANTES */
   --green:#4ac46e;--gbg:#4ac46e18;--gbrd:#4ac46e30;
   --red:#ef4444;--rbg:#ef444418;--rbrd:#ef444430;
   --yellow:#f59e0b;--ybg:#f59e0b18;--ybrd:#f59e0b30;
   --purple:#7b2fff;--pbg:#7b2fff18;--pbrd:#7b2fff30;
-  /* NR Teal — accent interativo */
-  --blue:#007e8a;--bbg:rgba(0,126,138,0.12);--bbrd:rgba(0,126,138,0.28);
+  /* Green accent (substitui NR Teal) */
+  --blue:#22c55e;--bbg:rgba(34,197,94,0.12);--bbrd:rgba(34,197,94,0.28);
   --r:3px;--rs:2px;
   --header-h:48px;--sidebar-w:220px;
 }
@@ -286,6 +286,26 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
     </div>
   </div>
 
+  <div class="slbl">Origem dos erros (últimas 24h)</div>
+  <div class="g2">
+    <div class="card" style="border-left-color:var(--purple)">
+      <div class="card-head">
+        <span class="clbl">Backend</span>
+        <span class="card-ico" style="color:var(--purple)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
+      </div>
+      <div class="cval" id="err-backend" style="color:var(--purple)">—</div>
+      <div class="csub">erros de servidor / API</div>
+    </div>
+    <div class="card" style="border-left-color:var(--blue)">
+      <div class="card-head">
+        <span class="clbl">Frontend</span>
+        <span class="card-ico" style="color:var(--blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></span>
+      </div>
+      <div class="cval" id="err-frontend" style="color:var(--blue)">—</div>
+      <div class="csub">erros JavaScript no browser</div>
+    </div>
+  </div>
+
   <div class="slbl">Log de erros (últimos 50)</div>
   <div id="err-list">
     <div class="card" style="color:var(--text3);text-align:center;padding:28px">Carregando…</div>
@@ -350,11 +370,27 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
   </div>
 
   <div class="slbl" style="margin-top:24px">Dados do app</div>
-  <div class="g4">
+  <div class="g3">
     <div class="card" style="border-left-color:var(--green)"><div class="card-head"><span class="clbl">Metas</span></div><div class="cval" id="ov-goals" style="color:var(--green)">—</div></div>
     <div class="card" style="border-left-color:var(--blue)"><div class="card-head"><span class="clbl">Parcelamentos</span></div><div class="cval" id="ov-inst" style="color:var(--blue)">—</div></div>
     <div class="card" style="border-left-color:var(--yellow)"><div class="card-head"><span class="clbl">Contas fixas</span></div><div class="cval" id="ov-budgets" style="color:var(--yellow)">—</div></div>
     <div class="card" style="border-left-color:var(--purple)"><div class="card-head"><span class="clbl">Push subs</span></div><div class="cval" id="ov-push" style="color:var(--purple)">—</div></div>
+    <div class="card" style="border-left-color:var(--green)">
+      <div class="card-head">
+        <span class="clbl">Novos hoje</span>
+        <span class="card-ico" style="color:var(--green)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></span>
+      </div>
+      <div class="cval" id="ov-new-today" style="color:var(--green)">—</div>
+      <div class="csub">cadastros hoje</div>
+    </div>
+    <div class="card" style="border-left-color:var(--blue)">
+      <div class="card-head">
+        <span class="clbl">Ativos 24h</span>
+        <span class="card-ico" style="color:var(--blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 11 17 17 14 14"/></svg></span>
+      </div>
+      <div class="cval" id="ov-active-24h" style="color:var(--blue)">—</div>
+      <div class="csub">usuários únicos logados</div>
+    </div>
   </div>
 </div>
 
@@ -415,6 +451,14 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
         </div>
         <div class="cval" id="u-elite" style="color:var(--purple)">—</div>
         <div class="csub" id="u-elite-pct">—</div>
+      </div>
+      <div class="card" style="border-left-color:var(--blue)">
+        <div class="card-head">
+          <span class="clbl">Ativos 24h</span>
+          <span class="card-ico" style="color:var(--blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="23 11 17 17 14 14"/></svg></span>
+        </div>
+        <div class="cval" id="u-active" style="color:var(--blue)">—</div>
+        <div class="csub">usuários únicos (logins OK)</div>
       </div>
     </div>
   </div>
@@ -631,14 +675,22 @@ body{background:var(--bg);color:var(--text);font-family:'Open Sans',-apple-syste
   </div>
 
   <div class="slbl">Performance — APM (últimas 1h / 5min)</div>
-  <div class="g3">
+  <div class="g4">
+    <div class="card" style="border-left-color:var(--green)">
+      <div class="card-head">
+        <span class="clbl">Resposta P50</span>
+        <span class="card-ico" style="color:var(--green)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+      </div>
+      <div class="cval" id="apm-p50" style="color:var(--green)">—</div>
+      <div class="csub">mediana das requisições (1h)</div>
+    </div>
     <div class="card" style="border-left-color:var(--blue)">
       <div class="card-head">
         <span class="clbl">Resposta P95</span>
         <span class="card-ico" style="color:var(--blue)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
       </div>
       <div class="cval" id="apm-p95" style="color:var(--blue)">—</div>
-      <div class="csub">95% das requisições abaixo deste tempo</div>
+      <div class="csub">95% das requisições (1h)</div>
     </div>
     <div class="card" style="border-left-color:var(--red)">
       <div class="card-head">
@@ -826,10 +878,12 @@ function render(d) {
   $('ov-expense').textContent  = '− ' + fmtR(tx.expenseMonth) + ' saídas'
   $('ov-uptime').textContent   = fmtUptime(d.uptime)
   $('ov-node').textContent     = d.nodeVersion || '—'
-  $('ov-goals').textContent    = d.goals
-  $('ov-inst').textContent     = d.installments
-  $('ov-budgets').textContent  = d.budgets
-  $('ov-push').textContent     = d.pushSubscribers
+  $('ov-goals').textContent      = d.goals
+  $('ov-inst').textContent       = d.installments
+  $('ov-budgets').textContent    = d.budgets
+  $('ov-push').textContent       = d.pushSubscribers
+  $('ov-new-today').textContent  = d.newUsersToday  ?? 0
+  $('ov-active-24h').textContent = d.activeUsers24h ?? 0
 
   // ── Users ──
   $('u-total').textContent    = u.total
@@ -837,9 +891,10 @@ function render(d) {
   $('u-free').textContent     = u.free
   $('u-pro').textContent      = u.pro
   $('u-elite').textContent    = u.elite
-  $('u-free-pct').textContent = pct(u.free,  u.total) + '% do total'
-  $('u-pro-pct').textContent  = pct(u.pro,   u.total) + '% do total'
-  $('u-elite-pct').textContent= pct(u.elite, u.total) + '% do total'
+  $('u-free-pct').textContent  = pct(u.free,  u.total) + '% do total'
+  $('u-pro-pct').textContent   = pct(u.pro,   u.total) + '% do total'
+  $('u-elite-pct').textContent = pct(u.elite, u.total) + '% do total'
+  $('u-active').textContent    = d.activeUsers24h ?? 0
   const maxU = Math.max(u.free, u.pro, u.elite, 1)
   $('bar-free').style.width  = pct(u.free,  maxU) + '%'
   $('bar-pro').style.width   = pct(u.pro,   maxU) + '%'
@@ -885,7 +940,9 @@ function render(d) {
 
   // ── APM ──
   if (d.apm) {
-    const { p95_ms, errors5xx, reqPerMin } = d.apm
+    const { p50_ms, p95_ms, errors5xx, reqPerMin } = d.apm
+    $('apm-p50').textContent = p50_ms > 0 ? p50_ms + 'ms' : '—'
+    $('apm-p50').style.color = p50_ms > 1000 ? 'var(--yellow)' : 'var(--green)'
     $('apm-p95').textContent = p95_ms > 0 ? p95_ms + 'ms' : '—'
     $('apm-p95').style.color = p95_ms > 2000 ? 'var(--red)' : p95_ms > 1000 ? 'var(--yellow)' : 'var(--blue)'
     $('apm-err').textContent = errors5xx != null ? errors5xx : '—'
@@ -1037,9 +1094,11 @@ function renderErrors(d) {
   if (!d.errors) return
 
   const { count24h, count7d, recent } = d.errors
-  $('err-24h').textContent  = count24h ?? '—'
-  $('err-7d').textContent   = count7d  ?? '—'
-  $('err-total').textContent = recent?.length ?? '—'
+  $('err-24h').textContent      = count24h ?? '—'
+  $('err-7d').textContent       = count7d  ?? '—'
+  $('err-total').textContent    = recent?.length ?? '—'
+  $('err-backend').textContent  = d.errors?.backend  ?? 0
+  $('err-frontend').textContent = d.errors?.frontend ?? 0
 
   pill('p-errors',
     count24h > 20 ? 'err' : count24h > 5 ? 'warn' : 'ok',

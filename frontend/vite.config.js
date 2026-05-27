@@ -15,7 +15,16 @@ export default defineConfig({
       '/api': {
         target: `http://${process.env.BACKEND_HOST || 'localhost'}:3001`,
         changeOrigin: true
-      }
+      },
+      // /health e /ping não têm prefixo /api — precisam de regra própria
+      '/health': {
+        target: `http://${process.env.BACKEND_HOST || 'localhost'}:3001`,
+        changeOrigin: true
+      },
+      '/ping': {
+        target: `http://${process.env.BACKEND_HOST || 'localhost'}:3001`,
+        changeOrigin: true
+      },
     }
   },
   build: {
