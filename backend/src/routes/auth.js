@@ -329,7 +329,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     }
 
     const isOnTrial = !!user.trialEndsAt && user.trialEndsAt > now
-    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, emailVerified, planPeriod: _pp, budgetReminderSentAt: _brs, ...userOut } = user
+    const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, emailVerified, planPeriod: _pp, budgetReminderSentAt: _brs, password: _pw, twoFactorSecret: _tfs, resetToken: _rt, ...userOut } = user
     userOut.emailVerified = emailVerified
     userOut.isOnTrial = isOnTrial
     if (isOnTrial) userOut.trialEndsAt = trialEndsAt.toISOString()
