@@ -14,10 +14,12 @@ const apiLimiter = rateLimit({
 // Login: 10 tentativas / 15 min por IP — aplicado SOMENTE ao POST /auth/login.
 // Não usar skipSuccessfulRequests aqui: logins inválidos sempre falham e devem contar.
 // Aplicar em rota estreita evita bloquear /auth/me e /auth/logout quando o limite estoura.
+// max seguro por padrão (10) — só relaxa em development explícito para facilitar testes
+// Antes: `=== 'production' ? 10 : 50` → NODE_ENV ausente caía no else (50), sem proteção
 const loginLimiter = rateLimit({
   ...opts,
   windowMs: 15 * 60 * 1000,
-  max:      process.env.NODE_ENV === 'production' ? 10 : 50,
+  max:      process.env.NODE_ENV === 'development' ? 50 : 10,
   message:  { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 })
 
