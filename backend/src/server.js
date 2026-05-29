@@ -49,28 +49,16 @@ const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
 const reportRoutes        = require('./routes/reports')
 const notificationRoutes  = require('./routes/notifications')
-const monitorAlertRoute   = require('./routes/monitorAlert')
 const agentRoutes         = require('./routes/agent')
 const goalRoutes          = require('./interfaces/http/routes/goals')
 const installmentRoutes   = require('./routes/installments')
 const paymentRoutes       = require('./routes/payments')
-const securityRoutes      = require('./routes/security')
-const monitorRoutes       = require('./routes/monitor')
 const twoFactorRoutes     = require('./routes/twoFactor')
-const { runAllScans }     = require('./services/securityScanner')
 const errorHandler        = require('./interfaces/http/middlewares/errorHandler')
 
 // ── Logger estruturado (pino) ───────────────────────────
 const logger = require('./lib/logger')
 
-// ── Prisma principal (para ErrorLog no handler global) ──
-const prisma = require('./lib/prisma')
-
-// ── Buffer circular APM — sem banco, sem estado persistente ─────────
-// Armazena as últimas 2000 requisições em memória para calcular P50/P95
-// e taxa de erros em tempo real no dashboard do monitor.
-const _apm = { reqs: [], MAX: 2000 }
-global._apm = _apm
 
 const app        = express()
 const PORT       = process.env.PORT || 3001
@@ -91,16 +79,13 @@ app.use((req, res, next) => {
   next()
 })
 
-// ── Request logging estruturado + APM tracking ──────────
+// ── Request logging estruturado ─────────────────────────
 // Registra cada resposta com método, path, status e latência.
 // Em produção o JSON vai para Cloud Run → GCP Log Explorer.
 app.use((req, res, next) => {
   const start = Date.now()
   res.on('finish', () => {
-    const ms = Date.now() - start
-    _apm.reqs.push({ path: req.path, ms, status: res.statusCode, ts: Date.now() })
-    if (_apm.reqs.length > _apm.MAX) _apm.reqs.shift()
-    logger.info({ method: req.method, path: req.path, status: res.statusCode, ms, reqId: req.id })
+    logger.info({ method: req.method, path: req.path, status: res.statusCode, ms: Date.now() - start, reqId: req.id })
   })
   next()
 })
@@ -213,109 +198,6 @@ app.use((req, res, next) => {
   next()
 })
 
-// ── Monitor admin — login / logout / dashboard ──────────
-const MONITOR_PWD = process.env.MONITOR_SECRET || ''
-const MONITOR_CSP =
-  "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; " +
-  "img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none';"
-
-// Compara strings em tempo constante, independente do comprimento
-function monitorSafeEq(a, b) {
-  try {
-    const ha = crypto.createHmac('sha256', 'cmp').update(String(a)).digest()
-    const hb = crypto.createHmac('sha256', 'cmp').update(String(b)).digest()
-    return crypto.timingSafeEqual(ha, hb)
-  } catch { return false }
-}
-
-// Token de sessão = HMAC do segredo — sem estado, sem banco
-function monitorSessionToken() {
-  return crypto.createHmac('sha256', MONITOR_PWD || 'no-secret').update('monitor-session-v1').digest('hex')
-}
-
-function requireMonitorAuth(req, res, next) {
-  const token = req.cookies?._ms
-  if (!MONITOR_PWD || !token || !monitorSafeEq(token, monitorSessionToken())) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-  next()
-}
-
-function monitorLoginHtml(hasError) {
-  const errBlock = hasError
-    ? `<div class="err"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Senha incorreta. Tente novamente.</div>`
-    : ''
-  return `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Finance Monitor</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#0d0f14;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.card{background:#12151c;border:1px solid #ffffff12;border-radius:14px;padding:36px 30px;width:100%;max-width:340px}
-.logo{font-size:17px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
-.logo em{color:#4ac46e;font-style:normal}
-.badge{background:#4ac46e18;border:1px solid #4ac46e30;border-radius:20px;color:#4ac46e;font-size:10px;font-weight:800;padding:2px 8px;letter-spacing:.5px}
-.sub{font-size:13px;color:#8892a4;margin:4px 0 24px}
-.err{background:#ef444418;border:1px solid #ef444330;border-radius:8px;padding:10px 13px;font-size:13px;color:#ef4444;margin-bottom:18px;display:flex;align-items:center;gap:8px}
-label{display:block;font-size:11px;color:#8892a4;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:.6px}
-input{width:100%;background:#181c25;border:1px solid #ffffff15;border-radius:8px;padding:11px 13px;color:#e2e8f0;font-size:14px;outline:none;transition:border-color .2s}
-input:focus{border-color:#4ac46e60;box-shadow:0 0 0 3px #4ac46e10}
-button{width:100%;margin-top:14px;background:#4ac46e;border:none;border-radius:9px;padding:12px;color:#0d0f14;font-size:14px;font-weight:800;cursor:pointer;transition:opacity .15s}
-button:hover{opacity:.88}
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="logo">📡 <em>Finance</em> Monitor <span class="badge">ADMIN</span></div>
-  <div class="sub">Acesso restrito ao painel de monitoramento</div>
-  ${errBlock}
-  <form method="POST" action="/monitor-login">
-    <label for="pwd">Senha de acesso</label>
-    <input type="password" id="pwd" name="password" autofocus autocomplete="current-password" placeholder="••••••••••••••••"/>
-    <button type="submit">Entrar →</button>
-  </form>
-</div>
-</body>
-</html>`
-}
-
-app.get('/monitor-login', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store')
-  res.setHeader('Content-Type', 'text/html; charset=utf-8')
-  res.send(monitorLoginHtml(!!req.query.err))
-})
-
-app.post('/monitor-login', (req, res) => {
-  const pwd = (req.body?.password || '').trim()
-  if (!MONITOR_PWD || !pwd || !monitorSafeEq(pwd, MONITOR_PWD)) {
-    return res.redirect('/monitor-login?err=1')
-  }
-  res.cookie('_ms', monitorSessionToken(), {
-    httpOnly: true,
-    secure:   isProd,
-    sameSite: 'strict',
-    maxAge:   8 * 3600 * 1000, // 8h
-    path:     '/',
-  })
-  res.redirect('/monitor.html')
-})
-
-app.get('/monitor-logout', (req, res) => {
-  res.clearCookie('_ms', { path: '/' })
-  res.redirect('/monitor-login')
-})
-
-app.get('/monitor.html', (req, res) => {
-  if (!isProd) {
-    return res.status(404).send('Use o servidor Vite em desenvolvimento.')
-  }
-  res.setHeader('Content-Security-Policy', MONITOR_CSP)
-  res.setHeader('Cache-Control', 'no-store')
-  res.sendFile(path.join(publicPath, 'monitor.html'))
-})
-
 // ── Rotas da API ────────────────────────────────────────
 // 2FA deve ser registrado ANTES de /api/auth (prefixo mais específico primeiro)
 app.use('/api/auth/2fa',     twoFactorRoutes)
@@ -323,14 +205,11 @@ app.use('/api/auth',          authRoutes)
 app.use('/api/transactions',  transactionRoutes)
 app.use('/api/budget',        budgetRoutes)
 app.use('/api/reports',       reportRoutes)
-app.use('/api/monitor-alert', apiLimiter, monitorAlertRoute)
 app.use('/api/notifications', notificationRoutes)
 app.use('/api/agent',        agentLimiter, agentRoutes)
 app.use('/api/goals',        goalRoutes)
 app.use('/api/installments', installmentRoutes)
 app.use('/api/payments',     paymentLimiter, paymentRoutes)
-app.use('/api/security',     apiLimiter,     securityRoutes)
-app.use('/api/monitor',      apiLimiter, monitorRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
 // Cliente DEDICADO ao health check — completamente separado do pool principal.
@@ -436,24 +315,6 @@ app.use((err, req, res, _next) => {
   const statusCode = err.status || 500
   logger.error({ msg: 'Exceção não tratada', reqId, method: req.method, path: req.path, err: err.message })
 
-  // ── Bug tracking in-house — salva 5xx no ErrorLog ───────
-  // Fire-and-forget: .catch(() => {}) garante que uma falha no DB
-  // nunca impeça a resposta HTTP de ser enviada ao cliente.
-  if (statusCode >= 500) {
-    prisma.errorLog.create({
-      data: {
-        source:    'backend',
-        message:   err.message?.slice(0, 500) ?? 'Unknown error',
-        stack:     err.stack?.slice(0, 3000)  ?? null,
-        path:      req.path,
-        method:    req.method,
-        statusCode,
-        requestId: req.id || null,
-        userId:    req.userId || null,
-      },
-    }).catch(() => {})
-  }
-
   res.status(statusCode).json({ error: 'Erro interno do servidor.' })
 })
 
@@ -495,19 +356,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     setInterval(refreshHealth, 15_000)
   }
 
-  // Scans de segurança: primeiro após 3min (app estável), depois a cada 6h
-  // Intervalo reduzido de 1h→6h: trivy escaneia /app inteiro e é pesado
-  setTimeout(() => {
-    runAllScans().catch(() => {})
-    setInterval(() => runAllScans().catch(() => {}), 6 * 3_600_000)
-  }, 3 * 60_000)
-
-  // Limpeza diária: remove erros com mais de 30 dias (mantém DB enxuto)
-  setInterval(() => {
-    const cutoff = new Date(Date.now() - 30 * 24 * 3_600_000)
-    prisma.errorLog.deleteMany({ where: { createdAt: { lt: cutoff } } })
-      .catch(() => {})
-  }, 24 * 3_600_000)
 })
 
 // ── Graceful shutdown ───────────────────────────────────
