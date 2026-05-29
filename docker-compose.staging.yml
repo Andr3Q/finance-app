@@ -1,0 +1,130 @@
+# ═══════════════════════════════════════════════════════
+# 🧪 docker-compose.staging.yml — Ambiente de Staging Isolado
+#
+# Propósito: validar upgrades de major version (Prisma 7, Express 5)
+# e regressão de features ANTES de afetar o banco de produção.
+#
+# Diferenças em relação ao docker-compose.yml:
+#   • db-staging  → PostgreSQL local (isolado de produção)
+#   • backend usa DATABASE_URL apontando para db-staging
+#   • NODE_ENV=staging (usa limites de production mas logs de dev)
+#   • Porta 3099 (não colide com dev :3001)
+#   • Inclui job de seed (dados realistas para E2E)
+#
+# Uso:
+#   docker compose -f docker-compose.staging.yml up --build
+#   docker compose -f docker-compose.staging.yml run --rm seed
+#   docker compose -f docker-compose.staging.yml down -v
+# ═══════════════════════════════════════════════════════
+
+services:
+
+  # ─────────────────────────────────────────────────────
+  # 🗄️  db-staging — PostgreSQL 15 local (isolado)
+  # ─────────────────────────────────────────────────────
+  db-staging:
+    image: postgres:15-alpine
+    container_name: financas_staging_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     staging_user
+      POSTGRES_PASSWORD: staging_pass_local
+      POSTGRES_DB:       financas_staging
+    ports:
+      - "5433:5432"          # porta diferente para não conflitar com Supabase local
+    volumes:
+      - staging_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U staging_user -d financas_staging"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # ─────────────────────────────────────────────────────
+  # ⚙️  backend-staging — API com banco local
+  # ─────────────────────────────────────────────────────
+  backend-staging:
+    build: ./backend
+    container_name: financas_staging_backend
+    restart: on-failure
+    depends_on:
+      db-staging:
+        condition: service_healthy
+    environment:
+      NODE_ENV:    production                          # usa limites de produção
+      PORT:        3099
+      DATABASE_URL: postgresql://staging_user:staging_pass_local@db-staging:5432/financas_staging
+      JWT_SECRET:  staging_jwt_secret_nao_usar_em_producao_000000000000000000000
+      # Variáveis opcionais — serviços externos desativados em staging
+      EMAIL_USER:  ""
+      EMAIL_PASS:  ""
+      VAPID_PUBLIC_KEY:  ""
+      VAPID_PRIVATE_KEY: ""
+      MP_ACCESS_TOKEN:   ""
+      GROQ_API_KEY:      ""
+      MONITOR_SECRET:    ""
+    ports:
+      - "3099:3099"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: >
+      sh -c "npx prisma migrate deploy && node src/server.js"
+    healthcheck:
+      test: ["CMD", "node", "-e",
+        "require('http').get('http://localhost:3099/health', r => process.exit(r.statusCode===200?0:1)).on('error', ()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ─────────────────────────────────────────────────────
+  # 🌱  seed — Popula dados realistas para E2E
+  # Executar manualmente: docker compose -f ... run --rm seed
+  # ─────────────────────────────────────────────────────
+  seed:
+    build: ./backend
+    container_name: financas_staging_seed
+    depends_on:
+      backend-staging:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://staging_user:staging_pass_local@db-staging:5432/financas_staging
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: node prisma/seed.staging.js
+    profiles:
+      - seed            # não sobe automaticamente; requer --profile seed
+
+  # ─────────────────────────────────────────────────────
+  # 🎨  frontend-staging — Aponta para backend-staging
+  # ─────────────────────────────────────────────────────
+  frontend-staging:
+    build: ./frontend
+    container_name: financas_staging_frontend
+    restart: on-failure
+    depends_on:
+      backend-staging:
+        condition: service_healthy
+    ports:
+      - "5174:5173"         # porta diferente da dev (:5173)
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_HOST:           "0.0.0.0"
+      BACKEND_HOST:        "backend-staging"
+    stdin_open: true
+    tty: true
+
+volumes:
+  staging_db_data:
+    name: financas_staging_db_data
+
+networks:
+  default:
+    name: financas_staging_network
+    enable_ipv6: false       # não precisa de IPv6 — banco é local

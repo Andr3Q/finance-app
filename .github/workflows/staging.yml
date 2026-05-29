@@ -1,0 +1,267 @@
+# ══════════════════════════════════════════════════════════════════
+# STAGING — Validação de Major Version Upgrades
+#
+# Dispara em:
+#   • Push em branches de upgrade: upgrade/prisma-*, upgrade/express-*
+#   • Manualmente via workflow_dispatch (com parâmetro de versão)
+#
+# Jobs:
+#   1. setup-staging   — PostgreSQL local + Prisma migrate + seed
+#   2. test-backend    — Jest 201 testes contra DB local
+#   3. test-e2e        — Playwright 91 testes contra staging completo
+#   4. smoke-api       — curl smoke tests nos endpoints críticos
+#
+# Gate de proteção: TODOS os jobs devem passar antes do merge em main.
+# ══════════════════════════════════════════════════════════════════
+name: Staging — Major Upgrade Validation
+
+on:
+  push:
+    branches:
+      - 'upgrade/prisma-*'
+      - 'upgrade/express-*'
+      - 'upgrade/major-*'
+  workflow_dispatch:
+    inputs:
+      upgrade_target:
+        description: 'Alvo do upgrade (ex: prisma-7, express-5)'
+        required: true
+        default: 'prisma-7'
+
+env:
+  DATABASE_URL:  postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
+  JWT_SECRET:    staging_jwt_secret_nao_usar_em_producao_000000000000000000000
+  NODE_ENV:      production
+  PORT:          3099
+
+jobs:
+
+  # ─────────────────────────────────────────────────────────────
+  # 1. SETUP — PostgreSQL + Migrate + Seed
+  # ─────────────────────────────────────────────────────────────
+  setup-and-test-backend:
+    name: 🗄️ Setup Staging + 🧪 Backend Jest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER:     staging_user
+          POSTGRES_PASSWORD: staging_pass_local
+          POSTGRES_DB:       financas_staging
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Aplicar migrations no banco de staging
+        run: npx prisma migrate deploy
+
+      - name: Validar schema
+        run: npx prisma validate
+
+      - name: Seed de dados de teste
+        run: node prisma/seed.staging.js
+
+      - name: 🧪 Rodar Jest (201 testes) contra DB staging
+        run: npm test
+
+      - name: Upload coverage (falha ou sucesso)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-staging-${{ github.sha }}
+          path: backend/coverage/
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. TESTES E2E — Playwright contra stack completa
+  # ─────────────────────────────────────────────────────────────
+  test-e2e-staging:
+    name: 🎭 E2E Playwright · Staging Stack Completa
+    runs-on: ubuntu-latest
+    needs: setup-and-test-backend
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER:     staging_user
+          POSTGRES_PASSWORD: staging_pass_local
+          POSTGRES_DB:       financas_staging
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar deps (raiz + frontend + backend)
+        run: |
+          npm ci
+          npm ci --prefix frontend
+          npm ci --prefix backend
+
+      - name: Prisma migrate + seed
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+          node prisma/seed.staging.js
+
+      - name: Iniciar backend em background (porta 3099)
+        working-directory: backend
+        run: |
+          PORT=3099 node src/server.js &
+          echo "BACKEND_PID=$!" >> $GITHUB_ENV
+          # Aguarda health check
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:3099/health && break || sleep 2
+          done
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Instalar Chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Instalar deps sistema (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: 🎭 Rodar Playwright (91 testes) — staging
+        run: npm run test:e2e
+        env:
+          CI:           true
+          BACKEND_URL:  http://localhost:3099
+          STAGING_USER: alice@staging.test
+          STAGING_PASS: Staging123!
+
+      - name: Upload relatório Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-staging-report-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 14
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. SMOKE TESTS — Validação dos endpoints críticos
+  # ─────────────────────────────────────────────────────────────
+  smoke-api:
+    name: 🔥 Smoke Tests — Endpoints Críticos
+    runs-on: ubuntu-latest
+    needs: setup-and-test-backend
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER:     staging_user
+          POSTGRES_PASSWORD: staging_pass_local
+          POSTGRES_DB:       financas_staging
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependências backend
+        run: npm ci
+        working-directory: backend
+
+      - name: Prisma migrate + seed
+        working-directory: backend
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+          node prisma/seed.staging.js
+
+      - name: Iniciar backend
+        working-directory: backend
+        run: |
+          PORT=3099 node src/server.js &
+          for i in $(seq 1 20); do curl -sf http://localhost:3099/health && break || sleep 2; done
+
+      - name: 🔥 Smoke — /health
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3099/health)
+          [ "$STATUS" = "200" ] && echo "✅ /health OK" || (echo "❌ /health falhou: $STATUS" && exit 1)
+
+      - name: 🔥 Smoke — POST /api/auth/login (credenciais válidas)
+        run: |
+          RESP=$(curl -sf -X POST http://localhost:3099/api/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"email":"alice@staging.test","password":"Staging123!"}')
+          echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'token' in d, 'token ausente'; print('✅ login OK')"
+
+      - name: 🔥 Smoke — Auth protegida sem token (deve retornar 401)
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3099/api/transactions)
+          [ "$STATUS" = "401" ] && echo "✅ /transactions 401 OK" || (echo "❌ esperado 401, recebido $STATUS" && exit 1)
+
+      - name: 🔥 Smoke — Rate limit login (11 tentativas → 429)
+        run: |
+          for i in $(seq 1 11); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3099/api/auth/login \
+              -H "Content-Type: application/json" \
+              -d '{"email":"smoke@brute.test","password":"wrong"}')
+            if [ "$STATUS" = "429" ]; then
+              echo "✅ Rate limit disparou na tentativa $i (429)"
+              exit 0
+            fi
+          done
+          echo "❌ Rate limit não disparou em 11 tentativas" && exit 1
+
+      - name: 🔥 Smoke — Rota do monitor REMOVIDA (deve retornar 404)
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3099/api/monitor/dashboard)
+          [ "$STATUS" = "404" ] && echo "✅ /api/monitor/dashboard corretamente removido" || (echo "❌ esperado 404, recebido $STATUS" && exit 1)
