@@ -23,38 +23,6 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 // Só inicializa analytics se o usuário já deu consentimento (LGPD Art. 5º)
 if (hasConsent()) initAnalytics()
 
-// ── Captura de erros do frontend → monitor in-house ─────────────────
-// Registra erros JavaScript não tratados no monitor próprio.
-// Só ativo em produção — evita poluir logs em desenvolvimento.
-if (import.meta.env.PROD) {
-  const reportError = (data) => {
-    fetch('/api/monitor/client-error', {
-      method:    'POST',
-      headers:   { 'Content-Type': 'application/json' },
-      body:      JSON.stringify(data),
-      keepalive: true, // garante envio mesmo durante navegação/fechamento da página
-    }).catch(() => {})
-  }
-
-  window.addEventListener('error', (e) => {
-    reportError({
-      message:  e.message,
-      stack:    e.error?.stack,
-      filename: e.filename,
-      line:     e.lineno,
-      col:      e.colno,
-      url:      location.pathname,
-    })
-  })
-
-  window.addEventListener('unhandledrejection', (e) => {
-    reportError({
-      message: `Unhandled Promise: ${String(e.reason ?? 'unknown')}`,
-      stack:   e.reason?.stack ?? null,
-      url:     location.pathname,
-    })
-  })
-}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

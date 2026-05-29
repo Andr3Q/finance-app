@@ -107,14 +107,6 @@ const verifyEmailLimiter = rateLimit({
   message:      { error: 'Muitas tentativas de reenvio. Tente novamente em 1 hora.' },
 })
 
-// Reporte de erros do cliente: 10 por IP / 15 min
-// Endpoint público — limita para evitar que um loop de JS inunde o banco
-const clientErrorLimiter = rateLimit({
-  ...opts,
-  windowMs: 15 * 60 * 1000,
-  max:      10,
-  message:  { error: 'Muitos erros reportados. Tente novamente em breve.' },
-})
 
 module.exports = {
   apiLimiter,
@@ -129,5 +121,4 @@ module.exports = {
   twoFALimiter,
   exportLimiter,
   verifyEmailLimiter,
-  clientErrorLimiter,
 }

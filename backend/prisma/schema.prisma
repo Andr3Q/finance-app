@@ -172,18 +172,6 @@ model TwoFactorBackupCode {
   @@map("two_factor_backup_codes")
 }
 
-// ── Tabela: security_scans ──────────────────────────────
-model SecurityScan {
-  id        String   @id @default(uuid())
-  tool      String
-  status    String
-  vulnCount Int      @default(0)
-  details   Json?
-  runAt     DateTime @default(now())
-
-  @@index([tool, runAt])
-  @@map("security_scans")
-}
 
 // ── Tabela: processed_payments ──────────────────────────
 // Deduplicação de webhooks do Mercado Pago — impede que o mesmo pagamento
@@ -217,24 +205,3 @@ model LoginAudit {
   @@map("login_audits")
 }
 
-// ── Tabela: error_logs ──────────────────────────────────
-// Rastreamento de erros in-house — captura exceções do backend (5xx)
-// e erros JavaScript do frontend (window.onerror / unhandledrejection).
-// Limpeza automática: erros com > 30 dias são deletados diariamente.
-model ErrorLog {
-  id         String   @id @default(uuid())
-  createdAt  DateTime @default(now())
-  source     String   // 'backend' | 'frontend'
-  message    String
-  stack      String?  @db.Text
-  path       String?
-  method     String?
-  statusCode Int?
-  requestId  String?
-  userId     String?  // opcional — pode ser null para usuários não autenticados
-  extra      Json?    // dados flexíveis: filename, line, col (erros frontend)
-
-  @@index([createdAt])
-  @@index([source, createdAt])
-  @@map("error_logs")
-}
