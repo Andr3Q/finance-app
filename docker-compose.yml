@@ -51,6 +51,8 @@ services:
     restart: on-failure
     env_file:
       - .env                           # DATABASE_URL, JWT_SECRET, EMAIL_* vêm do .env
+    environment:
+      - NODE_ENV=production            # garante rate limits de prod (loginLimiter max=10)
     ports:
       - "3001:3001"                    # API acessível em http://localhost:3001
     volumes:
