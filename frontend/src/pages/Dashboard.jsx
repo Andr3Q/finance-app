@@ -23,6 +23,8 @@ export default function Dashboard() {
   const [showForm,     setShowForm]     = useState(false)
   const [toast,        setToast]        = useState(null)
   const [txFilter,     setTxFilter]     = useState('all')
+  const [feedExpanded, setFeedExpanded] = useState(false)
+  const FEED_PREVIEW = 3
   const [prediction,   setPrediction]   = useState(null)
   const [predLoading,  setPredLoading]  = useState(false)
   const [goals,        setGoals]        = useState([])
@@ -139,7 +141,7 @@ export default function Dashboard() {
     pct < 100  ? 'Crítico'    : 'No limite'
 
   const healthColor =
-    pct < 50  ? '#4ac46e' :
+    pct < 50  ? 'var(--c)' :
     pct < 70  ? '#ffc107' :
     pct < 90  ? '#ff8c42' : '#ff4757'
 
@@ -158,7 +160,7 @@ export default function Dashboard() {
     score >= 20 ? 'Atenção' : 'Crítico'
 
   const scoreColor = score === null ? 'var(--t2)' :
-    score >= 80 ? '#4ac46e' :
+    score >= 80 ? 'var(--c)' :
     score >= 60 ? '#00d084' :
     score >= 40 ? '#ffc107' :
     score >= 20 ? '#ff8c42' : '#ff4757'
@@ -203,7 +205,7 @@ export default function Dashboard() {
     </div>
   )
 
-  const HB_COLORS  = ['#4ac46e','#00b4d8','#7b2fff','#ff6b9d','#ffc107','#ff8c42','#4f8ef7','#00d084']
+  const HB_COLORS  = ['var(--c)','#00b4d8','#7b2fff','#ff6b9d','#ffc107','#ff8c42','#4f8ef7','#00d084']
   const RING_R     = 58
   const RING_CIRC  = 2 * Math.PI * RING_R
   const ringOffset = RING_CIRC * (1 - Math.min(pct, 100) / 100)
@@ -249,7 +251,7 @@ export default function Dashboard() {
 
             <div className="hb-metric">
               <div className="hb-metric-lbl">Salário + Entradas</div>
-              <div className="hb-metric-val" style={{ color:'#4ac46e' }}>R$ {fmt(summary?.totalAvailable)}</div>
+              <div className="hb-metric-val" style={{ color:'var(--c)' }}>R$ {fmt(summary?.totalAvailable)}</div>
               {summary?.totalIncome > 0
                 ? <span className="hb-metric-hint">+R$ {fmtShort(summary?.totalIncome)} extras este mês</span>
                 : <span className="hb-metric-hint">Salário: R$ {fmt(summary?.salary)}</span>}
@@ -420,8 +422,8 @@ export default function Dashboard() {
               >
                 {!isPro ? (
                   <div className="anl-empty" style={{ flexDirection: 'column', gap: 10 }}>
-                    <span style={{ fontSize: 12 }}>Disponível no plano <strong style={{ color: '#4ac46e' }}>Pro</strong></span>
-                    <button onClick={() => navigate('/planos')} style={{ background: 'rgba(74,196,110,.12)', border: '1px solid rgba(74,196,110,.25)', borderRadius: 6, padding: '5px 12px', color: '#4ac46e', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+                    <span style={{ fontSize: 12 }}>Disponível no plano <strong style={{ color: 'var(--c)' }}>Pro</strong></span>
+                    <button onClick={() => navigate('/planos')} style={{ background: 'color-mix(in srgb, var(--c) 12%, transparent)', border: '1px solid color-mix(in srgb, var(--c) 25%, transparent)', borderRadius: 6, padding: '5px 12px', color: 'var(--c)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
                       Ver planos →
                     </button>
                   </div>
@@ -516,44 +518,51 @@ export default function Dashboard() {
                 {groupedTx.length === 0 ? (
                   <div className="hb-empty">Nenhuma transação encontrada</div>
                 ) : (
-                  <div className="hb-feed">
-                    {groupedTx.map(([dateLabel, txs]) => (
-                      <div key={dateLabel}>
-                        <div className="hb-feed-date">{dateLabel}</div>
-                        {txs.map((t, i) => {
-                          const isInc  = t.type === 'income'
-                          const desc   = t.description || CATEGORY_LABELS[t.category] || t.category
-                          const isLast = i === txs.length - 1
-                          return (
-                            <div key={t.id} className="hb-feed-item">
-                              <div className="hb-feed-timeline">
-                                <div className={`hb-feed-dot ${isInc ? 'inc' : 'exp'}`} style={{
-                                  boxShadow: isInc ? '0 0 0 3px rgba(74,196,110,.15)' : 'none'
-                                }}>
-                                  <CategoryIcon category={t.category} size={13} color="currentColor" />
+                  <>
+                    <div className={feedExpanded ? 'hb-feed' : 'hb-feed hb-feed-collapsed'}>
+                      {groupedTx.map(([dateLabel, txs]) => (
+                        <div key={dateLabel}>
+                          <div className="hb-feed-date">{dateLabel}</div>
+                          {txs.map((t, i) => {
+                            const isInc  = t.type === 'income'
+                            const desc   = t.description || CATEGORY_LABELS[t.category] || t.category
+                            const isLast = i === txs.length - 1
+                            return (
+                              <div key={t.id} className="hb-feed-item">
+                                <div className="hb-feed-timeline">
+                                  <div className={`hb-feed-dot ${isInc ? 'inc' : 'exp'}`} style={{
+                                    boxShadow: isInc ? '0 0 0 3px color-mix(in srgb, var(--c) 15%, transparent)' : 'none'
+                                  }}>
+                                    <CategoryIcon category={t.category} size={13} color="currentColor" />
+                                  </div>
+                                  {!isLast && <div className="hb-feed-line" />}
                                 </div>
-                                {!isLast && <div className="hb-feed-line" />}
+                                <div className="hb-feed-body">
+                                  <div className="hb-feed-row">
+                                    <span className="hb-feed-name">{desc}</span>
+                                    <span className={`hb-feed-amt ${isInc ? 'inc' : 'exp'}`}>{isInc ? '+' : '−'}R$ {fmt(t.amount)}</span>
+                                  </div>
+                                  <div className="hb-feed-meta">
+                                    <span className="hb-feed-cat">{CATEGORY_LABELS[t.category]}</span>
+                                  </div>
+                                  <button className="hb-feed-del" onClick={() => handleDelete(t.id)} title="Remover">
+                                    <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
+                                    </svg>
+                                  </button>
+                                </div>
                               </div>
-                              <div className="hb-feed-body">
-                                <div className="hb-feed-row">
-                                  <span className="hb-feed-name">{desc}</span>
-                                  <span className={`hb-feed-amt ${isInc ? 'inc' : 'exp'}`}>{isInc ? '+' : '−'}R$ {fmt(t.amount)}</span>
-                                </div>
-                                <div className="hb-feed-meta">
-                                  <span className="hb-feed-cat">{CATEGORY_LABELS[t.category]}</span>
-                                </div>
-                                <button className="hb-feed-del" onClick={() => handleDelete(t.id)} title="Remover">
-                                  <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ))}
-                  </div>
+                            )
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                    {groupedTx.length > FEED_PREVIEW && (
+                      <button className="hb-feed-toggle" onClick={() => setFeedExpanded(v => !v)}>
+                        {feedExpanded ? '↑ Ver menos' : `↓ Ver mais (${groupedTx.length - FEED_PREVIEW} datas)`}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
