@@ -60,6 +60,7 @@ services:
     environment:
       - NODE_ENV=production             # rate limits de prod ativos (loginLimiter max=10)
       - DATABASE_URL=postgresql://dev_user:dev_pass_local@db:5432/financas_dev
+      - ALLOWED_ORIGINS=http://localhost:5173  # libera CORS no ambiente dev local
     ports:
       - "3001:3001"
     volumes:
