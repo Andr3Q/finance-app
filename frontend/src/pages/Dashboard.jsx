@@ -509,7 +509,7 @@ export default function Dashboard() {
                   <span className="hb-card-title">Atividade</span>
                   <div className="hb-feed-tabs">
                     {[['all','Todos'],['expense','Gastos'],['income','Entradas']].map(([val, label]) => (
-                      <button key={val} className={`hb-feed-tab${txFilter === val ? ' active' : ''}`} onClick={() => setTxFilter(val)}>{label}</button>
+                      <button key={val} className={`hb-feed-tab${txFilter === val ? ' active' : ''}`} onClick={() => { setTxFilter(val); setFeedExpanded(false) }}>{label}</button>
                     ))}
                   </div>
                   <button className="hb-card-link" onClick={() => navigate('/transactions')}>Ver tudo →</button>
