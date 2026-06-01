@@ -5176,13 +5176,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .hb-new-btn {
   display: flex; align-items: center; gap: 7px;
-  padding: 10px 18px; background: #0FFF50; color: #000;
+  padding: 10px 18px; background: var(--c); color: #000;
   font-size: 12px; font-weight: 700; font-family: var(--fd);
   border: none; border-radius: 10px; cursor: pointer;
   transition: var(--tr); flex-shrink: 0; white-space: nowrap;
   margin-left: auto;
 }
-.hb-new-btn:hover { background: #5cd47e; transform: translateY(-1px); }
+.hb-new-btn:hover { background: color-mix(in srgb, var(--c) 80%, white); transform: translateY(-1px); }
 
 /* ── Grid 2 colunas (Linear) ───────────────────────────── */
 .hb-grid {
@@ -5190,9 +5190,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   grid-template-columns: 1fr 1fr;
   gap: 18px;
   align-items: stretch;
+  width: 100%;
+  box-sizing: border-box;
 }
-.hb-left  { display: flex; flex-direction: column; gap: 16px; }
-.hb-right { display: flex; flex-direction: column; gap: 16px; min-height: 100%; }
+.hb-left  { display: flex; flex-direction: column; gap: 16px; min-width: 0; width: 100%; overflow: hidden; }
+.hb-right { display: flex; flex-direction: column; gap: 16px; min-height: 100%; min-width: 0; width: 100%; overflow: hidden; }
 .hb-right .hb-feed-card { flex: 1; }
 
 /* ── Card base ─────────────────────────────────────────── */
@@ -5202,6 +5204,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   border-radius: 18px;
   overflow: hidden;
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .hb-card-head {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
@@ -5222,8 +5227,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .hb-ring-card {
   display: flex; align-items: center; gap: 20px;
   padding: 22px 24px;
-  background: linear-gradient(135deg, rgba(15,255,80,.14) 0%, rgba(10,20,12,.6) 45%, rgba(15,255,80,.08) 100%);
-  border-color: rgba(15,255,80,.25);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 14%, transparent) 0%, rgba(10,20,12,.6) 45%, color-mix(in srgb, var(--c) 8%, transparent) 100%);
+  border-color: color-mix(in srgb, var(--c) 25%, transparent);
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .hb-ring-glow-bg {
   position: absolute; bottom: -50px; right: -50px;
@@ -5520,7 +5527,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ── Responsive ────────────────────────────────────────── */
 @media (max-width: 900px) {
-  .hb-grid { grid-template-columns: 1fr; }
+  .hb-grid { grid-template-columns: 1fr; width: 100%; }
   .hb-right { order: -1; min-height: unset; }
   .hb-right .hb-feed-card { flex: none; }
   .hb-ring-card { padding: 18px 20px; }
@@ -5531,9 +5538,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .hb-metric-sep { display: none; }
   .hb-metric { min-width: 140px; }
   .hb-metric-val { font-size: 18px; }
-  .hb-new-btn { width: 100%; justify-content: center; }
-  .hb-ring-card { flex-direction: column; align-items: center; text-align: center; }
+  .hb-new-btn { width: 100%; justify-content: center; margin-left: 0; }
+  .hb-ring-card { flex-direction: column; align-items: center; text-align: center; padding: 16px; }
   .hb-ring-bar-labels { justify-content: center; gap: 8px; }
+  /* Todos os cards alinhados igual ao card de métricas do topo */
+  .hb-ring-card, .hb-bars-card, .hb-feed-card {
+    border-radius: 18px;
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
