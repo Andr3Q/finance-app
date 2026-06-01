@@ -5416,18 +5416,20 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   background: rgba(255,255,255,.07); margin: 3px 0;
 }
 .hb-feed-body {
-  flex: 1; padding: 14px 0 14px 14px; position: relative;
+  flex: 1; min-width: 0; padding: 14px 8px 14px 14px; position: relative;
   border-bottom: 1px solid rgba(255,255,255,.05);
+  overflow: hidden;
 }
 .hb-feed-item:last-child .hb-feed-body { border-bottom: none; }
 .hb-feed-row {
   display: flex; align-items: center;
-  justify-content: space-between; gap: 10px; margin-bottom: 5px;
+  justify-content: space-between; gap: 8px; margin-bottom: 5px;
+  min-width: 0;
 }
 .hb-feed-name {
   font-size: 14px; font-weight: 500; color: #fff;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  max-width: 220px;
+  flex: 1; min-width: 0;
 }
 .hb-feed-amt {
   font-size: 14px; font-weight: 700; white-space: nowrap; flex-shrink: 0;
