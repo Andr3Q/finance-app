@@ -433,15 +433,14 @@ export default function Goals() {
               )}
             </div>
 
-            <div className="gls-layout">
-            <div className="gls-main">
-
             {/* ── Tabs ── */}
             <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--bd)', paddingBottom:0 }}>
               {[
                 { key:'metas',       label:'Metas' },
                 { key:'historico',   label:'Histórico' },
                 { key:'assinaturas', label:'Assinaturas' },
+                { key:'lembretes',   label:'Lembretes' },
+                { key:'limites',     label:'Limites' },
               ].map(t => (
                 <button
                   key={t.key}
@@ -630,17 +629,19 @@ export default function Goals() {
               </GradCard>
             )}
 
-            </div>{/* .gls-main */}
-
-            <div className="gls-sidebar">
+            {/* ── Lembretes ── */}
+            {activeTab === 'lembretes' && (
               <RemindersCard />
+            )}
+
+            {/* ── Limites por categoria ── */}
+            {activeTab === 'limites' && (
               <CategoryLimitsCard
                 isPro={isPro}
                 onMessage={showMsg}
                 onUpgrade={() => navigate('/planos')}
               />
-            </div>
-            </div>{/* .gls-layout */}
+            )}
 
           </div>
         </div>
