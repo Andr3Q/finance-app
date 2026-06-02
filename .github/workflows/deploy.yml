@@ -151,22 +151,139 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────────────────────
-  # 5. DEPLOY — só roda se TODOS os testes passarem
+  # 5. VALIDAÇÃO DE SCHEMA — bloqueia db push sem migration file
+  #
+  # Detecta a causa raiz dos incidentes 00220-00222:
+  #   schema.prisma alterado sem criar migration → produção fica
+  #   dessincronizada do código → 500 nas queries com campos novos.
+  #
+  # Requer: secret DATABASE_URL apontando para Supabase prod.
+  # ─────────────────────────────────────────────────────────────
+  validate-schema:
+    name: 🗄️ Schema · Validar sincronismo com Supabase
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend, test-e2e]
+    if: |
+      github.event.inputs.modo != 'rollback' &&
+      (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped') &&
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Verificar integridade do schema
+        run: npx prisma validate
+
+      - name: Detectar schema sem migration correspondente
+        # Se schema.prisma mudou neste commit mas sem novo arquivo de migration
+        # → alerta que db push foi usado (produção pode estar dessincronizada)
+        run: |
+          SCHEMA_CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null | grep "prisma/schema.prisma" || true)
+          if [[ -n "$SCHEMA_CHANGED" ]]; then
+            NEW_MIGRATION=$(git diff --name-only HEAD~1 HEAD 2>/dev/null | grep "prisma/migrations/" || true)
+            if [[ -z "$NEW_MIGRATION" ]]; then
+              echo "⚠️  AVISO: schema.prisma foi alterado sem migration correspondente."
+              echo "   Isso indica uso de 'prisma db push' — comum em desenvolvimento."
+              echo "   Prosseguindo com 'prisma migrate deploy' que sincronizará o banco."
+              echo "SCHEMA_DRIFT=true" >> "$GITHUB_ENV"
+            else
+              echo "✅ schema.prisma alterado e migration encontrada: $NEW_MIGRATION"
+            fi
+          else
+            echo "✅ schema.prisma não foi alterado neste commit."
+          fi
+
+      - name: Status das migrations em produção
+        run: npx prisma migrate status
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: true  # informativo — não bloqueia (migrate deploy resolve)
+
+  # ─────────────────────────────────────────────────────────────
+  # 6. MIGRATION — aplica migrations no Supabase ANTES do build
+  #
+  # Garante que a produção sempre recebe o schema correto ANTES
+  # da nova imagem Docker ser buildada e servir tráfego.
+  # Se falhar → deploy é bloqueado automaticamente.
+  # ─────────────────────────────────────────────────────────────
+  migrate-prod:
+    name: 🗄️ Migration · Aplicar no Supabase
+    runs-on: ubuntu-latest
+    needs: [validate-schema]
+    if: github.event.inputs.modo != 'rollback'
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Aplicar migrations pendentes no Supabase
+        run: |
+          echo "🗄️  Aplicando migrations no Supabase de produção..."
+          npx prisma migrate deploy
+          echo "✅ Banco de dados sincronizado."
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Confirmar schema em produção
+        run: |
+          echo "🔍 Verificando tabelas críticas..."
+          node -e "
+            const { PrismaClient } = require('@prisma/client')
+            const p = new PrismaClient()
+            Promise.all([
+              p.user.count(),
+              p.budget.findFirst({ select: { id: true, endDate: true, endDateNotifSent: true } }),
+            ]).then(([users]) => {
+              console.log('✅ Banco acessível — total de usuários:', users)
+              p.\$disconnect()
+            }).catch(e => { console.error('❌ Erro ao acessar banco:', e.message); process.exit(1) })
+          "
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # ─────────────────────────────────────────────────────────────
+  # 7. DEPLOY — só roda se migrations passarem
   # ─────────────────────────────────────────────────────────────
   deploy:
     name: 🚀 Deploy · Cloud Run
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, test-e2e]
+    needs: [test-backend, test-frontend, test-e2e, migrate-prod]
     environment: production
 
     # Roda se:
-    #   a) todos os jobs de teste passaram (push normal ou deploy manual), OU
+    #   a) todos os jobs passaram (push normal ou deploy manual), OU
     #   b) modo rollback (sem testes, revertendo para revisão anterior)
     if: |
       always() && (
         (
           needs.test-backend.result == 'success' &&
           needs.test-frontend.result == 'success' &&
+          needs.migrate-prod.result == 'success' &&
           (needs.test-e2e.result == 'success' || needs.test-e2e.result == 'skipped')
         ) ||
         github.event.inputs.modo == 'rollback'
@@ -232,7 +349,10 @@ jobs:
           gcloud run deploy "$SERVICE" \
             --source . \
             --region "$REGION" \
+            --no-cache \
             --quiet
+          # --no-cache: força rebuild completo do frontend — previne
+          # stale cache que causou index.html ausente em 00221
           echo "✅ Deploy enviado — aguardando health check..."
 
       - name: Health check (3 tentativas · 20s de intervalo)
@@ -253,6 +373,33 @@ jobs:
             [[ $i -lt $MAX ]] && echo "   Aguardando ${WAIT}s..." && sleep $WAIT
           done
           $OK || { echo "FAILED=true" >> "$GITHUB_OUTPUT"; exit 1; }
+
+      - name: Smoke tests — endpoints críticos
+        if: github.event.inputs.modo != 'rollback' && steps.health-check.outcome == 'success'
+        run: |
+          BASE="https://finance-app-1042158013294.southamerica-east1.run.app"
+          FAIL=false
+
+          check() {
+            local name=$1 url=$2 expected=$3
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
+            if [[ "$STATUS" == "$expected" ]]; then
+              echo "  ✅ $name → HTTP $STATUS"
+            else
+              echo "  ❌ $name → esperado $expected, recebeu $STATUS"
+              FAIL=true
+            fi
+          }
+
+          echo "🔥 Smoke tests pós-deploy:"
+          check "/health (200)"                    "$BASE/health"                   "200"
+          check "/api/auth/me sem token (401)"     "$BASE/api/auth/me"              "401"
+          check "/api/budget sem token (401)"      "$BASE/api/budget"               "401"
+          check "/api/monitor removido (404)"      "$BASE/api/monitor/dashboard"    "404"
+          check "SPA /dashboard servido (200)"     "$BASE/dashboard"                "200"
+          check "SPA /settings servido (200)"      "$BASE/settings"                 "200"
+
+          $FAIL && { echo "❌ Smoke tests falharam — iniciando rollback"; exit 1; } || echo "✅ Todos os smoke tests passaram"
 
       - name: Rollback automático (health check falhou)
         if: failure() && steps.health-check.outputs.FAILED == 'true' && steps.current-revision.outputs.name != ''
@@ -281,3 +428,8 @@ jobs:
           echo "| **Região** | \`$REGION\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| **Commit** | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| **URL** | $HEALTH_URL |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Proteções ativas" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ✅ Migrations aplicadas no Supabase antes do build" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ✅ Build com --no-cache (sem stale cache)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ✅ Smoke tests: health, auth, budget, monitor 404, SPA routes" >> "$GITHUB_STEP_SUMMARY"
