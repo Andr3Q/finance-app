@@ -18,6 +18,7 @@ import ReferralCard        from '../components/features/settings/ReferralCard.js
 import TwoFactorCard        from '../components/features/settings/TwoFactorCard.jsx'
 import ChangePasswordCard   from '../components/features/settings/ChangePasswordCard.jsx'
 import CancelPlanCard       from '../components/features/settings/CancelPlanCard.jsx'
+import FixedExpensesCard    from '../components/features/settings/FixedExpensesCard.jsx'
 import PaymentHistoryCard   from '../components/features/settings/PaymentHistoryCard.jsx'
 import EmailVerifyCard      from '../components/features/settings/EmailVerifyCard.jsx'
 
@@ -83,6 +84,7 @@ export default function Settings() {
 
             <div className="cfg-sec-title r4">Financeiro</div>
             <SalaryCard user={user} onMessage={showMsg} />
+            <FixedExpensesCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <div className="cfg-sec-title r7">Preferências</div>
             <AppearanceCard theme={theme} toggleTheme={toggleTheme} />
