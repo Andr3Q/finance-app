@@ -85,10 +85,12 @@ model Transaction {
 // ── Tabela: budgets ─────────────────────────────────────
 // Armazena as contas fixas mensais (aluguel, luz, etc.)
 model Budget {
-  id     String @id @default(uuid())
-  name   String                                   // Ex: "Aluguel", "Internet"
-  amount Float                                    // Valor mensal fixo
-  dueDay Int?                                     // Dia do vencimento (1-31)
+  id               String    @id @default(uuid())
+  name             String                         // Ex: "Aluguel", "Internet"
+  amount           Float                          // Valor mensal fixo
+  dueDay           Int?                           // Dia do vencimento (1-31)
+  endDate          DateTime?                      // Data final (conta com prazo, ex: parcelas)
+  endDateNotifSent Boolean   @default(false)      // Notificação de expiração enviada
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
