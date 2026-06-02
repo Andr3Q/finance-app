@@ -39,12 +39,22 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const handleAdd = async (e) => {
     e.preventDefault()
     if (!newBudget.name || !newBudget.amount) return
+    // Converte DD/MM/AAAA → ISO YYYY-MM-DD para o backend
+    const toISO = (str) => {
+      const parts = str.split('/')
+      if (parts.length !== 3 || parts[2].length !== 4) return null
+      return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`
+    }
+    const endDateISO = newBudget.hasEndDate && newBudget.endDate?.length === 10
+      ? toISO(newBudget.endDate)
+      : undefined
+
     try {
       await budgetAPI.create({
         name:    newBudget.name,
         amount:  newBudget.amount,
         dueDay:  newBudget.dueDay ? parseInt(newBudget.dueDay) : undefined,
-        endDate: newBudget.hasEndDate && newBudget.endDate ? newBudget.endDate : undefined,
+        endDate: endDateISO || undefined,
       })
       setNewBudget({ name: '', amount: '', dueDay: '', endDate: '', hasEndDate: false })
       fetchBudgets()
@@ -181,10 +191,17 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             <label className="cfg-enddate-label">📅 Data de encerramento</label>
             <input
               className="cfg-inp cfg-enddate-input"
-              type="date"
+              type="text"
+              placeholder="DD/MM/AAAA"
+              maxLength={10}
               value={newBudget.endDate}
-              min={new Date().toISOString().slice(0, 10)}
-              onChange={e => setNewBudget(p => ({ ...p, endDate: e.target.value }))}
+              onChange={e => {
+                // Máscara automática: insere / ao digitar
+                let v = e.target.value.replace(/\D/g, '')
+                if (v.length > 4) v = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4,8)
+                else if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2)
+                setNewBudget(p => ({ ...p, endDate: v }))
+              }}
             />
           </div>
         )}
