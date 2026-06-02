@@ -11,6 +11,8 @@ import DateInput from '../components/ui/DateInput.jsx'
 import { getCache, setCache } from '../services/cache.js'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt, fmtDate } from '../utils/format.js'
+import RemindersCard      from '../components/features/settings/RemindersCard.jsx'
+import CategoryLimitsCard from '../components/features/settings/CategoryLimitsCard.jsx'
 const CACHE_HISTORY = 'analytics:history'
 const CACHE_SUBS    = 'analytics:subs'
 const TTL_5MIN      = 5 * 60_000
@@ -256,12 +258,18 @@ export default function Goals() {
 
   const plan    = user?.plan ?? null
   const isFree  = plan === 'free'
-  const isPro   = plan === 'pro'
+  const isPro   = plan === 'pro' || plan === 'elite'
   const isElite = plan === 'elite'
   const proLimit = 4
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
+    setTimeout(() => setToast(null), 3500)
+  }
+
+  // Adapter para CategoryLimitsCard (usa 'error'|'success'; Goals usa boolean ok)
+  const showMsg = (msg, type = 'success') => {
+    setToast({ msg, ok: type !== 'error' })
     setTimeout(() => setToast(null), 3500)
   }
 
@@ -424,6 +432,9 @@ export default function Goals() {
                 </button>
               )}
             </div>
+
+            <div className="gls-layout">
+            <div className="gls-main">
 
             {/* ── Tabs ── */}
             <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--bd)', paddingBottom:0 }}>
@@ -618,6 +629,18 @@ export default function Goals() {
                 <SubscriptionsList data={subs} loading={loadingSubs} />
               </GradCard>
             )}
+
+            </div>{/* .gls-main */}
+
+            <div className="gls-sidebar">
+              <RemindersCard />
+              <CategoryLimitsCard
+                isPro={isPro}
+                onMessage={showMsg}
+                onUpgrade={() => navigate('/planos')}
+              />
+            </div>
+            </div>{/* .gls-layout */}
 
           </div>
         </div>
