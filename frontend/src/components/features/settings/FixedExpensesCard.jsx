@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { budgetAPI, transactionsAPI } from '../../../services/api.js'
 import { invalidateCache } from '../../../services/cache.js'
 import { useUser } from '../../../hooks/useUser.js'
@@ -19,7 +19,9 @@ function isLaunchedThisMonth(user) {
 export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const user = useUser()
   const [budgets,    setBudgets]    = useState([])
-  const [newBudget,  setNewBudget]  = useState({ name: '', amount: '', dueDay: '', endDate: '', hasEndDate: false })
+  const [newBudget,  setNewBudget]  = useState({ name: '', amount: '', dueDay: '', endDate: { dd: '', mm: '', aaaa: '' }, hasEndDate: false })
+  const refMM   = useRef(null)
+  const refAAAA = useRef(null)
   const [launching,  setLaunching]  = useState(false)
   const [launched,   setLaunched]   = useState(() => isLaunchedThisMonth(user))
 
@@ -39,14 +41,9 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const handleAdd = async (e) => {
     e.preventDefault()
     if (!newBudget.name || !newBudget.amount) return
-    // Converte DD/MM/AAAA → ISO YYYY-MM-DD para o backend
-    const toISO = (str) => {
-      const parts = str.split('/')
-      if (parts.length !== 3 || parts[2].length !== 4) return null
-      return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`
-    }
-    const endDateISO = newBudget.hasEndDate && newBudget.endDate?.length === 10
-      ? toISO(newBudget.endDate)
+    const { dd, mm, aaaa } = newBudget.endDate
+    const endDateISO = newBudget.hasEndDate && dd.length === 2 && mm.length === 2 && aaaa.length === 4
+      ? `${aaaa}-${mm}-${dd}`
       : undefined
 
     try {
@@ -56,7 +53,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         dueDay:  newBudget.dueDay ? parseInt(newBudget.dueDay) : undefined,
         endDate: endDateISO || undefined,
       })
-      setNewBudget({ name: '', amount: '', dueDay: '', endDate: '', hasEndDate: false })
+      setNewBudget({ name: '', amount: '', dueDay: '', endDate: { dd: '', mm: '', aaaa: '' }, hasEndDate: false })
       fetchBudgets()
       notifyBudgetChanged()
       onMessage('Conta fixa adicionada!')
@@ -176,7 +173,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             onChange={e => setNewBudget(p => ({ ...p, dueDay: e.target.value }))} />
           <button type="button" className="cfg-btn-ghost cfg-enddate-toggle"
             title={newBudget.hasEndDate ? 'Remover data de encerramento' : 'Definir data de encerramento'}
-            onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: '' }))}>
+            onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: { dd: '', mm: '', aaaa: '' } }))}>
             📅
           </button>
           <button type="submit" className="cfg-btn-ghost">
@@ -188,21 +185,50 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         </form>
         {newBudget.hasEndDate && (
           <div className="cfg-enddate-row">
-            <label className="cfg-enddate-label">📅 Data de encerramento</label>
-            <input
-              className="cfg-inp cfg-enddate-input"
-              type="text"
-              placeholder="DD/MM/AAAA"
-              maxLength={10}
-              value={newBudget.endDate}
-              onChange={e => {
-                // Máscara automática: insere / ao digitar
-                let v = e.target.value.replace(/\D/g, '')
-                if (v.length > 4) v = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4,8)
-                else if (v.length > 2) v = v.slice(0,2) + '/' + v.slice(2)
-                setNewBudget(p => ({ ...p, endDate: v }))
-              }}
-            />
+            <label className="cfg-enddate-label">📅 Encerramento</label>
+            <div className="cfg-date-fields">
+              <input
+                className="cfg-inp cfg-date-part"
+                type="text" inputMode="numeric" placeholder="DD" maxLength={2}
+                value={newBudget.endDate.dd}
+                onChange={e => {
+                  const v = e.target.value.replace(/\D/g,'').slice(0,2)
+                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: v } }))
+                  if (v.length === 2) refMM.current?.focus()
+                }}
+              />
+              <span className="cfg-date-sep">/</span>
+              <input
+                ref={refMM}
+                className="cfg-inp cfg-date-part"
+                type="text" inputMode="numeric" placeholder="MM" maxLength={2}
+                value={newBudget.endDate.mm}
+                onChange={e => {
+                  const v = e.target.value.replace(/\D/g,'').slice(0,2)
+                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: v } }))
+                  if (v.length === 2) refAAAA.current?.focus()
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Backspace' && newBudget.endDate.mm === '')
+                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: p.endDate.dd.slice(0,-1) } }))
+                }}
+              />
+              <span className="cfg-date-sep">/</span>
+              <input
+                ref={refAAAA}
+                className="cfg-inp cfg-date-part cfg-date-year"
+                type="text" inputMode="numeric" placeholder="AAAA" maxLength={4}
+                value={newBudget.endDate.aaaa}
+                onChange={e => {
+                  const v = e.target.value.replace(/\D/g,'').slice(0,4)
+                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, aaaa: v } }))
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Backspace' && newBudget.endDate.aaaa === '')
+                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: p.endDate.mm.slice(0,-1) } }))
+                }}
+              />
+            </div>
           </div>
         )}
       </div>
