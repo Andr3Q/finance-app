@@ -19,7 +19,7 @@ function isLaunchedThisMonth(user) {
 export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const user = useUser()
   const [budgets,    setBudgets]    = useState([])
-  const [newBudget,  setNewBudget]  = useState({ name: '', amount: '', dueDay: '' })
+  const [newBudget,  setNewBudget]  = useState({ name: '', amount: '', dueDay: '', endDate: '', hasEndDate: false })
   const [launching,  setLaunching]  = useState(false)
   const [launched,   setLaunched]   = useState(() => isLaunchedThisMonth(user))
 
@@ -40,8 +40,13 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     e.preventDefault()
     if (!newBudget.name || !newBudget.amount) return
     try {
-      await budgetAPI.create({ name: newBudget.name, amount: newBudget.amount, dueDay: newBudget.dueDay ? parseInt(newBudget.dueDay) : undefined })
-      setNewBudget({ name: '', amount: '', dueDay: '' })
+      await budgetAPI.create({
+        name:    newBudget.name,
+        amount:  newBudget.amount,
+        dueDay:  newBudget.dueDay ? parseInt(newBudget.dueDay) : undefined,
+        endDate: newBudget.hasEndDate && newBudget.endDate ? newBudget.endDate : undefined,
+      })
+      setNewBudget({ name: '', amount: '', dueDay: '', endDate: '', hasEndDate: false })
       fetchBudgets()
       notifyBudgetChanged()
       onMessage('Conta fixa adicionada!')
@@ -107,6 +112,11 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                 <div className="cfg-fixed-right">
                   <span className="cfg-fixed-val">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   {b.dueDay ? <span className="cfg-fixed-due">dia {b.dueDay}</span> : null}
+                  {b.endDate ? (
+                    <span className="cfg-fixed-end" title="Data de encerramento">
+                      até {new Date(b.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                    </span>
+                  ) : null}
                   <button className="cfg-del-btn" type="button" onClick={() => handleDelete(b.id)} aria-label="Remover">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -154,6 +164,11 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
           <input className="cfg-inp cfg-inp-num" type="number" placeholder="Dia venc." min="1" max="31"
             value={newBudget.dueDay}
             onChange={e => setNewBudget(p => ({ ...p, dueDay: e.target.value }))} />
+          <button type="button" className="cfg-btn-ghost cfg-enddate-toggle"
+            title={newBudget.hasEndDate ? 'Remover data de encerramento' : 'Definir data de encerramento'}
+            onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: '' }))}>
+            📅
+          </button>
           <button type="submit" className="cfg-btn-ghost">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -161,6 +176,18 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             Adicionar
           </button>
         </form>
+        {newBudget.hasEndDate && (
+          <div className="cfg-enddate-row">
+            <label className="cfg-enddate-label">📅 Data de encerramento</label>
+            <input
+              className="cfg-inp cfg-enddate-input"
+              type="date"
+              value={newBudget.endDate}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={e => setNewBudget(p => ({ ...p, endDate: e.target.value }))}
+            />
+          </div>
+        )}
       </div>
     </div>
   )

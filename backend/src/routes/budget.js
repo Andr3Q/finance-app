@@ -38,7 +38,7 @@ router.get('/', async (req, res) => {
 // ── POST /budget ────────────────────────────────────────
 router.post('/', async (req, res) => {
   try {
-    const { name, amount, dueDay } = req.body
+    const { name, amount, dueDay, endDate } = req.body
 
     const parsedAmount = parseFloat(amount)
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -57,6 +57,11 @@ router.post('/', async (req, res) => {
       const parsedDueDay = parseInt(dueDay, 10)
       if (!Number.isInteger(parsedDueDay) || parsedDueDay < 1 || parsedDueDay > 31) {
         return res.status(400).json({ error: 'Dia de vencimento deve ser entre 1 e 31.' })
+      }
+    }
+    if (endDate !== undefined && endDate !== null) {
+      if (isNaN(Date.parse(endDate))) {
+        return res.status(400).json({ error: 'Data de encerramento inválida.' })
       }
     }
 
@@ -82,6 +87,7 @@ router.post('/', async (req, res) => {
 
     const createData = { name: name.trim(), amount: parsedAmount, userId: req.userId }
     if (dueDay !== undefined && dueDay !== null) createData.dueDay = parseInt(dueDay, 10)
+    if (endDate !== undefined && endDate !== null) createData.endDate = new Date(endDate)
 
     const budget = await prisma.budget.create({ data: createData })
     res.status(201).json(budget)
@@ -119,7 +125,7 @@ router.put('/:id', async (req, res) => {
   const { id } = req.params
   if (!UUID_REGEX.test(id)) return res.status(400).json({ error: 'ID inválido.' })
 
-  const { name, amount, dueDay } = req.body
+  const { name, amount, dueDay, endDate } = req.body
   const updateData = {}
 
   if (name !== undefined) {
@@ -147,6 +153,19 @@ router.put('/:id', async (req, res) => {
         return res.status(400).json({ error: 'Dia de vencimento deve ser entre 1 e 31.' })
       }
       updateData.dueDay = parsedDueDay
+    }
+  }
+
+  if (endDate !== undefined) {
+    if (endDate === null) {
+      updateData.endDate = null
+      updateData.endDateNotifSent = false  // resetar ao remover data
+    } else {
+      if (isNaN(Date.parse(endDate))) {
+        return res.status(400).json({ error: 'Data de encerramento inválida.' })
+      }
+      updateData.endDate = new Date(endDate)
+      updateData.endDateNotifSent = false  // resetar ao alterar data
     }
   }
 

@@ -91,7 +91,12 @@ router.post('/register', registerLimiter, async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12)
-    const trialDays   = referrer ? 14 : 7
+
+    // Campanha "Primeiros 100": Elite grátis por 10 dias
+    const userCount      = await prisma.user.count()
+    const isEliteEligible = userCount < 100
+    const trialPlan  = isEliteEligible ? 'elite' : 'pro'
+    const trialDays  = isEliteEligible ? 10 : (referrer ? 14 : 7)
     const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000)
     const referralCode = crypto.randomBytes(4).toString('hex').toUpperCase()
     const verifyToken  = crypto.randomBytes(32).toString('hex')
@@ -104,7 +109,7 @@ router.post('/register', registerLimiter, async (req, res) => {
         password:           hashedPassword,
         salary:             parsedSalary,
         reportEmail:        normalizedEmail,
-        plan:               'pro',
+        plan:               trialPlan,
         trialEndsAt,
         referralCode,
         referredBy:         referrer ? usedReferralCode.toUpperCase() : null,
@@ -311,6 +316,28 @@ router.get('/me', authMiddleware, async (req, res) => {
             }
           }).catch(() => {})
       }
+    }
+
+    // ── Notificação de contas fixas expiradas ───────────────
+    // Lazy: dispara na próxima vez que o usuário logar após endDate passar.
+    // endDateNotifSent garante que cada conta notifica apenas 1 vez.
+    if (user.notifBudgetReminder) {
+      prisma.budget.findMany({
+        where: { userId: req.userId, endDate: { lte: now }, endDateNotifSent: false },
+        select: { id: true, name: true, amount: true },
+      }).then(async expiradas => {
+        for (const b of expiradas) {
+          await sendPushToUser(req.userId, {
+            title: `📅 ${b.name} encerrou`,
+            body:  `Essa conta fixa chegou ao fim. Você pode removê-la agora.`,
+            url:   '/settings',
+          })
+          await prisma.budget.update({
+            where: { id: b.id },
+            data:  { endDateNotifSent: true },
+          })
+        }
+      }).catch(() => {})
     }
 
     // Lazy generate referral code for existing users who don't have one yet

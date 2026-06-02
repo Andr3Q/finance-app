@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser.js'
 import { analytics } from '../../services/analytics.js'
+import EliteConversionModal from './EliteConversionModal.jsx'
 
 const DISMISS_KEY       = 'expiry-banner-dismissed'
 const TRIAL_DISMISS_KEY = 'trial-banner-dismissed'
@@ -138,23 +139,11 @@ export default function PlanExpiryBanner() {
     </div>
   )
 
-  // ── Banner de trial expirado (plano caiu para free) ───
-  if (user.plan === 'free' && trialJustExpired) {
+  // ── Modal de conversão quando trial expirou ───────────
+  const [conversionModalShown] = useState(() => { try { return !!sessionStorage.getItem('conversion_modal_shown') } catch { return false } })
+  if (user.plan === 'free' && trialJustExpired && !conversionModalShown) {
     return (
-      <>
-        {surveyModal}
-        <div className="expiry-banner expired">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="expiry-banner-ico">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <span className="expiry-banner-msg">Seu trial Pro encerrou. Assine agora e retome todos os recursos premium.</span>
-          <button className="expiry-banner-cta" onClick={() => { try { sessionStorage.removeItem('trial_just_expired') } catch {} setTrialJustExpired(false); navigate('/planos') }}>
-            Assinar Pro
-          </button>
-        </div>
-      </>
+      <EliteConversionModal onClose={() => setTrialJustExpired(false)} />
     )
   }
 
