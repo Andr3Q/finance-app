@@ -28,7 +28,15 @@ function setAuthCookie(res, token) {
 const router = express.Router()
 
 async function rewardReferrer(referrer) {
-  const BONUS_MS = 30 * 24 * 60 * 60 * 1000
+  const BONUS_MS = 10 * 24 * 60 * 60 * 1000  // 10 dias por indicação válida
+
+  // Anti-abuso: conta apenas indicados que verificaram o e-mail (sem fake accounts)
+  // Máximo de 5 recompensas por indicador — após isso, link funciona mas sem bônus
+  const rewardedCount = await prisma.user.count({
+    where: { referredBy: referrer.referralCode, emailVerified: true },
+  })
+  if (rewardedCount > 5) return  // limite atingido
+
   const now      = new Date()
   if (referrer.plan !== 'free' && referrer.planExpiresAt && referrer.planExpiresAt > now) {
     await prisma.user.update({
@@ -119,9 +127,9 @@ router.post('/register', registerLimiter, async (req, res) => {
       }
     })
 
-    // Reward referrer + notificar — fire-and-forget
+    // Notificar indicador que um amigo se cadastrou — bônus liberado só após verificação de e-mail
+    // (rewardReferrer é chamado em GET /verify-email, não aqui — anti-abuso)
     if (referrer) {
-      rewardReferrer(referrer).catch(() => {})
       sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
     }
 
@@ -625,6 +633,18 @@ router.get('/verify-email', async (req, res) => {
       where: { id: user.id },
       data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
     })
+
+    // Recompensa diferida: se esse usuário foi indicado, libera o bônus para o indicador
+    // (verificação de e-mail garante que não é conta fake — mecanismo anti-abuso)
+    if (user.referredBy) {
+      prisma.user.findUnique({
+        where:  { referralCode: user.referredBy },
+        select: { id: true, plan: true, trialEndsAt: true, planExpiresAt: true, referralCode: true, name: true, email: true },
+      }).then(referrer => {
+        if (referrer) rewardReferrer(referrer).catch(() => {})
+      }).catch(() => {})
+    }
+
     res.json({ ok: true })
   } catch (err) {
     console.error('[auth] verify-email:', err.message)
@@ -710,11 +730,19 @@ router.get('/referral-stats', authMiddleware, async (req, res) => {
     })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
-    const referredCount = await prisma.user.count({
-      where: { referredBy: user.referralCode },
-    })
+    const [referredCount, rewardedCount] = await Promise.all([
+      prisma.user.count({ where: { referredBy: user.referralCode } }),
+      prisma.user.count({ where: { referredBy: user.referralCode, emailVerified: true } }),
+    ])
 
-    res.json({ referralCode: user.referralCode, referredCount })
+    res.json({
+      referralCode:  user.referralCode,
+      referredCount,                          // total de cadastros com o link
+      rewardedCount,                          // verificados (recompensas efetivamente recebidas)
+      maxReferrals:  5,
+      limitReached:  rewardedCount >= 5,
+      bonusDays:     10,
+    })
   } catch {
     res.status(500).json({ error: 'Erro ao buscar dados de referência.' })
   }

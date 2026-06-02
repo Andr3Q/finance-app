@@ -8765,6 +8765,44 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .ref-copy-btn:hover:not(:disabled) { background: var(--s3); }
 .ref-copy-btn.copied { color: var(--green); border-color: var(--green); }
 .ref-copy-btn:disabled { opacity: .5; cursor: not-allowed; }
+/* ── Barra de progresso de indicações ── */
+.ref-progress-wrap {
+  margin: 14px 0 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: var(--rmd);
+}
+.ref-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.ref-progress-label { font-size: 11px; color: var(--t3); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+.ref-progress-count { font-size: 13px; font-weight: 700; color: var(--t2); }
+.ref-progress-count.limit { color: var(--c); }
+.ref-progress-bar {
+  height: 5px;
+  background: rgba(255,255,255,.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ref-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #a855f7, #ec4899);
+  border-radius: 10px;
+  transition: width .6s cubic-bezier(.4,0,.2,1);
+}
+.ref-progress-fill.full { background: var(--c); }
+.ref-progress-msg {
+  margin-top: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.ref-progress-msg.pending { color: var(--yellow); }
+.ref-progress-msg.limit   { color: var(--c); font-weight: 600; }
+
 .ref-stats {
   margin-top: 14px;
   padding-top: 14px;
