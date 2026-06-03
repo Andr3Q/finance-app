@@ -5184,6 +5184,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .hb-iconbtn:hover { background: #1c1c1c; }
 
+/* Container único tabs+card — elimina gap do hb-page entre eles */
+.hb-kpi-block { display: flex; flex-direction: column; gap: 0; }
+
 /* Tabs (grudadas no card — idêntico ao HTML) */
 .hb-balance-tabs {
   display: flex; gap: 5px; padding: 0 10px;
