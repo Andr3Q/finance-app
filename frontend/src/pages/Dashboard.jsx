@@ -248,8 +248,9 @@ export default function Dashboard() {
             </div>
           </header>
 
-          {/* ── Tabs mobile ── */}
-          <div className="hb-balance-tabs hb-mobile-only">
+          {/* ── Tabs + Card — container único sem gap entre eles ── */}
+          <div className="hb-kpi-block hb-mobile-only">
+          <div className="hb-balance-tabs">
             {[
               { key:'saldo',    label:'Saldo'    },
               { key:'entradas', label:'Entradas' },
@@ -267,7 +268,7 @@ export default function Dashboard() {
           </div>
 
           {/* ── Green card mobile ── */}
-          <div className="hb-card hb-mobile-only">
+          <div className="hb-card">
             {activeMetric === 'saldo' && (
               <div className="hb-pane">
                 <div className="hb-pane-top">
@@ -319,6 +320,7 @@ export default function Dashboard() {
               Nova Transação
             </button>
           </div>
+          </div>{/* .hb-kpi-block */}
 
           {/* ── hb-metrics original — só desktop ── */}
           <div className="hb-metrics hb-desktop-only">
