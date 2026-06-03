@@ -5150,6 +5150,130 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* ── Linha de métricas (Stripe) ────────────────────────── */
+/* ── Visibilidade mobile/desktop ── */
+.hb-mobile-only  { display: none !important; }
+.hb-desktop-only { display: flex !important; }
+@media (max-width: 768px) {
+  .hb-mobile-only  { display: flex !important; }
+  .hb-desktop-only { display: none !important; }
+}
+
+/* ══ Dashboard Mobile — baseado em Dashboard.html de referência ══ */
+
+/* Header */
+.hb-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0 14px;
+}
+.hb-brand { display: flex; align-items: center; gap: 11px; }
+.hb-logo-box {
+  width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0;
+  background: linear-gradient(150deg, #2BE86A, #16b34c);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 18px rgba(43,232,106,.35);
+}
+.hb-greet { display: flex; flex-direction: column; line-height: 1.2; }
+.hb-hi    { font-size: 12.5px; color: #8C8C8C; font-weight: 500; }
+.hb-name  { font-size: 17.5px; color: #fff; font-weight: 700; letter-spacing: -.2px; }
+.hb-hdr-actions { display: flex; gap: 10px; }
+.hb-iconbtn {
+  width: 42px; height: 42px; border-radius: 13px;
+  background: #141414; border: 1px solid #232323;
+  display: flex; align-items: center; justify-content: center;
+  color: #cfcfcf; cursor: pointer; transition: background .15s;
+}
+.hb-iconbtn:hover { background: #1c1c1c; }
+
+/* Tabs (grudadas no card — idêntico ao HTML) */
+.hb-balance-tabs {
+  display: flex; gap: 5px; padding: 0 10px;
+  position: relative; z-index: 2;
+}
+.hb-btab {
+  flex: 1; padding: 12px 6px 15px; border-radius: 15px 15px 0 0;
+  background: transparent; border: 1.5px solid transparent; border-bottom: none;
+  color: #7E7E7E; font-size: 13.5px; font-weight: 700;
+  cursor: pointer; transition: color .15s; letter-spacing: -.2px;
+}
+.hb-btab.active {
+  background: linear-gradient(180deg, #0c150f, #0b1810);
+  border-color: rgba(43,232,106,.42);
+  color: #fff; margin-bottom: -3px; padding-bottom: 16px;
+}
+
+/* Card verde (idêntico ao HTML) */
+.hb-card {
+  border-radius: 24px; padding: 24px 22px 22px;
+  position: relative; z-index: 1;
+  display: flex; flex-direction: column; gap: 0;
+  background:
+    radial-gradient(130% 120% at 88% 12%, rgba(43,232,106,.26), transparent 55%),
+    linear-gradient(158deg, #0c130e, #0a1a11 70%);
+  border: 1.5px solid rgba(43,232,106,.42);
+  box-shadow: 0 0 38px rgba(43,232,106,.10), inset 0 0 28px rgba(43,232,106,.05);
+}
+/* Partículas brilhantes via ::after */
+.hb-card::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(circle 2.5px at 13% 86%, rgba(120,255,170,.9), transparent 65%),
+    radial-gradient(circle 1.5px at 38% 93%, rgba(43,232,106,.7), transparent 60%),
+    radial-gradient(circle 2px at 85% 90%, rgba(120,255,170,.75), transparent 65%),
+    radial-gradient(circle 1.5px at 93% 32%, rgba(43,232,106,.6), transparent 60%),
+    radial-gradient(circle 1.5px at 7% 42%, rgba(43,232,106,.5), transparent 60%),
+    radial-gradient(circle 1px at 60% 8%, rgba(120,255,170,.6), transparent 60%);
+  filter: drop-shadow(0 0 3px rgba(43,232,106,.6));
+  animation: hb-twinkle 4.5s ease-in-out infinite;
+}
+@keyframes hb-twinkle { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+.hb-card > * { position: relative; z-index: 1; }
+
+/* Conteúdo do card */
+.hb-pane-top { display: flex; align-items: center; justify-content: space-between; }
+.hb-pane-lbl {
+  font-size: 11.5px; letter-spacing: 1.4px; color: #7E7E7E;
+  font-weight: 700; text-transform: uppercase;
+}
+.hb-pane-val {
+  font-size: 40px; font-weight: 800; margin-top: 10px;
+  letter-spacing: -1px; line-height: 1;
+  display: flex; align-items: baseline; gap: 2px; flex-wrap: nowrap;
+}
+.hb-pane-val-sub { font-size: 16px; font-weight: 400; color: rgba(255,255,255,.35); }
+.hb-pane-sub { font-size: 13.5px; color: #8C8C8C; margin-top: 12px; }
+.hb-pane-sub b { color: #cfcfcf; font-weight: 700; }
+.hb-pane-link {
+  display: flex; align-items: center; gap: 5px;
+  color: #2BE86A; font-size: 14px; font-weight: 700;
+  background: none; border: none; cursor: pointer; padding: 0;
+}
+.hb-pane-pill {
+  display: inline-block; margin-top: 14px;
+  font-size: 12px; font-weight: 700; padding: 6px 13px;
+  border-radius: 999px; border: 1px solid;
+}
+.hb-prog {
+  margin-top: 16px; height: 8px; border-radius: 6px;
+  background: #0a0a0a; border: 1px solid #1d1d1d; overflow: hidden;
+}
+.hb-prog b { display: block; height: 100%; border-radius: 6px; transition: width .6s ease; }
+.hb-prog-cap {
+  display: flex; justify-content: space-between;
+  margin-top: 8px; font-size: 12px; color: #5f5f5f;
+}
+.hb-btn-main {
+  margin-top: 20px; width: 100%; height: 56px; border: none; border-radius: 16px;
+  /* alinha com os cards abaixo automaticamente em coluna */
+  background: #2BE86A; color: #062611; font-size: 16.5px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  cursor: pointer; box-shadow: 0 8px 24px rgba(43,232,106,.28);
+  transition: transform .1s, filter .15s;
+}
+.hb-btn-main:active { transform: scale(.985); }
+.hb-btn-main:hover  { filter: brightness(1.05); }
+
+/* ── (mantém .hb-metrics para compatibilidade com light mode) ── */
 .hb-metrics {
   display: flex;
   align-items: center;
