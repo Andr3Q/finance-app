@@ -335,52 +335,102 @@ export default function Dashboard() {
           </div>
           </div>{/* .hb-kpi-block */}
 
-          {/* ── hb-metrics original — só desktop ── */}
-          <div className="hb-metrics hb-desktop-only">
-            <div className="grad-particles" aria-hidden="true">
-              {[5,14,24,35,46,57,67,78,87,95].map((left, i) => (
-                <span key={i} className="grad-particle" style={{
-                  left:`${left}%`, width:`${2+(i%3)}px`, height:`${2+(i%3)}px`,
-                  animationDelay:`${(i*.5)%3}s`, animationDuration:`${2+(i%4)*.65}s`,
-                  opacity:0.25+(i%3)*.15,
-                }} />
-              ))}
-            </div>
-            <div className="hb-metric">
-              <div className="hb-metric-lbl">Saldo disponível</div>
-              <div className="hb-metric-val" style={{ color: summary?.currentBalance < 0 ? '#ff6b6b' : 'var(--t1)' }}>R$ {fmt(summary?.currentBalance)}</div>
-              <span className="hb-metric-badge" style={{ background:`${healthColor}18`, color:healthColor, border:`1px solid ${healthColor}28` }}>{healthLabel}</span>
-            </div>
-            <div className="hb-metric-sep" />
-            <div className="hb-metric">
-              <div className="hb-metric-lbl">Salário + Entradas</div>
-              <div className="hb-metric-val" style={{ color:'var(--c)' }}>R$ {fmt(summary?.totalAvailable)}</div>
-              {summary?.totalIncome > 0
-                ? <span className="hb-metric-hint">+R$ {fmtShort(summary?.totalIncome)} extras este mês</span>
-                : <span className="hb-metric-hint">Salário: R$ {fmt(summary?.salary)}</span>}
-            </div>
-            <div className="hb-metric-sep" />
-            <div className="hb-metric">
-              <div className="hb-metric-lbl">Total gasto</div>
-              <div className="hb-metric-val" style={{ color:'#ff6b6b' }}>R$ {fmt(summary?.totalExpenses)}</div>
-              <span className="hb-metric-hint">{pct}% do orçamento · {MONTHS[now.getMonth()]}</span>
-            </div>
-            <div className="hb-metric-sep" />
-            <div className="hb-metric">
-              <div className="hb-metric-lbl">Score financeiro</div>
-              <div className="hb-metric-val" style={{ color:scoreColor }}>
-                {score !== null ? score : '—'}
-                {score !== null && <span style={{ fontSize:13, fontWeight:400, color:'rgba(255,255,255,.3)', marginLeft:4 }}>/100</span>}
-              </div>
-              <span className="hb-metric-badge" style={{ background:`${scoreColor}18`, color:scoreColor, border:`1px solid ${scoreColor}28` }}>{scoreLabel}</span>
-            </div>
-            <button className="hb-new-btn" onClick={() => setShowForm(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Nova Transação
-            </button>
-          </div>
+          {/* ══ DESKTOP HERO — tabs + card + gráfico (baseado em Dashboard Desktop.html) ══ */}
+          {(() => {
+            // dados por tab
+            const bal  = summary?.currentBalance  ?? 0
+            const inc  = summary?.totalAvailable  ?? 0
+            const exp  = summary?.totalExpenses   ?? 0
+            const sc   = score ?? 0
+
+            // gera série de 8 pontos terminando no valor atual
+            const makeSeries = (end, min = 0) => {
+              const s = end * 0.45
+              return [s, s*1.2, s*1.1, s*1.5, s*1.65, s*1.85, end*0.95, end]
+                .map(v => Math.max(min, v))
+            }
+
+            const META = {
+              saldo:    { lbl:'Saldo disponível',   val:`R$ ${fmt(bal)}`,  cls: bal<0?'hh-red':'hh-white', chip:healthLabel, sub:`${MONTHS[now.getMonth()]}`, color:'#2BE86A', title:`Evolução do saldo · ${MONTHS[now.getMonth()]}`,    leg:'Saldo',    series: makeSeries(bal) },
+              entradas: { lbl:'Salário + Entradas', val:`R$ ${fmt(inc)}`,  cls:'hh-green', chip:`+R$ ${fmtShort(summary?.totalIncome??0)} extras`, sub:`Salário R$ ${fmt(summary?.salary??0)}`, color:'#2BE86A', title:`Entradas acumuladas · ${MONTHS[now.getMonth()]}`, leg:'Entradas', series: makeSeries(inc) },
+              gastos:   { lbl:'Total gasto',         val:`R$ ${fmt(exp)}`,  cls:'hh-red',   chip:`${pct}% do orçamento`, sub:`${MONTHS[now.getMonth()]}`, color:'#FF6F6F', title:`Gastos acumulados · ${MONTHS[now.getMonth()]}`,   leg:'Gastos',   series: makeSeries(exp) },
+              score:    { lbl:'Score financeiro',    val:`${sc}`,           cls:'hh-green', chip:scoreLabel, sub:`${MONTHS[now.getMonth()]}`, color: scoreColor, title:`Evolução do score · ${MONTHS[now.getMonth()]}`, leg:'Score', series:[sc-22,sc-17,sc-12,sc-9,sc-6,sc-3,sc-1,sc].map(v=>Math.max(0,v)) },
+            }
+            const m = META[activeMetric] || META.saldo
+
+            // Gera caminho SVG da série
+            const W=600, padX=12, top=24, bot=190
+            const ss = m.series
+            const mn = Math.min(...ss), mx = Math.max(...ss), rng = (mx-mn)||1
+            const pts = ss.map((v,i) => {
+              const x = padX + (W-2*padX)*(i/(ss.length-1))
+              const y = bot - ((v-mn)/rng)*(bot-top)
+              return [x,y]
+            })
+            const linePath = pts.map((p,i) => (i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ')
+            const areaPath = linePath + ` L ${pts[pts.length-1][0].toFixed(1)} ${bot} L ${pts[0][0].toFixed(1)} ${bot} Z`
+            const dotX = pts[pts.length-1][0], dotY = pts[pts.length-1][1]
+            const isRed = m.color === '#FF6F6F'
+
+            return (
+              <section className="hb-desktop-only hb-hero-section">
+                {/* Tabs */}
+                <div className="hb-hero-tabs">
+                  {[['saldo','Saldo'],['entradas','Entradas'],['gastos','Gastos'],['score','Score']].map(([key,label]) => (
+                    <button key={key}
+                      className={`hb-htab${activeMetric===key?' active':''}`}
+                      onClick={() => setActiveMetric(key)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {/* Hero card */}
+                <div className="hb-hero">
+                  {/* Left */}
+                  <div className="hb-hero-left">
+                    <div className="hb-hero-lbl">{m.lbl}</div>
+                    <div className={`hb-hero-val ${m.cls}`}>{m.val}{activeMetric==='score' && <small>/100</small>}</div>
+                    <div className="hb-hero-meta">
+                      <span className="hb-hero-chip">{m.chip}</span>
+                      <span className="hb-hero-sub">{m.sub}</span>
+                    </div>
+                    <button className="hb-hero-btn" onClick={() => setShowForm(true)}>
+                      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#062611" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                      Nova Transação
+                    </button>
+                  </div>
+                  {/* Right: chart */}
+                  <div className="hb-hero-chart">
+                    <div className="hb-chart-head">
+                      <span className="hb-chart-title">{m.title}</span>
+                      <span className="hb-chart-legend"><i style={{ background: m.color }}/>{m.leg}</span>
+                    </div>
+                    <svg viewBox="0 0 600 220" preserveAspectRatio="none" className="hb-chart-svg">
+                      <defs>
+                        <linearGradient id={`hbGreen${activeMetric}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={isRed?'rgba(255,111,111,.30)':'rgba(43,232,106,.34)'}/>
+                          <stop offset="100%" stopColor={isRed?'rgba(255,111,111,0)':'rgba(43,232,106,0)'}/>
+                        </linearGradient>
+                      </defs>
+                      <g stroke="#19211a" strokeWidth="1">
+                        <line x1="10" y1="40"  x2="590" y2="40"/>
+                        <line x1="10" y1="100" x2="590" y2="100"/>
+                        <line x1="10" y1="160" x2="590" y2="160"/>
+                      </g>
+                      <path d={areaPath} fill={`url(#hbGreen${activeMetric})`}/>
+                      <path d={linePath} fill="none" stroke={m.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx={dotX} cy={dotY} r="5" fill={m.color} stroke="#0a160f" strokeWidth="3"/>
+                    </svg>
+                    <div className="hb-xaxis">
+                      <span>1 {MONTHS[now.getMonth()].slice(0,3)}</span>
+                      <span>8</span><span>15</span><span>22</span>
+                      <span>30</span>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )
+          })()}
 
           {/* ── Grid principal (Linear) ── */}
           <div className="hb-grid">

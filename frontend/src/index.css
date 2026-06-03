@@ -5314,6 +5314,105 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 [data-theme="light"] .hb-prog { background: rgba(0,0,0,.08); border-color: rgba(0,0,0,.1); }
 [data-theme="light"] .hb-prog-cap { color: #666; }
 
+/* ══ Desktop hero — tabs + card + gráfico (Dashboard Desktop.html) ══ */
+.hb-hero-section { display: flex; flex-direction: column; gap: 0; }
+
+/* Tabs desktop */
+.hb-hero-tabs {
+  display: flex; gap: 6px; padding: 0 14px;
+  position: relative; z-index: 2;
+}
+.hb-htab {
+  padding: 13px 26px 16px; border-radius: 16px 16px 0 0;
+  background: transparent; border: 1.5px solid transparent; border-bottom: none;
+  color: #6f7a70; font-size: 14.5px; font-weight: 600;
+  font-family: inherit; cursor: pointer; transition: color .15s;
+}
+.hb-htab:hover { color: #cfd6cf; }
+.hb-htab.active {
+  background: linear-gradient(180deg, #0c150f, #0b1810);
+  border-color: rgba(43,232,106,.4); color: #fff;
+  margin-bottom: -3px; padding-bottom: 17px;
+}
+
+/* Hero card — grid 2 colunas */
+.hb-hero {
+  position: relative; z-index: 1;
+  border-radius: 22px; padding: 30px 32px;
+  background:
+    radial-gradient(120% 130% at 92% 0%, rgba(43,232,106,.20), transparent 55%),
+    linear-gradient(150deg, #0b120d, #0a160f 70%);
+  border: 1.5px solid rgba(43,232,106,.4);
+  box-shadow: 0 0 50px rgba(43,232,106,.08), inset 0 0 40px rgba(43,232,106,.04);
+  display: grid;
+  grid-template-columns: minmax(280px,1fr) 1.5fr;
+  gap: 38px; align-items: center; overflow: hidden;
+}
+.hb-hero::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(circle 2.5px at 10% 84%, rgba(120,255,170,.8), transparent 65%),
+    radial-gradient(circle 1.5px at 30% 92%, rgba(43,232,106,.6), transparent 60%),
+    radial-gradient(circle 2px at 46% 14%, rgba(120,255,170,.5), transparent 65%),
+    radial-gradient(circle 1.5px at 64% 88%, rgba(43,232,106,.5), transparent 60%);
+  filter: drop-shadow(0 0 3px rgba(43,232,106,.6));
+  animation: hb-twinkle 5s ease-in-out infinite;
+}
+.hb-hero > * { position: relative; z-index: 1; }
+
+/* Left */
+.hb-hero-left { display: flex; flex-direction: column; }
+.hb-hero-lbl  {
+  font-size: 12px; letter-spacing: 1.6px; color: #6f7a70;
+  font-weight: 700; text-transform: uppercase;
+}
+.hb-hero-val {
+  font-size: 54px; font-weight: 800; letter-spacing: -1.5px;
+  margin-top: 12px; line-height: 1;
+}
+.hb-hero-val small { font-size: 24px; font-weight: 600; color: #8a948b; letter-spacing: 0; }
+.hh-green { color: #2BE86A; }
+.hh-red   { color: #FF6F6F; }
+.hh-white { color: #f4f8f4; }
+.hb-hero-meta {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 18px; flex-wrap: wrap;
+}
+.hb-hero-chip {
+  font-size: 12.5px; font-weight: 700; padding: 6px 14px;
+  border-radius: 999px; border: 1px solid rgba(43,232,106,.4);
+  color: #2BE86A; background: rgba(43,232,106,.12);
+}
+.hb-hero-sub { font-size: 13.5px; color: #8a948b; }
+.hb-hero-btn {
+  margin-top: 26px; display: inline-flex; align-items: center; gap: 9px;
+  height: 50px; padding: 0 24px; border: none; border-radius: 14px;
+  background: #2BE86A; color: #062611;
+  font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 8px 22px rgba(43,232,106,.28);
+  transition: filter .12s, transform .12s; align-self: flex-start;
+}
+.hb-hero-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+
+/* Right: gráfico */
+.hb-hero-chart { align-self: stretch; display: flex; flex-direction: column; }
+.hb-chart-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+.hb-chart-title  { font-size: 13px; color: #8a948b; font-weight: 600; }
+.hb-chart-legend {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12.5px; color: #8a948b;
+}
+.hb-chart-legend i { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.hb-chart-svg { width: 100%; height: 200px; flex: 1; }
+.hb-xaxis {
+  display: flex; justify-content: space-between;
+  margin-top: 6px; font-size: 11px; color: #586059;
+}
+
 /* ── (mantém .hb-metrics para compatibilidade com light mode) ── */
 .hb-metrics {
   display: flex;
