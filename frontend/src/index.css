@@ -5200,7 +5200,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .hb-btab.active {
   background: linear-gradient(180deg, #0c150f, #0b1810);
-  border-color: rgba(43,232,106,.42);
+  border-top-color: rgba(43,232,106,.42);
+  border-left-color: transparent;
+  border-right-color: transparent;
   color: #fff; margin-bottom: -3px; padding-bottom: 16px;
 }
 
@@ -5290,7 +5292,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 [data-theme="light"] .hb-btab { color: #888; }
 [data-theme="light"] .hb-btab.active {
   background: linear-gradient(180deg, #e8f5ee, #d4edde);
-  border-color: rgba(22,179,76,.5);
+  border-top-color: rgba(22,179,76,.5);
+  border-left-color: transparent;
+  border-right-color: transparent;
   color: #0d0d0d;
 }
 
@@ -5331,8 +5335,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .hb-htab:hover { color: #cfd6cf; }
 .hb-htab.active {
   background: linear-gradient(180deg, #0c150f, #0b1810);
-  border-color: rgba(43,232,106,.4); color: #fff;
-  margin-bottom: -3px; padding-bottom: 17px;
+  border-top-color: rgba(43,232,106,.4);
+  border-left-color: transparent;
+  border-right-color: transparent;
+  color: #fff; margin-bottom: -3px; padding-bottom: 17px;
 }
 
 /* Hero card — grid 2 colunas */
@@ -5418,7 +5424,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 [data-theme="light"] .hb-htab:hover   { color: #333; }
 [data-theme="light"] .hb-htab.active  {
   background: linear-gradient(180deg, #e8f5ee, #d4edde);
-  border-color: rgba(22,179,76,.5);
+  border-top-color: rgba(22,179,76,.5);
+  border-left-color: transparent;
+  border-right-color: transparent;
   color: #0d0d0d;
 }
 [data-theme="light"] .hb-hero {
