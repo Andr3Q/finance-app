@@ -4,11 +4,9 @@ import Navbar from '../components/layout/Navbar.jsx'
 import { authAPI } from '../services/api.js'
 import UpgradeModal from '../components/ui/UpgradeModal.jsx'
 import { useUser } from '../hooks/useUser.js'
-import { useTheme } from '../hooks/useTheme.js'
 import SettingsHero        from '../components/features/settings/SettingsHero.jsx'
 import ProfileCard         from '../components/features/settings/ProfileCard.jsx'
 import SalaryCard          from '../components/features/settings/SalaryCard.jsx'
-import AppearanceCard      from '../components/features/settings/AppearanceCard.jsx'
 import NotificationsCard   from '../components/features/settings/NotificationsCard.jsx'
 import MonthlyCloseCard    from '../components/features/settings/MonthlyCloseCard.jsx'
 import InstallCard         from '../components/features/settings/InstallCard.jsx'
@@ -23,7 +21,6 @@ import EmailVerifyCard      from '../components/features/settings/EmailVerifyCar
 export default function Settings() {
   const navigate = useNavigate()
   const user  = useUser()
-  const { theme, toggle: toggleTheme } = useTheme()
   const isPro = user.plan === 'pro' || user.plan === 'elite'
 
   const [msg,           setMsg]          = useState('')
@@ -85,7 +82,6 @@ export default function Settings() {
             <FixedExpensesCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <div className="cfg-sec-title r7">Preferências</div>
-            <AppearanceCard theme={theme} toggleTheme={toggleTheme} />
             <NotificationsCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <MonthlyCloseCard   user={user} isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
