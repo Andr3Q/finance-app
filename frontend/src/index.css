@@ -5276,6 +5276,44 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .hb-btn-main:active { transform: scale(.985); }
 .hb-btn-main:hover  { filter: brightness(1.05); }
 
+/* ── Light mode — mobile dashboard ── */
+[data-theme="light"] .hb-hi   { color: #666; }
+[data-theme="light"] .hb-name { color: #0d0d0d; }
+[data-theme="light"] .hb-iconbtn {
+  background: rgba(0,0,0,.06);
+  border-color: rgba(0,0,0,.1);
+  color: #444;
+}
+[data-theme="light"] .hb-iconbtn:hover { background: rgba(0,0,0,.1); }
+
+/* Tabs em light mode */
+[data-theme="light"] .hb-btab { color: #888; }
+[data-theme="light"] .hb-btab.active {
+  background: linear-gradient(180deg, #e8f5ee, #d4edde);
+  border-color: rgba(22,179,76,.5);
+  color: #0d0d0d;
+}
+
+/* Card verde — adapta para light mode */
+[data-theme="light"] .hb-card {
+  background:
+    radial-gradient(130% 120% at 88% 12%, rgba(43,232,106,.20), transparent 55%),
+    linear-gradient(158deg, #e8f5ee, #d0edda 70%);
+  border-color: rgba(22,179,76,.45);
+  box-shadow: 0 0 30px rgba(43,232,106,.08), inset 0 0 20px rgba(43,232,106,.04);
+}
+[data-theme="light"] .hb-card::after {
+  filter: drop-shadow(0 0 2px rgba(22,179,76,.4));
+  opacity: .6;
+}
+[data-theme="light"] .hb-pane-lbl  { color: rgba(0,0,0,.45); }
+[data-theme="light"] .hb-pane-val  { color: #0d0d0d; }
+[data-theme="light"] .hb-pane-sub  { color: #555; }
+[data-theme="light"] .hb-pane-sub b { color: #1a1a1a; }
+[data-theme="light"] .hb-pane-link { color: #16b34c; }
+[data-theme="light"] .hb-prog { background: rgba(0,0,0,.08); border-color: rgba(0,0,0,.1); }
+[data-theme="light"] .hb-prog-cap { color: #666; }
+
 /* ── (mantém .hb-metrics para compatibilidade com light mode) ── */
 .hb-metrics {
   display: flex;
