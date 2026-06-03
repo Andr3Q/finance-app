@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [showForm,     setShowForm]     = useState(false)
   const [toast,        setToast]        = useState(null)
   const [txFilter,     setTxFilter]     = useState('all')
+  const [activeMetric, setActiveMetric] = useState('saldo')
   const [feedExpanded, setFeedExpanded] = useState(false)
   const FEED_PREVIEW = 3
   const [prediction,   setPrediction]   = useState(null)
@@ -225,30 +226,117 @@ export default function Dashboard() {
 
         <div className="hb-page">
 
-          {/* ── Linha de métricas (Stripe) ── */}
-          <div className="hb-metrics">
+          {/* ══ MOBILE HEADER (baseado no Dashboard.html de referência) ══ */}
+          <header className="hb-topbar hb-mobile-only">
+            <div className="hb-brand">
+              <div className="hb-logo-box">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 16l5-5 3 3 7-7"/><path d="M15 7h5v5"/>
+                </svg>
+              </div>
+              <div className="hb-greet">
+                <span className="hb-hi">Olá,</span>
+                <span className="hb-name">{user.name || 'bem-vindo'}</span>
+              </div>
+            </div>
+            <div className="hb-hdr-actions">
+              <button className="hb-iconbtn" onClick={() => navigate('/transactions')} aria-label="Buscar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          {/* ── Tabs mobile ── */}
+          <div className="hb-balance-tabs hb-mobile-only">
+            {[
+              { key:'saldo',    label:'Saldo'    },
+              { key:'entradas', label:'Entradas' },
+              { key:'gastos',   label:'Gastos'   },
+              { key:'score',    label:'Score'    },
+            ].map(t => (
+              <button
+                key={t.key}
+                className={`hb-btab${activeMetric === t.key ? ' active' : ''}`}
+                onClick={() => setActiveMetric(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Green card mobile ── */}
+          <div className="hb-card hb-mobile-only">
+            {activeMetric === 'saldo' && (
+              <div className="hb-pane">
+                <div className="hb-pane-top">
+                  <span className="hb-pane-lbl">Saldo disponível</span>
+                  <button className="hb-pane-link" onClick={() => navigate('/transactions')}>
+                    Extrato
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                  </button>
+                </div>
+                <div className="hb-pane-val" style={{ color: summary?.currentBalance < 0 ? '#FF6F6F' : '#F2F2F2' }}>
+                  R$ {fmt(summary?.currentBalance)}
+                </div>
+                <span className="hb-pane-pill" style={{ color: healthColor, borderColor: `${healthColor}60`, background: `${healthColor}0d` }}>{healthLabel}</span>
+              </div>
+            )}
+            {activeMetric === 'entradas' && (
+              <div className="hb-pane">
+                <div className="hb-pane-top"><span className="hb-pane-lbl">Salário + Entradas</span></div>
+                <div className="hb-pane-val" style={{ color:'#2BE86A' }}>R$ {fmt(summary?.totalAvailable)}</div>
+                <div className="hb-pane-sub">
+                  Salário: <b>R$ {fmt(summary?.salary)}</b>
+                  {summary?.totalIncome > 0 && <> · Extras: <b>+R$ {fmtShort(summary?.totalIncome)}</b></>}
+                </div>
+              </div>
+            )}
+            {activeMetric === 'gastos' && (
+              <div className="hb-pane">
+                <div className="hb-pane-top">
+                  <span className="hb-pane-lbl">Total gasto</span>
+                </div>
+                <div className="hb-pane-val" style={{ color:'#FF6F6F' }}>R$ {fmt(summary?.totalExpenses)}</div>
+                <div className="hb-prog"><b style={{ width:`${Math.min(pct,100)}%`, background: pct > 100 ? 'linear-gradient(90deg,#FF9F6F,#FF6F6F)' : 'linear-gradient(90deg,#16b34c,#2BE86A)' }} /></div>
+                <div className="hb-prog-cap"><span>{pct}% do orçamento</span><span>{MONTHS[now.getMonth()]}</span></div>
+              </div>
+            )}
+            {activeMetric === 'score' && (
+              <div className="hb-pane">
+                <div className="hb-pane-top"><span className="hb-pane-lbl">Score financeiro</span></div>
+                <div className="hb-pane-val" style={{ color: scoreColor }}>
+                  {score !== null ? score : '—'}
+                  {score !== null && <span className="hb-pane-val-sub">/100</span>}
+                </div>
+                <div className="hb-prog"><b style={{ width:`${score ?? 0}%`, background:`linear-gradient(90deg,#16b34c,${scoreColor})` }} /></div>
+                <div className="hb-prog-cap"><span>{score ?? 0} de 100</span><span style={{ color: scoreColor }}>{scoreLabel}</span></div>
+              </div>
+            )}
+            <button className="hb-btn-main" onClick={() => setShowForm(true)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#062611" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Nova Transação
+            </button>
+          </div>
+
+          {/* ── hb-metrics original — só desktop ── */}
+          <div className="hb-metrics hb-desktop-only">
             <div className="grad-particles" aria-hidden="true">
               {[5,14,24,35,46,57,67,78,87,95].map((left, i) => (
                 <span key={i} className="grad-particle" style={{
-                  left:`${left}%`,
-                  width: `${2 + (i % 3)}px`,
-                  height: `${2 + (i % 3)}px`,
-                  animationDelay: `${(i * 0.5) % 3}s`,
-                  animationDuration: `${2 + (i % 4) * 0.65}s`,
-                  opacity: 0.25 + (i % 3) * 0.15,
+                  left:`${left}%`, width:`${2+(i%3)}px`, height:`${2+(i%3)}px`,
+                  animationDelay:`${(i*.5)%3}s`, animationDuration:`${2+(i%4)*.65}s`,
+                  opacity:0.25+(i%3)*.15,
                 }} />
               ))}
             </div>
             <div className="hb-metric">
               <div className="hb-metric-lbl">Saldo disponível</div>
-              <div className="hb-metric-val" style={{ color: summary?.currentBalance < 0 ? '#ff6b6b' : 'var(--t1)' }}>
-                R$ {fmt(summary?.currentBalance)}
-              </div>
-              <span className="hb-metric-badge" style={{ background:`${healthColor}18`, color: healthColor, border:`1px solid ${healthColor}28` }}>{healthLabel}</span>
+              <div className="hb-metric-val" style={{ color: summary?.currentBalance < 0 ? '#ff6b6b' : 'var(--t1)' }}>R$ {fmt(summary?.currentBalance)}</div>
+              <span className="hb-metric-badge" style={{ background:`${healthColor}18`, color:healthColor, border:`1px solid ${healthColor}28` }}>{healthLabel}</span>
             </div>
-
             <div className="hb-metric-sep" />
-
             <div className="hb-metric">
               <div className="hb-metric-lbl">Salário + Entradas</div>
               <div className="hb-metric-val" style={{ color:'var(--c)' }}>R$ {fmt(summary?.totalAvailable)}</div>
@@ -256,28 +344,21 @@ export default function Dashboard() {
                 ? <span className="hb-metric-hint">+R$ {fmtShort(summary?.totalIncome)} extras este mês</span>
                 : <span className="hb-metric-hint">Salário: R$ {fmt(summary?.salary)}</span>}
             </div>
-
             <div className="hb-metric-sep" />
-
             <div className="hb-metric">
               <div className="hb-metric-lbl">Total gasto</div>
               <div className="hb-metric-val" style={{ color:'#ff6b6b' }}>R$ {fmt(summary?.totalExpenses)}</div>
               <span className="hb-metric-hint">{pct}% do orçamento · {MONTHS[now.getMonth()]}</span>
             </div>
-
             <div className="hb-metric-sep" />
-
             <div className="hb-metric">
               <div className="hb-metric-lbl">Score financeiro</div>
-              <div className="hb-metric-val" style={{ color: scoreColor }}>
+              <div className="hb-metric-val" style={{ color:scoreColor }}>
                 {score !== null ? score : '—'}
-                {score !== null && <span style={{ fontSize: 13, fontWeight: 400, color: 'rgba(255,255,255,.3)', marginLeft: 4 }}>/100</span>}
+                {score !== null && <span style={{ fontSize:13, fontWeight:400, color:'rgba(255,255,255,.3)', marginLeft:4 }}>/100</span>}
               </div>
-              <span className="hb-metric-badge" style={{ background:`${scoreColor}18`, color: scoreColor, border:`1px solid ${scoreColor}28` }}>
-                {scoreLabel}
-              </span>
+              <span className="hb-metric-badge" style={{ background:`${scoreColor}18`, color:scoreColor, border:`1px solid ${scoreColor}28` }}>{scoreLabel}</span>
             </div>
-
             <button className="hb-new-btn" onClick={() => setShowForm(true)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
