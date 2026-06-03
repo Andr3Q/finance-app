@@ -198,7 +198,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan }
+      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan, referralCode: user.referralCode || null }
     })
   } catch (error) {
     console.error('[auth] login:', error.message)

@@ -9,7 +9,8 @@ export default function ReferralCard() {
   const [copied,  setCopied]  = useState(false)
   const [loading, setLoading] = useState(true)
 
-  const referralCode = user.referralCode
+  // Usa stats.referralCode como fallback — login antigo pode não ter salvo o código no sessionStorage
+  const referralCode = user.referralCode || stats?.referralCode
   const referralLink = referralCode
     ? `${window.location.origin}/register?ref=${referralCode}`
     : null
