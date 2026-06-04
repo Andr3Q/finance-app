@@ -61,7 +61,8 @@ export default function Transactions() {
     }
     try {
       const res = await transactionsAPI.list({ limit: 200 })
-      const data = res.data.data ?? res.data
+      const raw  = res.data.data ?? res.data
+      const data = Array.isArray(raw) ? raw : []
       setCache(CACHE_KEY, data, 30_000)
       setTransactions(data)
     } catch { showToast('Erro ao carregar transações.', false) }
@@ -71,7 +72,7 @@ export default function Transactions() {
   const fetchInstallments = async () => {
     try {
       const res = await installmentsAPI.list()
-      setInstallments(res.data)
+      setInstallments(Array.isArray(res.data) ? res.data : [])
     } catch {}
   }
 

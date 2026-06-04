@@ -36,8 +36,10 @@ export function useGoals() {
     setError(null)
     try {
       const { data } = await goalsAPI.list()
-      setCache(CACHE_KEY, data, CACHE_TTL)
-      setGoals(data)
+      // Coalescência nula defensiva: garante Array mesmo que backend retorne {} ou null
+      const safeGoals = Array.isArray(data) ? data : (data ?? [])
+      setCache(CACHE_KEY, safeGoals, CACHE_TTL)
+      setGoals(safeGoals)
     } catch (err) {
       setError(err)
     } finally {

@@ -5,7 +5,7 @@ export default function RemindersCard() {
   const [budgets, setBudgets] = useState([])
 
   useEffect(() => {
-    budgetAPI.list().then(r => setBudgets(r.data)).catch(() => {})
+    budgetAPI.list().then(r => setBudgets(Array.isArray(r.data) ? r.data : [])).catch(() => {})
   }, [])
 
   const today    = new Date().getDate()
