@@ -5,7 +5,7 @@ const S = {
   header:  { borderBottom: '1px solid var(--bd)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12 },
   logo:    { display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'var(--t1)' },
   body:    { maxWidth: 720, margin: '0 auto', padding: '40px 24px 80px' },
-  badge:   { display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--c)', background: 'rgba(74,196,110,.1)', border: '1px solid rgba(74,196,110,.2)', borderRadius: 6, padding: '3px 10px', marginBottom: 12 },
+  badge:   { display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--c)', background: 'rgba(74,226,172,.1)', border: '1px solid rgba(74,226,172,.2)', borderRadius: 6, padding: '3px 10px', marginBottom: 12 },
   h1:      { fontSize: 28, fontWeight: 800, marginBottom: 6, lineHeight: 1.2 },
   date:    { fontSize: 13, color: 'var(--t3)', marginBottom: 36 },
   h2:      { fontSize: 17, fontWeight: 700, marginTop: 36, marginBottom: 10, color: 'var(--t1)' },
@@ -23,8 +23,8 @@ export default function PrivacyPolicy() {
     <div style={S.page}>
       <header style={S.header}>
         <Link to="/" style={S.logo}>
-          <img src="/logo-icon.png" alt="Finance" style={{ width: 28, height: 28 }} />
-          <span style={{ fontWeight: 700, fontSize: 15 }}>FinançasPro</span>
+          <img src="/logo-icon.png" alt="Nancy" style={{ width: 28, height: 28 }} />
+          <span style={{ fontWeight: 700, fontSize: 15 }}>Nancy</span>
         </Link>
         <span style={{ color: 'var(--bd)', fontSize: 18, marginLeft: 4 }}>/</span>
         <span style={{ fontSize: 14, color: 'var(--t3)' }}>Política de Privacidade</span>
@@ -36,14 +36,14 @@ export default function PrivacyPolicy() {
         <p style={S.date}>Última atualização: 22 de maio de 2026 · Versão 1.0</p>
 
         <p style={S.p}>
-          Esta Política de Privacidade descreve como o <strong>FinançasPro</strong> coleta, usa,
+          Esta Política de Privacidade descreve como o <strong>Nancy</strong> coleta, usa,
           armazena e protege os dados pessoais dos usuários, em conformidade com a
           Lei Geral de Proteção de Dados (LGPD — Lei 13.709/2018).
         </p>
 
         <h2 style={S.h2}>1. Quem somos</h2>
         <p style={S.p}>
-          O FinançasPro é um aplicativo de controle financeiro pessoal. O controlador
+          O Nancy é um aplicativo de controle financeiro pessoal. O controlador
           responsável pelo tratamento dos seus dados pode ser contatado pelo e-mail
           abaixo. Ao usar o app, você concorda com esta política.
         </p>
@@ -137,8 +137,8 @@ export default function PrivacyPolicy() {
           <p style={{ ...S.contact, marginBottom: 4 }}>Para exercer seus direitos ou tirar dúvidas:</p>
           <p style={{ ...S.contact, marginBottom: 4 }}>
             <strong>E-mail:</strong>{' '}
-            <a href="mailto:privacidade@financaspro.com.br" style={S.link}>
-              privacidade@financaspro.com.br
+            <a href="mailto:privacidade@nancy.com.br" style={S.link}>
+              privacidade@nancy.com.br
             </a>
           </p>
           <p style={{ ...S.contact, marginBottom: 0 }}>

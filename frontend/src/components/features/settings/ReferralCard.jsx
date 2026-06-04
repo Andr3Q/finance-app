@@ -156,7 +156,7 @@ export default function ReferralCard() {
                 style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
                 onClick={() => {
                   if (navigator.share && referralLink) {
-                    navigator.share({ title: 'FinançasPro', text: 'Controle suas finanças com IA! Use meu link e ganhe 14 dias de trial:', url: referralLink }).catch(() => {})
+                    navigator.share({ title: 'Nancy', text: 'Controle suas finanças com IA! Use meu link e ganhe 14 dias de trial:', url: referralLink }).catch(() => {})
                   } else if (referralLink) {
                     window.open(`https://wa.me/?text=${encodeURIComponent(`Controle suas finanças com IA! Use meu link e ganhe 14 dias de trial grátis: ${referralLink}`)}`, '_blank')
                   }
@@ -173,7 +173,7 @@ export default function ReferralCard() {
                 className="cfg-btn-secondary"
                 style={{ flex: 1, justifyContent: 'center', fontSize: 12 }}
                 onClick={() => {
-                  if (referralLink) window.open(`mailto:?subject=Experimente o FinançasPro&body=Controle suas finanças com IA! Use meu link e ganhe 14 dias grátis: ${referralLink}`, '_blank')
+                  if (referralLink) window.open(`mailto:?subject=Experimente o Nancy&body=Controle suas finanças com IA! Use meu link e ganhe 14 dias grátis: ${referralLink}`, '_blank')
                 }}
                 disabled={!referralLink}
               >

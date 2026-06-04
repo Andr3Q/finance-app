@@ -1,8 +1,8 @@
 {
-  "name": "FinançasPro",
-  "short_name": "FinançasPro",
+  "name": "Nancy",
+  "short_name": "Nancy",
   "id": "/",
-  "description": "FinançasPro — Seu gestor inteligente de finanças pessoais.",
+  "description": "Nancy — Seu gestor inteligente de finanças pessoais.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -30,21 +30,21 @@
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Dashboard — FinançasPro"
+      "label": "Dashboard — Nancy"
     },
     {
       "src": "/screenshot-mobile-2.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Login — FinançasPro"
+      "label": "Login — Nancy"
     },
     {
       "src": "/screenshot-desktop.png",
       "sizes": "1280x800",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Versão desktop — FinançasPro"
+      "label": "Versão desktop — Nancy"
     }
   ]
 }

@@ -21,7 +21,7 @@ export default function MonthlyCloseCard({ user, isPro, onMessage, onUpgrade }) 
     <div className="cfg-card r10">
       <div className="cfg-card-head">
         <div className="cfg-ch-ico">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
             <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
             <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
           </svg>
@@ -37,7 +37,7 @@ export default function MonthlyCloseCard({ user, isPro, onMessage, onUpgrade }) 
       <div className="cfg-card-body">
         {!isPro ? (
           <div className="cfg-pro-lock" onClick={() => onUpgrade('O relatório PDF mensal é exclusivo do plano Pro.')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="1.5" strokeLinecap="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="1.5" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
             </svg>
             <div className="cfg-pro-lock-title">Recurso Pro</div>

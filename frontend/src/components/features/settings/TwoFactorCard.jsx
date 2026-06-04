@@ -166,7 +166,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
 
       <div className="cfg-card r11">
         <div className="cfg-card-head">
-          <div className="cfg-ch-ico" style={{ background: enabled ? 'rgba(74,196,110,.1)' : 'rgba(255,255,255,.05)', border: enabled ? '1px solid rgba(74,196,110,.2)' : '1px solid var(--border)' }}>
+          <div className="cfg-ch-ico" style={{ background: enabled ? 'rgba(74,226,172,.1)' : 'rgba(255,255,255,.05)', border: enabled ? '1px solid rgba(74,226,172,.2)' : '1px solid var(--border)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={enabled ? 'var(--green)' : 'var(--t2)'} strokeWidth="2" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
               <path d="M7 11V7a5 5 0 0110 0v4"/>

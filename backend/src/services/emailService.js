@@ -51,7 +51,7 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1a1a3e, #2d2d6e); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
-        <h1 style="color: #fff; margin: 0; font-size: 28px;">💸 FinançasPro</h1>
+        <h1 style="color: #fff; margin: 0; font-size: 28px;">💸 Nancy</h1>
         <p style="color: #a0a0d0; margin: 8px 0 0;">Relatório de ${monthName}/${year}</p>
       </div>
       
@@ -89,15 +89,15 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
       
       <p style="color: #999; font-size: 12px; text-align: center;">
         O detalhamento completo está no PDF em anexo.<br/>
-        FinançasPro — Seu controle financeiro pessoal 💸
+        Nancy — Seu controle financeiro pessoal 💸
       </p>
     </div>
   `
 
   await transporter.sendMail({
-    from:    `"FinançasPro 💸" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy 💸" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
-    subject: `📊 Relatório de ${monthName}/${year} — FinançasPro`,
+    subject: `📊 Relatório de ${monthName}/${year} — Nancy`,
     html:    emailHtml,
     attachments: [
       {
@@ -113,7 +113,7 @@ async function sendResetEmail(toEmail, userName, resetLink) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
       <div style="background: linear-gradient(135deg, #020d10, #061520); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(0,255,204,0.15);">
-        <h1 style="color: #00ffcc; margin: 0; font-size: 24px;">FinançasPro</h1>
+        <h1 style="color: #00ffcc; margin: 0; font-size: 24px;">Nancy</h1>
         <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">Redefinição de senha</p>
       </div>
       <div style="background: #fff; padding: 28px; border-radius: 12px;">
@@ -130,13 +130,13 @@ async function sendResetEmail(toEmail, userName, resetLink) {
           Este link expira em <strong>1 hora</strong>. Se você não solicitou a redefinição, ignore este e-mail — sua senha permanece a mesma.
         </p>
       </div>
-      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
-    subject: 'Redefinição de senha — FinançasPro',
+    subject: 'Redefinição de senha — Nancy',
     html
   })
 }
@@ -149,7 +149,7 @@ async function sendRenewalReminderEmail(toEmail, userName, planName, daysLeft) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
       <div style="background: linear-gradient(135deg, #020d10, #061520); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(74,196,110,0.2);">
-        <h1 style="color: #4ac46e; margin: 0; font-size: 24px;">FinançasPro</h1>
+        <h1 style="color: #4ac46e; margin: 0; font-size: 24px;">Nancy</h1>
         <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">Aviso de renovação</p>
       </div>
       <div style="background: #fff; padding: 28px; border-radius: 12px;">
@@ -172,14 +172,14 @@ async function sendRenewalReminderEmail(toEmail, userName, planName, daysLeft) {
           Se já renovou, ignore este e-mail.
         </p>
       </div>
-      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
 
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
-    subject: `Seu plano ${planLabel} ${urgency} — FinançasPro`,
+    subject: `Seu plano ${planLabel} ${urgency} — Nancy`,
     html,
   })
 }
@@ -191,7 +191,7 @@ async function sendWelcomeEmail(toEmail, userName, trialEndsAt) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
       <div style="background: linear-gradient(135deg, #020d10, #061520); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(0,255,204,0.15);">
-        <h1 style="color: #00ffcc; margin: 0; font-size: 26px;">FinançasPro</h1>
+        <h1 style="color: #00ffcc; margin: 0; font-size: 26px;">Nancy</h1>
         <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">Seja bem-vindo(a)! 🎉</p>
       </div>
       <div style="background: #fff; padding: 28px; border-radius: 12px;">
@@ -218,14 +218,14 @@ async function sendWelcomeEmail(toEmail, userName, trialEndsAt) {
           </a>
         </div>
       </div>
-      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
 
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
-    subject: 'Bem-vindo(a) ao FinançasPro! Seu trial Pro começa agora 🎉',
+    subject: 'Bem-vindo(a) ao Nancy! Seu trial Pro começa agora 🎉',
     html,
   })
 }
@@ -237,7 +237,7 @@ async function sendTrialExpiryEmail(toEmail, userName, daysLeft) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1a0a00, #2d1500); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(255,165,0,0.3);">
-        <h1 style="color: #ffaa00; margin: 0; font-size: 24px;">FinançasPro</h1>
+        <h1 style="color: #ffaa00; margin: 0; font-size: 24px;">Nancy</h1>
         <p style="color: #997a40; margin: 8px 0 0; font-size: 14px;">⏰ Seu trial está acabando</p>
       </div>
       <div style="background: #fff; padding: 28px; border-radius: 12px;">
@@ -258,14 +258,14 @@ async function sendTrialExpiryEmail(toEmail, userName, daysLeft) {
         </div>
         <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">Cancele quando quiser. Sem fidelidade.</p>
       </div>
-      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
 
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
-    subject: `Seu trial Pro ${urgency} — FinançasPro`,
+    subject: `Seu trial Pro ${urgency} — Nancy`,
     html,
   })
 }
@@ -280,7 +280,7 @@ async function sendPlanActivationEmail(toEmail, userName, plan, planExpiresAt) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
       <div style="background: linear-gradient(135deg, #020d10, #061520); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(0,255,204,0.15);">
-        <h1 style="color: ${color}; margin: 0; font-size: 24px;">FinançasPro</h1>
+        <h1 style="color: ${color}; margin: 0; font-size: 24px;">Nancy</h1>
         <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">Plano ${esc(planLabel)} ativado ✅</p>
       </div>
       <div style="background: #fff; padding: 28px; border-radius: 12px;">
@@ -299,14 +299,14 @@ async function sendPlanActivationEmail(toEmail, userName, plan, planExpiresAt) {
           </a>
         </div>
       </div>
-      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
 
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
-    subject: `Plano ${planLabel} ativado com sucesso! — FinançasPro`,
+    subject: `Plano ${planLabel} ativado com sucesso! — Nancy`,
     html,
   })
 }
@@ -317,7 +317,7 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
       <div style="background: linear-gradient(135deg, #020d10, #061520); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid rgba(0,255,204,0.15);">
-        <h1 style="color: #00ffcc; margin: 0; font-size: 24px;">FinançasPro</h1>
+        <h1 style="color: #00ffcc; margin: 0; font-size: 24px;">Nancy</h1>
         <p style="color: #5a8a78; margin: 8px 0 0; font-size: 14px;">🎉 Sua indicação funcionou!</p>
       </div>
       <div style="background: #fff; padding: 28px; border-radius: 12px;">
@@ -337,12 +337,12 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
           </a>
         </div>
       </div>
-      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
 
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
     subject: `🎉 ${esc(referredName)} entrou usando seu código — você ganhou +30 dias!`,
     html,
@@ -352,8 +352,8 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
 async function sendPlanExpiredEmail(toEmail, userName, wasTrialOrPaid) {
   const appUrl = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
   const subject = wasTrialOrPaid === 'trial'
-    ? 'Seu trial Pro encerrou — FinançasPro'
-    : 'Seu plano expirou — FinançasPro'
+    ? 'Seu trial Pro encerrou — Nancy'
+    : 'Seu plano expirou — Nancy'
   const headline = wasTrialOrPaid === 'trial'
     ? 'Seu trial de 7 dias encerrou'
     : 'Seu plano expirou'
@@ -364,7 +364,7 @@ async function sendPlanExpiredEmail(toEmail, userName, wasTrialOrPaid) {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
       <div style="background:linear-gradient(135deg,#1a0a00,#2d1500);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(239,68,68,0.3);">
-        <h1 style="color:#ef4444;margin:0;font-size:24px;">FinançasPro</h1>
+        <h1 style="color:#ef4444;margin:0;font-size:24px;">Nancy</h1>
         <p style="color:#997a40;margin:8px 0 0;font-size:14px;">⏰ ${esc(headline)}</p>
       </div>
       <div style="background:#fff;padding:28px;border-radius:12px;">
@@ -382,12 +382,12 @@ async function sendPlanExpiredEmail(toEmail, userName, wasTrialOrPaid) {
         </div>
         <p style="color:#999;font-size:12px;text-align:center;margin:0;">Cancele quando quiser. Sem fidelidade.</p>
       </div>
-      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
 
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
     subject,
     html,
@@ -398,7 +398,7 @@ async function sendVerificationEmail(toEmail, userName, verifyLink) {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
       <div style="background:linear-gradient(135deg,#020d10,#061520);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(0,255,204,0.15);">
-        <h1 style="color:#00ffcc;margin:0;font-size:24px;">FinançasPro</h1>
+        <h1 style="color:#00ffcc;margin:0;font-size:24px;">Nancy</h1>
         <p style="color:#5a8a78;margin:8px 0 0;font-size:14px;">Confirme seu e-mail</p>
       </div>
       <div style="background:#fff;padding:28px;border-radius:12px;">
@@ -415,13 +415,13 @@ async function sendVerificationEmail(toEmail, userName, verifyLink) {
           Este link expira em <strong>24 horas</strong>. Se não foi você, ignore este e-mail.
         </p>
       </div>
-      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
-    subject: 'Confirme seu e-mail — FinançasPro',
+    subject: 'Confirme seu e-mail — Nancy',
     html,
   })
 }
@@ -439,7 +439,7 @@ async function sendWeeklyDigest(toEmail, userName, weekData) {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
       <div style="background:linear-gradient(135deg,#020d10,#061520);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(0,255,204,0.15);">
-        <h1 style="color:#00ffcc;margin:0;font-size:24px;">FinançasPro</h1>
+        <h1 style="color:#00ffcc;margin:0;font-size:24px;">Nancy</h1>
         <p style="color:#5a8a78;margin:8px 0 0;font-size:14px;">📊 Resumo semanal</p>
       </div>
       <div style="background:#fff;padding:28px;border-radius:12px;">
@@ -456,14 +456,14 @@ async function sendWeeklyDigest(toEmail, userName, weekData) {
           <a href="${appUrl}" style="display:inline-block;background:linear-gradient(135deg,#00ffcc,#00a89a);color:#021a14;text-decoration:none;padding:14px 36px;border-radius:12px;font-weight:700;font-size:15px;">Ver detalhes no app</a>
         </div>
       </div>
-      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">FinançasPro — Seu controle financeiro pessoal</p>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
 
   await transporter.sendMail({
-    from:    `"FinançasPro" <${process.env.EMAIL_USER}>`,
+    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
     to:      toEmail,
-    subject: `📊 Seu resumo semanal — FinançasPro`,
+    subject: `📊 Seu resumo semanal — Nancy`,
     html,
   })
 }

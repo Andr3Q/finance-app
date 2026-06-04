@@ -119,11 +119,11 @@ export default function AgentChat() {
                 </div>
                 <div className="agent-welcome-title">Assistente IA</div>
                 <div className="agent-welcome-sub" style={{ marginBottom: 16 }}>
-                  Analise gastos, tire dúvidas e registre transações por texto. Disponível no plano <strong style={{ color: '#4ac46e' }}>Pro</strong>.
+                  Analise gastos, tire dúvidas e registre transações por texto. Disponível no plano <strong style={{ color: '#4ae2ac' }}>Pro</strong>.
                 </div>
                 <button
                   onClick={() => { setOpen(false); navigate('/planos') }}
-                  style={{ background: 'linear-gradient(135deg,#4ac46e,#3aaa5e)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                  style={{ background: 'linear-gradient(135deg,#4ae2ac,#2bbf96)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
                 >
                   Ver planos →
                 </button>

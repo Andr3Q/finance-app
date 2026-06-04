@@ -2,7 +2,7 @@ const LEVELS = [
   { label: 'Muito fraca', color: '#ff4757' },
   { label: 'Fraca',       color: '#ff6b35' },
   { label: 'Média',       color: '#ffa502' },
-  { label: 'Forte',       color: '#4ac46e' },
+  { label: 'Forte',       color: '#4ae2ac' },
 ]
 
 function score(pwd) {

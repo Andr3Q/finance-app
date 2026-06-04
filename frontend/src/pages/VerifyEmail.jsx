@@ -39,14 +39,14 @@ export default function VerifyEmail() {
         )}
         {status === 'ok' && (
           <>
-            <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(74,196,110,.12)', border: '1px solid rgba(74,196,110,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(74,226,172,.12)', border: '1px solid rgba(74,226,172,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
             <h2 style={{ color: 'var(--t1)', fontSize: 20, fontWeight: 700, marginBottom: 10 }}>E-mail confirmado!</h2>
-            <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 28, lineHeight: 1.6 }}>Sua conta está totalmente ativada. Aproveite o FinançasPro!</p>
+            <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 28, lineHeight: 1.6 }}>Sua conta está totalmente ativada. Aproveite o Nancy!</p>
             <button
               onClick={() => navigate('/dashboard')}
-              style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: 'none', background: '#4ac46e', color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+              style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: 'none', background: '#4ae2ac', color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
             >
               Ir para o Dashboard
             </button>

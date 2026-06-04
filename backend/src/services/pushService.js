@@ -7,7 +7,7 @@ function ensureVapid() {
   if (vapidConfigured) return true
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return false
   webpush.setVapidDetails(
-    `mailto:${process.env.EMAIL_USER || 'app@financaspro.com.br'}`,
+    `mailto:${process.env.EMAIL_USER || 'app@nancy.com.br'}`,
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   )

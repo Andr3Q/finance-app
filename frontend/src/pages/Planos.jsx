@@ -86,7 +86,7 @@ const COMPARE_GROUPS = [
 
 const CheckYes = () => (
   <div className="plp-check-yes">
-    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
       <path d="M2 6l3 3 5-5"/>
     </svg>
   </div>
@@ -313,7 +313,7 @@ export default function Planos() {
                   f === null ? <li key={i} className="pp1-feat-sep" /> : (
                     <li key={i} className="pp1-feat">
                       <div className="pp1-feat-ico pp1-feat-ico-pro">
-                        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#4ac46e" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
+                        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#4ae2ac" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
                       </div>
                       <span className="pp1-feat-text">
                         {f.text}{f.hi && <> — <span className="pp1-feat-hi">{f.hi}</span></>}
@@ -462,7 +462,7 @@ export default function Planos() {
                 ))}
               </div>
               <div className="pp1-guar-ico">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                 </svg>
               </div>
@@ -477,7 +477,7 @@ export default function Planos() {
 
             <div className="pp1-faq">
               <div className="pp1-faq-title">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
                 Perguntas frequentes

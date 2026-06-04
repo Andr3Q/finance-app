@@ -38,7 +38,7 @@ export default function InstallCard() {
       <div className="cfg-card-head">
         <img src="/icon-192.png" alt="" className="cfg-app-ico" />
         <div>
-          <div className="cfg-ch-title">Instalar Finance</div>
+          <div className="cfg-ch-title">Instalar Nancy</div>
           <div className="cfg-ch-sub">Acesse com um toque, sem abrir o navegador</div>
         </div>
       </div>

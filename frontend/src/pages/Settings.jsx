@@ -134,7 +134,7 @@ export default function Settings() {
                       const url = URL.createObjectURL(res.data)
                       const a = document.createElement('a')
                       a.href = url
-                      a.download = `financaspro-dados-${new Date().toISOString().slice(0,10)}.json`
+                      a.download = `nancy-dados-${new Date().toISOString().slice(0,10)}.json`
                       a.click()
                       URL.revokeObjectURL(url)
                     } catch {

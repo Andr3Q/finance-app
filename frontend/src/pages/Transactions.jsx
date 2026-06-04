@@ -251,20 +251,20 @@ export default function Transactions() {
                 {balancePos ? '' : '−'}R$ {fmt(Math.abs(balance))}
               </div>
               <div className="tx1-hero-sub">saldo do mês</div>
-              <span className="tx1-hero-badge" style={{ background: balancePos ? 'rgba(74,196,110,.15)' : 'rgba(255,71,87,.12)', color: balancePos ? '#4ac46e' : '#ff4757', border: `1px solid ${balancePos ? 'rgba(74,196,110,.25)' : 'rgba(255,71,87,.2)'}` }}>
+              <span className="tx1-hero-badge" style={{ background: balancePos ? 'rgba(74,226,172,.15)' : 'rgba(255,71,87,.12)', color: balancePos ? '#4ae2ac' : '#ff4757', border: `1px solid ${balancePos ? 'rgba(74,226,172,.25)' : 'rgba(255,71,87,.2)'}` }}>
                 {balancePos ? '↑ Positivo' : '↓ Negativo'}
               </span>
             </div>
             <div className="tx1-hero-stats">
               <div className="tx1-hero-stat">
-                <div className="tx1-stat-ico" style={{ background:'rgba(74,196,110,.12)' }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2.5" strokeLinecap="round">
+                <div className="tx1-stat-ico" style={{ background:'rgba(74,226,172,.12)' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2.5" strokeLinecap="round">
                     <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
                   </svg>
                 </div>
                 <div>
                   <div className="tx1-stat-lbl">Entradas</div>
-                  <div className="tx1-stat-val" style={{ color:'#4ac46e' }}>R$ {fmt(totalIncome)}</div>
+                  <div className="tx1-stat-val" style={{ color:'#4ae2ac' }}>R$ {fmt(totalIncome)}</div>
                 </div>
               </div>
               <div className="tx1-hero-stat">
@@ -472,7 +472,7 @@ export default function Transactions() {
               <div className="tx1-empty"><div className="dsb-loader-ring" style={{ margin:'0 auto' }} /></div>
             ) : filtered.length === 0 ? (
               <div className="tx1-empty">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(74,196,110,.4)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom:12 }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(74,226,172,.4)" strokeWidth="1.5" strokeLinecap="round" style={{ marginBottom:12 }}>
                   <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
                 <div style={{ fontSize:14, fontWeight:600, color:'rgba(255,255,255,.4)', marginBottom:4 }}>Nenhuma transação encontrada</div>
@@ -525,7 +525,7 @@ export default function Transactions() {
                 <div className="tx1-footer">
                   <span>{filtered.length} transação(ões)</span>
                   <span>
-                    Entradas: <strong style={{ color:'#4ac46e' }}>R$ {fmt(totalIncome)}</strong>
+                    Entradas: <strong style={{ color:'#4ae2ac' }}>R$ {fmt(totalIncome)}</strong>
                     &nbsp;·&nbsp;
                     Saídas: <strong style={{ color:'#ff4757' }}>R$ {fmt(totalExpenses)}</strong>
                   </span>

@@ -28,10 +28,10 @@ const PARTICLES = [
   { left: 95, size: 4, delay: 2.0, dur: 3.4 },
 ]
 
-const COLORS = ['#4ac46e','#4f8ef7','#7b2fff','#ff8c42','#ff4757','#ff6b9d']
+const COLORS = ['#4ae2ac','#4f8ef7','#7b2fff','#ff8c42','#ff4757','#ff6b9d']
 const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
-const EMPTY_FORM = { title: '', targetAmount: '', currentAmount: '', color: '#4ac46e', deadline: '' }
+const EMPTY_FORM = { title: '', targetAmount: '', currentAmount: '', color: '#4ae2ac', deadline: '' }
 
 function DepositModal({ goal, onConfirm, onCancel, saving }) {
   const [amount, setAmount] = useState('')
@@ -159,7 +159,7 @@ function BarChart({ data }) {
   return (
     <div className="anl-chart-wrap">
       <div className="anl-chart-legend">
-        <span className="anl-legend-dot" style={{ background: '#4ac46e' }} /> Entradas
+        <span className="anl-legend-dot" style={{ background: '#4ae2ac' }} /> Entradas
         <span className="anl-legend-dot" style={{ background: '#ff6b6b', marginLeft: 14 }} /> Saídas
       </div>
       <div className="anl-chart-body">
@@ -170,7 +170,7 @@ function BarChart({ data }) {
             const x    = i * 52
             return (
               <g key={i}>
-                <rect x={x + 4}  y={barH - incH} width={20} height={Math.max(incH, 1)}  rx="3" fill="#4ac46e" opacity=".85" />
+                <rect x={x + 4}  y={barH - incH} width={20} height={Math.max(incH, 1)}  rx="3" fill="#4ae2ac" opacity=".85" />
                 <rect x={x + 27} y={barH - expH} width={20} height={Math.max(expH, 1)} rx="3" fill="#ff6b6b" opacity=".85" />
                 <text x={x + 26} y={barH + 18} textAnchor="middle" className="anl-chart-label">
                   {MONTHS_SHORT[d.month - 1]}
@@ -183,7 +183,7 @@ function BarChart({ data }) {
       <div className="anl-chart-vals">
         {data.map((d, i) => (
           <div key={i} className="anl-chart-col">
-            <span style={{ color: '#4ac46e' }}>+{fmt(d.income)}</span>
+            <span style={{ color: '#4ae2ac' }}>+{fmt(d.income)}</span>
             <span style={{ color: '#ff6b6b' }}>-{fmt(d.expenses)}</span>
           </div>
         ))}
@@ -413,7 +413,7 @@ export default function Goals() {
                 ))}
               </div>
               <div className="gls-hero-ico">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
                 </svg>
               </div>
@@ -467,7 +467,7 @@ export default function Goals() {
             ) : activeTab === 'metas' && goals.length === 0 ? (
               <div className="gls-empty-state">
                 <div className="gls-empty-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
                   </svg>
                 </div>

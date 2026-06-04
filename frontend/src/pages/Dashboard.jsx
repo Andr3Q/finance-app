@@ -166,7 +166,7 @@ export default function Dashboard() {
 
   const scoreColor = score === null ? 'var(--t2)' :
     score >= 80 ? 'var(--c)' :
-    score >= 60 ? '#00d084' :
+    score >= 60 ? '#4ae2ac' :
     score >= 40 ? '#ffc107' :
     score >= 20 ? '#ff8c42' : '#ff4757'
 
@@ -210,7 +210,7 @@ export default function Dashboard() {
     </div>
   )
 
-  const HB_COLORS  = ['var(--c)','#00b4d8','#7b2fff','#ff6b9d','#ffc107','#ff8c42','#4f8ef7','#00d084']
+  const HB_COLORS  = ['var(--c)','#00b4d8','#7b2fff','#ff6b9d','#ffc107','#ff8c42','#4f8ef7','#4ae2ac']
   const RING_R     = 58
   const RING_CIRC  = 2 * Math.PI * RING_R
   const ringOffset = RING_CIRC * (1 - Math.min(pct, 100) / 100)
@@ -302,7 +302,7 @@ export default function Dashboard() {
             {activeMetric === 'entradas' && (
               <div className="hb-pane">
                 <div className="hb-pane-top"><span className="hb-pane-lbl">Salário + Entradas</span></div>
-                <div className="hb-pane-val" style={{ color:'#2BE86A' }}>R$ {fmt(summary?.totalAvailable)}</div>
+                <div className="hb-pane-val" style={{ color:'#4ae2ac' }}>R$ {fmt(summary?.totalAvailable)}</div>
                 <div className="hb-pane-sub">
                   Salário: <b>R$ {fmt(summary?.salary)}</b>
                   {summary?.totalIncome > 0 && <> · Extras: <b>+R$ {fmtShort(summary?.totalIncome)}</b></>}
@@ -315,7 +315,7 @@ export default function Dashboard() {
                   <span className="hb-pane-lbl">Total gasto</span>
                 </div>
                 <div className="hb-pane-val" style={{ color:'#FF6F6F' }}>R$ {fmt(summary?.totalExpenses)}</div>
-                <div className="hb-prog"><b style={{ width:`${Math.min(pct,100)}%`, background: pct > 100 ? 'linear-gradient(90deg,#FF9F6F,#FF6F6F)' : 'linear-gradient(90deg,#16b34c,#2BE86A)' }} /></div>
+                <div className="hb-prog"><b style={{ width:`${Math.min(pct,100)}%`, background: pct > 100 ? 'linear-gradient(90deg,#FF9F6F,#FF6F6F)' : 'linear-gradient(90deg,#2bbf96,#4ae2ac)' }} /></div>
                 <div className="hb-prog-cap"><span>{pct}% do orçamento</span><span>{MONTHS[now.getMonth()]}</span></div>
               </div>
             )}
@@ -326,7 +326,7 @@ export default function Dashboard() {
                   {score !== null ? score : '—'}
                   {score !== null && <span className="hb-pane-val-sub">/100</span>}
                 </div>
-                <div className="hb-prog"><b style={{ width:`${score ?? 0}%`, background:`linear-gradient(90deg,#16b34c,${scoreColor})` }} /></div>
+                <div className="hb-prog"><b style={{ width:`${score ?? 0}%`, background:`linear-gradient(90deg,#2bbf96,${scoreColor})` }} /></div>
                 <div className="hb-prog-cap"><span>{score ?? 0} de 100</span><span style={{ color: scoreColor }}>{scoreLabel}</span></div>
               </div>
             )}
@@ -357,8 +357,8 @@ export default function Dashboard() {
             }
 
             const META = {
-              saldo:    { lbl:'Saldo disponível',   val:`R$ ${fmt(bal)}`,  cls: bal<0?'hh-red':'hh-white', chip:healthLabel, sub:`${MONTHS[now.getMonth()]}`, color:'#2BE86A', title:`Evolução do saldo · ${MONTHS[now.getMonth()]}`,    leg:'Saldo',    series: makeSeries(bal) },
-              entradas: { lbl:'Salário + Entradas', val:`R$ ${fmt(inc)}`,  cls:'hh-green', chip:`+R$ ${fmtShort(summary?.totalIncome??0)} extras`, sub:`Salário R$ ${fmt(summary?.salary??0)}`, color:'#2BE86A', title:`Entradas acumuladas · ${MONTHS[now.getMonth()]}`, leg:'Entradas', series: makeSeries(inc) },
+              saldo:    { lbl:'Saldo disponível',   val:`R$ ${fmt(bal)}`,  cls: bal<0?'hh-red':'hh-white', chip:healthLabel, sub:`${MONTHS[now.getMonth()]}`, color:'#4ae2ac', title:`Evolução do saldo · ${MONTHS[now.getMonth()]}`,    leg:'Saldo',    series: makeSeries(bal) },
+              entradas: { lbl:'Salário + Entradas', val:`R$ ${fmt(inc)}`,  cls:'hh-green', chip:`+R$ ${fmtShort(summary?.totalIncome??0)} extras`, sub:`Salário R$ ${fmt(summary?.salary??0)}`, color:'#4ae2ac', title:`Entradas acumuladas · ${MONTHS[now.getMonth()]}`, leg:'Entradas', series: makeSeries(inc) },
               gastos:   { lbl:'Total gasto',         val:`R$ ${fmt(exp)}`,  cls:'hh-red',   chip:`${pct}% do orçamento`, sub:`${MONTHS[now.getMonth()]}`, color:'#FF6F6F', title:`Gastos acumulados · ${MONTHS[now.getMonth()]}`,   leg:'Gastos',   series: makeSeries(exp) },
               score:    { lbl:'Score financeiro',    val:`${sc}`,           cls:'hh-green', chip:scoreLabel, sub:`${MONTHS[now.getMonth()]}`, color: scoreColor, title:`Evolução do score · ${MONTHS[now.getMonth()]}`, leg:'Score', series:[sc-22,sc-17,sc-12,sc-9,sc-6,sc-3,sc-1,sc].map(v=>Math.max(0,v)) },
             }
@@ -424,8 +424,8 @@ export default function Dashboard() {
                     <svg viewBox="0 0 600 220" preserveAspectRatio="none" className="hb-chart-svg">
                       <defs>
                         <linearGradient id={`hbGreen${activeMetric}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={isRed?'rgba(255,111,111,.30)':'rgba(43,232,106,.34)'}/>
-                          <stop offset="100%" stopColor={isRed?'rgba(255,111,111,0)':'rgba(43,232,106,0)'}/>
+                          <stop offset="0%" stopColor={isRed?'rgba(255,111,111,.30)':'rgba(74,226,172,.34)'}/>
+                          <stop offset="100%" stopColor={isRed?'rgba(255,111,111,0)':'rgba(74,226,172,0)'}/>
                         </linearGradient>
                       </defs>
                       <g stroke="#19211a" strokeWidth="1">

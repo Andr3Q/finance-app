@@ -711,7 +711,7 @@ router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
     }
 
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.setHeader('Content-Disposition', `attachment; filename="financaspro-dados-${new Date().toISOString().slice(0,10)}.json"`)
+    res.setHeader('Content-Disposition', `attachment; filename="nancy-dados-${new Date().toISOString().slice(0,10)}.json"`)
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
     res.setHeader('Pragma', 'no-cache')
     res.json(exportData)

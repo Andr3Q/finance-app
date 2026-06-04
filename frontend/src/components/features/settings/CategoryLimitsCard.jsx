@@ -62,7 +62,7 @@ export default function CategoryLimitsCard({ isPro, onMessage, onUpgrade }) {
     <div className="cfg-card r9">
       <div className="cfg-card-head">
         <div className="cfg-ch-ico">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
             <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
           </svg>
         </div>
@@ -77,7 +77,7 @@ export default function CategoryLimitsCard({ isPro, onMessage, onUpgrade }) {
       <div className="cfg-card-body">
         {!isPro ? (
           <div className="cfg-pro-lock" onClick={() => onUpgrade('Limites por categoria são exclusivos do plano Pro.')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="1.5" strokeLinecap="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="1.5" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
             </svg>
             <div className="cfg-pro-lock-title">Recurso Pro</div>

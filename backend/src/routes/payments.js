@@ -47,8 +47,8 @@ const PRICES = {
 }
 
 const TITLES = {
-  pro:   { monthly: 'FinançasPro Pro — Mensal',  annual: 'FinançasPro Pro — Anual'  },
-  elite: { monthly: 'FinançasPro Elite — Mensal', annual: 'FinançasPro Elite — Anual' },
+  pro:   { monthly: 'Nancy Pro — Mensal',  annual: 'Nancy Pro — Anual'  },
+  elite: { monthly: 'Nancy Elite — Mensal', annual: 'Nancy Elite — Anual' },
 }
 
 function getMpClient() {
@@ -91,7 +91,7 @@ router.post('/create-preference', authMiddleware, async (req, res) => {
         },
         auto_return:          'approved',
         notification_url:     `${APP_URL}/api/payments/webhook`,
-        statement_descriptor: 'FINANCASPRO',
+        statement_descriptor: 'NANCY',
       },
     })
 

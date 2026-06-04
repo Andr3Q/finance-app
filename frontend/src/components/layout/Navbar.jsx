@@ -115,7 +115,7 @@ export default function Navbar() {
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'
     ? `${greeting()}${firstName ? `, ${firstName}` : ''}`
-    : ROUTE_TITLES[location.pathname] || 'Finance'
+    : ROUTE_TITLES[location.pathname] || 'Nancy'
 
   const navLinks = [
     { path: '/dashboard',    label: 'Dashboard',     Icon: HomeIcon   },
@@ -164,8 +164,8 @@ export default function Navbar() {
         <div className="dsb-s-inner">
           {/* Logo */}
           <button className="dsb-s-logo" onClick={() => navigate('/dashboard')}>
-            <img src="/logo-icon.png" alt="Finance" style={{ width: 30, height: 30 }} />
-            <span className="dsb-s-logo-name">Finance</span>
+            <img src="/logo-icon.png" alt="Nancy" style={{ width: 30, height: 30 }} />
+            <span className="dsb-s-logo-name">Nancy</span>
           </button>
 
           {/* Nav links */}
@@ -275,7 +275,7 @@ export default function Navbar() {
                 {salaryNotif && !bellDismissed ? (
                   <div className="dsb-bell-item">
                     <div className="dsb-bell-item-ico">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
                         <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
                     </div>
@@ -353,7 +353,7 @@ function InstallGuide({ onClose }) {
         <div className="ig-header">
           <img src="/icon-192.png" alt="" className="ig-icon" />
           <div>
-            <div className="ig-title">Instalar Finance</div>
+            <div className="ig-title">Instalar Nancy</div>
             <div className="ig-sub">
               {isDesktop ? 'Instale como app no seu computador' : 'Siga os passos abaixo'}
             </div>

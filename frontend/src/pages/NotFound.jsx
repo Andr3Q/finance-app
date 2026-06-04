@@ -8,8 +8,8 @@ export default function NotFound() {
 
       <header style={{ borderBottom: '1px solid var(--bd)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'var(--t1)' }}>
-          <img src="/logo-icon.png" alt="FinançasPro" style={{ width: 28, height: 28 }} />
-          <span style={{ fontWeight: 700, fontSize: 15 }}>FinançasPro</span>
+          <img src="/logo-icon.png" alt="Nancy" style={{ width: 28, height: 28 }} />
+          <span style={{ fontWeight: 700, fontSize: 15 }}>Nancy</span>
         </Link>
       </header>
 
@@ -17,7 +17,7 @@ export default function NotFound() {
 
         <div style={{
           fontSize: 96, fontWeight: 900, fontFamily: 'var(--fd)',
-          background: 'linear-gradient(135deg, var(--c), rgba(74,196,110,.3))',
+          background: 'linear-gradient(135deg, var(--c), rgba(74,226,172,.3))',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           lineHeight: 1, marginBottom: 16, userSelect: 'none',
         }}>

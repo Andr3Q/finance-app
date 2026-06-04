@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 const CheckIcon = () => (
   <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
-    <path d="M2 6l3 3 5-5" stroke="#4ac46e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <path d="M2 6l3 3 5-5" stroke="#4ae2ac" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 )
 
@@ -11,7 +11,7 @@ const FEATURES = [
     title: 'Dashboard em tempo real',
     desc: 'Veja seu saldo, gastos e entradas do mês em um painel limpo e intuitivo. Tudo atualizado na hora.',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
         <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
       </svg>
     ),
@@ -20,7 +20,7 @@ const FEATURES = [
     title: 'Categorias de gastos',
     desc: 'Organize cada transação por categoria e visualize exatamente para onde vai o seu dinheiro todo mês.',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
         <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>
       </svg>
     ),
@@ -29,7 +29,7 @@ const FEATURES = [
     title: 'Relatório PDF mensal',
     desc: 'Receba um resumo completo e detalhado do mês direto no seu e-mail, gerado automaticamente.',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
         <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
       </svg>
@@ -39,7 +39,7 @@ const FEATURES = [
     title: 'Contas fixas automáticas',
     desc: 'Cadastre suas contas recorrentes uma vez e o app as lança automaticamente todo mês para você.',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/>
         <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
@@ -49,7 +49,7 @@ const FEATURES = [
     title: 'Histórico de meses',
     desc: 'Acesse e compare o histórico completo de todos os meses anteriores para entender sua evolução.',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
       </svg>
     ),
@@ -58,7 +58,7 @@ const FEATURES = [
     title: 'Exportação CSV',
     desc: 'Exporte todas as suas transações em CSV para usar em planilhas ou outros sistemas financeiros.',
     icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ac46e" strokeWidth="2" strokeLinecap="round">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
         <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
       </svg>
@@ -108,8 +108,8 @@ export default function Landing() {
       <nav className="lp2-nav">
         <div className="lp2-nav-inner">
           <Link to="/" className="lp2-logo">
-            <img src="/logo-icon.png" alt="Finance" style={{ width: 32, height: 32 }} />
-            <span className="lp2-logo-name">Finance</span>
+            <img src="/logo-icon.png" alt="Nancy" style={{ width: 32, height: 32 }} />
+            <span className="lp2-logo-name">Nancy</span>
           </Link>
           <Link to="/register" className="lp2-nav-cta">Começar grátis</Link>
         </div>
@@ -296,8 +296,8 @@ export default function Landing() {
       <footer className="lp2-footer">
         <div className="lp2-footer-inner">
           <Link to="/" className="lp2-logo">
-            <img src="/logo-icon.png" alt="Finance" style={{ width: 28, height: 28 }} />
-            <span className="lp2-logo-name" style={{ fontSize: 16 }}>Finance</span>
+            <img src="/logo-icon.png" alt="Nancy" style={{ width: 28, height: 28 }} />
+            <span className="lp2-logo-name" style={{ fontSize: 16 }}>Nancy</span>
           </Link>
           <p className="lp2-footer-note">© 2026 Finance · Todos os direitos reservados</p>
         </div>

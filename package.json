@@ -11,6 +11,7 @@
     "stop": "docker compose down",
     "logs": "docker compose logs -f",
     "deploy": "gcloud run deploy finance-app --source . --region southamerica-east1 --quiet",
+    "deploy:prod": "gcloud run deploy finance-app --source . --region southamerica-east1 --quiet",
     "db:studio": "cd backend && npx prisma studio",
     "db:migrate": "cd backend && npx prisma migrate dev",
     "db:generate": "cd backend && npx prisma generate",
