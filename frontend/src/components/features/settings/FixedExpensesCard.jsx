@@ -28,7 +28,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const fetchBudgets = async () => {
     try {
       const res = await budgetAPI.list()
-      setBudgets(res.data)
+      setBudgets(Array.isArray(res.data) ? res.data : [])
     } catch {
       onMessage('Erro ao carregar contas fixas.', 'error')
     }
