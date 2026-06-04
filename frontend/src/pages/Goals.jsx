@@ -401,8 +401,7 @@ export default function Goals() {
         <div className="dsb-content">
           <div className="gls-page">
 
-            {/* ── Hero + Tabs — bloco fixo no topo ── */}
-            <div className="gls-sticky-top">
+            {/* ── Hero ── */}
             <div className="gls-hero">
               <div className="gc-glow" />
               <div className="gc-particles" aria-hidden="true">
@@ -434,8 +433,8 @@ export default function Goals() {
               )}
             </div>
 
-            {/* ── Tabs (scroll lateral) ── */}
-            <div style={{ display:'flex', gap:4, marginBottom:0, borderBottom:'1px solid var(--bd)', paddingBottom:0, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
+            {/* ── Tabs ── */}
+            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--bd)', paddingBottom:0, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
               {[
                 { key:'metas',       label:'Metas' },
                 { key:'historico',   label:'Histórico' },
@@ -459,9 +458,7 @@ export default function Goals() {
                 </button>
               ))}
             </div>
-            </div>{/* .gls-sticky-top */}
 
-            <div style={{ paddingTop: 20 }}>
             {/* ── Metas ── */}
             {activeTab === 'metas' && loading ? (
               <div style={{ display:'flex', justifyContent:'center', padding:'40px 0' }}>
@@ -646,7 +643,6 @@ export default function Goals() {
                 onUpgrade={() => navigate('/planos')}
               />
             )}
-            </div>{/* fim do conteúdo com paddingTop */}
 
           </div>
         </div>
