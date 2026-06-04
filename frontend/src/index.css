@@ -5344,7 +5344,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* Hero card — grid 2 colunas */
 .hb-hero {
   position: relative; z-index: 1;
-  border-radius: 22px; padding: 30px 32px;
+  border-radius: 22px; padding: 22px 28px;
   background:
     radial-gradient(120% 130% at 92% 0%, rgba(43,232,106,.20), transparent 55%),
     linear-gradient(150deg, #0b120d, #0a160f 70%);
@@ -5366,6 +5366,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   animation: hb-twinkle 5s ease-in-out infinite;
 }
 .hb-hero > * { position: relative; z-index: 1; }
+.hb-hero-particles { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
 
 /* Left */
 .hb-hero-left { display: flex; flex-direction: column; }
