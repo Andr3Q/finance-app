@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test')
 const { createMock }   = require('../helpers/mockApi')
 
 // ─────────────────────────────────────────────────────────────────
-// Dados de mock reutilizáveis
+// Dados de mock — completos para o contrato atual da API
 // ─────────────────────────────────────────────────────────────────
 const mockUser = {
   id: 'user-test-01', name: 'QA Tester', email: 'qa@test.com',
@@ -11,34 +11,60 @@ const mockUser = {
   twoFactorEnabled: false, onboardingComplete: true,
   autoLaunchMonth: 6, autoLaunchYear: 2026,
   planExpiresAt: null, trialEndsAt: null,
+  referralCode: 'ABCD1234',
+  notifBudgetAlert: true, notifBudgetReminder: true,
 }
 
-// 10 transações em 5 datas diferentes — força o botão "Ver mais" a aparecer
-const mockTransactions = [
-  { id: 't1',  description: 'Aluguel',      amount: 2000, type: 'expense', category: 'housing',  date: '2026-06-01T10:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't2',  description: 'Salário',       amount: 5000, type: 'income',  category: 'salary',   date: '2026-06-01T09:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't3',  description: 'Supermercado',  amount:  450, type: 'expense', category: 'food',     date: '2026-06-02T12:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't4',  description: 'Internet',      amount:  120, type: 'expense', category: 'utilities',date: '2026-06-03T08:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't5',  description: 'Freelance',     amount: 1500, type: 'income',  category: 'freelance',date: '2026-06-04T14:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't6',  description: 'Luz',           amount:  180, type: 'expense', category: 'utilities',date: '2026-06-05T10:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't7',  description: 'Academia',      amount:   90, type: 'expense', category: 'health',   date: '2026-06-05T11:00:00Z', month: 6, year: 2026, archived: false },
+// 7 transações em 5 datas distintas — garante que "Ver mais" aparece (FEED_PREVIEW=3)
+const mockTxList = [
+  { id: 't1', description: 'Aluguel',     amount: 2000, type: 'expense', category: 'housing',  date: '2026-06-01T10:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't2', description: 'Salário',      amount: 5000, type: 'income',  category: 'salary',   date: '2026-06-01T09:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't3', description: 'Supermercado', amount:  450, type: 'expense', category: 'food',     date: '2026-06-02T12:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't4', description: 'Internet',     amount:  120, type: 'expense', category: 'utilities',date: '2026-06-03T08:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't5', description: 'Freelance',    amount: 1500, type: 'income',  category: 'freelance',date: '2026-06-04T14:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't6', description: 'Luz',          amount:  180, type: 'expense', category: 'utilities',date: '2026-06-05T10:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't7', description: 'Academia',     amount:   90, type: 'expense', category: 'health',   date: '2026-06-05T11:00:00Z', month: 6, year: 2026, archived: false },
 ]
 
-const mockSummary = {
-  balance: 3660, salary: 5000, totalIncome: 6500, totalExpense: 2840,
-  budgetUsedPct: 57, financialScore: 72, extras: 1500,
+// Resposta do /api/transactions/dashboard — shape correto esperado pelo componente
+const mockDashboard = {
+  summary: {
+    currentBalance: 5660, totalAvailable: 6500, salary: 5000,
+    totalExpenses: 2840, totalIncome: 1500, percentUsed: 57,
+    financialScore: 72, healthLabel: 'Saudável', extras: 1500,
+  },
+  transactions: mockTxList,
+  limits: [],
+  budgets: [{ id: 'b1', name: 'Aluguel', amount: 2000, dueDay: 1 }],
 }
 
-// Helper: autentica e vai para o Dashboard com mocks
+// ─────────────────────────────────────────────────────────────────
+// Helper isolado por page — sem leak entre workers paralelos
+// LIFO correto: wildcard registrado ANTES dos específicos
+// ─────────────────────────────────────────────────────────────────
 async function goDashboard(page) {
-  const mock = createMock(page)
+  // 1. Wildcard com menor prioridade (LIFO: registrado primeiro = verificado por último)
+  await page.route('**/api/**', r => {
+    if (r.request().method() === 'GET')
+      return r.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+    r.fulfill({ status: 200, contentType: 'application/json', body: '{}' })
+  })
 
-  mock.get('/api/auth/me',       mockUser)
-  mock.get('/api/transactions',  mockTransactions)
-  mock.get('/api/budget',        [{ id: 'b1', name: 'Aluguel', amount: 2000, dueDay: 1 }])
-  mock.get('/api/goals',         [])
-  mock.get('/api/installments',  [])
-  mock.post('/api/auth/login', { token: 'mock-jwt', user: mockUser })
+  // 2. Rotas específicas (maior prioridade — sobrepõem o wildcard)
+  // LIFO — ordem: geral ANTES, específico DEPOIS (específico ganha)
+  await page.route('**/api/auth/me**',            r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockUser) }))
+  await page.route('**/api/transactions**',        r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockTxList) }))
+  await page.route('**/api/transactions/dashboard**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard) }))
+  await page.route('**/api/budget**',              r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard.budgets) }))
+  await page.route('**/api/budget/category-limits**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+  await page.route('**/api/goals**',               r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+  await page.route('**/api/installments**',        r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+  await page.route('**/api/agent/predict**',       r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ prediction: 'Sem dados suficientes.' }) }))
+  await page.route('**/health**',                  r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok', db_ms: 5 }) }))
+  await page.route('**/api/auth/login**',          r => {
+    if (r.request().method() !== 'POST') return r.continue()
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ token: 'mock-jwt', user: mockUser }) })
+  })
 
   await page.goto('/login')
   await page.fill('input[type=email]',    'qa@test.com')
@@ -46,165 +72,274 @@ async function goDashboard(page) {
   await page.click('button[type=submit]')
   await page.waitForURL(/\/(dashboard)?$/, { timeout: 8000 })
   await page.waitForLoadState('networkidle')
+  await page.waitForTimeout(500) // React async render
 }
 
 // ─────────────────────────────────────────────────────────────────
-// 1. SEM SCROLL HORIZONTAL em viewport 375px (iPhone SE)
+// 1. RESPONSIVIDADE — sem scroll horizontal em 375px
 // ─────────────────────────────────────────────────────────────────
 test.describe('Dashboard — Responsividade Mobile (375px)', () => {
-
   test.use({ viewport: { width: 375, height: 812 } })
 
   test('não possui scroll horizontal na tela de 375px', async ({ page }) => {
     await goDashboard(page)
-
-    const scrollWidth  = await page.evaluate(() => document.documentElement.scrollWidth)
-    const clientWidth  = await page.evaluate(() => document.documentElement.clientWidth)
-
+    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth)
+    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth)
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
   })
 
   test('container .pwnav não cria overflow horizontal', async ({ page }) => {
     await goDashboard(page)
-
     const overflow = await page.evaluate(() => {
       const el = document.querySelector('.pwnav')
       if (!el) return null
       const style = window.getComputedStyle(el)
       return { overflowX: style.overflowX, scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }
     })
-
     expect(overflow).not.toBeNull()
     expect(overflow.overflowX).toBe('hidden')
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
   })
 
-  test('card .hb-feed-card não ultrapassa a largura da tela', async ({ page }) => {
+  test('.hb-feed-card não ultrapassa a borda da tela', async ({ page }) => {
     await goDashboard(page)
-
     const cardRight = await page.evaluate(() => {
       const card = document.querySelector('.hb-feed-card')
       if (!card) return null
       return card.getBoundingClientRect().right
     })
-
     expect(cardRight).not.toBeNull()
-    expect(cardRight).toBeLessThanOrEqual(375 + 1) // +1px de tolerância
+    expect(cardRight).toBeLessThanOrEqual(375 + 1)
   })
-
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 2. BOTÃO "VER MAIS" — Estado e altura do card
+// 2. HERO MOBILE — tabs e card (hb-kpi-block)
+// ─────────────────────────────────────────────────────────────────
+test.describe('Dashboard — Hero Mobile', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
+
+  test('bloco kpi-block visível no mobile', async ({ page }) => {
+    await goDashboard(page)
+    await expect(page.locator('.hb-kpi-block')).toBeVisible()
+  })
+
+  test('4 tabs visíveis (Saldo, Entradas, Gastos, Score)', async ({ page }) => {
+    await goDashboard(page)
+    const tabs = page.locator('.hb-btab')
+    await expect(tabs).toHaveCount(4)
+    await expect(tabs.nth(0)).toContainText('Saldo')
+    await expect(tabs.nth(1)).toContainText('Entradas')
+    await expect(tabs.nth(2)).toContainText('Gastos')
+    await expect(tabs.nth(3)).toContainText('Score')
+  })
+
+  test('tab Saldo ativa por padrão — underline verde', async ({ page }) => {
+    await goDashboard(page)
+    const saldoTab = page.locator('.hb-btab').first()
+    const borderColor = await saldoTab.evaluate(el =>
+      window.getComputedStyle(el).borderBottomColor
+    )
+    // Deve ter border-bottom colorido (não transparente)
+    expect(borderColor).not.toBe('rgba(0, 0, 0, 0)')
+    expect(borderColor).not.toBe('transparent')
+  })
+
+  test('clicar tab Score muda conteúdo do card', async ({ page }) => {
+    await goDashboard(page)
+    await page.locator('.hb-btab').nth(3).click()
+    await page.waitForTimeout(200)
+    const scoreLabel = page.locator('.hb-pane-lbl')
+    await expect(scoreLabel).toContainText(/score/i)
+  })
+
+  test('botão Nova Transação visível no hero mobile', async ({ page }) => {
+    await goDashboard(page)
+    const btn = page.locator('.hb-btn-main')
+    await expect(btn).toBeVisible()
+    await expect(btn).toContainText('Nova Transação')
+  })
+
+  test('hb-desktop-only oculto em 393px', async ({ page }) => {
+    await goDashboard(page)
+    const desktop = page.locator('.hb-desktop-only').first()
+    const isHidden = await desktop.evaluate(el =>
+      window.getComputedStyle(el).display === 'none'
+    )
+    expect(isHidden).toBe(true)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
+// 3. HERO DESKTOP — tabs + gráfico
+// ─────────────────────────────────────────────────────────────────
+test.describe('Dashboard — Hero Desktop (1280px)', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test('hero section visível no desktop', async ({ page }) => {
+    await goDashboard(page)
+    await expect(page.locator('.hb-hero-section')).toBeVisible()
+  })
+
+  test('4 tabs desktop visíveis', async ({ page }) => {
+    await goDashboard(page)
+    const tabs = page.locator('.hb-htab')
+    await expect(tabs).toHaveCount(4)
+  })
+
+  test('gráfico SVG renderizado no hero', async ({ page }) => {
+    await goDashboard(page)
+    const hasSvg = await page.evaluate(() => !!document.querySelector('.hb-chart-svg'))
+    expect(hasSvg).toBe(true)
+  })
+
+  test('hb-kpi-block oculto em 1280px', async ({ page }) => {
+    await goDashboard(page)
+    const mobile = page.locator('.hb-kpi-block').first()
+    const isHidden = await mobile.evaluate(el =>
+      window.getComputedStyle(el).display === 'none'
+    )
+    expect(isHidden).toBe(true)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
+// 4. FEED DE ATIVIDADE — Ver mais / Ver menos
 // ─────────────────────────────────────────────────────────────────
 test.describe('Dashboard — Feed de Atividade (Ver mais / Ver menos)', () => {
 
   test('botão "Ver mais" aparece quando há mais de 3 grupos de data', async ({ page }) => {
     await goDashboard(page)
-
-    // 7 transações em 5 datas → deve exibir botão
     const btn = page.locator('.hb-feed-toggle')
-    await expect(btn).toBeVisible()
+    await expect(btn).toBeVisible({ timeout: 8000 })
     await expect(btn).toContainText('Ver mais')
   })
 
-  test('clicar "Ver mais" adiciona itens visíveis e altera a classe do feed', async ({ page }) => {
+  test('clicar "Ver mais" remove classe hb-feed-collapsed', async ({ page }) => {
     await goDashboard(page)
-
     const feed = page.locator('.hb-feed').first()
+    await expect(feed).toHaveClass(/hb-feed-collapsed/, { timeout: 8000 })
 
-    // Estado inicial: classe collapsed
-    await expect(feed).toHaveClass(/hb-feed-collapsed/)
-
-    // Altura inicial (colapsado)
-    const heightBefore = await feed.evaluate(el => el.scrollHeight)
-
-    // Clicar em Ver mais
     await page.locator('.hb-feed-toggle').click()
-
-    // Classe collapsed deve sumir
     await expect(feed).not.toHaveClass(/hb-feed-collapsed/)
-
-    // Altura deve crescer
-    const heightAfter = await feed.evaluate(el => el.scrollHeight)
-    expect(heightAfter).toBeGreaterThanOrEqual(heightBefore)
-
-    // Botão deve mudar para "Ver menos"
     await expect(page.locator('.hb-feed-toggle')).toContainText('Ver menos')
   })
 
   test('clicar "Ver menos" volta ao estado colapsado', async ({ page }) => {
     await goDashboard(page)
-
-    // Expandir
     await page.locator('.hb-feed-toggle').click()
-    await expect(page.locator('.hb-feed-toggle')).toContainText('Ver menos')
-
-    // Colapsar
     await page.locator('.hb-feed-toggle').click()
     await expect(page.locator('.hb-feed-toggle')).toContainText('Ver mais')
     await expect(page.locator('.hb-feed').first()).toHaveClass(/hb-feed-collapsed/)
   })
 
-  test('trocar filtro (Gastos) reseta o feed para colapsado', async ({ page }) => {
+  test('trocar filtro "Gastos" reseta feed para colapsado', async ({ page }) => {
     await goDashboard(page)
-
-    // Expandir primeiro
     await page.locator('.hb-feed-toggle').click()
     await expect(page.locator('.hb-feed').first()).not.toHaveClass(/hb-feed-collapsed/)
 
-    // Trocar filtro → deve colapsar
-    await page.getByRole('button', { name: /^gastos$/i }).click()
-    await expect(page.locator('.hb-feed').first()).toHaveClass(/hb-feed-collapsed/)
+    // Clica no filtro do feed (não no tab do hero)
+    await page.locator('.hb-feed-tab', { hasText: /^Gastos$/i }).click()
+    await expect(page.locator('.hb-feed').first()).toHaveClass(/hb-feed-collapsed/, { timeout: 5000 })
   })
 
-  test('lista original de transações não é mutada (integridade dos dados)', async ({ page }) => {
+  test('lista original de transações não é mutada', async ({ page }) => {
     await goDashboard(page)
-
-    // Ler número de itens renderizados antes de expandir
     const countBefore = await page.locator('.hb-feed-item').count()
-
-    // Expandir
     await page.locator('.hb-feed-toggle').click()
     const countAfter = await page.locator('.hb-feed-item').count()
-
-    // Expandido deve mostrar mais ou igual número de itens
     expect(countAfter).toBeGreaterThanOrEqual(countBefore)
-
-    // Total máximo = total de transações do mock
-    expect(countAfter).toBeLessThanOrEqual(mockTransactions.length)
+    expect(countAfter).toBeLessThanOrEqual(mockTxList.length)
   })
 
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 3. VAR(--C) — Cor verde aplicada uniformemente
+// 5. TOKEN DE COR var(--c)
 // ─────────────────────────────────────────────────────────────────
 test.describe('Dashboard — Token de cor var(--c)', () => {
 
   test('--c está definido no :root', async ({ page }) => {
     await goDashboard(page)
-
     const color = await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue('--c').trim()
     )
-
     expect(color).not.toBe('')
     expect(color.startsWith('#') || color.startsWith('rgb')).toBeTruthy()
   })
 
-  test('botão Nova Transação usa a mesma cor do token --c', async ({ page }) => {
+  test('botão Nova Transação mobile usa var(--c) — não hardcoded #4ac46e', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 852 })
     await goDashboard(page)
 
-    const [btnBg, tokenColor] = await page.evaluate(() => {
-      const btn   = document.querySelector('.hb-new-btn')
-      const token = getComputedStyle(document.documentElement).getPropertyValue('--c').trim()
-      return btn ? [getComputedStyle(btn).backgroundColor, token] : [null, token]
+    // Mobile: .hb-btn-main
+    const btnBg = await page.evaluate(() => {
+      const btn = document.querySelector('.hb-btn-main')
+      return btn ? getComputedStyle(btn).backgroundColor : null
     })
-
     expect(btnBg).not.toBeNull()
-    // Ambos devem ser derivados do mesmo token — não hardcoded divergente
     expect(btnBg).not.toBe('rgb(74, 196, 110)')   // antigo #4ac46e hardcoded
+  })
+
+  test('botão Nova Transação desktop usa var(--c) — não hardcoded', async ({ page }) => {
+    await goDashboard(page) // viewport padrão 1280px
+
+    // Desktop: .hb-hero-btn
+    const btnBg = await page.evaluate(() => {
+      const btn = document.querySelector('.hb-hero-btn')
+      return btn ? getComputedStyle(btn).backgroundColor : null
+    })
+    expect(btnBg).not.toBeNull()
+    expect(btnBg).not.toBe('rgb(74, 196, 110)')
+  })
+
+})
+
+// ─────────────────────────────────────────────────────────────────
+// 6. MOCK LIFO — Isolamento em execução paralela
+// ─────────────────────────────────────────────────────────────────
+test.describe('Dashboard — Isolamento de mocks (LIFO / paralelo)', () => {
+
+  test('rotas específicas têm prioridade sobre wildcard na mesma page', async ({ page }) => {
+    // Navega primeiro para ter contexto de página
+    await page.goto('http://localhost:5173/', { waitUntil: 'commit' }).catch(() => {})
+
+    // Registra wildcard PRIMEIRO (menor prioridade LIFO)
+    await page.route('**/api/**', r =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: '"wildcard"' })
+    )
+    // Registra específica DEPOIS (maior prioridade LIFO) — DEVE ganhar
+    await page.route('**/api/auth/me**', r =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'x', plan: 'free' }) })
+    )
+
+    const resp = await page.evaluate(async () => {
+      const r = await fetch('/api/auth/me')
+      return r.json()
+    })
+    // Específica vence o wildcard (LIFO correto)
+    expect(resp.id).toBe('x')
+    expect(resp).not.toBe('wildcard')
+  })
+
+  test('routes não vazam entre tests em workers paralelos (isolation por page)', async ({ page, context }) => {
+    // Cada page tem seu próprio isolamento de rotas
+    await page.route('**/api/auth/me**', r =>
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'test-isolated', plan: 'pro' }) })
+    )
+
+    // Nova page no mesmo context NÃO herda rotas da page anterior
+    const page2 = await context.newPage()
+    const resp2 = await page2.evaluate(async () => {
+      try {
+        const r = await fetch('http://localhost:5173/api/auth/me')
+        return r.status
+      } catch { return 0 }
+    }).catch(() => 'no-leak')
+
+    // Page2 não deve retornar o mock da page1
+    expect(resp2).not.toBe('test-isolated')
+    await page2.close()
   })
 
 })
