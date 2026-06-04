@@ -345,11 +345,15 @@ export default function Dashboard() {
             const exp  = summary?.totalExpenses   ?? 0
             const sc   = score ?? 0
 
-            // gera série de 8 pontos terminando no valor atual
-            const makeSeries = (end, min = 0) => {
-              const s = end * 0.45
-              return [s, s*1.2, s*1.1, s*1.5, s*1.65, s*1.85, end*0.95, end]
-                .map(v => Math.max(min, v))
+            // Gera série de 8 pontos terminando no valor atual.
+            // Suporta valores negativos — sem clamping em zero.
+            const makeSeries = (end) => {
+              if (end === 0) return [0,0,0,0,0,0,0,0]
+              const abs = Math.abs(end)
+              const sign = end < 0 ? -1 : 1
+              // Tendência crescente (positivo) ou decrescente (negativo)
+              const pts = [abs*.15, abs*.28, abs*.38, abs*.52, abs*.65, abs*.78, abs*.92, abs]
+              return pts.map(v => v * sign)
             }
 
             const META = {
