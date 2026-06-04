@@ -5187,15 +5187,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* Container único tabs+card — elimina gap do hb-page entre eles */
 .hb-kpi-block { display: flex; flex-direction: column; gap: 0; }
 
-/* Tabs (grudadas no card — idêntico ao HTML) */
+/* Tabs (grudadas no card — sem padding lateral, cobrem toda a largura) */
 .hb-balance-tabs {
-  display: flex; gap: 5px; padding: 0 10px;
+  display: flex; gap: 4px; padding: 0;
   position: relative; z-index: 2;
 }
 .hb-btab {
-  flex: 1; padding: 12px 6px 15px; border-radius: 15px 15px 0 0;
+  flex: 1; padding: 11px 6px 14px; border-radius: 12px 12px 0 0;
   background: transparent; border: 1.5px solid transparent; border-bottom: none;
-  color: #7E7E7E; font-size: 13.5px; font-weight: 700;
+  color: #7E7E7E; font-size: 13px; font-weight: 700;
   cursor: pointer; transition: color .15s; letter-spacing: -.2px;
 }
 .hb-btab.active {
@@ -5206,15 +5206,16 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   color: #fff; margin-bottom: -3px; padding-bottom: 16px;
 }
 
-/* Card verde (idêntico ao HTML) */
+/* Card verde — topo sem borda/radius para fundir com a tab ativa */
 .hb-card {
-  border-radius: 24px; padding: 24px 22px 22px;
+  border-radius: 0 0 24px 24px; padding: 24px 22px 22px;
   position: relative; z-index: 1;
   display: flex; flex-direction: column; gap: 0;
   background:
     radial-gradient(130% 120% at 88% 12%, rgba(43,232,106,.26), transparent 55%),
     linear-gradient(158deg, #0c130e, #0a1a11 70%);
   border: 1.5px solid rgba(43,232,106,.42);
+  border-top: none;
   box-shadow: 0 0 38px rgba(43,232,106,.10), inset 0 0 28px rgba(43,232,106,.05);
 }
 /* Partículas brilhantes via ::after */
@@ -5304,6 +5305,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
     radial-gradient(130% 120% at 88% 12%, rgba(43,232,106,.20), transparent 55%),
     linear-gradient(158deg, #e8f5ee, #d0edda 70%);
   border-color: rgba(22,179,76,.45);
+  border-top: none;
   box-shadow: 0 0 30px rgba(43,232,106,.08), inset 0 0 20px rgba(43,232,106,.04);
 }
 [data-theme="light"] .hb-card::after {
