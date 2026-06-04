@@ -5422,15 +5422,40 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .hb-chart-svg { width: 100%; flex: 1; min-height: 160px; }
 .hb-xaxis { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: #253327; letter-spacing: .3px; }
 
-/* ── Light mode — desktop hero: card SEMPRE escuro (identidade visual) ── */
-/* O container de tabs adapta apenas a cor do texto */
-[data-theme="light"] .hb-hero-tabs { background: #060d07; border-color: rgba(43,232,106,.22); }
-[data-theme="light"] .hb-htab      { color: #4a6b4e; }
-[data-theme="light"] .hb-htab:hover { color: #8aab8c; }
-[data-theme="light"] .hb-htab.active { color: #e8f5ea; border-bottom-color: #2BE86A; }
-/* Hero e gráfico permanecem com o design escuro — sem override de fundo */
-[data-theme="light"] .hb-hh-white { color: #f0f8f1; }
-[data-theme="light"] .hb-chart-svg circle { stroke: #0a160f; }
+/* ── Light mode — desktop hero ── */
+[data-theme="light"] .hb-hero-tabs {
+  background: #f0f7f1;
+  border-color: rgba(22,163,74,.2);
+}
+[data-theme="light"] .hb-htab       { color: #6b9970; }
+[data-theme="light"] .hb-htab:hover { color: #1a3a1e; }
+[data-theme="light"] .hb-htab.active { color: #0d1f10; border-bottom-color: #16a34a; }
+
+[data-theme="light"] .hb-hero {
+  background:
+    radial-gradient(ellipse 55% 70% at 85% -5%, rgba(22,163,74,.12), transparent 60%),
+    linear-gradient(160deg, #f7fdf8 0%, #eef8f0 60%, #e8f5ea 100%);
+  border-color: rgba(22,163,74,.2);
+  box-shadow: 0 8px 32px rgba(0,0,0,.08), 0 0 0 1px rgba(22,163,74,.06) inset;
+}
+[data-theme="light"] .hb-hero::before { opacity: .25; }
+[data-theme="light"] .hb-hero-lbl   { color: rgba(0,0,0,.4); }
+[data-theme="light"] .hb-hero-val   { color: #0d1f10; }
+[data-theme="light"] .hb-hero-val small { color: rgba(0,0,0,.35); }
+[data-theme="light"] .hh-white      { color: #0d1f10; }
+[data-theme="light"] .hh-green      { color: #15803d; }
+[data-theme="light"] .hh-red        { color: #b91c1c; }
+[data-theme="light"] .hb-hero-chip  { color: #15803d; border-color: rgba(22,163,74,.35); background: rgba(22,163,74,.1); }
+[data-theme="light"] .hb-hero-sub   { color: rgba(0,0,0,.45); }
+[data-theme="light"] .hb-hero-btn   {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  box-shadow: 0 4px 16px rgba(22,163,74,.3), 0 1px 0 rgba(255,255,255,.2) inset;
+  color: #fff;
+}
+[data-theme="light"] .hb-chart-title  { color: rgba(0,0,0,.4); }
+[data-theme="light"] .hb-chart-legend { color: rgba(0,0,0,.4); }
+[data-theme="light"] .hb-xaxis        { color: rgba(0,0,0,.3); }
+[data-theme="light"] .hb-hero svg line { stroke: rgba(0,0,0,.07); }
 
 /* ── (mantém .hb-metrics para compatibilidade com light mode) ── */
 .hb-metrics {
