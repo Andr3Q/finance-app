@@ -5185,57 +5185,58 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .hb-iconbtn:hover { background: #1c1c1c; }
 
 /* Container único tabs+card — elimina gap do hb-page entre eles */
-.hb-kpi-block { display: flex; flex-direction: column; gap: 0; }
+/* ── Mobile hero — estilo Mercado Pago (card único unificado) ── */
 
-/* Tabs — fundo igual ao card para as inativas não mostrarem o preto da página */
-.hb-balance-tabs {
-  display: flex; gap: 0; padding: 0;
-  position: relative; z-index: 2;
-  background: #0c130e;
-  border-radius: 14px 14px 0 0;
-  border: 1.5px solid rgba(43,232,106,.42);
-  border-bottom: none;
-}
-.hb-btab {
-  flex: 1; padding: 11px 6px 14px; border-radius: 12px 12px 0 0;
-  background: transparent; border: 1.5px solid transparent; border-bottom: none;
-  color: #7E7E7E; font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: color .15s; letter-spacing: -.2px;
-}
-.hb-btab.active {
-  background: linear-gradient(180deg, #122018, #0a1a11);
-  border-color: transparent;
-  color: #fff;
-}
-
-/* Card verde — topo sem borda/radius para fundir com a tab ativa */
-.hb-card {
-  border-radius: 0 0 24px 24px; padding: 24px 22px 22px;
-  position: relative; z-index: 1;
-  display: flex; flex-direction: column; gap: 0;
+/* O kpi-block É o card verde — contém tabs + conteúdo */
+.hb-kpi-block {
+  display: flex; flex-direction: column;
   background:
     radial-gradient(130% 120% at 88% 12%, rgba(43,232,106,.26), transparent 55%),
-    linear-gradient(158deg, #0c130e, #0a1a11 70%);
+    linear-gradient(158deg, #0b120d, #0a1a11 70%);
   border: 1.5px solid rgba(43,232,106,.42);
-  border-top: none;
+  border-radius: 22px;
+  overflow: hidden;
   box-shadow: 0 0 38px rgba(43,232,106,.10), inset 0 0 28px rgba(43,232,106,.05);
+  position: relative;
 }
-/* Partículas brilhantes via ::after */
-.hb-card::after {
-  content: ""; position: absolute; inset: 0; border-radius: inherit;
-  pointer-events: none; z-index: 0;
+/* partículas no bloco inteiro */
+.hb-kpi-block::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
   background:
-    radial-gradient(circle 2.5px at 13% 86%, rgba(120,255,170,.9), transparent 65%),
-    radial-gradient(circle 1.5px at 38% 93%, rgba(43,232,106,.7), transparent 60%),
-    radial-gradient(circle 2px at 85% 90%, rgba(120,255,170,.75), transparent 65%),
-    radial-gradient(circle 1.5px at 93% 32%, rgba(43,232,106,.6), transparent 60%),
-    radial-gradient(circle 1.5px at 7% 42%, rgba(43,232,106,.5), transparent 60%),
-    radial-gradient(circle 1px at 60% 8%, rgba(120,255,170,.6), transparent 60%);
-  filter: drop-shadow(0 0 3px rgba(43,232,106,.6));
+    radial-gradient(circle 2px at 12% 80%, rgba(120,255,170,.8), transparent 65%),
+    radial-gradient(circle 1.5px at 35% 92%, rgba(43,232,106,.6), transparent 60%),
+    radial-gradient(circle 2px at 82% 88%, rgba(120,255,170,.7), transparent 65%),
+    radial-gradient(circle 1.5px at 92% 30%, rgba(43,232,106,.5), transparent 60%),
+    radial-gradient(circle 1.5px at 6% 40%, rgba(43,232,106,.45), transparent 60%),
+    radial-gradient(circle 1px at 58% 10%, rgba(120,255,170,.5), transparent 60%);
+  filter: drop-shadow(0 0 3px rgba(43,232,106,.5));
   animation: hb-twinkle 4.5s ease-in-out infinite;
 }
+.hb-kpi-block > * { position: relative; z-index: 1; }
+
+/* Tabs dentro do card — underline fino estilo MP */
+.hb-balance-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(43,232,106,.18);
+}
+.hb-btab {
+  flex: 1; padding: 13px 6px 12px;
+  background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255,255,255,.42); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: color .15s, border-color .15s;
+  margin-bottom: -1px; white-space: nowrap;
+}
+.hb-btab:hover { color: rgba(255,255,255,.7); }
+.hb-btab.active { color: #fff; border-bottom-color: #2BE86A; }
+
+/* Conteúdo do card — transparente, herda o bg do kpi-block */
+.hb-card {
+  border: none; border-radius: 0; background: transparent;
+  box-shadow: none; padding: 22px 20px 20px;
+  display: flex; flex-direction: column;
+}
 @keyframes hb-twinkle { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
-.hb-card > * { position: relative; z-index: 1; }
 
 /* Conteúdo do card */
 .hb-pane-top { display: flex; align-items: center; justify-content: space-between; }
@@ -5293,25 +5294,18 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Tabs em light mode */
 [data-theme="light"] .hb-btab { color: #888; }
-[data-theme="light"] .hb-balance-tabs {
-  background: #e8f5ee;
+[data-theme="light"] .hb-kpi-block {
+  background:
+    radial-gradient(130% 120% at 88% 12%, rgba(43,232,106,.18), transparent 55%),
+    linear-gradient(158deg, #e4f2e8, #cce8d4 70%);
   border-color: rgba(22,179,76,.45);
 }
-[data-theme="light"] .hb-btab.active {
-  background: linear-gradient(180deg, #d4edde, #c8e8d4);
-  border-color: transparent;
-  color: #0d0d0d;
-}
+[data-theme="light"] .hb-balance-tabs { border-bottom-color: rgba(22,179,76,.25); }
+[data-theme="light"] .hb-btab        { color: rgba(0,0,0,.42); }
+[data-theme="light"] .hb-btab.active { color: #0d0d0d; border-bottom-color: #16b34c; }
 
 /* Card verde — adapta para light mode */
-[data-theme="light"] .hb-card {
-  background:
-    radial-gradient(130% 120% at 88% 12%, rgba(43,232,106,.20), transparent 55%),
-    linear-gradient(158deg, #e8f5ee, #d0edda 70%);
-  border-color: rgba(22,179,76,.45);
-  border-top: none;
-  box-shadow: 0 0 30px rgba(43,232,106,.08), inset 0 0 20px rgba(43,232,106,.04);
-}
+[data-theme="light"] .hb-card { background: transparent; border: none; }
 [data-theme="light"] .hb-card::after {
   filter: drop-shadow(0 0 2px rgba(22,179,76,.4));
   opacity: .6;
