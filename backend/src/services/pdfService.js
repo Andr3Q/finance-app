@@ -46,7 +46,7 @@ function generateMonthlyPDF(user, month, year, summary, transactions) {
     doc.rect(0, 0, doc.page.width, 120).fill('#1a1a3e')
 
     doc.fontSize(28).fillColor('#ffffff')
-       .text('FinançasPro 💸', 50, 35)
+       .text('Nancy 💸', 50, 35)
 
     doc.fontSize(12).fillColor('#a0a0d0')
        .text(`Relatório Mensal — ${monthName} de ${year}`, 50, 75)
@@ -136,7 +136,7 @@ function generateMonthlyPDF(user, month, year, summary, transactions) {
     // ── Rodapé ──────────────────────────────────────────
     doc.fontSize(9).fillColor('#aaaaaa')
        .text(
-         'FinançasPro — Seu controle financeiro pessoal',
+         'Nancy — Seu controle financeiro pessoal',
          50, 790, { align: 'center', width: 495 }
        )
 

@@ -11,7 +11,7 @@ const SUGGESTIONS = [
   { label: 'Saúde',       cat: 'health',    color: '#ec4899' },
   { label: 'Lazer',       cat: 'leisure',   color: '#06b6d4' },
   { label: 'Contas fixas',cat: 'utilities', color: '#f97316' },
-  { label: 'Entradas',    type:'income',    color: '#2BE86A' },
+  { label: 'Entradas',    type:'income',    color: '#4ae2ac' },
   { label: 'Gastos',      type:'expense',   color: '#ef4444' },
 ]
 

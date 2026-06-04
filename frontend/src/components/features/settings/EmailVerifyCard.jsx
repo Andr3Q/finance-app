@@ -51,8 +51,8 @@ export default function EmailVerifyCard({ onMessage }) {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
             padding: '10px 14px', borderRadius: 10,
-            background: 'rgba(74,196,110,.08)', border: '1px solid rgba(74,196,110,.2)',
-            fontSize: 13, color: '#4ac46e',
+            background: 'rgba(74,226,172,.08)', border: '1px solid rgba(74,226,172,.2)',
+            fontSize: 13, color: '#4ae2ac',
           }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <polyline points="20 6 9 17 4 12"/>

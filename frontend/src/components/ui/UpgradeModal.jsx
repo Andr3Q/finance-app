@@ -51,8 +51,8 @@ export default function UpgradeModal({ onClose, reason }) {
           {isTrialEligible && (
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              background: 'rgba(74,196,110,.12)', border: '1px solid rgba(74,196,110,.25)',
-              borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#4ac46e',
+              background: 'rgba(74,226,172,.12)', border: '1px solid rgba(74,226,172,.25)',
+              borderRadius: 20, padding: '4px 12px', fontSize: 12, color: '#4ae2ac',
               fontWeight: 700, marginBottom: 10,
             }}>
               <svg viewBox="0 0 24 24" fill="none" width="11" height="11" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -92,11 +92,11 @@ export default function UpgradeModal({ onClose, reason }) {
 
           {/* PRO */}
           <div style={{
-            border: '1.5px solid rgba(74,196,110,.35)', borderRadius: 14,
-            padding: '16px 14px', background: 'rgba(74,196,110,.04)',
+            border: '1.5px solid rgba(74,226,172,.35)', borderRadius: 14,
+            padding: '16px 14px', background: 'rgba(74,226,172,.04)',
             display: 'flex', flexDirection: 'column',
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#4ac46e', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Pro</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#4ae2ac', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Pro</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 1, marginBottom: 1 }}>
               <span style={{ fontSize: 11, color: 'var(--t2)', marginRight: 1 }}>R$</span>
               <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>9</span>
@@ -106,7 +106,7 @@ export default function UpgradeModal({ onClose, reason }) {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
               {PRO_HIGHLIGHTS.map(f => (
                 <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <svg viewBox="0 0 12 12" fill="none" width="10" height="10" stroke="#4ac46e" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
+                  <svg viewBox="0 0 12 12" fill="none" width="10" height="10" stroke="#4ae2ac" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
                   <span style={{ fontSize: 12, color: 'var(--t2)' }}>{f}</span>
                 </div>
               ))}

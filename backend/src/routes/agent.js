@@ -231,7 +231,7 @@ function handleGroqError(err, res) {
   res.status(500).json({ error: 'Erro ao processar mensagem. Tente novamente.' })
 }
 
-const SYSTEM = `Você é o assistente financeiro pessoal do FinançasPro.
+const SYSTEM = `Você é o assistente financeiro pessoal do Nancy.
 Responda sempre em português, de forma clara e objetiva.
 Use as ferramentas disponíveis para buscar os dados reais do usuário — nunca invente números.
 Ao analisar gastos, seja específico com valores. Ao criar transações, confirme o que foi registrado.`

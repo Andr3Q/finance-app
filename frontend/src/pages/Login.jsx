@@ -249,8 +249,8 @@ export default function Login({ isRegister = false }) {
 
         <div className="r1">
           <Link to="/" className="lauth-logo">
-            <img src="/logo-icon.png" alt="Finance" style={{ width: 32, height: 32 }} />
-            <span className="lauth-logo-name">Finance</span>
+            <img src="/logo-icon.png" alt="Nancy" style={{ width: 32, height: 32 }} />
+            <span className="lauth-logo-name">Nancy</span>
           </Link>
 
           <div className="lauth-brand-copy r2">

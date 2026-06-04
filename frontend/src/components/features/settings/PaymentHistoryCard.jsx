@@ -50,8 +50,8 @@ export default function PaymentHistoryCard() {
         {!loading && payments.map((p, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < payments.length - 1 ? '1px solid var(--bd)' : 'none' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: p.plan === 'elite' ? 'rgba(168,85,247,.12)' : 'rgba(74,196,110,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={p.plan === 'elite' ? '#a855f7' : '#4ac46e'} strokeWidth="2" strokeLinecap="round">
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: p.plan === 'elite' ? 'rgba(168,85,247,.12)' : 'rgba(74,226,172,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={p.plan === 'elite' ? '#a855f7' : '#4ae2ac'} strokeWidth="2" strokeLinecap="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               </div>

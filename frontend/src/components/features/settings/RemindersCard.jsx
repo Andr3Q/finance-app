@@ -17,7 +17,7 @@ export default function RemindersCard() {
     })
     .sort((a, b) => a.daysLeft - b.daysLeft)
 
-  const urgencyColor = (d) => d <= 2 ? '#ff4757' : d <= 5 ? '#ff8c42' : '#4ac46e'
+  const urgencyColor = (d) => d <= 2 ? '#ff4757' : d <= 5 ? '#ff8c42' : '#4ae2ac'
 
   return (
     <div className="cfg-card">

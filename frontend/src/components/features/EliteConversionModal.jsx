@@ -30,7 +30,7 @@ export default function EliteConversionModal({ onClose }) {
           <span className="ecm-emoji">🎉</span>
           <div>
             <div className="ecm-title">Seu período gratuito encerrou</div>
-            <div className="ecm-sub">Você explorou o FinançasPro Elite. O que deseja fazer agora?</div>
+            <div className="ecm-sub">Você explorou o Nancy Elite. O que deseja fazer agora?</div>
           </div>
           <button className="ecm-close" onClick={close} aria-label="Fechar">✕</button>
         </div>

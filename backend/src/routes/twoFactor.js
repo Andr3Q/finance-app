@@ -87,7 +87,7 @@ router.post('/setup', authMiddleware, twoFALimiter, async (req, res) => {
     }
 
     const secret = speakeasy.generateSecret({
-      name:   `FinançasPro (${user.email})`,
+      name:   `Nancy (${user.email})`,
       length: 20,
     })
 

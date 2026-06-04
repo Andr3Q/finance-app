@@ -5,7 +5,7 @@ const S = {
   header:  { borderBottom: '1px solid var(--bd)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12 },
   logo:    { display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'var(--t1)' },
   body:    { maxWidth: 720, margin: '0 auto', padding: '40px 24px 80px' },
-  badge:   { display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--c)', background: 'rgba(74,196,110,.1)', border: '1px solid rgba(74,196,110,.2)', borderRadius: 6, padding: '3px 10px', marginBottom: 12 },
+  badge:   { display: 'inline-block', fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--c)', background: 'rgba(74,226,172,.1)', border: '1px solid rgba(74,226,172,.2)', borderRadius: 6, padding: '3px 10px', marginBottom: 12 },
   h1:      { fontSize: 28, fontWeight: 800, marginBottom: 6, lineHeight: 1.2 },
   date:    { fontSize: 13, color: 'var(--t3)', marginBottom: 36 },
   h2:      { fontSize: 17, fontWeight: 700, marginTop: 36, marginBottom: 10, color: 'var(--t1)' },
@@ -23,8 +23,8 @@ export default function TermsOfUse() {
     <div style={S.page}>
       <header style={S.header}>
         <Link to="/" style={S.logo}>
-          <img src="/logo-icon.png" alt="Finance" style={{ width: 28, height: 28 }} />
-          <span style={{ fontWeight: 700, fontSize: 15 }}>FinançasPro</span>
+          <img src="/logo-icon.png" alt="Nancy" style={{ width: 28, height: 28 }} />
+          <span style={{ fontWeight: 700, fontSize: 15 }}>Nancy</span>
         </Link>
         <span style={{ color: 'var(--bd)', fontSize: 18, marginLeft: 4 }}>/</span>
         <span style={{ fontSize: 14, color: 'var(--t3)' }}>Termos de Uso</span>
@@ -36,20 +36,20 @@ export default function TermsOfUse() {
         <p style={S.date}>Última atualização: 22 de maio de 2026 · Aplicável a todos os planos</p>
 
         <p style={S.p}>
-          Ao criar uma conta ou usar o <strong>FinançasPro</strong>, você concorda com
+          Ao criar uma conta ou usar o <strong>Nancy</strong>, você concorda com
           estes Termos de Uso. Leia com atenção — eles formam um contrato entre você e
-          o FinançasPro. Se não concordar, não utilize o serviço.
+          o Nancy. Se não concordar, não utilize o serviço.
         </p>
 
-        <h2 style={S.h2}>1. O que é o FinançasPro</h2>
+        <h2 style={S.h2}>1. O que é o Nancy</h2>
         <p style={S.p}>
-          O FinançasPro é uma plataforma de controle financeiro pessoal que permite
+          O Nancy é uma plataforma de controle financeiro pessoal que permite
           registrar transações, criar orçamentos, acompanhar metas e gerar relatórios
           financeiros. O serviço é prestado como SaaS (Software como Serviço) via
           acesso web.
         </p>
         <div style={S.warn}>
-          <strong>⚠️ Importante:</strong> O FinançasPro é uma ferramenta de organização
+          <strong>⚠️ Importante:</strong> O Nancy é uma ferramenta de organização
           pessoal. Não somos uma instituição financeira, banco, corretora ou gestora
           de investimentos. Não movimentamos, captamos nem gerimos dinheiro de terceiros.
           As informações do app não constituem assessoria financeira ou de investimentos.
@@ -95,7 +95,7 @@ export default function TermsOfUse() {
         </ul>
 
         <h2 style={S.h2}>6. Uso aceitável</h2>
-        <p style={S.p}>É <strong>proibido</strong> usar o FinançasPro para:</p>
+        <p style={S.p}>É <strong>proibido</strong> usar o Nancy para:</p>
         <ul style={S.ul}>
           <li style={S.li}>Registrar transações fictícias com o objetivo de lavar dinheiro ou ocultar ativos</li>
           <li style={S.li}>Realizar ataques, tentativas de invasão ou engenharia reversa do sistema</li>
@@ -124,14 +124,14 @@ export default function TermsOfUse() {
 
         <h2 style={S.h2}>9. Propriedade intelectual</h2>
         <p style={S.p}>
-          A marca, design, código e funcionalidades do FinançasPro são de propriedade
+          A marca, design, código e funcionalidades do Nancy são de propriedade
           exclusiva do serviço. Você recebe uma licença de uso pessoal, não exclusiva
           e intransferível, pelo período da assinatura.
         </p>
 
         <h2 style={S.h2}>10. Limitação de responsabilidade</h2>
         <p style={S.p}>
-          O FinançasPro não se responsabiliza por decisões financeiras tomadas com base
+          O Nancy não se responsabiliza por decisões financeiras tomadas com base
           nas informações exibidas no app. Os dados mostrados são aqueles que você mesmo
           inseriu. Verifique sempre suas informações com fontes oficiais (extratos bancários,
           notas fiscais, etc.).
@@ -160,8 +160,8 @@ export default function TermsOfUse() {
           </p>
           <p style={{ fontSize: 14, color: 'var(--t2)', marginBottom: 0 }}>
             <strong>E-mail:</strong>{' '}
-            <a href="mailto:contato@financaspro.com.br" style={S.link}>
-              contato@financaspro.com.br
+            <a href="mailto:contato@nancy.com.br" style={S.link}>
+              contato@nancy.com.br
             </a>
           </p>
         </div>

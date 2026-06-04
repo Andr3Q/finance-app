@@ -121,7 +121,7 @@ function MobileBanner({ hasPrompt, installing, platform, isDesktop, onInstall, o
   return (
     <div style={{
       background: 'var(--bg-secondary)',
-      border: '1px solid rgba(74,196,110,.3)', borderRadius: 20,
+      border: '1px solid rgba(74,226,172,.3)', borderRadius: 20,
       padding: '14px 16px', backdropFilter: 'blur(20px)',
       boxShadow: '0 8px 32px rgba(0,0,0,.18)',
     }}>
@@ -129,14 +129,14 @@ function MobileBanner({ hasPrompt, installing, platform, isDesktop, onInstall, o
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <img src="/icon-192.png" alt="" style={{ width: 44, height: 44, borderRadius: 12, flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,.3)' }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 2 }}>Instalar Finance</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 2 }}>Instalar Nancy</div>
             <div style={{ fontSize: 11.5, color: 'var(--t2)' }}>Acesso rápido na tela inicial</div>
           </div>
           <button
             onClick={onInstall} disabled={installing}
             style={{
               flexShrink: 0,
-              background: installing ? 'rgba(74,196,110,.3)' : 'linear-gradient(135deg, var(--c), #32a05a)',
+              background: installing ? 'rgba(74,226,172,.3)' : 'linear-gradient(135deg, var(--c), #2bbf96)',
               color: '#000000', border: 'none', borderRadius: 12,
               padding: '8px 14px', fontSize: 12, fontWeight: 800,
               fontFamily: 'var(--fd)', cursor: installing ? 'default' : 'pointer',
@@ -157,7 +157,7 @@ function MobileBanner({ hasPrompt, installing, platform, isDesktop, onInstall, o
           <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>📲</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 6 }}>
-              Instalar Finance
+              Instalar Nancy
             </div>
             <Instructions platform={platform} isDesktop={isDesktop} />
           </div>
@@ -173,7 +173,7 @@ function MobileBanner({ hasPrompt, installing, platform, isDesktop, onInstall, o
 function DesktopBanner({ hasPrompt, installing, platform, isDesktop, onInstall, onClose }) {
   return (
     <div style={{
-      background: 'var(--bg-secondary)', border: '1px solid rgba(74,196,110,.3)',
+      background: 'var(--bg-secondary)', border: '1px solid rgba(74,226,172,.3)',
       borderRadius: 16, padding: '14px 16px', backdropFilter: 'blur(20px)',
       boxShadow: '0 8px 32px rgba(0,0,0,.18)',
     }}>
@@ -184,7 +184,7 @@ function DesktopBanner({ hasPrompt, installing, platform, isDesktop, onInstall, 
         }
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: hasPrompt ? 2 : 6 }}>
-            Instalar Finance
+            Instalar Nancy
           </div>
           {hasPrompt
             ? <div style={{ fontSize: 11, color: 'var(--t2)' }}>Acesso rápido na tela inicial</div>
@@ -200,7 +200,7 @@ function DesktopBanner({ hasPrompt, installing, platform, isDesktop, onInstall, 
           onClick={onInstall} disabled={installing}
           style={{
             width: '100%',
-            background: installing ? 'rgba(74,196,110,.3)' : 'linear-gradient(135deg, var(--c), #32a05a)',
+            background: installing ? 'rgba(74,226,172,.3)' : 'linear-gradient(135deg, var(--c), #2bbf96)',
             color: '#000000', border: 'none', borderRadius: 10,
             padding: '9px 0', fontSize: 13, fontWeight: 800,
             fontFamily: 'var(--fd)', cursor: installing ? 'default' : 'pointer',

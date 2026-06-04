@@ -83,7 +83,7 @@ export default function OnboardingModal() {
               </svg>
             </div>
             <h2 className="ob-title">Bem-vindo(a), {user.name?.split(' ')[0] || 'por aqui'}!</h2>
-            <p className="ob-desc">Configure sua conta em 2 minutos para aproveitar o máximo do FinançasPro.</p>
+            <p className="ob-desc">Configure sua conta em 2 minutos para aproveitar o máximo do Nancy.</p>
             <div className="ob-field">
               <label>Qual é o seu salário mensal?</label>
               <input

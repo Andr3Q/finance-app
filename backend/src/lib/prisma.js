@@ -39,11 +39,11 @@ function buildUrl() {
       const pgOpts = [
         'statement_timeout=15000',
         'idle_in_transaction_session_timeout=20000',
-        'application_name=financaspro',
+        'application_name=nancy',
       ].join(' -c ')
       params.set('options', `-c ${pgOpts}`)
     } else if (isPgBouncer) {
-      params.set('options', '-c application_name=financaspro')
+      params.set('options', '-c application_name=nancy')
     }
   }
 
