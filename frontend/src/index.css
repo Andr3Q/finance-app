@@ -5187,10 +5187,14 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* Container único tabs+card — elimina gap do hb-page entre eles */
 .hb-kpi-block { display: flex; flex-direction: column; gap: 0; }
 
-/* Tabs (grudadas no card — sem padding lateral, cobrem toda a largura) */
+/* Tabs — fundo igual ao card para as inativas não mostrarem o preto da página */
 .hb-balance-tabs {
-  display: flex; gap: 4px; padding: 0;
+  display: flex; gap: 0; padding: 0;
   position: relative; z-index: 2;
+  background: #0c130e;
+  border-radius: 14px 14px 0 0;
+  border: 1.5px solid rgba(43,232,106,.42);
+  border-bottom: none;
 }
 .hb-btab {
   flex: 1; padding: 11px 6px 14px; border-radius: 12px 12px 0 0;
@@ -5199,11 +5203,9 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   cursor: pointer; transition: color .15s; letter-spacing: -.2px;
 }
 .hb-btab.active {
-  background: linear-gradient(180deg, #0c150f, #0b1810);
-  border-top-color: rgba(43,232,106,.42);
-  border-left-color: transparent;
-  border-right-color: transparent;
-  color: #fff; margin-bottom: -3px; padding-bottom: 16px;
+  background: linear-gradient(180deg, #122018, #0a1a11);
+  border-color: transparent;
+  color: #fff;
 }
 
 /* Card verde — topo sem borda/radius para fundir com a tab ativa */
@@ -5291,11 +5293,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* Tabs em light mode */
 [data-theme="light"] .hb-btab { color: #888; }
+[data-theme="light"] .hb-balance-tabs {
+  background: #e8f5ee;
+  border-color: rgba(22,179,76,.45);
+}
 [data-theme="light"] .hb-btab.active {
-  background: linear-gradient(180deg, #e8f5ee, #d4edde);
-  border-top-color: rgba(22,179,76,.5);
-  border-left-color: transparent;
-  border-right-color: transparent;
+  background: linear-gradient(180deg, #d4edde, #c8e8d4);
+  border-color: transparent;
   color: #0d0d0d;
 }
 
