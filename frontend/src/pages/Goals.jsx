@@ -434,7 +434,7 @@ export default function Goals() {
             </div>
 
             {/* ── Tabs ── */}
-            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--bd)', paddingBottom:0 }}>
+            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--bd)', paddingBottom:0, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
               {[
                 { key:'metas',       label:'Metas' },
                 { key:'historico',   label:'Histórico' },
@@ -448,6 +448,7 @@ export default function Goals() {
                   style={{
                     padding:'8px 16px', fontSize:13, fontWeight:600, cursor:'pointer',
                     background:'transparent', border:'none', borderBottom:'2px solid',
+                    flexShrink:0, whiteSpace:'nowrap',
                     borderBottomColor: activeTab === t.key ? 'var(--cp)' : 'transparent',
                     color: activeTab === t.key ? 'var(--cp)' : 'var(--t3)',
                     marginBottom:-1, transition:'color .15s, border-color .15s',
