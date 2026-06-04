@@ -5422,36 +5422,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .hb-chart-svg { width: 100%; flex: 1; min-height: 160px; }
 .hb-xaxis { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: #253327; letter-spacing: .3px; }
 
-/* ── Light mode — desktop hero ── */
-[data-theme="light"] .hb-htab         { color: #888; }
-[data-theme="light"] .hb-htab:hover   { color: #333; }
-[data-theme="light"] .hb-htab.active  {
-  background: linear-gradient(180deg, #e8f5ee, #d4edde);
-  border-top-color: rgba(22,179,76,.5);
-  border-left-color: transparent;
-  border-right-color: transparent;
-  color: #0d0d0d;
-}
-[data-theme="light"] .hb-hero {
-  background:
-    radial-gradient(120% 130% at 92% 0%, rgba(43,232,106,.18), transparent 55%),
-    linear-gradient(150deg, #e4f2e8, #d0edda 70%);
-  border-color: rgba(22,179,76,.45);
-  box-shadow: 0 0 40px rgba(43,232,106,.07);
-}
-[data-theme="light"] .hb-hero::after  { opacity: .4; }
-[data-theme="light"] .hb-hero-lbl     { color: rgba(0,0,0,.45); }
-[data-theme="light"] .hh-white        { color: #0d0d0d; }
-[data-theme="light"] .hh-green        { color: #15803d; }  /* ratio 4.7:1 sobre fundo verde claro */
-[data-theme="light"] .hh-red          { color: #b91c1c; }  /* ratio 5.1:1 sobre fundo verde claro */
-[data-theme="light"] .hb-pane-val     { color: #0d0d0d; }  /* valor principal sempre escuro */
-[data-theme="light"] .hb-pane-val-sub { color: rgba(0,0,0,.45); }
-[data-theme="light"] .hb-hero-chip    { color: #16b34c; border-color: rgba(22,179,76,.4); background: rgba(22,179,76,.1); }
-[data-theme="light"] .hb-hero-sub     { color: #555; }
-[data-theme="light"] .hb-chart-title  { color: #666; }
-[data-theme="light"] .hb-chart-legend { color: #666; }
-[data-theme="light"] .hb-xaxis        { color: #888; }
-[data-theme="light"] .hb-hero svg line { stroke: rgba(0,0,0,.08); }
+/* ── Light mode — desktop hero: card SEMPRE escuro (identidade visual) ── */
+/* O container de tabs adapta apenas a cor do texto */
+[data-theme="light"] .hb-hero-tabs { background: #060d07; border-color: rgba(43,232,106,.22); }
+[data-theme="light"] .hb-htab      { color: #4a6b4e; }
+[data-theme="light"] .hb-htab:hover { color: #8aab8c; }
+[data-theme="light"] .hb-htab.active { color: #e8f5ea; border-bottom-color: #2BE86A; }
+/* Hero e gráfico permanecem com o design escuro — sem override de fundo */
+[data-theme="light"] .hb-hh-white { color: #f0f8f1; }
+[data-theme="light"] .hb-chart-svg circle { stroke: #0a160f; }
 
 /* ── (mantém .hb-metrics para compatibilidade com light mode) ── */
 .hb-metrics {
