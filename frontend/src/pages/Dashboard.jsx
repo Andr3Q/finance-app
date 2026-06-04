@@ -386,6 +386,16 @@ export default function Dashboard() {
                 </div>
                 {/* Hero card */}
                 <div className="hb-hero">
+                  {/* Partículas animadas */}
+                  <div className="grad-particles hb-hero-particles" aria-hidden="true">
+                    {[5,14,22,33,44,55,65,76,85,94].map((left, i) => (
+                      <span key={i} className="grad-particle" style={{
+                        left:`${left}%`, width:`${2+(i%3)}px`, height:`${2+(i%3)}px`,
+                        animationDelay:`${(i*.5)%3}s`, animationDuration:`${2+(i%4)*.65}s`,
+                        opacity: 0.3+(i%3)*.18,
+                      }} />
+                    ))}
+                  </div>
                   {/* Left */}
                   <div className="hb-hero-left">
                     <div className="hb-hero-lbl">{m.lbl}</div>
