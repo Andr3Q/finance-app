@@ -434,7 +434,7 @@ export default function Goals() {
             </div>
 
             {/* ── Tabs ── */}
-            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--bd)', paddingBottom:0, overflowX:'auto', scrollbarWidth:'none', WebkitOverflowScrolling:'touch' }}>
+            <div style={{ display:'flex', gap:4, marginBottom:24, borderBottom:'1px solid var(--bd)', paddingBottom:0, overflowX:'auto', overflowY:'hidden', scrollbarWidth:'none', WebkitOverflowScrolling:'touch', touchAction:'pan-x' }}>
               {[
                 { key:'metas',       label:'Metas' },
                 { key:'historico',   label:'Histórico' },
