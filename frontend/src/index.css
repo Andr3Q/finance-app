@@ -8631,6 +8631,8 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   position: fixed; inset: 0; z-index: 500;
   background: var(--bg);
   display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   animation: srchIn .18s ease;
 }
 
