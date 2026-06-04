@@ -8,6 +8,7 @@ import Navbar from '../components/layout/Navbar.jsx'
 import GradCard from '../components/ui/GradCard.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import AutoLaunchPrompt from '../components/features/AutoLaunchPrompt.jsx'
+import SearchOverlay   from '../components/features/SearchOverlay.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt, fmtShort } from '../utils/format.js'
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const [toast,        setToast]        = useState(null)
   const [txFilter,     setTxFilter]     = useState('all')
   const [activeMetric, setActiveMetric] = useState('saldo')
+  const [showSearch,   setShowSearch]   = useState(false)
   const [feedExpanded, setFeedExpanded] = useState(false)
   const FEED_PREVIEW = 3
   const [prediction,   setPrediction]   = useState(null)
@@ -253,7 +255,7 @@ export default function Dashboard() {
                   </svg>
                 )}
               </button>
-              <button className="hb-iconbtn" onClick={() => navigate('/transactions')} aria-label="Buscar">
+              <button className="hb-iconbtn" onClick={() => setShowSearch(true)} aria-label="Buscar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>
                 </svg>
@@ -739,6 +741,12 @@ export default function Dashboard() {
           onSuccess={() => { setShowForm(false); fetchData(true) }}
         />
       )}
+
+      <SearchOverlay
+        isOpen={showSearch}
+        onClose={() => setShowSearch(false)}
+        transactions={transactions}
+      />
     </>
   )
 
