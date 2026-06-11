@@ -186,6 +186,8 @@ jobs:
 
       - name: Verificar integridade do schema
         run: npx prisma validate
+        env:
+          DATABASE_URL: "postgresql://localhost/fake"
 
       - name: Detectar schema sem migration correspondente
         # Se schema.prisma mudou neste commit mas sem novo arquivo de migration
