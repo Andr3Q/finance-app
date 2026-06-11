@@ -250,6 +250,7 @@ jobs:
           echo "✅ Banco de dados sincronizado."
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: true  # Docker já roda migrate deploy no startup com retry
 
       - name: Confirmar schema em produção
         run: |
@@ -267,6 +268,7 @@ jobs:
           "
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        continue-on-error: true  # conexão direta bloqueada pelo GitHub Actions; deploy segue
 
   # ─────────────────────────────────────────────────────────────
   # 7. DEPLOY — só roda se migrations passarem
