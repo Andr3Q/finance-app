@@ -383,7 +383,7 @@ jobs:
 
           check() {
             local name=$1 url=$2 expected=$3
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
             if [[ "$STATUS" == "$expected" ]]; then
               echo "  ✅ $name → HTTP $STATUS"
             else
