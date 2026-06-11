@@ -21,6 +21,7 @@ export default function EliteConversionModal({ onClose }) {
 
   return (
     <div
+      data-testid="trial-expired-modal"
       className={`ecm-backdrop${closing ? ' ecm-out' : ''}`}
       onClick={(e) => e.target === e.currentTarget && close()}
     >

@@ -83,8 +83,8 @@ describe('PlanExpiryBanner — trial ativo', () => {
 
   it('não renderiza nada se banner de trial já foi dispensado', () => {
     sessionStorage.setItem('trial-banner-dismissed', '1')
-    const { container } = setup({ isOnTrial: true, trialEndsAt: futureDate(5) })
-    expect(container.querySelector('.expiry-banner')).toBeNull()
+    setup({ isOnTrial: true, trialEndsAt: futureDate(5) })
+    expect(screen.queryByTestId('trial-banner')).toBeNull()
   })
 
   it('dispara analytics.track("trial_expiring") para trial urgente', () => {
@@ -96,10 +96,10 @@ describe('PlanExpiryBanner — trial ativo', () => {
 // ── Banner de trial expirado ────────────────────────────────────
 
 describe('PlanExpiryBanner — trial expirado', () => {
-  it('mostra banner "Seu período gratuito encerrou" quando trial_just_expired está no sessionStorage', () => {
+  it('mostra modal de conversão quando trial_just_expired está no sessionStorage', () => {
     sessionStorage.setItem('trial_just_expired', '1')
     setup({ plan: 'free' })
-    expect(screen.getByText(/seu período gratuito encerrou/i)).toBeInTheDocument()
+    expect(screen.getByTestId('trial-expired-modal')).toBeInTheDocument()
   })
 
   it('botão "Assinar Pro" no banner de trial expirado remove a chave da sessão', () => {
@@ -114,8 +114,8 @@ describe('PlanExpiryBanner — trial expirado', () => {
 
 describe('PlanExpiryBanner — plano pago expirando', () => {
   it('não mostra banner quando plano expira em > 7 dias', () => {
-    const { container } = setup({ plan: 'pro', planExpiresAt: futureDate(10) })
-    expect(container.querySelector('.expiry-banner')).toBeNull()
+    setup({ plan: 'pro', planExpiresAt: futureDate(10) })
+    expect(screen.queryByTestId('plan-expiry-banner')).toBeNull()
   })
 
   it('mostra "expira em N dias" quando plano expira em ≤ 7 dias', () => {
@@ -151,25 +151,25 @@ describe('PlanExpiryBanner — plano pago expirando', () => {
 describe('PlanExpiryBanner — pesquisa de churn', () => {
   it('abre modal de churn automaticamente quando plano pago expirou', async () => {
     setup({ plan: 'pro', planExpiresAt: pastDate(2) })
-    expect(await screen.findByText(/sentimos sua falta/i)).toBeInTheDocument()
+    expect(await screen.findByTestId('churn-survey-modal')).toBeInTheDocument()
   })
 
   it('não abre churn survey se já foi mostrado nesta sessão', () => {
     sessionStorage.setItem('churn-survey-shown', '1')
-    const { container } = setup({ plan: 'pro', planExpiresAt: pastDate(2) })
-    expect(container.querySelector('[style*="position: fixed"]')).toBeNull()
+    setup({ plan: 'pro', planExpiresAt: pastDate(2) })
+    expect(screen.queryByTestId('churn-survey-modal')).toBeNull()
   })
 
   it('botão Enviar fica desabilitado sem motivo selecionado', async () => {
     setup({ plan: 'pro', planExpiresAt: pastDate(2) })
-    await screen.findByText(/sentimos sua falta/i)
+    await screen.findByTestId('churn-survey-modal')
     const btnEnviar = screen.getByRole('button', { name: /enviar feedback/i })
     expect(btnEnviar).toBeDisabled()
   })
 
   it('chama analytics.track("churn_survey") ao enviar motivo', async () => {
     setup({ plan: 'pro', planExpiresAt: pastDate(2) })
-    await screen.findByText(/sentimos sua falta/i)
+    await screen.findByTestId('churn-survey-modal')
 
     fireEvent.click(screen.getByLabelText(/preço muito alto/i))
     fireEvent.click(screen.getByRole('button', { name: /enviar feedback/i }))
@@ -182,22 +182,22 @@ describe('PlanExpiryBanner — pesquisa de churn', () => {
 
   it('mostra mensagem de agradecimento após envio', async () => {
     setup({ plan: 'pro', planExpiresAt: pastDate(2) })
-    await screen.findByText(/sentimos sua falta/i)
+    await screen.findByTestId('churn-survey-modal')
 
     fireEvent.click(screen.getByLabelText(/preço muito alto/i))
     fireEvent.click(screen.getByRole('button', { name: /enviar feedback/i }))
 
-    expect(await screen.findByText(/obrigado pelo feedback/i)).toBeInTheDocument()
+    expect(await screen.findByTestId('survey-sent')).toBeInTheDocument()
   })
 
   it('fecha o modal ao clicar em Pular', async () => {
     setup({ plan: 'pro', planExpiresAt: pastDate(2) })
-    await screen.findByText(/sentimos sua falta/i)
+    await screen.findByTestId('churn-survey-modal')
 
     fireEvent.click(screen.getByRole('button', { name: /pular/i }))
 
     await waitFor(() => {
-      expect(screen.queryByText(/sentimos sua falta/i)).not.toBeInTheDocument()
+      expect(screen.queryByTestId('churn-survey-modal')).not.toBeInTheDocument()
     })
   })
 })

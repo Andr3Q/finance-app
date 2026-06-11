@@ -58,11 +58,11 @@ export default function PlanExpiryBanner() {
 
   // ── Churn survey modal (auto-shown on plan expiry) ────
   const surveyModal = showSurvey && (
-    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+    <div data-testid="churn-survey-modal" style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ background:'var(--s1)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:440 }}>
 
         {surveySent ? (
-          <div style={{ textAlign:'center', padding:'20px 0' }}>
+          <div data-testid="survey-sent" style={{ textAlign:'center', padding:'20px 0' }}>
             <div style={{ fontSize:32, marginBottom:12 }}>🙏</div>
             <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Obrigado pelo feedback!</div>
             <div style={{ fontSize:13, color:'var(--t2)' }}>Isso nos ajuda a melhorar o Nancy.</div>
@@ -165,13 +165,13 @@ export default function PlanExpiryBanner() {
       }
 
       return (
-        <div className={`expiry-banner trial${urgent ? ' expired' : ''}`}>
+        <div data-testid="trial-banner" className={`expiry-banner trial${urgent ? ' expired' : ''}`}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="expiry-banner-ico">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          <span className="expiry-banner-msg">{msg}</span>
+          <span data-testid="trial-banner-msg" className="expiry-banner-msg">{msg}</span>
           <button className="expiry-banner-cta" onClick={() => navigate('/planos')}>
             Assinar Pro
           </button>
@@ -210,13 +210,13 @@ export default function PlanExpiryBanner() {
   return (
     <>
       {surveyModal}
-      <div className={`expiry-banner${expired ? ' expired' : ''}`}>
+      <div data-testid="plan-expiry-banner" className={`expiry-banner${expired ? ' expired' : ''}`}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="expiry-banner-ico">
           <circle cx="12" cy="12" r="10"/>
           <line x1="12" y1="8" x2="12" y2="12"/>
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        <span className="expiry-banner-msg">{msg}</span>
+        <span data-testid="plan-expiry-banner-msg" className="expiry-banner-msg">{msg}</span>
         <button className="expiry-banner-cta" onClick={() => navigate('/planos')}>
           Renovar
         </button>
