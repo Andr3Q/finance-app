@@ -65,7 +65,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/health', r => { process.exit(r.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Inicialização:
-# prisma migrate deploy com retry — Neon (serverless DB) pode estar suspenso no
-# primeiro acesso após inatividade e retorna P1000 enquanto acorda (~2-5s).
-# Retry exponencial: 2s, 4s, 8s (total ≤ 14s de espera extra no pior caso).
+# prisma migrate deploy com retry — Supabase free pausa após inatividade e pode
+# retornar P1001 no primeiro acesso. Retry com backoff: waits de 4s, 6s, 8s.
+# Após 4 tentativas sem sucesso, servidor sobe mesmo assim (migrations já aplicadas
+# pelo CI ou em deploy anterior). Advisory lock do PostgreSQL garante que instâncias
+# concorrentes não corrompem o banco — apenas serializam a execução.
 CMD ["sh", "-c", "i=1; until timeout 60 npx prisma migrate deploy; do if [ $i -ge 4 ]; then echo '[WARN] migrate deploy falhou após 4 tentativas, iniciando servidor mesmo assim'; break; fi; echo \"[migrate] tentativa $i falhou, aguardando $((i*2))s...\"; i=$((i+1)); sleep $((i*2)); done && node src/server.js"]

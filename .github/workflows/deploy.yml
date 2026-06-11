@@ -246,11 +246,19 @@ jobs:
       - name: Aplicar migrations pendentes no Supabase
         run: |
           echo "🗄️  Aplicando migrations no Supabase de produção..."
-          npx prisma migrate deploy
-          echo "✅ Banco de dados sincronizado."
+          for i in 1 2 3; do
+            echo "Tentativa $i/3..."
+            if npx prisma migrate deploy 2>&1; then
+              echo "✅ Banco de dados sincronizado."
+              exit 0
+            fi
+            [ $i -lt 3 ] && echo "⚠️ Falhou. Aguardando 15s..." && sleep 15
+          done
+          echo "⚠️ GitHub Actions não conseguiu alcançar o Supabase após 3 tentativas."
+          echo "   Fallback: migrations aplicadas pelo container no startup (advisory lock serializa concorrência)."
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        continue-on-error: true  # Docker já roda migrate deploy no startup com retry
+        continue-on-error: true
 
       - name: Confirmar schema em produção
         run: |
@@ -383,7 +391,8 @@ jobs:
 
           check() {
             local name=$1 url=$2 expected=$3
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url")
+            [ -z "$STATUS" ] && STATUS="000"
             if [[ "$STATUS" == "$expected" ]]; then
               echo "  ✅ $name → HTTP $STATUS"
             else
