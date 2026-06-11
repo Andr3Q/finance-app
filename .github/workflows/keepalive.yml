@@ -1,0 +1,16 @@
+name: Keep-Alive — Supabase + Cloud Run
+
+on:
+  schedule:
+    - cron: '0 12 * * *'   # todo dia às 12h UTC (09h Brasília)
+  workflow_dispatch:         # permite rodar manualmente pelo GitHub
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping /health
+        run: |
+          curl -f --max-time 60 \
+            https://finance-app-1042158013294.southamerica-east1.run.app/health
