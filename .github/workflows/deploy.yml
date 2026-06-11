@@ -396,7 +396,7 @@ jobs:
           check "/health (200)"                    "$BASE/health"                   "200"
           check "/api/auth/me sem token (401)"     "$BASE/api/auth/me"              "401"
           check "/api/budget sem token (401)"      "$BASE/api/budget"               "401"
-          check "/api/monitor removido (404)"      "$BASE/api/monitor/dashboard"    "404"
+          check "/api/monitor protegido (401)"      "$BASE/api/monitor/dashboard"    "401"
           check "SPA /dashboard servido (200)"     "$BASE/dashboard"                "200"
           check "SPA /settings servido (200)"      "$BASE/settings"                 "200"
 
