@@ -96,10 +96,10 @@ describe('PlanExpiryBanner — trial ativo', () => {
 // ── Banner de trial expirado ────────────────────────────────────
 
 describe('PlanExpiryBanner — trial expirado', () => {
-  it('mostra banner "Seu trial Pro encerrou" quando trial_just_expired está no sessionStorage', () => {
+  it('mostra banner "Seu período gratuito encerrou" quando trial_just_expired está no sessionStorage', () => {
     sessionStorage.setItem('trial_just_expired', '1')
     setup({ plan: 'free' })
-    expect(screen.getByText(/seu trial pro encerrou/i)).toBeInTheDocument()
+    expect(screen.getByText(/seu período gratuito encerrou/i)).toBeInTheDocument()
   })
 
   it('botão "Assinar Pro" no banner de trial expirado remove a chave da sessão', () => {
