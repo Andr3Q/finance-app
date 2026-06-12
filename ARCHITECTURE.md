@@ -188,11 +188,14 @@ async create(req, res, next) {
 |---------|--------------|--------|
 | **Goals** | `routes/goals.js` | ✅ Migrado — referência |
 | Auth | `routes/auth.js` | 🔄 Próximo |
+| TwoFactor | `routes/twoFactor.js` | 🔄 Fila |
 | Transactions | `routes/transactions.js` | 🔄 Fila |
-| Budget | `routes/budget.js` | 🔄 Fila |
 | Installments | `routes/installments.js` | 🔄 Fila |
-| Reports | `routes/reports.js` | 🔄 Fila |
+| Budget | `routes/budget.js` | 🔄 Fila |
 | Payments | `routes/payments.js` | 🔄 Fila |
+| Reports | `routes/reports.js` | 🔄 Fila |
+| Notifications | `routes/notifications.js` | 🔄 Fila |
+| Monitor | `routes/monitor.js` | 🔄 Fila |
 | Agent | `routes/agent.js` | 🔄 Fila |
 
 > **Estratégia de migração:** Um domínio por sprint. Os testes E2E existentes garantem que a API não quebra durante a migração (contratos HTTP permanecem idênticos).
