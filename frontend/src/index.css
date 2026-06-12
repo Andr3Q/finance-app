@@ -6166,10 +6166,23 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 
 /* ── Modal de exclusão de conta ────────────────────────── */
 .del-modal::before { display: none; }
+.del-modal-bar { height: 4px; background: linear-gradient(90deg,#ef4444,#dc2626); }
+.del-modal-inner { padding: 24px 28px 28px; }
+.del-modal-btns { display: flex; gap: 10px; }
+.del-modal-btns button { flex: 1; padding: 11px 0; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
 [data-theme="light"] .del-modal { background: #ffffff; border-color: rgba(239,68,68,.18); }
 [data-theme="light"] .del-modal-list { background: rgba(239,68,68,.04); border-color: rgba(239,68,68,.1); }
 [data-theme="light"] .del-modal-label { color: rgba(0,0,0,.5); }
 [data-theme="light"] .del-modal-item { color: rgba(0,0,0,.65); }
+
+@media (max-width: 480px) {
+  .del-modal { border-radius: 24px 24px 0 0; }
+  .del-modal-bar { border-radius: 24px 24px 0 0; }
+  .del-modal-inner { padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .del-modal-btns { flex-direction: column; }
+  .del-modal-btns button { width: 100%; padding: 13px 0; font-size: 15px; }
+}
 
 /* ── TransactionForm modal ─────────────────────────────── */
 [data-theme="light"] .tf-overlay  { background: rgba(0,0,0,.4); }

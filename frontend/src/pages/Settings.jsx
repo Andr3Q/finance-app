@@ -172,10 +172,9 @@ export default function Settings() {
         <div className="modal-overlay" style={{ zIndex:500 }}>
           <div className="modal del-modal" style={{ maxWidth:420, padding:0, overflow:'hidden', border:'1px solid rgba(239,68,68,.2)' }}>
 
-            {/* Barra vermelha no topo */}
-            <div style={{ height:4, background:'linear-gradient(90deg,#ef4444,#dc2626)' }} />
+            <div className="del-modal-bar" />
 
-            <div style={{ padding:'24px 28px 28px' }}>
+            <div className="del-modal-inner">
               {/* Cabeçalho */}
               <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:20 }}>
                 <div style={{ width:44, height:44, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
@@ -239,17 +238,17 @@ export default function Settings() {
               </div>
 
               {/* Botões */}
-              <div style={{ display:'flex', gap:10 }}>
+              <div className="del-modal-btns">
                 <button
                   onClick={() => setDeleteModal(false)}
-                  style={{ flex:1, padding:'11px 0', borderRadius:9, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}
+                  style={{ border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)' }}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleDeleteAccount}
                   disabled={deleteLoading || !deletePass}
-                  style={{ flex:1, padding:'11px 0', borderRadius:9, border:'none', background: (!deletePass || deleteLoading) ? 'rgba(239,68,68,.35)' : '#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor: (deleteLoading || !deletePass) ? 'not-allowed' : 'pointer', transition:'background .15s', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
+                  style={{ border:'none', background: (!deletePass || deleteLoading) ? 'rgba(239,68,68,.35)' : '#ef4444', color:'#fff', cursor: (deleteLoading || !deletePass) ? 'not-allowed' : 'pointer', transition:'background .15s', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
                 >
                   {deleteLoading ? (
                     <><span style={{ width:13, height:13, border:'2px solid rgba(255,255,255,.35)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Excluindo…</>
