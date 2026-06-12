@@ -6164,6 +6164,13 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .pln-feat    { color: rgba(0,0,0,.6); }
 [data-theme="light"] .pln-price   { color: #0d0d0d; }
 
+/* ── Modal de exclusão de conta ────────────────────────── */
+.del-modal::before { display: none; }
+[data-theme="light"] .del-modal { background: #ffffff; border-color: rgba(239,68,68,.18); }
+[data-theme="light"] .del-modal-list { background: rgba(239,68,68,.04); border-color: rgba(239,68,68,.1); }
+[data-theme="light"] .del-modal-label { color: rgba(0,0,0,.5); }
+[data-theme="light"] .del-modal-item { color: rgba(0,0,0,.65); }
+
 /* ── TransactionForm modal ─────────────────────────────── */
 [data-theme="light"] .tf-overlay  { background: rgba(0,0,0,.4); }
 [data-theme="light"] .tf-modal    { background: #ffffff; border-color: rgba(0,0,0,.1); }
