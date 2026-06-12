@@ -1,8 +1,8 @@
 {
-  "name": "financaspro",
+  "name": "nancy",
   "version": "1.0.0",
   "private": true,
-  "description": "FinançasPro — Controle financeiro pessoal com IA, PWA e relatórios em PDF",
+  "description": "Nancy — Controle financeiro pessoal com IA, PWA e relatórios em PDF",
   "scripts": {
     "dev": "docker compose up",
     "dev:build": "docker compose up --build",
