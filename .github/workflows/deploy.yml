@@ -166,7 +166,8 @@ jobs:
     if: |
       github.event.inputs.modo != 'rollback' &&
       (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped') &&
-      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
+      (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped') &&
+      (needs.test-e2e.result == 'success' || needs.test-e2e.result == 'skipped')
 
     defaults:
       run:
@@ -284,7 +285,7 @@ jobs:
   deploy:
     name: 🚀 Deploy · Cloud Run
     runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, test-e2e, migrate-prod]
+    needs: [test-backend, test-frontend, build-check, test-e2e, migrate-prod]
     environment: production
 
     # Roda se:
@@ -442,4 +443,4 @@ jobs:
           echo "### Proteções ativas" >> "$GITHUB_STEP_SUMMARY"
           echo "- ✅ Migrations aplicadas no Supabase antes do build" >> "$GITHUB_STEP_SUMMARY"
           echo "- ✅ Build e deploy via Cloud Build" >> "$GITHUB_STEP_SUMMARY"
-          echo "- ✅ Smoke tests: health, auth, budget, monitor 404, SPA routes" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ✅ Smoke tests: health, auth, budget, monitor 401, SPA routes" >> "$GITHUB_STEP_SUMMARY"
