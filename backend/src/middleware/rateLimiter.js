@@ -1,7 +1,15 @@
 const rateLimit = require('express-rate-limit')
 
 const skip = () => process.env.NODE_ENV === 'test'
-const opts = { standardHeaders: true, legacyHeaders: false, skip }
+
+// Cloudflare envia o IP real do visitante no header CF-Connecting-IP.
+// Sem isso, todos os requests parecem vir do mesmo IP da Cloudflare → rate limit ineficaz.
+const keyGenerator = (req) => {
+  const cfIp = req.headers['cf-connecting-ip']
+  return req.userId || cfIp || req.ip
+}
+
+const opts = { standardHeaders: true, legacyHeaders: false, skip, keyGenerator }
 
 // Limite geral de API: 200 req / 15 min por IP
 const apiLimiter = rateLimit({
@@ -52,7 +60,6 @@ const dashboardLimiter = rateLimit({
   ...opts,
   windowMs:     60 * 1000,
   max:          30,
-  keyGenerator: (req) => req.userId || req.ip,
   message:      { error: 'Muitas requisições. Aguarde um momento.' },
 })
 
@@ -61,7 +68,6 @@ const reportLimiter = rateLimit({
   ...opts,
   windowMs:     60 * 60 * 1000,
   max:          5,
-  keyGenerator: (req) => req.userId || req.ip,
   message:      { error: 'Limite de fechamentos mensais atingido. Tente novamente em 1 hora.' },
 })
 
@@ -79,7 +85,6 @@ const paymentLimiter = rateLimit({
   ...opts,
   windowMs:     15 * 60 * 1000,
   max:          10,
-  keyGenerator: (req) => req.userId || req.ip,
   message:      { error: 'Muitas tentativas de pagamento. Tente novamente em 15 minutos.' },
 })
 
@@ -96,7 +101,6 @@ const exportLimiter = rateLimit({
   ...opts,
   windowMs:     60 * 60 * 1000,
   max:          5,
-  keyGenerator: (req) => req.userId || req.ip,
   message:      { error: 'Limite de exportações atingido. Tente novamente em 1 hora.' },
 })
 
@@ -105,7 +109,6 @@ const verifyEmailLimiter = rateLimit({
   ...opts,
   windowMs:     60 * 60 * 1000,
   max:          3,
-  keyGenerator: (req) => req.userId || req.ip,
   message:      { error: 'Muitas tentativas de reenvio. Tente novamente em 1 hora.' },
 })
 
