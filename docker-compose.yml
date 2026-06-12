@@ -1,5 +1,5 @@
 # ═══════════════════════════════════════════════════════
-# 🐳 docker-compose.yml — FinançasPro (Desenvolvimento)
+# 🐳 docker-compose.yml — Nancy (Desenvolvimento)
 #
 # Define os 3 "contêineres" que rodam juntos:
 #   db       → Banco de dados PostgreSQL LOCAL (isolado da produção)

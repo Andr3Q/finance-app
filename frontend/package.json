@@ -1,7 +1,7 @@
 {
   "name": "financas-frontend",
   "version": "1.0.0",
-  "description": "Interface do FinançasPro — controle financeiro pessoal",
+  "description": "Interface do Nancy — controle financeiro pessoal",
   "type": "module",
   "scripts": {
     "dev": "vite --host",
