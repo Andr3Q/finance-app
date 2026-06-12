@@ -245,7 +245,8 @@ jobs:
 
       - name: 🔥 Smoke — Auth protegida sem token (deve retornar 401)
         run: |
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3099/api/transactions)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3099/api/transactions)
+          [ -z "$STATUS" ] && STATUS="000"
           [ "$STATUS" = "401" ] && echo "✅ /transactions 401 OK" || (echo "❌ esperado 401, recebido $STATUS" && exit 1)
 
       - name: 🔥 Smoke — Rate limit login (11 tentativas → 429)
@@ -261,7 +262,8 @@ jobs:
           done
           echo "❌ Rate limit não disparou em 11 tentativas" && exit 1
 
-      - name: 🔥 Smoke — Rota do monitor REMOVIDA (deve retornar 404)
+      - name: 🔥 Smoke — Monitor protegido sem token (deve retornar 401)
         run: |
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:3099/api/monitor/dashboard)
-          [ "$STATUS" = "404" ] && echo "✅ /api/monitor/dashboard corretamente removido" || (echo "❌ esperado 404, recebido $STATUS" && exit 1)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3099/api/monitor/dashboard)
+          [ -z "$STATUS" ] && STATUS="000"
+          [ "$STATUS" = "401" ] && echo "✅ /api/monitor/dashboard 401 OK" || (echo "❌ esperado 401, recebido $STATUS" && exit 1)

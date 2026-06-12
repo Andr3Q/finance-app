@@ -169,53 +169,95 @@ export default function Settings() {
       )}
 
       {deleteModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'var(--s1)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:400 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
-              <div style={{ width:36, height:36, borderRadius:10, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.7)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', padding:16, backdropFilter:'blur(4px)' }}>
+          <div style={{ background:'var(--s1)', border:'1px solid rgba(239,68,68,.2)', borderRadius:18, width:'100%', maxWidth:420, overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,.45)' }}>
+
+            {/* Barra vermelha no topo */}
+            <div style={{ height:4, background:'linear-gradient(90deg,#ef4444,#dc2626)' }} />
+
+            <div style={{ padding:'24px 28px 28px' }}>
+              {/* Cabeçalho */}
+              <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:20 }}>
+                <div style={{ width:44, height:44, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                    <path d="M9 6V4h6v2"/>
+                  </svg>
+                </div>
+                <div style={{ paddingTop:2 }}>
+                  <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:4 }}>Excluir conta permanentemente</div>
+                  <div style={{ fontSize:12, color:'#ef4444', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="#ef4444"><circle cx="12" cy="12" r="10"/></svg>
+                    Esta ação não pode ser desfeita
+                  </div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)' }}>Excluir conta permanentemente</div>
-                <div style={{ fontSize:12, color:'var(--t3)' }}>Esta ação não pode ser desfeita</div>
+
+              {/* Lista do que será excluído */}
+              <div style={{ background:'rgba(239,68,68,.05)', border:'1px solid rgba(239,68,68,.12)', borderRadius:10, padding:'12px 14px', marginBottom:20 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>O que será excluído:</div>
+                {[
+                  'Todas as transações e histórico',
+                  'Metas e progresso acumulado',
+                  'Contas fixas e orçamentos',
+                  'Configurações e dados da conta',
+                  'Plano cancelado — sem reembolso',
+                ].map(item => (
+                  <div key={item} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, fontSize:13, color:'var(--t2)' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    {item}
+                  </div>
+                ))}
               </div>
-            </div>
 
-            <p style={{ fontSize:13, color:'var(--t2)', marginBottom:16, lineHeight:1.6 }}>
-              Todos os seus dados serão removidos: transações, metas, contas fixas,
-              histórico e configurações. Seu plano será cancelado sem reembolso proporcional.
-            </p>
+              {/* Campo de senha */}
+              <div style={{ marginBottom:20 }}>
+                <label style={{ fontSize:12, fontWeight:600, color:'var(--t2)', display:'block', marginBottom:7 }}>
+                  Confirme sua senha para continuar
+                </label>
+                <input
+                  type="password"
+                  placeholder="Digite sua senha atual"
+                  value={deletePass}
+                  onChange={e => { setDeletePass(e.target.value); setDeleteErr('') }}
+                  onKeyDown={e => e.key === 'Enter' && handleDeleteAccount()}
+                  style={{ width:'100%', boxSizing:'border-box', padding:'11px 14px', background:'var(--bg)', border:`1px solid ${deleteErr ? '#ef4444' : 'var(--bd)'}`, borderRadius:9, color:'var(--t1)', fontSize:14, outline:'none', transition:'border-color .15s' }}
+                  autoFocus
+                />
+                {deleteErr && (
+                  <div style={{ fontSize:12, color:'#ef4444', marginTop:6, display:'flex', alignItems:'center', gap:5 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    {deleteErr}
+                  </div>
+                )}
+              </div>
 
-            <label style={{ fontSize:13, color:'var(--t3)', display:'block', marginBottom:6 }}>
-              Digite sua senha para confirmar
-            </label>
-            <input
-              type="password"
-              placeholder="Sua senha atual"
-              value={deletePass}
-              onChange={e => { setDeletePass(e.target.value); setDeleteErr('') }}
-              onKeyDown={e => e.key === 'Enter' && handleDeleteAccount()}
-              style={{ width:'100%', boxSizing:'border-box', padding:'10px 12px', background:'var(--bg)', border:`1px solid ${deleteErr ? '#ef4444' : 'var(--bd)'}`, borderRadius:8, color:'var(--t1)', fontSize:14, outline:'none', marginBottom: deleteErr ? 6 : 16 }}
-              autoFocus
-            />
-            {deleteErr && (
-              <div style={{ fontSize:12, color:'#ef4444', marginBottom:14 }}>{deleteErr}</div>
-            )}
-
-            <div style={{ display:'flex', gap:10 }}>
-              <button
-                onClick={() => setDeleteModal(false)}
-                style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deleteLoading}
-                style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor: deleteLoading ? 'not-allowed' : 'pointer', opacity: deleteLoading ? 0.7 : 1 }}
-              >
-                {deleteLoading ? 'Excluindo…' : 'Excluir conta'}
-              </button>
+              {/* Botões */}
+              <div style={{ display:'flex', gap:10 }}>
+                <button
+                  onClick={() => setDeleteModal(false)}
+                  style={{ flex:1, padding:'11px 0', borderRadius:9, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleteLoading || !deletePass}
+                  style={{ flex:1, padding:'11px 0', borderRadius:9, border:'none', background: (!deletePass || deleteLoading) ? 'rgba(239,68,68,.35)' : '#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor: (deleteLoading || !deletePass) ? 'not-allowed' : 'pointer', transition:'background .15s', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
+                >
+                  {deleteLoading ? (
+                    <><span style={{ width:13, height:13, border:'2px solid rgba(255,255,255,.35)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Excluindo…</>
+                  ) : (
+                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Excluir conta</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
