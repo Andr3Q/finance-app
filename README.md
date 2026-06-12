@@ -1,4 +1,4 @@
-# FinançasPro
+# Nancy
 
 Aplicação web de controle financeiro pessoal com agente de IA, suporte a PWA e relatórios mensais em PDF.
 
