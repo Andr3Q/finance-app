@@ -53,36 +53,11 @@ describe('PlanExpiryBanner — sem usuário', () => {
 })
 
 // ── Banner de trial ──────────────────────────────────────────────
+// O aviso de trial foi movido para o sino da Navbar (Navbar.jsx → getTrialNotif).
+// PlanExpiryBanner não renderiza banner de trial — apenas rastreia analytics.
 
 describe('PlanExpiryBanner — trial ativo', () => {
-  it('mostra dias restantes quando trial tem > 2 dias', () => {
-    setup({ isOnTrial: true, trialEndsAt: futureDate(5) })
-    expect(screen.getByText(/5 dias restantes/i)).toBeInTheDocument()
-  })
-
-  it('mostra "Último dia" quando trial expira hoje (1 dia restante)', () => {
-    setup({ isOnTrial: true, trialEndsAt: futureDate(1) })
-    expect(screen.getByText(/último dia do trial/i)).toBeInTheDocument()
-  })
-
-  it('mostra botão "Fechar" quando trial não é urgente (> 2 dias)', () => {
-    setup({ isOnTrial: true, trialEndsAt: futureDate(5) })
-    expect(screen.getByRole('button', { name: /fechar/i })).toBeInTheDocument()
-  })
-
-  it('não mostra botão "Fechar" quando trial é urgente (≤ 2 dias)', () => {
-    setup({ isOnTrial: true, trialEndsAt: futureDate(2) })
-    expect(screen.queryByRole('button', { name: /fechar/i })).not.toBeInTheDocument()
-  })
-
-  it('dispensa o banner e salva no sessionStorage ao clicar em Fechar', () => {
-    setup({ isOnTrial: true, trialEndsAt: futureDate(5) })
-    fireEvent.click(screen.getByRole('button', { name: /fechar/i }))
-    expect(sessionStorage.getItem('trial-banner-dismissed')).toBe('1')
-  })
-
-  it('não renderiza nada se banner de trial já foi dispensado', () => {
-    sessionStorage.setItem('trial-banner-dismissed', '1')
+  it('não renderiza banner de trial (exibido no sino da Navbar)', () => {
     setup({ isOnTrial: true, trialEndsAt: futureDate(5) })
     expect(screen.queryByTestId('trial-banner')).toBeNull()
   })
