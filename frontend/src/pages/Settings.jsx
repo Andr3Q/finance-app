@@ -169,8 +169,8 @@ export default function Settings() {
       )}
 
       {deleteModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.7)', zIndex:500, display:'flex', alignItems:'center', justifyContent:'center', padding:16, backdropFilter:'blur(4px)' }}>
-          <div style={{ background:'var(--s1)', border:'1px solid rgba(239,68,68,.2)', borderRadius:18, width:'100%', maxWidth:420, overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,.45)' }}>
+        <div className="modal-overlay" style={{ zIndex:500 }}>
+          <div className="modal del-modal" style={{ maxWidth:420, padding:0, overflow:'hidden', border:'1px solid rgba(239,68,68,.2)' }}>
 
             {/* Barra vermelha no topo */}
             <div style={{ height:4, background:'linear-gradient(90deg,#ef4444,#dc2626)' }} />
@@ -196,8 +196,8 @@ export default function Settings() {
               </div>
 
               {/* Lista do que será excluído */}
-              <div style={{ background:'rgba(239,68,68,.05)', border:'1px solid rgba(239,68,68,.12)', borderRadius:10, padding:'12px 14px', marginBottom:20 }}>
-                <div style={{ fontSize:11, fontWeight:700, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>O que será excluído:</div>
+              <div className="del-modal-list" style={{ background:'rgba(239,68,68,.05)', border:'1px solid rgba(239,68,68,.12)', borderRadius:10, padding:'12px 14px', marginBottom:20 }}>
+                <div className="del-modal-label" style={{ fontSize:11, fontWeight:700, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>O que será excluído:</div>
                 {[
                   'Todas as transações e histórico',
                   'Metas e progresso acumulado',
@@ -205,7 +205,7 @@ export default function Settings() {
                   'Configurações e dados da conta',
                   'Plano cancelado — sem reembolso',
                 ].map(item => (
-                  <div key={item} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, fontSize:13, color:'var(--t2)' }}>
+                  <div key={item} className="del-modal-item" style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, fontSize:13, color:'var(--t2)' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
