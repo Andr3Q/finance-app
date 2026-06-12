@@ -6,6 +6,7 @@ import { useTheme } from '../../hooks/useTheme.js'
 import { authAPI } from '../../services/api.js'
 import { analytics } from '../../services/analytics.js'
 import { MONTHS, WEEKDAYS } from '../../constants/index.js'
+import { playSoftChime, getTrialNotif, getSalaryNotif } from '../../utils/notifications.js'
 
 const ROUTE_TITLES = {
   '/transactions': 'Transações',
@@ -33,55 +34,6 @@ function CalIcon()    { return <svg width="16" height="16" viewBox="0 0 24 24" f
 function InstIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> }
 function LogoutIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> }
 
-function playSoftChime() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)()
-    const t = ctx.currentTime
-    ;[523.25, 659.25].forEach((freq, i) => {
-      const osc  = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      const start = t + i * 0.15
-      gain.gain.setValueAtTime(0, start)
-      gain.gain.linearRampToValueAtTime(0.07, start + 0.01)
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 1.0)
-      osc.start(start)
-      osc.stop(start + 1.0)
-    })
-  } catch { /* silencia se Web Audio não disponível */ }
-}
-
-function getTrialNotif(user) {
-  if (!user.isOnTrial || !user.trialEndsAt) return null
-  const daysLeft = Math.ceil((new Date(user.trialEndsAt) - Date.now()) / (1000 * 60 * 60 * 24))
-  if (daysLeft <= 0) return { msg: 'Seu período de trial Pro encerrou.' }
-  if (daysLeft === 1) return { msg: 'Último dia do trial Pro! Assine agora.' }
-  return { msg: `Trial Pro — ${daysLeft} dias restantes.` }
-}
-
-function getSalaryNotif() {
-  const now = new Date()
-  let count = 0, day = 1
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-  let salaryDay = null
-  while (day <= daysInMonth) {
-    const wd = new Date(now.getFullYear(), now.getMonth(), day).getDay()
-    if (wd !== 0 && wd !== 6) { count++; if (count === 5) { salaryDay = day; break } }
-    day++
-  }
-  if (!salaryDay) return null
-  const diff = salaryDay - now.getDate()
-  const dow = new Date(now.getFullYear(), now.getMonth(), salaryDay)
-    .toLocaleDateString('pt-BR', { weekday: 'long' })
-  const dayInfo = `dia ${salaryDay} (${dow})`
-  if (diff === 0)       return { status: 'today',    msg: 'Hoje é dia de salário!' }
-  if (diff === 1)       return { status: 'tomorrow', msg: `Amanhã é dia de salário — ${dayInfo}.` }
-  if (diff > 0 && diff <= 3) return { status: 'soon', msg: `Seu salário cai em breve: ${dayInfo}.` }
-  return null
-}
 
 export default function Navbar() {
   const navigate = useNavigate()
