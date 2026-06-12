@@ -1,4 +1,4 @@
-# Arquitetura do FinançasPro
+# Arquitetura do Nancy
 
 > **Decisão:** Layered Architecture (Arquitetura em Camadas) com princípios do Clean Architecture.  
 > **Data:** 2026-05-26 | **Autor:** Arquiteto de Software Sênior
