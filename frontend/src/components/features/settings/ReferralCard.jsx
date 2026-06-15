@@ -121,18 +121,35 @@ export default function ReferralCard() {
             </div>
             {limitReached ? (
               <p className="ref-progress-msg limit">
-                Você atingiu o limite de {maxReferrals} indicações. Obrigado por divulgar o app!
+                Parabéns! Você atingiu o limite máximo de indicações recompensadas e garantiu todos os seus bônus!
               </p>
-            ) : pendingCount > 0 ? (
-              <p className="ref-progress-msg pending">
-                {pendingCount} {pendingCount === 1 ? 'amigo cadastrado aguarda' : 'amigos cadastrados aguardam'} verificação de e-mail para liberar seu bônus.
-              </p>
-            ) : null}
+            ) : (
+              <>
+                {pendingCount > 0 && (
+                  <p className="ref-progress-msg pending">
+                    {pendingCount} {pendingCount === 1 ? 'amigo cadastrado aguarda' : 'amigos cadastrados aguardam'} verificação de e-mail para liberar seu bônus.
+                  </p>
+                )}
+                <p className="ref-progress-msg" style={{ color:'var(--c)', marginTop: pendingCount > 0 ? 4 : 0 }}>
+                  Você ainda pode ganhar mais {maxReferrals - rewardedCount} {maxReferrals - rewardedCount === 1 ? 'recompensa' : 'recompensas'}!
+                </p>
+              </>
+            )}
           </div>
         )}
 
         {/* Link de indicação */}
-        {!limitReached && (
+        {limitReached ? (
+          <div style={{ textAlign:'center', padding:'14px 0 6px' }}>
+            <div style={{ fontSize:28, marginBottom:8 }}>🎉</div>
+            <div style={{ fontSize:14, fontWeight:700, color:'var(--t1)', marginBottom:6 }}>
+              Todos os bônus conquistados!
+            </div>
+            <div style={{ fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>
+              Você completou {maxReferrals}/{maxReferrals} indicações verificadas. Obrigado por divulgar o Nancy!
+            </div>
+          </div>
+        ) : (
           <>
             <div className="ref-link-label">Seu link de indicação</div>
             <div className="ref-link-row">
