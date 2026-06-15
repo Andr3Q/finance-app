@@ -20,6 +20,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const user = useUser()
   const [budgets,    setBudgets]    = useState([])
   const [newBudget,  setNewBudget]  = useState({ name: '', amount: '', dueDay: '', endDate: { dd: '', mm: '', aaaa: '' }, hasEndDate: false })
+  const refDD   = useRef(null)
   const refMM   = useRef(null)
   const refAAAA = useRef(null)
   const [launching,  setLaunching]  = useState(false)
@@ -220,6 +221,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             <label className="cfg-enddate-label">📅 Encerramento</label>
             <div className="cfg-date-fields">
               <input
+                ref={refDD}
                 className="cfg-inp cfg-date-part"
                 type="text" inputMode="numeric" placeholder="DD" maxLength={2}
                 value={newBudget.endDate.dd}
@@ -242,8 +244,10 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                   if (v.length === 2) refAAAA.current?.focus()
                 }}
                 onKeyDown={e => {
-                  if (e.key === 'Backspace' && newBudget.endDate.mm === '')
-                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: p.endDate.dd.slice(0,-1) } }))
+                  if (e.key === 'Backspace' && newBudget.endDate.mm === '') {
+                    e.preventDefault()
+                    refDD.current?.focus()
+                  }
                 }}
               />
               <span className="cfg-date-sep">/</span>

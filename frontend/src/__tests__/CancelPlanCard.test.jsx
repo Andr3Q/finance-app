@@ -72,19 +72,31 @@ describe('CancelPlanCard — modal de confirmação', () => {
 
 // ── Cancelamento bem-sucedido ────────────────────────────────────
 
+function fillPassword(pwd = 'minhasenha') {
+  fireEvent.change(screen.getByPlaceholderText('Sua senha atual'), { target: { value: pwd } })
+}
+
 describe('CancelPlanCard — cancelamento', () => {
   it('chama authAPI.downgradeFree ao confirmar', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
     const { onMessage } = setup()
     fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => expect(authAPI.downgradeFree).toHaveBeenCalledTimes(1))
+  })
+
+  it('botão de confirmar fica desabilitado com senha vazia', () => {
+    setup()
+    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    expect(screen.getByRole('button', { name: /sim, cancelar plano/i })).toBeDisabled()
   })
 
   it('marca subscriptionCancelled no sessionStorage após cancelamento (mantém plano para acesso)', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
     setup({ plan: 'pro' })
     fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
       const stored = JSON.parse(sessionStorage.getItem('user') || '{}')
@@ -97,6 +109,7 @@ describe('CancelPlanCard — cancelamento', () => {
     authAPI.downgradeFree.mockResolvedValue({})
     setup({ plan: 'pro' })
     fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
       expect(analytics.track).toHaveBeenCalledWith('plan_cancelled', { plan: 'pro' })
@@ -107,6 +120,7 @@ describe('CancelPlanCard — cancelamento', () => {
     authAPI.downgradeFree.mockResolvedValue({})
     const { onMessage } = setup()
     fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
       expect(onMessage).toHaveBeenCalledWith(expect.stringMatching(/assinatura cancelada/i))
@@ -119,6 +133,7 @@ describe('CancelPlanCard — cancelamento', () => {
     })
     const { onMessage } = setup()
     fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
       expect(onMessage).toHaveBeenCalledWith('Erro interno', 'error')

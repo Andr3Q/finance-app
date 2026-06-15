@@ -10,8 +10,13 @@ export default function CancelPlanCard({ onMessage }) {
   const isCancelledWithAccess = !!user.subscriptionCancelled &&
     !!user.planExpiresAt && new Date(user.planExpiresAt) > Date.now()
 
-  const [modal,   setModal]   = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [modal,      setModal]      = useState(false)
+  const [loading,    setLoading]    = useState(false)
+  const [confirmPwd, setConfirmPwd] = useState('')
+  const [pwdErr,     setPwdErr]     = useState('')
+
+  const openModal  = () => { setModal(true); setConfirmPwd(''); setPwdErr('') }
+  const closeModal = () => { setModal(false); setConfirmPwd(''); setPwdErr('') }
 
   if (!isPaid) return null
 
@@ -22,15 +27,16 @@ export default function CancelPlanCard({ onMessage }) {
     : null
 
   const handleConfirm = async () => {
+    if (!confirmPwd.trim()) { setPwdErr('Digite sua senha para confirmar.'); return }
     setLoading(true)
     try {
-      await authAPI.downgradeFree()
+      await authAPI.downgradeFree({ password: confirmPwd })
       analytics.track('plan_cancelled', { plan: user.plan })
       const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
       // Mantém plan e planExpiresAt — o acesso continua até o fim do período pago.
       // subscriptionCancelled sinaliza que a renovação foi cancelada.
       saveUser({ ...cur, subscriptionCancelled: true, isOnTrial: false })
-      setModal(false)
+      closeModal()
       onMessage(
         expiryFormatted
           ? `Assinatura cancelada. Seu acesso premium continua até ${expiryFormatted}.`
@@ -81,7 +87,7 @@ export default function CancelPlanCard({ onMessage }) {
           <div className="cfg-card-body" style={{ paddingTop: 0 }}>
             <button
               className="cfg-btn-danger"
-              onClick={() => setModal(true)}
+              onClick={openModal}
               style={{ width: '100%', justifyContent: 'center' }}
             >
               Cancelar plano
@@ -108,18 +114,33 @@ export default function CancelPlanCard({ onMessage }) {
               </div>
             </div>
 
-            <div style={{ background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:'12px 14px', marginBottom:20, fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>
+            <div style={{ background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>
               Seus dados ficam salvos. Você pode reativar o plano a qualquer momento em <strong style={{ color:'var(--c)' }}>Planos</strong>.
             </div>
 
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:13, color:'var(--t2)', display:'block', marginBottom:6 }}>
+                Confirme sua senha para continuar
+              </label>
+              <input
+                type="password"
+                placeholder="Sua senha atual"
+                value={confirmPwd}
+                onChange={e => { setConfirmPwd(e.target.value); setPwdErr('') }}
+                autoFocus
+                style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:`1px solid ${pwdErr ? '#ef4444' : 'var(--bd)'}`, background:'var(--bg)', color:'var(--t1)', fontSize:14, boxSizing:'border-box', outline:'none' }}
+              />
+              {pwdErr && <span style={{ fontSize:12, color:'#ef4444', marginTop:4, display:'block' }}>{pwdErr}</span>}
+            </div>
+
             <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setModal(false)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              <button onClick={closeModal} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>
                 Voltar
               </button>
               <button
                 onClick={handleConfirm}
-                disabled={loading}
-                style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+                disabled={loading || !confirmPwd.trim()}
+                style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:(loading || !confirmPwd.trim()) ? 'not-allowed' : 'pointer', opacity:(loading || !confirmPwd.trim()) ? 0.6 : 1 }}
               >
                 {loading ? 'Cancelando…' : 'Sim, cancelar plano'}
               </button>
