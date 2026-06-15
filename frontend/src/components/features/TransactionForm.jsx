@@ -30,8 +30,18 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
     category:    initialData?.category    || 'food',
     date:        toDateInput(initialData?.date),
   })
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState('')
+  const [loading,            setLoading]            = useState(false)
+  const [error,              setError]              = useState('')
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
+
+  const isDirty = isEdit
+    ? String(form.amount)   !== String(initialData?.amount || '') ||
+      form.description      !== (initialData?.description  || '') ||
+      form.category         !== (initialData?.category     || 'food') ||
+      form.date             !== toDateInput(initialData?.date)
+    : form.amount !== '' || form.description.trim() !== ''
+
+  const handleClose = () => isDirty ? setShowDiscardConfirm(true) : onClose()
 
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
@@ -39,6 +49,10 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
     e.preventDefault()
     if (!form.amount || form.amount <= 0) {
       setError('Insira um valor válido.')
+      return
+    }
+    if (parseFloat(form.amount) > 99999999) {
+      setError('O valor máximo permitido por transação é de R$ 99.999.999,00.')
       return
     }
     setLoading(true)
@@ -66,10 +80,11 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
   const isExp = type === 'expense'
 
   return (
+    <>
     <div
       className="modal-overlay movl"
       style={{ display: 'flex' }}
-      onClick={e => e.target === e.currentTarget && onClose()}
+      onClick={e => e.target === e.currentTarget && handleClose()}
     >
       <div className="modal">
         {/* Header */}
@@ -77,7 +92,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
           <div className="mtitle">
             {isEdit ? 'Editar Transação' : isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
           </div>
-          <button className="mcls" onClick={onClose}>
+          <button className="mcls" onClick={handleClose}>
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
             </svg>
@@ -187,5 +202,31 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
         </form>
       </div>
     </div>
+
+    {showDiscardConfirm && (
+      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.75)', zIndex:700, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
+          <div style={{ width:52, height:52, borderRadius:14, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Descartar alterações?</div>
+          <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20, lineHeight:1.6 }}>
+            Os dados preenchidos serão perdidos.
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => setShowDiscardConfirm(false)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              Continuar editando
+            </button>
+            <button onClick={onClose} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              Descartar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
