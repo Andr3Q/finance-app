@@ -36,10 +36,12 @@ const DRAFT_KEY  = 'goal-form-draft'
 
 function DepositModal({ goal, onConfirm, onCancel, saving }) {
   const [amount, setAmount] = useState('')
-  const pct     = goal.targetAmount > 0
+  const pct       = goal.targetAmount > 0
     ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
     : 0
-  const remaining = Math.max(0, goal.targetAmount - goal.currentAmount)
+  const remaining    = Math.max(0, goal.targetAmount - goal.currentAmount)
+  const depositValue = parseFloat(amount) || 0
+  const willComplete = remaining > 0 && depositValue >= remaining
 
   return (
     <div className="gls-modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
@@ -75,19 +77,27 @@ function DepositModal({ goal, onConfirm, onCancel, saving }) {
               autoFocus
             />
           </div>
+          {willComplete && (
+            <div style={{ marginTop:10, padding:'10px 12px', borderRadius:10, background:'rgba(74,226,172,.1)', border:'1px solid rgba(74,226,172,.25)', display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#4ae2ac', fontWeight:600 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/>
+              </svg>
+              Parabéns! Com este depósito você concluirá sua meta!
+            </div>
+          )}
         </div>
         <div className="gls-modal-foot">
           <button className="gls-btn-ghost" onClick={onCancel} disabled={saving}>Cancelar</button>
           <button
             className="gls-btn-save"
             style={{ background: goal.color }}
-            onClick={() => onConfirm(parseFloat(amount) || 0)}
-            disabled={saving || !(parseFloat(amount) > 0)}
+            onClick={() => onConfirm(depositValue)}
+            disabled={saving || !(depositValue > 0)}
           >
             {saving
               ? <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />
               : null}
-            Depositar
+            {willComplete ? '🎯 Concluir meta' : 'Depositar'}
           </button>
         </div>
       </div>
@@ -106,16 +116,25 @@ function GoalForm({ initial, onSave, onCancel, saving }) {
     }
     return initial || EMPTY_FORM
   })
+  const [formErr, setFormErr] = useState('')
 
   const set = (k, v) => setForm(p => {
     const next = { ...p, [k]: v }
     if (isNew) {
       try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next)) } catch {}
     }
+    if (formErr) setFormErr('')
     return next
   })
 
   const handleSave = () => {
+    const current = parseFloat(form.currentAmount) || 0
+    const target  = parseFloat(form.targetAmount)  || 0
+    if (target > 0 && current > target) {
+      setFormErr('O valor já guardado não pode ser maior do que o valor total da meta.')
+      return
+    }
+    setFormErr('')
     if (isNew) sessionStorage.removeItem(DRAFT_KEY)
     onSave(form)
   }
@@ -154,6 +173,14 @@ function GoalForm({ initial, onSave, onCancel, saving }) {
             <CurrencyInput className="gls-input-inner" placeholder="0,00"
               value={form.currentAmount} onChange={v => set('currentAmount', v)} />
           </div>
+          {formErr && (
+            <div style={{ fontSize:12, color:'#ef4444', marginTop:5, display:'flex', alignItems:'center', gap:5 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              {formErr}
+            </div>
+          )}
 
           <label className="gls-label">Prazo (opcional)</label>
           <DateInput className="gls-input"
@@ -265,10 +292,11 @@ export default function Goals() {
   const user     = useUser()
   const navigate = useNavigate()
   const { goals, loading, fetchGoals, createGoal, updateGoal, deleteGoal } = useGoals()
-  const [modal,        setModal]        = useState(null)
-  const [depositGoal,  setDepositGoal]  = useState(null)
-  const [saving,       setSaving]       = useState(false)
-  const [toast,        setToast]        = useState(null)
+  const [modal,           setModal]           = useState(null)
+  const [depositGoal,     setDepositGoal]     = useState(null)
+  const [saving,          setSaving]          = useState(false)
+  const [toast,           setToast]           = useState(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
   const [history,       setHistory]       = useState([])
   const [subs,          setSubs]          = useState([])
@@ -348,7 +376,8 @@ export default function Goals() {
       if (err.response?.data?.limitReached) {
         analytics.track('limit_reached', { feature: 'goals' })
         setModal(null)
-        navigate('/planos')
+        showToast('Você atingiu o limite de metas do seu plano. Faça upgrade para criar mais!', false)
+        setTimeout(() => navigate('/planos'), 2500)
         return
       }
       showToast(err.response?.data?.error || 'Erro ao salvar meta.', false)
@@ -374,8 +403,11 @@ export default function Goals() {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Remover esta meta?')) return
+  const handleDelete = (id) => setDeleteConfirmId(id)
+
+  const confirmDelete = async () => {
+    const id = deleteConfirmId
+    setDeleteConfirmId(null)
     try {
       await deleteGoal(id)
       showToast('Meta removida.')
@@ -691,6 +723,47 @@ export default function Goals() {
           onCancel={() => setDepositGoal(null)}
           saving={saving}
         />
+      )}
+
+      {deleteConfirmId && (
+        <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
+          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head">
+              <span>Remover meta</span>
+              <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+                Esta meta e todo o progresso acumulado serão removidos permanentemente.
+              </div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</button>
+              <button
+                className="gls-btn-save"
+                style={{ background:'#ef4444' }}
+                onClick={confirmDelete}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                </svg>
+                Sim, excluir
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
