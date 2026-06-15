@@ -152,7 +152,6 @@ test.describe('Metas — Depositar valor', () => {
 test.describe('Metas — Excluir meta', () => {
   test('clica em "Remover" e exclui a meta', async ({ page }) => {
     await injectSession(page)
-    page.on('dialog', d => d.accept())
 
     let deleted = false
     page.route('**/api/goals**', (route) => {
@@ -172,8 +171,10 @@ test.describe('Metas — Excluir meta', () => {
     await page.goto('/goals')
     await page.getByText('Reserva de emergência').waitFor()
 
-    // Botão real: texto "Remover"
+    // Botão real: texto "Remover" → abre modal customizado
     await page.getByRole('button', { name: /^remover$/i }).click()
+    // Confirmar no modal customizado de exclusão
+    await page.getByRole('button', { name: /sim, excluir/i }).click()
     await expect(page.getByText(/removida|excluída|sucesso/i)).toBeVisible()
   })
 })
