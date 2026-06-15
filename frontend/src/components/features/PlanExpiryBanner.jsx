@@ -37,6 +37,11 @@ export default function PlanExpiryBanner() {
     }
   }, [user.id])
 
+  // Quando o modal de trial expirado é exibido, sinaliza ao sino que pode descartar a notificação
+  useEffect(() => {
+    if (trialJustExpired) window.dispatchEvent(new CustomEvent('trial-bell-dismiss'))
+  }, [trialJustExpired])
+
   // Auto-show churn survey once per session when paid plan has expired
   useEffect(() => {
     if (!user.id || user.plan === 'free' || !user.planExpiresAt) return
@@ -112,7 +117,7 @@ export default function PlanExpiryBanner() {
                 placeholder={surveyReason === 'missing' ? 'Qual funcionalidade?' : 'Conte mais (opcional)'}
                 value={surveyComment}
                 onChange={e => setSurveyComment(e.target.value)}
-                maxLength={300}
+                maxLength={200}
                 rows={2}
                 style={{ width:'100%', boxSizing:'border-box', background:'var(--s2)', border:'1px solid var(--bd)', borderRadius:8, padding:'10px 12px', color:'var(--t1)', fontSize:13, resize:'vertical', outline:'none', marginBottom:16, fontFamily:'inherit' }}
               />
@@ -143,7 +148,10 @@ export default function PlanExpiryBanner() {
   const [conversionModalShown] = useState(() => { try { return !!sessionStorage.getItem('conversion_modal_shown') } catch { return false } })
   if (user.plan === 'free' && trialJustExpired && !conversionModalShown) {
     return (
-      <EliteConversionModal onClose={() => setTrialJustExpired(false)} />
+      <EliteConversionModal onClose={() => {
+        setTrialJustExpired(false)
+        window.dispatchEvent(new CustomEvent('trial-bell-dismiss'))
+      }} />
     )
   }
 
