@@ -24,6 +24,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const refAAAA = useRef(null)
   const [launching,  setLaunching]  = useState(false)
   const [launched,   setLaunched]   = useState(() => isLaunchedThisMonth(user))
+  const [endDateErr, setEndDateErr] = useState('')
 
   const fetchBudgets = async () => {
     try {
@@ -40,11 +41,25 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
 
   const handleAdd = async (e) => {
     e.preventDefault()
-    if (!newBudget.name || !newBudget.amount) return
+    if (!newBudget.name || !newBudget.amount) {
+      onMessage('Preencha o nome e o valor da conta fixa.', 'error')
+      return
+    }
     const { dd, mm, aaaa } = newBudget.endDate
-    const endDateISO = newBudget.hasEndDate && dd.length === 2 && mm.length === 2 && aaaa.length === 4
-      ? `${aaaa}-${mm}-${dd}`
-      : undefined
+    let endDateISO = undefined
+    if (newBudget.hasEndDate && (dd || mm || aaaa)) {
+      if (dd.length !== 2 || mm.length !== 2 || aaaa.length !== 4) {
+        setEndDateErr('Por favor, insira uma data válida.')
+        return
+      }
+      const parsed = new Date(`${aaaa}-${mm}-${dd}`)
+      if (isNaN(parsed) || parsed.getMonth() + 1 !== parseInt(mm, 10) || parsed.getDate() !== parseInt(dd, 10)) {
+        setEndDateErr('Por favor, insira uma data válida.')
+        return
+      }
+      endDateISO = `${aaaa}-${mm}-${dd}`
+    }
+    setEndDateErr('')
 
     try {
       await budgetAPI.create({
@@ -194,6 +209,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                 onChange={e => {
                   const v = e.target.value.replace(/\D/g,'').slice(0,2)
                   setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: v } }))
+                  setEndDateErr('')
                   if (v.length === 2) refMM.current?.focus()
                 }}
               />
@@ -229,6 +245,9 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                 }}
               />
             </div>
+            {endDateErr && (
+              <span style={{ fontSize: 12, color: '#ef4444', marginTop: 4, display: 'block' }}>{endDateErr}</span>
+            )}
           </div>
         )}
       </div>
