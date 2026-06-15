@@ -24,7 +24,9 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const refAAAA = useRef(null)
   const [launching,  setLaunching]  = useState(false)
   const [launched,   setLaunched]   = useState(() => isLaunchedThisMonth(user))
-  const [endDateErr, setEndDateErr] = useState('')
+  const [endDateErr,      setEndDateErr]      = useState('')
+  const [dueDayErr,       setDueDayErr]       = useState('')
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
   const fetchBudgets = async () => {
     try {
@@ -45,6 +47,14 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       onMessage('Preencha o nome e o valor da conta fixa.', 'error')
       return
     }
+    if (newBudget.dueDay !== '') {
+      const day = parseInt(newBudget.dueDay, 10)
+      if (isNaN(day) || day < 1 || day > 31) {
+        setDueDayErr('O dia de vencimento deve ser um número entre 1 e 31.')
+        return
+      }
+    }
+    setDueDayErr('')
     const { dd, mm, aaaa } = newBudget.endDate
     let endDateISO = undefined
     if (newBudget.hasEndDate && (dd || mm || aaaa)) {
@@ -100,17 +110,21 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     }
   }
 
-  const handleDelete = async (id) => {
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return
     try {
-      await budgetAPI.remove(id)
+      await budgetAPI.remove(deleteConfirmId)
       fetchBudgets()
       notifyBudgetChanged()
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao remover.', 'error')
+    } finally {
+      setDeleteConfirmId(null)
     }
   }
 
   return (
+    <>
     <div className="cfg-card r6">
       <div className="cfg-card-head">
         <div className="cfg-ch-ico">
@@ -139,7 +153,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                       até {new Date(b.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })}
                     </span>
                   ) : null}
-                  <button className="cfg-del-btn" type="button" onClick={() => handleDelete(b.id)} aria-label="Remover">
+                  <button className="cfg-del-btn" type="button" onClick={() => setDeleteConfirmId(b.id)} aria-label="Remover">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                     </svg>
@@ -185,7 +199,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             onChange={v => setNewBudget(p => ({ ...p, amount: v }))} />
           <input className="cfg-inp cfg-inp-num" type="number" placeholder="Dia venc." min="1" max="31"
             value={newBudget.dueDay}
-            onChange={e => setNewBudget(p => ({ ...p, dueDay: e.target.value }))} />
+            onChange={e => { setNewBudget(p => ({ ...p, dueDay: e.target.value })); setDueDayErr('') }} />
           <button type="button" className="cfg-btn-ghost cfg-enddate-toggle"
             title={newBudget.hasEndDate ? 'Remover data de encerramento' : 'Definir data de encerramento'}
             onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: { dd: '', mm: '', aaaa: '' } }))}>
@@ -198,6 +212,9 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             Adicionar
           </button>
         </form>
+        {dueDayErr && (
+          <span style={{ fontSize: 12, color: '#ef4444', marginTop: 4, display: 'block' }}>{dueDayErr}</span>
+        )}
         {newBudget.hasEndDate && (
           <div className="cfg-enddate-row">
             <label className="cfg-enddate-label">📅 Encerramento</label>
@@ -252,5 +269,33 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         )}
       </div>
     </div>
+
+    {deleteConfirmId && (
+      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+        <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:400, textAlign:'center' }}>
+          <div style={{ width:52, height:52, borderRadius:14, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+              <path d="M9 6V4h6v2"/>
+            </svg>
+          </div>
+          <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Excluir conta fixa?</div>
+          <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20, lineHeight:1.6 }}>
+            Tem certeza que deseja excluir esta conta fixa? Esta ação não pode ser desfeita.
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => setDeleteConfirmId(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              Cancelar
+            </button>
+            <button onClick={confirmDelete} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+              Sim, excluir
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

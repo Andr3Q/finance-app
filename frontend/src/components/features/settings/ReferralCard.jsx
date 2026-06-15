@@ -5,9 +5,10 @@ import { analytics } from '../../../services/analytics.js'
 
 export default function ReferralCard() {
   const user      = useUser()
-  const [stats,   setStats]   = useState(null)
-  const [copied,  setCopied]  = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [stats,    setStats]    = useState(null)
+  const [copied,   setCopied]   = useState(false)
+  const [loading,  setLoading]  = useState(true)
+  const [hasError, setHasError] = useState(false)
 
   // Usa stats.referralCode como fallback — login antigo pode não ter salvo o código no sessionStorage
   const referralCode = user.referralCode || stats?.referralCode
@@ -18,7 +19,7 @@ export default function ReferralCard() {
   useEffect(() => {
     authAPI.referralStats()
       .then(res => setStats(res.data))
-      .catch(() => setStats({ referredCount: 0, rewardedCount: 0, maxReferrals: 5, limitReached: false, bonusDays: 10 }))
+      .catch(() => setHasError(true))
       .finally(() => setLoading(false))
   }, [])
 
@@ -95,7 +96,16 @@ export default function ReferralCard() {
         </div>
 
         {/* Barra de progresso */}
-        {!loading && (
+        {hasError ? (
+          <div style={{ padding:'14px 16px', background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, display:'flex', gap:10, alignItems:'flex-start', marginBottom:4 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0, marginTop:1 }}>
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+              Não foi possível carregar seus dados de indicação no momento. Por favor, recarregue a página.
+            </span>
+          </div>
+        ) : !loading && (
           <div className="ref-progress-wrap">
             <div className="ref-progress-header">
               <span className="ref-progress-label">Recompensas recebidas</span>
@@ -188,18 +198,20 @@ export default function ReferralCard() {
         )}
 
         {/* Rodapé de status */}
-        <div className="ref-stats">
-          {loading
-            ? <span className="ref-stats-loading">Carregando...</span>
-            : referredCount === 0
-              ? <span className="ref-stats-zero">Nenhum amigo cadastrado ainda — compartilhe seu link!</span>
-              : <span className="ref-stats-count">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  {referredCount} {referredCount === 1 ? 'amigo se cadastrou' : 'amigos se cadastraram'} com seu link
-                </span>}
-        </div>
+        {!hasError && (
+          <div className="ref-stats">
+            {loading
+              ? <span className="ref-stats-loading">Carregando...</span>
+              : referredCount === 0
+                ? <span className="ref-stats-zero">Nenhum amigo cadastrado ainda — compartilhe seu link!</span>
+                : <span className="ref-stats-count">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    {referredCount} {referredCount === 1 ? 'amigo se cadastrou' : 'amigos se cadastraram'} com seu link
+                  </span>}
+          </div>
+        )}
       </div>
     </div>
   )
