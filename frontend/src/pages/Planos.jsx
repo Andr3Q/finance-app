@@ -107,10 +107,11 @@ const CheckNo = () => (
 )
 
 export default function Planos() {
-  const [billing,   setBilling]  = useState('mensal')
-  const [openFaq,   setOpenFaq]  = useState(null)
-  const [toast,     setToast]    = useState(null)
-  const [loading,   setLoading]  = useState(null) // 'pro_monthly' | 'pro_annual' | etc.
+  const [billing,           setBilling]          = useState('mensal')
+  const [openFaq,           setOpenFaq]          = useState(null)
+  const [toast,             setToast]            = useState(null)
+  const [loading,           setLoading]          = useState(null) // 'pro_monthly' | 'pro_annual' | etc.
+  const [showDowngradeModal,setShowDowngradeModal] = useState(false)
 
   const user     = useUser()
   const plan     = user.plan || 'free'
@@ -326,7 +327,11 @@ export default function Planos() {
               {plan === 'pro' ? (
                 <div className="pp1-cta-is-pro">✨ Plano atual</div>
               ) : (
-                <button className="pp1-cta-pro" onClick={() => handleCheckout('pro', period)} disabled={!!loading}>
+                <button
+                  className="pp1-cta-pro"
+                  onClick={() => plan === 'elite' ? setShowDowngradeModal(true) : handleCheckout('pro', period)}
+                  disabled={!!loading}
+                >
                   {loading === `pro_${period}` ? 'Aguarde…' : (
                     <>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -497,6 +502,44 @@ export default function Planos() {
 
         </div>
       </div>
+
+      {/* ── Modal: Elite tentando fazer downgrade para Pro ── */}
+      {showDowngradeModal && (
+        <div
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+          onClick={() => setShowDowngradeModal(false)}
+        >
+          <div
+            style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:440 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
+              <div style={{ width:44, height:44, borderRadius:12, background:'rgba(251,191,36,.1)', border:'1px solid rgba(251,191,36,.25)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)' }}>Atenção: downgrade de plano</div>
+                <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>Você possui o plano Elite ativo</div>
+              </div>
+            </div>
+            <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.7, marginBottom:16 }}>
+              Você já possui o plano Elite ativo. Para alterar sua assinatura para o Pro sem perder seus dias restantes, <strong style={{ color:'var(--t1)' }}>aguarde o fim do seu ciclo de faturamento atual</strong> ou fale com nosso suporte.
+            </div>
+            <div style={{ background:'rgba(251,191,36,.06)', border:'1px solid rgba(251,191,36,.15)', borderRadius:10, padding:'10px 14px', marginBottom:20, fontSize:12, color:'var(--t2)' }}>
+              📧 suporte@finance.com.br
+            </div>
+            <button
+              onClick={() => setShowDowngradeModal(false)}
+              style={{ width:'100%', padding:'11px 0', borderRadius:8, border:'none', background:'var(--c)', color:'#0a0a0a', fontSize:14, fontWeight:700, cursor:'pointer' }}
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
     </>
   )
 }

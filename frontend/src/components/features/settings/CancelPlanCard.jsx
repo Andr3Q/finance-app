@@ -7,6 +7,9 @@ export default function CancelPlanCard({ onMessage }) {
   const user   = useUser()
   const isPaid = (user.plan === 'pro' || user.plan === 'elite') && !user.isOnTrial
 
+  const isCancelledWithAccess = !!user.subscriptionCancelled &&
+    !!user.planExpiresAt && new Date(user.planExpiresAt) > Date.now()
+
   const [modal,   setModal]   = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -14,15 +17,25 @@ export default function CancelPlanCard({ onMessage }) {
 
   const planLabel = user.plan === 'elite' ? 'Elite' : 'Pro'
 
+  const expiryFormatted = user.planExpiresAt
+    ? new Date(user.planExpiresAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    : null
+
   const handleConfirm = async () => {
     setLoading(true)
     try {
       await authAPI.downgradeFree()
       analytics.track('plan_cancelled', { plan: user.plan })
       const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
-      saveUser({ ...cur, plan: 'free', planExpiresAt: undefined, isOnTrial: false })
+      // Mantém plan e planExpiresAt — o acesso continua até o fim do período pago.
+      // subscriptionCancelled sinaliza que a renovação foi cancelada.
+      saveUser({ ...cur, subscriptionCancelled: true, isOnTrial: false })
       setModal(false)
-      onMessage('Plano cancelado. Você continua no plano Grátis.')
+      onMessage(
+        expiryFormatted
+          ? `Assinatura cancelada. Seu acesso premium continua até ${expiryFormatted}.`
+          : 'Assinatura cancelada. Seu acesso premium continua até o fim do período pago.'
+      )
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao cancelar plano.', 'error')
     } finally {
@@ -35,31 +48,51 @@ export default function CancelPlanCard({ onMessage }) {
       <div className="cfg-card">
         <div className="cfg-card-head">
           <div className="cfg-ch-ico">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="15" y1="9" x2="9" y2="15"/>
-              <line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
+            {isCancelledWithAccess ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="15" y1="9" x2="9" y2="15"/>
+                <line x1="9" y1="9" x2="15" y2="15"/>
+              </svg>
+            )}
           </div>
-          <div>
-            <div className="cfg-ch-title">Cancelar plano {planLabel}</div>
-            <div className="cfg-ch-sub">Sua conta retorna para o plano Grátis imediatamente.</div>
+          <div style={{ flex:1 }}>
+            {isCancelledWithAccess ? (
+              <>
+                <div className="cfg-ch-title">Assinatura cancelada</div>
+                <div className="cfg-ch-sub" style={{ color:'#f59e0b' }}>
+                  Acesso premium garantido até {expiryFormatted}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="cfg-ch-title">Cancelar plano {planLabel}</div>
+                <div className="cfg-ch-sub">Cancela a renovação automática; acesso premium mantido até o fim do período pago.</div>
+              </>
+            )}
           </div>
         </div>
-        <div className="cfg-card-body" style={{ paddingTop: 0 }}>
-          <button
-            className="cfg-btn-danger"
-            onClick={() => setModal(true)}
-            style={{ width: '100%', justifyContent: 'center' }}
-          >
-            Cancelar plano
-          </button>
-        </div>
+        {!isCancelledWithAccess && (
+          <div className="cfg-card-body" style={{ paddingTop: 0 }}>
+            <button
+              className="cfg-btn-danger"
+              onClick={() => setModal(true)}
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              Cancelar plano
+            </button>
+          </div>
+        )}
       </div>
 
       {modal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'var(--s1)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:440 }}>
+          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:440 }}>
 
             <div style={{ textAlign:'center', marginBottom:20 }}>
               <div style={{ width:52, height:52, borderRadius:14, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
@@ -70,12 +103,13 @@ export default function CancelPlanCard({ onMessage }) {
               </div>
               <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Confirmar cancelamento</div>
               <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
-                Ao confirmar, você perde acesso imediato ao assistente IA, fechamentos em PDF avançados e demais recursos premium.
+                Ao confirmar, a renovação automática é cancelada. Você mantém acesso a todos os recursos premium até o fim do período já pago
+                {expiryFormatted && <> (<strong style={{ color:'var(--t1)' }}>{expiryFormatted}</strong>)</>}.
               </div>
             </div>
 
             <div style={{ background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:'12px 14px', marginBottom:20, fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>
-              Seus dados ficam salvos. Você pode reativar o plano a qualquer momento em <strong style={{ color:'var(--cp)' }}>Planos</strong>.
+              Seus dados ficam salvos. Você pode reativar o plano a qualquer momento em <strong style={{ color:'var(--c)' }}>Planos</strong>.
             </div>
 
             <div style={{ display:'flex', gap:10 }}>

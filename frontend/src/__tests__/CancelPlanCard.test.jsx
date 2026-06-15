@@ -81,14 +81,15 @@ describe('CancelPlanCard — cancelamento', () => {
     await waitFor(() => expect(authAPI.downgradeFree).toHaveBeenCalledTimes(1))
   })
 
-  it('atualiza sessionStorage para plan: free após cancelamento', async () => {
+  it('marca subscriptionCancelled no sessionStorage após cancelamento (mantém plano para acesso)', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
-    setup()
+    setup({ plan: 'pro' })
     fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
       const stored = JSON.parse(sessionStorage.getItem('user') || '{}')
-      expect(stored.plan).toBe('free')
+      expect(stored.subscriptionCancelled).toBe(true)
+      expect(stored.plan).toBe('pro') // mantém plano para não perder acesso no mesmo dia
     })
   })
 
@@ -102,13 +103,13 @@ describe('CancelPlanCard — cancelamento', () => {
     })
   })
 
-  it('chama onMessage com mensagem de sucesso', async () => {
+  it('chama onMessage informando que acesso premium continua até o fim do período', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
     const { onMessage } = setup()
     fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
-      expect(onMessage).toHaveBeenCalledWith(expect.stringMatching(/plano cancelado/i))
+      expect(onMessage).toHaveBeenCalledWith(expect.stringMatching(/assinatura cancelada/i))
     })
   })
 
