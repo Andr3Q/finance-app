@@ -233,41 +233,43 @@ async function setupSettingsNoToggle(page, budgetPostHandler) {
 test.describe('Input de Data — Integração com Formulário', () => {
 
   test('salvar conta fixa com data válida envia endDate ISO ao backend', async ({ page }) => {
-    let capturedBody = null
+    // setupSettings já clica o toggle e aguarda 300ms (igual aos outros testes desta suite que passam).
+    // Isso evita o blur-reset da CurrencyInput causado por clicar o toggle DEPOIS de digitar o amount.
+    await setupSettings(page)
 
-    await setupSettingsNoToggle(page, async r => {
-      capturedBody = JSON.parse(r.request().postData() || '{}')
+    // Override LIFO para capturar o body do POST (maior prioridade que a rota do setupSettings)
+    await page.route('**/api/budget**', async r => {
+      if (r.request().method() !== 'POST') return r.continue()
+      const body = JSON.parse(r.request().postData() || '{}')
       await r.fulfill({ status: 201, contentType: 'application/json',
-        body: JSON.stringify({ id: 'b-new', name: 'Aluguel', amount: 1200, endDate: capturedBody.endDate }) })
+        body: JSON.stringify({ id: 'b-new', name: body.name, amount: body.amount, endDate: body.endDate }) })
     })
 
-    // Preencher nome
+    // Nome
     await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Aluguel')
 
-    // Preencher valor via teclado para garantir disparo do onChange na CurrencyInput controlada
+    // Valor via teclado + wait para React commitar display='1.200' antes do próximo evento de foco
     await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().click()
     await page.keyboard.type('1200')
+    await page.waitForTimeout(100)
 
-    // Ativar data de encerramento e aguardar campos aparecerem
-    await page.locator('.cfg-enddate-toggle').first().click()
-    await dd(page).waitFor({ state: 'visible' })
-
-    // Preencher data explorando auto-foco: clica em DD, digita 31 → React foca MM → digita 12 → React foca AAAA → digita 2027
+    // Campos DD/MM/AAAA já visíveis (toggle clicado no setup).
+    // Auto-foco nativo: DD recebe '31' → React foca MM → MM recebe '12' → React foca AAAA → AAAA recebe '2027'
     await dd(page).click()
     await page.keyboard.type('31')
     await page.waitForTimeout(100)
     await page.keyboard.type('12')
     await page.waitForTimeout(100)
     await page.keyboard.type('2027')
+    await page.waitForTimeout(100)
 
-    // Submeter capturando o request antes da resposta (elimina race condition com capturedBody)
+    // Capturar o request no momento do submit
     const [req] = await Promise.all([
       page.waitForRequest(r => r.url().includes('/api/budget') && r.method() === 'POST'),
       page.locator('.cfg-add-row button[type="submit"]').click(),
     ])
-    capturedBody = JSON.parse(req.postData() || '{}')
+    const capturedBody = JSON.parse(req.postData() || '{}')
 
-    // Verificar body com endDate no formato ISO YYYY-MM-DD
     expect(capturedBody?.endDate).toBe('2027-12-31')
   })
 
