@@ -233,11 +233,11 @@ async function setupSettingsNoToggle(page, budgetPostHandler) {
 test.describe('Input de Data — Integração com Formulário', () => {
 
   test('salvar conta fixa com data válida envia endDate ISO ao backend', async ({ page }) => {
-    // setupSettings já clica o toggle e aguarda 300ms (igual aos outros testes desta suite que passam).
-    // Isso evita o blur-reset da CurrencyInput causado por clicar o toggle DEPOIS de digitar o amount.
+    // setupSettings clica o toggle no setup (igual aos testes 87, 102, 155 que passam),
+    // evitando o blur-reset da CurrencyInput quando toggle é clicado após digitar o amount.
     await setupSettings(page)
 
-    // Override LIFO para capturar o body do POST (maior prioridade que a rota do setupSettings)
+    // Override LIFO: capturar body do POST (maior prioridade que a rota do setupSettings)
     await page.route('**/api/budget**', async r => {
       if (r.request().method() !== 'POST') return r.continue()
       const body = JSON.parse(r.request().postData() || '{}')
@@ -248,22 +248,22 @@ test.describe('Input de Data — Integração com Formulário', () => {
     // Nome
     await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Aluguel')
 
-    // Valor via teclado + wait para React commitar display='1.200' antes do próximo evento de foco
-    await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().click()
-    await page.keyboard.type('1200')
+    // Valor: locator.pressSequentially (mesmo mecanismo que testes 87/102) + wait para React commitar
+    const amountInput = page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first()
+    await amountInput.click()
+    await amountInput.pressSequentially('1200')
     await page.waitForTimeout(100)
 
-    // Campos DD/MM/AAAA já visíveis (toggle clicado no setup).
-    // Auto-foco nativo: DD recebe '31' → React foca MM → MM recebe '12' → React foca AAAA → AAAA recebe '2027'
+    // Data: padrão idêntico aos testes 87, 102 e 155 que passam nesta suite
     await dd(page).click()
-    await page.keyboard.type('31')
-    await page.waitForTimeout(100)
-    await page.keyboard.type('12')
-    await page.waitForTimeout(100)
-    await page.keyboard.type('2027')
+    await dd(page).type('31')
+    await page.waitForTimeout(150)
+    await mm(page).type('12')
+    await page.waitForTimeout(150)
+    await aaaa(page).type('2027')
     await page.waitForTimeout(100)
 
-    // Capturar o request no momento do submit
+    // Submit + captura do request
     const [req] = await Promise.all([
       page.waitForRequest(r => r.url().includes('/api/budget') && r.method() === 'POST'),
       page.locator('.cfg-add-row button[type="submit"]').click(),
