@@ -175,6 +175,7 @@ describe('Login — modo cadastro', () => {
     await userEvent.type(screen.getByLabelText('Nome completo'), 'André')
     await userEvent.type(screen.getByLabelText('E-mail'), 'andre@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
+    await userEvent.type(screen.getByLabelText('Confirme sua senha'), 'Senha12345')
     await userEvent.click(screen.getByRole('checkbox'))
     await userEvent.click(screen.getByRole('button', { name: /criar minha conta/i }))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
