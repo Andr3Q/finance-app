@@ -138,6 +138,7 @@ test.describe('Auth — Registro', () => {
     await page.getByPlaceholder('André Pereira').fill('João Teste')
     await page.getByPlaceholder('seu@email.com').fill('joao@test.com')
     await page.getByPlaceholder('Mínimo 8 caracteres').fill('Senha@123')
+    await page.getByPlaceholder('Repita a senha').fill('Senha@123')
 
     const termsBox = page.getByRole('checkbox', { name: /termos/i })
     if (await termsBox.isVisible()) await termsBox.check()
@@ -157,6 +158,7 @@ test.describe('Auth — Registro', () => {
     await page.getByPlaceholder('André Pereira').fill('João')
     await page.getByPlaceholder('seu@email.com').fill('existente@test.com')
     await page.getByPlaceholder('Mínimo 8 caracteres').fill('Senha@123')
+    await page.getByPlaceholder('Repita a senha').fill('Senha@123')
 
     const termsBox = page.getByRole('checkbox', { name: /termos/i })
     if (await termsBox.isVisible()) await termsBox.check()
