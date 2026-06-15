@@ -61,8 +61,9 @@ export default function Login({ isRegister = false }) {
   const [loading,    setLoading]    = useState(false)
   const [serverErr,  setServerErr]  = useState('')
   const [fieldErrs,  setFieldErrs]  = useState({})
-  const [showPass,   setShowPass]   = useState(false)
-  const [form,       setForm]       = useState({ name: '', email: '', password: '', salary: '' })
+  const [showPass,        setShowPass]        = useState(false)
+  const [showConfirmPass, setShowConfirmPass] = useState(false)
+  const [form,            setForm]            = useState({ name: '', email: '', password: '', confirmPassword: '', salary: '' })
   const [termsOk,    setTermsOk]    = useState(false)
   const [twoFA,      setTwoFA]      = useState({ active: false, tempToken: '', code: '', useBackup: false, backupCode: '' })
 
@@ -77,11 +78,17 @@ export default function Login({ isRegister = false }) {
 
   const validate = () => {
     const errs = {}
-    if (mode === 'register' && !form.name.trim()) errs.name = 'Nome obrigatório'
-    if (!EMAIL_RE.test(form.email.trim()))         errs.email = 'E-mail inválido'
+    if (mode === 'register') {
+      const trimmedName = form.name.trim()
+      if (!trimmedName)            errs.name = 'Nome obrigatório'
+      else if (trimmedName.length < 2) errs.name = 'O nome deve ter pelo menos 2 caracteres.'
+    }
+    if (!EMAIL_RE.test(form.email.trim())) errs.email = 'E-mail inválido'
     if (mode === 'register') {
       if (!PASSWORD_RE.test(form.password))
         errs.password = 'Mínimo 8 caracteres com letra maiúscula, minúscula e número'
+      if (form.password !== form.confirmPassword)
+        errs.confirmPassword = 'As senhas não coincidem.'
       if (!termsOk) errs.terms = 'Você precisa aceitar os termos para continuar'
       if (form.salary.trim()) {
         const parsed = parseSalary(form.salary)
@@ -406,6 +413,38 @@ export default function Login({ isRegister = false }) {
               )}
               {mode === 'register' && <PasswordStrength password={form.password} />}
             </div>
+
+            {/* Confirmar senha — só no cadastro */}
+            {mode === 'register' && (
+              <div className="lauth-field">
+                <div className="lauth-field-hdr">
+                  <label className="lauth-field-lbl" htmlFor="f-confirm-pass">Confirme sua senha</label>
+                </div>
+                <div className="lauth-inp-wrap">
+                  <span className="lauth-inp-ico"><LockIcon /></span>
+                  <input
+                    id="f-confirm-pass" name="confirmPassword"
+                    type={showConfirmPass ? 'text' : 'password'}
+                    placeholder="Repita a senha"
+                    autoComplete="new-password"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    className={`has-eye${fieldErrs.confirmPassword ? ' err' : ''}`}
+                  />
+                  <button
+                    type="button"
+                    className="lauth-inp-eye"
+                    onClick={() => setShowConfirmPass(v => !v)}
+                    aria-label="Mostrar confirmação de senha"
+                  >
+                    {showConfirmPass ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+                {fieldErrs.confirmPassword && (
+                  <div className="lauth-field-err"><ErrIcon /> {fieldErrs.confirmPassword}</div>
+                )}
+              </div>
+            )}
 
             {/* Salário — só no cadastro */}
             {mode === 'register' && (
