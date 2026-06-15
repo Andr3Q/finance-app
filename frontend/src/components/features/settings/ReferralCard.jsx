@@ -126,9 +126,14 @@ export default function ReferralCard() {
             ) : (
               <>
                 {pendingCount > 0 && (
-                  <p className="ref-progress-msg pending">
-                    {pendingCount} {pendingCount === 1 ? 'amigo cadastrado aguarda' : 'amigos cadastrados aguardam'} verificação de e-mail para liberar seu bônus.
-                  </p>
+                  <>
+                    <p className="ref-progress-msg pending">
+                      {pendingCount} {pendingCount === 1 ? 'amigo cadastrado aguarda' : 'amigos cadastrados aguardam'} verificação de e-mail para liberar seu bônus.
+                    </p>
+                    <p style={{ fontSize:11, color:'var(--t3)', marginTop:6, lineHeight:1.5 }}>
+                      Os bônus são creditados automaticamente assim que seu amigo confirmar o e-mail. Os dados são atualizados ao recarregar o app.
+                    </p>
+                  </>
                 )}
                 <p className="ref-progress-msg" style={{ color:'var(--c)', marginTop: pendingCount > 0 ? 4 : 0 }}>
                   Você ainda pode ganhar mais {maxReferrals - rewardedCount} {maxReferrals - rewardedCount === 1 ? 'recompensa' : 'recompensas'}!

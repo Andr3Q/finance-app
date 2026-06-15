@@ -181,13 +181,21 @@ export default function Planos() {
     }
   }
 
-  const proPrice    = billing === 'mensal' ? '9' : '8'
-  const proCents    = billing === 'mensal' ? ',90' : ',25'
+  const PRICES = {
+    pro:   { mensal: 9.90,  anual: 8.25  },
+    elite: { mensal: 34.90, anual: 27.90 },
+  }
+  const toInt = v => String(Math.floor(v))
+  const toCts = v => ',' + String(Math.round((v % 1) * 100)).padStart(2, '0')
+
+  const proPrice    = toInt(PRICES.pro[billing])
+  const proCents    = toCts(PRICES.pro[billing])
   const properiod   = billing === 'mensal'
     ? 'por mês · Cancele quando quiser'
     : 'por mês · Cobrado anualmente (R$ 99,00/ano)'
 
-  const elitePrice  = billing === 'mensal' ? '34' : '27'
+  const elitePrice  = toInt(PRICES.elite[billing])
+  const eliteCents  = toCts(PRICES.elite[billing])
   const elitePeriod = billing === 'mensal'
     ? 'por mês · Cancele quando quiser'
     : 'por mês · Cobrado anualmente (R$ 334,80/ano)'
@@ -369,7 +377,7 @@ export default function Planos() {
                 <div className="pp1-price">
                   <span className="pp1-price-cur pp1-cur-elite">R$</span>
                   <span className="pp1-price-num pp1-num-elite">{elitePrice}</span>
-                  <span className="pp1-price-dec pp1-dec-elite">,90</span>
+                  <span className="pp1-price-dec pp1-dec-elite">{eliteCents}</span>
                 </div>
                 <div className="pp1-price-note pp1-note-elite">{elitePeriod}</div>
                 <div className="pp1-price-cancel pp1-cancel-elite">Sem fidelidade · Sem cartão para testar</div>

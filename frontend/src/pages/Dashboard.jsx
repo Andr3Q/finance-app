@@ -127,6 +127,14 @@ export default function Dashboard() {
   }, [showBell])
 
   useEffect(() => {
+    const dismiss = () => setTrialBellDismissed(true)
+    window.addEventListener('trial-bell-dismiss', dismiss)
+    // Descarta imediatamente se o modal já foi exibido nesta sessão
+    if (sessionStorage.getItem('trial_just_expired')) dismiss()
+    return () => window.removeEventListener('trial-bell-dismiss', dismiss)
+  }, [])
+
+  useEffect(() => {
     if (!trialNotif || trialBellDismissed) return
     if (sessionStorage.getItem('trial-bell-sound-played')) return
     sessionStorage.setItem('trial-bell-sound-played', '1')
