@@ -241,9 +241,12 @@ test.describe('Input de Data — Integração com Formulário', () => {
         body: JSON.stringify({ id: 'b-new', name: 'Aluguel', amount: 1200, endDate: capturedBody.endDate }) })
     })
 
-    // Preencher nome e valor
+    // Preencher nome e valor (pressSequentially garante disparo correto do onChange no CurrencyInput controlado)
     await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Aluguel')
-    await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().fill('1200')
+    const amountInput = page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first()
+    await amountInput.click()
+    await amountInput.pressSequentially('1200')
+    await page.waitForTimeout(100)
 
     // Ativar data de encerramento
     await page.locator('.cfg-enddate-toggle').first().click()
