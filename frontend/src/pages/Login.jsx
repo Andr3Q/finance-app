@@ -47,6 +47,13 @@ const EyeOffIcon = () => (
 const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
 
+function parseSalary(raw) {
+  let s = raw.trim().replace(/R\$\s*/g, '').replace(/\s/g, '')
+  // Formato BR (2.000,50): ponto é separador de milhar, vírgula é decimal
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.')
+  return parseFloat(s)
+}
+
 export default function Login({ isRegister = false }) {
   const navigate = useNavigate()
   const refCode  = useRef(new URLSearchParams(window.location.search).get('ref') || '')
@@ -76,6 +83,11 @@ export default function Login({ isRegister = false }) {
       if (!PASSWORD_RE.test(form.password))
         errs.password = 'Mínimo 8 caracteres com letra maiúscula, minúscula e número'
       if (!termsOk) errs.terms = 'Você precisa aceitar os termos para continuar'
+      if (form.salary.trim()) {
+        const parsed = parseSalary(form.salary)
+        if (isNaN(parsed) || parsed <= 0)
+          errs.salary = 'Por favor, insira um valor numérico válido para o seu salário.'
+      }
     } else {
       if (form.password.length < 8) errs.password = 'Mínimo 8 caracteres'
     }
@@ -91,7 +103,7 @@ export default function Login({ isRegister = false }) {
       const fn   = mode === 'login' ? authAPI.login : authAPI.register
       const data = mode === 'login'
         ? { email: form.email.trim(), password: form.password }
-        : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: parseFloat(form.salary) || 0, referralCode: refCode.current || undefined }
+        : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: form.salary.trim() ? parseSalary(form.salary) : 0, referralCode: refCode.current || undefined }
       const res = await fn(data)
       if (res.data.requires2FA) {
         setTwoFA({ active: true, tempToken: res.data.tempToken, code: '' })
@@ -412,7 +424,10 @@ export default function Login({ isRegister = false }) {
                     onChange={handleChange}
                   />
                 </div>
-                <div className="lauth-field-hint">Pode ser alterado depois nas configurações</div>
+                {fieldErrs.salary
+                  ? <div className="lauth-field-err"><ErrIcon /> {fieldErrs.salary}</div>
+                  : <div className="lauth-field-hint">Pode ser alterado depois nas configurações</div>
+                }
               </div>
             )}
 
