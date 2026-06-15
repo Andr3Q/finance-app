@@ -69,7 +69,7 @@ const COMPARE_GROUPS = [
   {
     label: 'IA & Metas',
     rows: [
-      { feat: 'Metas financeiras',               free: false, pro: '4',   elite: 'Ilimitadas' },
+      { feat: 'Metas financeiras',               free: '1 meta', pro: '4 metas', elite: 'Ilimitadas' },
       { feat: 'Score financeiro avançado',       free: true,  pro: true,  elite: true  },
       { feat: 'Análises avançadas',              free: true,  pro: true,  elite: true  },
     ],

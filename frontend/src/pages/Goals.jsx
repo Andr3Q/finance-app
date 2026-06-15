@@ -32,6 +32,7 @@ const COLORS = ['#4ae2ac','#4f8ef7','#7b2fff','#ff8c42','#ff4757','#ff6b9d']
 const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 
 const EMPTY_FORM = { title: '', targetAmount: '', currentAmount: '', color: '#4ae2ac', deadline: '' }
+const DRAFT_KEY  = 'goal-form-draft'
 
 function DepositModal({ goal, onConfirm, onCancel, saving }) {
   const [amount, setAmount] = useState('')
@@ -95,15 +96,41 @@ function DepositModal({ goal, onConfirm, onCancel, saving }) {
 }
 
 function GoalForm({ initial, onSave, onCancel, saving }) {
-  const [form, setForm] = useState(initial || EMPTY_FORM)
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
+  const isNew = !initial?.id
+  const [form, setForm] = useState(() => {
+    if (isNew) {
+      try {
+        const saved = sessionStorage.getItem(DRAFT_KEY)
+        if (saved) return JSON.parse(saved)
+      } catch {}
+    }
+    return initial || EMPTY_FORM
+  })
+
+  const set = (k, v) => setForm(p => {
+    const next = { ...p, [k]: v }
+    if (isNew) {
+      try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next)) } catch {}
+    }
+    return next
+  })
+
+  const handleSave = () => {
+    if (isNew) sessionStorage.removeItem(DRAFT_KEY)
+    onSave(form)
+  }
+
+  const handleCancel = () => {
+    if (isNew) sessionStorage.removeItem(DRAFT_KEY)
+    onCancel()
+  }
 
   return (
-    <div className="gls-modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
+    <div className="gls-modal-overlay" onClick={e => e.target === e.currentTarget && handleCancel()}>
       <div className="gls-modal">
         <div className="gls-modal-head">
           <span>{initial?.id ? 'Editar meta' : 'Nova meta'}</span>
-          <button className="gls-modal-close" onClick={onCancel}>
+          <button className="gls-modal-close" onClick={handleCancel}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -141,8 +168,8 @@ function GoalForm({ initial, onSave, onCancel, saving }) {
           </div>
         </div>
         <div className="gls-modal-foot">
-          <button className="gls-btn-ghost" onClick={onCancel} disabled={saving}>Cancelar</button>
-          <button className="gls-btn-save" onClick={() => onSave(form)} disabled={saving}>
+          <button className="gls-btn-ghost" onClick={handleCancel} disabled={saving}>Cancelar</button>
+          <button className="gls-btn-save" onClick={handleSave} disabled={saving}>
             {saving ? <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> : null}
             {initial?.id ? 'Salvar alterações' : 'Criar meta'}
           </button>
