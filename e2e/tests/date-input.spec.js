@@ -241,25 +241,31 @@ test.describe('Input de Data — Integração com Formulário', () => {
         body: JSON.stringify({ id: 'b-new', name: 'Aluguel', amount: 1200, endDate: capturedBody.endDate }) })
     })
 
-    // Preencher nome e valor
+    // Preencher nome
     await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Aluguel')
-    await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().fill('1200')
+
+    // Preencher valor via teclado para garantir disparo do onChange na CurrencyInput controlada
+    await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().click()
+    await page.keyboard.type('1200')
 
     // Ativar data de encerramento e aguardar campos aparecerem
     await page.locator('.cfg-enddate-toggle').first().click()
     await dd(page).waitFor({ state: 'visible' })
 
-    // Preencher data 31/12/2027 com fill (não depende de auto-foco)
-    await dd(page).fill('31')
-    await mm(page).fill('12')
-    await aaaa(page).fill('2027')
+    // Preencher data explorando auto-foco: clica em DD, digita 31 → React foca MM → digita 12 → React foca AAAA → digita 2027
+    await dd(page).click()
+    await page.keyboard.type('31')
+    await page.waitForTimeout(100)
+    await page.keyboard.type('12')
+    await page.waitForTimeout(100)
+    await page.keyboard.type('2027')
 
-    // Submeter e aguardar o POST ser efetivado antes de verificar
-    const responsePromise = page.waitForResponse(
-      resp => resp.url().includes('/api/budget') && resp.request().method() === 'POST'
-    )
-    await page.locator('.cfg-add-row button[type="submit"]').click()
-    await responsePromise
+    // Submeter capturando o request antes da resposta (elimina race condition com capturedBody)
+    const [req] = await Promise.all([
+      page.waitForRequest(r => r.url().includes('/api/budget') && r.method() === 'POST'),
+      page.locator('.cfg-add-row button[type="submit"]').click(),
+    ])
+    capturedBody = JSON.parse(req.postData() || '{}')
 
     // Verificar body com endDate no formato ISO YYYY-MM-DD
     expect(capturedBody?.endDate).toBe('2027-12-31')

@@ -156,7 +156,7 @@ test.describe('Configurações — Cancelar plano', () => {
     await page.getByPlaceholder('Sua senha atual').fill('minhasenha')
     await page.getByRole('button', { name: /sim, cancelar/i }).click()
 
-    await expect(page.getByText(/plano cancelado/i)).toBeVisible()
+    await expect(page.getByText(/assinatura cancelada/i)).toBeVisible()
   })
 })
 
