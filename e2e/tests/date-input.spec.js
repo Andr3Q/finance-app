@@ -233,8 +233,7 @@ async function setupSettingsNoToggle(page, budgetPostHandler) {
 test.describe('Input de Data — Integração com Formulário', () => {
 
   test('salvar conta fixa com data válida envia endDate ISO ao backend', async ({ page }) => {
-    // setupSettings clica o toggle no setup (igual aos testes 87, 102, 155 que passam),
-    // evitando o blur-reset da CurrencyInput quando toggle é clicado após digitar o amount.
+    // setupSettings clica o toggle no setup — date fields já renderizados antes do test body.
     await setupSettings(page)
 
     // Override LIFO: capturar body do POST (maior prioridade que a rota do setupSettings)
@@ -245,22 +244,17 @@ test.describe('Input de Data — Integração com Formulário', () => {
         body: JSON.stringify({ id: 'b-new', name: body.name, amount: body.amount, endDate: body.endDate }) })
     })
 
-    // Nome
+    // Nome e valor via .fill() — mesmo mecanismo do test 276 que passa (Input.insertText via CDP)
     await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Aluguel')
-
-    // Valor: locator.pressSequentially (mesmo mecanismo que testes 87/102) + wait para React commitar
-    const amountInput = page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first()
-    await amountInput.click()
-    await amountInput.pressSequentially('1200')
+    await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().fill('1200')
+    // Wait para React commitar display='1.200' antes de dd.fill() triggar blur na CurrencyInput
     await page.waitForTimeout(100)
 
-    // Data: padrão idêntico aos testes 87, 102 e 155 que passam nesta suite
-    await dd(page).click()
-    await dd(page).type('31')
-    await page.waitForTimeout(150)
-    await mm(page).type('12')
-    await page.waitForTimeout(150)
-    await aaaa(page).type('2027')
+    // Campos de data via .fill() — foca cada campo explicitamente (Playwright usa Input.insertText)
+    await dd(page).fill('31')
+    await mm(page).fill('12')
+    await aaaa(page).fill('2027')
+    // Wait para React commitar aaaa='2027' antes do submit
     await page.waitForTimeout(100)
 
     // Submit + captura do request
