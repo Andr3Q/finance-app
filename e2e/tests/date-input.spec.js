@@ -267,19 +267,49 @@ test.describe('Input de Data — Integração com Formulário', () => {
     expect(await aaaa(page).inputValue(), 'AAAA deve ser 2027').toBe('2027')
     expect(await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().inputValue(), 'valor não deve estar vazio').not.toBe('')
 
-    // 5) Submit via form.requestSubmit() — bypassa Playwright click para isolar se o problema é no mecanismo de click
-    await page.locator('form.cfg-add-row').evaluate(f => f.requestSubmit())
+    // 5) Ler estado React real via fiber tree ANTES do submit (confirma o que React vê, não só o DOM)
+    const fiberState = await page.evaluate(() => {
+      try {
+        const form = document.querySelector('form.cfg-add-row')
+        if (!form) return { err: 'no form' }
+        const key = Object.keys(form).find(k => /^__reactFiber/.test(k))
+        if (!key) return { err: 'no fiber' }
+        let f = form[key].return
+        while (f) {
+          let s = f.memoizedState
+          while (s) {
+            const v = s.memoizedState
+            if (v && typeof v === 'object' && v !== null && 'hasEndDate' in v)
+              return { ok: true, newBudget: JSON.stringify(v) }
+            s = s.next
+          }
+          f = f.return
+        }
+        return { err: 'not found' }
+      } catch (e) { return { err: e.message } }
+    })
+    // Falha AQUI se o React state estiver errado (mostra o valor real no CI)
+    expect(fiberState.ok, `Estado React antes do submit: ${JSON.stringify(fiberState)}`).toBe(true)
+    expect(fiberState.newBudget, 'hasEndDate deve ser true no React state').toContain('"hasEndDate":true')
+    expect(fiberState.newBudget, 'amount deve ser 1200 no React state').toContain('"amount":1200')
+    expect(fiberState.newBudget, 'dd deve ser "31" no React state').toContain('"dd":"31"')
+
+    // 6) Clicar no botão submit (mais próximo do comportamento real do usuário)
+    await page.locator('form.cfg-add-row button[type="submit"]').click()
     await page.waitForTimeout(2000)
 
-    // 6) Se capturedBody é null, handleAdd retornou sem POST.
-    //    Capturar qual erro de validação apareceu na UI para diagnóstico.
+    // 7) Se capturedBody é null, handleAdd retornou sem POST.
+    //    Capturar toast + erros inline + fiber state para diagnóstico preciso.
     if (!capturedBody) {
-      const uiErrors = await page.evaluate(() =>
-        Array.from(document.querySelectorAll('[style*="ef4444"]'))
-          .map(el => el.textContent?.trim()).filter(Boolean)
-      )
+      const diag = await page.evaluate(() => ({
+        inlineErrors: Array.from(document.querySelectorAll('[style*="ef4444"]'))
+          .map(el => el.textContent?.trim()).filter(Boolean),
+        toasts: Array.from(document.querySelectorAll('[role="alert"], [class*="toast"], [class*="message"], [class*="notif"]'))
+          .map(el => el.textContent?.trim()).filter(Boolean),
+        bodyText: document.body.innerText.slice(0, 500),
+      }))
       expect(capturedBody,
-        `handleAdd não fez POST. Erros UI: ${JSON.stringify(uiErrors)}`
+        `handleAdd não fez POST.\nInline errors: ${JSON.stringify(diag.inlineErrors)}\nToasts: ${JSON.stringify(diag.toasts)}\nBody: ${diag.bodyText}`
       ).not.toBeNull()
     }
 
