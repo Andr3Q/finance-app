@@ -64,7 +64,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         return
       }
       const parsed = new Date(`${aaaa}-${mm}-${dd}`)
-      if (isNaN(parsed) || parsed.getMonth() + 1 !== parseInt(mm, 10) || parsed.getDate() !== parseInt(dd, 10)) {
+      if (isNaN(parsed) || parsed.getUTCMonth() + 1 !== parseInt(mm, 10) || parsed.getUTCDate() !== parseInt(dd, 10)) {
         setEndDateErr('Por favor, insira uma data válida.')
         return
       }
