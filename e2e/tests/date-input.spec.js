@@ -233,36 +233,49 @@ async function setupSettingsNoToggle(page, budgetPostHandler) {
 test.describe('Input de Data — Integração com Formulário', () => {
 
   test('salvar conta fixa com data válida envia endDate ISO ao backend', async ({ page }) => {
-    // setupSettings clica o toggle no setup — date fields já renderizados antes do test body.
-    await setupSettings(page)
+    let capturedBody = null
 
-    // Override LIFO: capturar body do POST (maior prioridade que a rota do setupSettings)
-    await page.route('**/api/budget**', async r => {
-      if (r.request().method() !== 'POST') return r.continue()
-      const body = JSON.parse(r.request().postData() || '{}')
+    // setupSettingsNoToggle: base comprovada (test 276 passa com ela). POST handler captura body.
+    await setupSettingsNoToggle(page, async r => {
+      capturedBody = JSON.parse(r.request().postData() || '{}')
       await r.fulfill({ status: 201, contentType: 'application/json',
-        body: JSON.stringify({ id: 'b-new', name: body.name, amount: body.amount, endDate: body.endDate }) })
+        body: JSON.stringify({ id: 'b-new', name: capturedBody.name, amount: capturedBody.amount, endDate: capturedBody.endDate }) })
     })
 
-    // Nome e valor via .fill() — mesmo mecanismo do test 276 que passa (Input.insertText via CDP)
+    // 1) Preencher nome e valor ANTES de clicar no toggle
+    //    (garante que handleBlur da CurrencyInput veja display='1.200' → n=1200>0 → amount=1200)
     await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Aluguel')
     await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().fill('1200')
-    // Wait para React commitar display='1.200' antes de dd.fill() triggar blur na CurrencyInput
     await page.waitForTimeout(100)
 
-    // Campos de data via .fill() — foca cada campo explicitamente (Playwright usa Input.insertText)
-    await dd(page).fill('31')
-    await mm(page).fill('12')
-    await aaaa(page).fill('2027')
-    // Wait para React commitar aaaa='2027' antes do submit
+    // 2) Clicar no toggle para exibir campos de data (hasEndDate=true)
+    await page.locator('.cfg-enddate-toggle').first().click()
+    await page.waitForTimeout(300)
+
+    // 3) Preencher datas via native setter + dispatchEvent (bypassa mecanismo de controlled input do React)
+    //    Garante que e.target.value seja o valor correto quando o onChange do React for chamado.
+    await page.evaluate(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
+      const parts  = document.querySelectorAll('.cfg-date-part')
+      const aaaaEl = document.querySelector('.cfg-date-part.cfg-date-year')
+      setter.call(parts[0], '31');  parts[0].dispatchEvent(new Event('input', { bubbles: true }))
+      setter.call(parts[1], '12');  parts[1].dispatchEvent(new Event('input', { bubbles: true }))
+      setter.call(aaaaEl,  '2027'); aaaaEl.dispatchEvent(new Event('input',  { bubbles: true }))
+    })
     await page.waitForTimeout(100)
 
-    // Submit + captura do request
+    // 4) Verificações diagnósticas — se falharem, o erro mostra os valores reais nos inputs
+    expect(await dd(page).inputValue(),   'DD deve ser 31')   .toBe('31')
+    expect(await mm(page).inputValue(),   'MM deve ser 12')   .toBe('12')
+    expect(await aaaa(page).inputValue(), 'AAAA deve ser 2027').toBe('2027')
+    expect(await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().inputValue(), 'valor não deve estar vazio').not.toBe('')
+
+    // 5) Submit + waitForRequest
     const [req] = await Promise.all([
       page.waitForRequest(r => r.url().includes('/api/budget') && r.method() === 'POST'),
       page.locator('.cfg-add-row button[type="submit"]').click(),
     ])
-    const capturedBody = JSON.parse(req.postData() || '{}')
+    capturedBody = JSON.parse(req.postData() || '{}')
 
     expect(capturedBody?.endDate).toBe('2027-12-31')
   })
