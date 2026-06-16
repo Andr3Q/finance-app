@@ -243,7 +243,6 @@ test.describe('Input de Data — Integração com Formulário', () => {
     })
 
     // 1) Preencher nome e valor ANTES de clicar no toggle
-    //    (garante que handleBlur da CurrencyInput veja display='1.200' → n=1200>0 → amount=1200)
     await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Aluguel')
     await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().fill('1200')
     await page.waitForTimeout(100)
@@ -252,32 +251,39 @@ test.describe('Input de Data — Integração com Formulário', () => {
     await page.locator('.cfg-enddate-toggle').first().click()
     await page.waitForTimeout(300)
 
-    // 3) Preencher datas via native setter + dispatchEvent (bypassa mecanismo de controlled input do React)
-    //    Garante que e.target.value seja o valor correto quando o onChange do React for chamado.
-    await page.evaluate(() => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set
-      const parts  = document.querySelectorAll('.cfg-date-part')
-      const aaaaEl = document.querySelector('.cfg-date-part.cfg-date-year')
-      setter.call(parts[0], '31');  parts[0].dispatchEvent(new Event('input', { bubbles: true }))
-      setter.call(parts[1], '12');  parts[1].dispatchEvent(new Event('input', { bubbles: true }))
-      setter.call(aaaaEl,  '2027'); aaaaEl.dispatchEvent(new Event('input',  { bubbles: true }))
-    })
+    // 3) Preencher datas com click+type (mesmo padrão dos tests 87/102 que passam)
+    await dd(page).click()
+    await dd(page).type('31')
+    await page.waitForTimeout(150)
+    await mm(page).type('12')
+    await page.waitForTimeout(150)
+    await aaaa(page).type('2027')
     await page.waitForTimeout(100)
 
     // 4) Verificações diagnósticas — se falharem, o erro mostra os valores reais nos inputs
+    expect(await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').inputValue(), 'nome deve ser Aluguel').toBe('Aluguel')
     expect(await dd(page).inputValue(),   'DD deve ser 31')   .toBe('31')
     expect(await mm(page).inputValue(),   'MM deve ser 12')   .toBe('12')
     expect(await aaaa(page).inputValue(), 'AAAA deve ser 2027').toBe('2027')
     expect(await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().inputValue(), 'valor não deve estar vazio').not.toBe('')
 
-    // 5) Submit + waitForRequest
-    const [req] = await Promise.all([
-      page.waitForRequest(r => r.url().includes('/api/budget') && r.method() === 'POST'),
-      page.locator('.cfg-add-row button[type="submit"]').click(),
-    ])
-    capturedBody = JSON.parse(req.postData() || '{}')
+    // 5) Submit via form.requestSubmit() — bypassa Playwright click para isolar se o problema é no mecanismo de click
+    await page.locator('form.cfg-add-row').evaluate(f => f.requestSubmit())
+    await page.waitForTimeout(2000)
 
-    expect(capturedBody?.endDate).toBe('2027-12-31')
+    // 6) Se capturedBody é null, handleAdd retornou sem POST.
+    //    Capturar qual erro de validação apareceu na UI para diagnóstico.
+    if (!capturedBody) {
+      const uiErrors = await page.evaluate(() =>
+        Array.from(document.querySelectorAll('[style*="ef4444"]'))
+          .map(el => el.textContent?.trim()).filter(Boolean)
+      )
+      expect(capturedBody,
+        `handleAdd não fez POST. Erros UI: ${JSON.stringify(uiErrors)}`
+      ).not.toBeNull()
+    }
+
+    expect(capturedBody.endDate).toBe('2027-12-31')
   })
 
   test('salvar sem preencher data não envia endDate', async ({ page }) => {
