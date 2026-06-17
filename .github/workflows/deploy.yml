@@ -40,6 +40,10 @@ concurrency:
   group: deploy-production
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  deployments: write
+
 # ─────────────────────────────────────────────────────────────────
 # JOBS DE TESTE (re-executados antes de todo deploy)
 # Cópia intencional do ci.yml — o CD nunca confia em um CI externo.
@@ -60,7 +64,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
@@ -81,7 +85,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
@@ -100,7 +104,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
@@ -112,7 +116,7 @@ jobs:
   test-e2e:
     name: 🎭 E2E · Playwright
     runs-on: ubuntu-latest
-    needs: [test-frontend, build-check]
+    needs: [test-backend, test-frontend, build-check]
     # Pula apenas em rollback ou deploy-skip-e2e (emergência)
     if: |
       github.event.inputs.modo != 'rollback' &&
@@ -122,7 +126,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - run: npm ci
       - run: npm ci
         working-directory: frontend
@@ -177,7 +181,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
@@ -236,7 +240,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
@@ -255,11 +259,10 @@ jobs:
             fi
             [ $i -lt 3 ] && echo "⚠️ Falhou. Aguardando 15s..." && sleep 15
           done
-          echo "⚠️ GitHub Actions não conseguiu alcançar o Supabase após 3 tentativas."
-          echo "   Fallback: migrations aplicadas pelo container no startup (advisory lock serializa concorrência)."
+          echo "❌ Migrations falharam após 3 tentativas — abortando deploy."
+          exit 1
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        continue-on-error: true
 
       - name: Confirmar schema em produção
         run: |
@@ -296,6 +299,7 @@ jobs:
         (
           needs.test-backend.result == 'success' &&
           needs.test-frontend.result == 'success' &&
+          needs.build-check.result == 'success' &&
           needs.migrate-prod.result == 'success' &&
           (needs.test-e2e.result == 'success' || needs.test-e2e.result == 'skipped')
         ) ||
@@ -362,6 +366,8 @@ jobs:
           gcloud run deploy "$SERVICE" \
             --source . \
             --region "$REGION" \
+            --set-env-vars "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
+            --set-secrets "RESEND_API_KEY=RESEND_API_KEY:latest" \
             --quiet
           echo "✅ Deploy enviado — aguardando health check..."
 
@@ -413,7 +419,10 @@ jobs:
           $FAIL && { echo "❌ Smoke tests falharam — iniciando rollback"; exit 1; } || echo "✅ Todos os smoke tests passaram"
 
       - name: Rollback automático (health check falhou)
-        if: failure() && steps.health-check.outputs.FAILED == 'true' && steps.current-revision.outputs.name != ''
+        if: |
+          failure() &&
+          steps.current-revision.outputs.name != '' &&
+          (steps.health-check.outputs.FAILED == 'true' || steps.health-check.outcome == 'success')
         run: |
           PREV="${{ steps.current-revision.outputs.name }}"
           echo "🔄 Health check falhou — revertendo para $PREV"

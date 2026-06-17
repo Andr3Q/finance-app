@@ -11,6 +11,8 @@ module.exports = defineConfig({
 
   use: {
     baseURL:           'http://localhost:5173',
+    actionTimeout:     15_000,
+    navigationTimeout: 30_000,
     headless:          true,
     screenshot:        'only-on-failure',
     video:             'retain-on-failure',
