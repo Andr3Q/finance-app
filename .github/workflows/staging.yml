@@ -28,6 +28,13 @@ on:
         required: true
         default: 'prisma-7'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 env:
   DATABASE_URL:  postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
   JWT_SECRET:    staging_jwt_secret_nao_usar_em_producao_000000000000000000000
@@ -65,10 +72,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
@@ -90,8 +97,8 @@ jobs:
       - name: 🧪 Rodar Jest (201 testes) contra DB staging
         run: npm test
 
-      - name: Upload coverage (falha ou sucesso)
-        if: always()
+      - name: Upload coverage (apenas em falha)
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-staging-${{ github.sha }}
@@ -124,10 +131,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Instalar deps (raiz + frontend + backend)
         run: |
@@ -149,7 +156,9 @@ jobs:
           echo "BACKEND_PID=$!" >> $GITHUB_ENV
           # Aguarda health check
           for i in $(seq 1 20); do
-            curl -sf http://localhost:3099/health && break || sleep 2
+            if curl -sf http://localhost:3099/health; then break; fi
+            [ "$i" -eq 20 ] && echo "❌ Backend não respondeu após 20 tentativas" && exit 1
+            sleep 2
           done
 
       - name: Cache Playwright browsers
@@ -181,7 +190,7 @@ jobs:
         with:
           name: playwright-staging-report-${{ github.sha }}
           path: playwright-report/
-          retention-days: 14
+          retention-days: 7
 
   # ─────────────────────────────────────────────────────────────
   # 3. SMOKE TESTS — Validação dos endpoints críticos
@@ -209,10 +218,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Instalar dependências backend
         run: npm ci
@@ -229,7 +238,11 @@ jobs:
         working-directory: backend
         run: |
           PORT=3099 node src/server.js &
-          for i in $(seq 1 20); do curl -sf http://localhost:3099/health && break || sleep 2; done
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:3099/health; then break; fi
+            [ "$i" -eq 20 ] && echo "❌ Backend não respondeu após 20 tentativas" && exit 1
+            sleep 2
+          done
 
       - name: 🔥 Smoke — /health
         run: |

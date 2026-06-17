@@ -28,7 +28,7 @@
     "jsonwebtoken": "^9.0.2",
     "mercadopago": "^2.12.1",
     "multer": "^2.1.1",
-    "nodemailer": "^8.0.7",
+    "resend": "^4.0.0",
     "pdfkit": "^0.15.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",

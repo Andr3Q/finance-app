@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════
 // 📧 src/services/emailService.js — Envio de E-mail
 //
-// Usa o Nodemailer para enviar e-mails via Gmail SMTP.
-// É chamado pelo reports.js quando o usuário fecha o mês.
+// Usa o Resend para envio de e-mails transacionais.
+// Requer: RESEND_API_KEY (secret) e EMAIL_FROM (env var).
 // ═══════════════════════════════════════════════════════
 
-const nodemailer = require('nodemailer')
+const { Resend } = require('resend')
 
 // Escapa caracteres especiais HTML para evitar injeção nos templates de e-mail
 function esc(str) {
@@ -17,30 +17,14 @@ function esc(str) {
     .replace(/'/g, '&#x27;')
 }
 
-// Cria o transportador de e-mails — configura qual servidor de e-mail usar
-// Gmail requer uma "App Password" (não a senha normal da conta)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-})
+const resend = new Resend(process.env.RESEND_API_KEY)
 
-// Valida credenciais na inicialização para detectar problema cedo
-if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-  console.warn('[emailService] EMAIL_USER ou EMAIL_PASS não configurados — envio de e-mails desativado.')
+if (!process.env.RESEND_API_KEY) {
+  console.warn('[emailService] RESEND_API_KEY não configurada — envio de e-mails desativado.')
 }
 
-/**
- * Envia o relatório mensal por e-mail com o PDF em anexo
- * @param {string} toEmail    - E-mail do destinatário
- * @param {string} userName   - Nome do usuário
- * @param {number} month      - Mês do relatório (1-12)
- * @param {number} year       - Ano do relatório
- * @param {object} summary    - Resumo financeiro do mês
- * @param {Buffer} pdfBuffer  - PDF gerado em memória
- */
+const FROM = process.env.EMAIL_FROM || 'Nancy <noreply@nancy.app>'
+
 async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuffer) {
   const monthNames = [
     'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -48,17 +32,15 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
   ]
   const monthName = monthNames[month - 1]
 
-  const emailHtml = `
+  const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f5f5f5; padding: 20px;">
       <div style="background: linear-gradient(135deg, #1a1a3e, #2d2d6e); padding: 30px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
         <h1 style="color: #fff; margin: 0; font-size: 28px;">💸 Nancy</h1>
         <p style="color: #a0a0d0; margin: 8px 0 0;">Relatório de ${monthName}/${year}</p>
       </div>
-      
       <div style="background: #fff; padding: 24px; border-radius: 12px; margin-bottom: 16px;">
         <p style="color: #333; font-size: 16px;">Olá, <strong>${esc(userName)}</strong>! 👋</p>
         <p style="color: #666;">Aqui está o resumo financeiro do seu mês de <strong>${esc(monthName)}/${year}</strong>:</p>
-        
         <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
           <tr style="background: #f8f8f8;">
             <td style="padding: 12px; border-radius: 8px 0 0 8px; color: #666;">💰 Salário</td>
@@ -86,7 +68,6 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
           </tr>
         </table>
       </div>
-      
       <p style="color: #999; font-size: 12px; text-align: center;">
         O detalhamento completo está no PDF em anexo.<br/>
         Nancy — Seu controle financeiro pessoal 💸
@@ -94,16 +75,15 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
     </div>
   `
 
-  await transporter.sendMail({
-    from:    `"Nancy 💸" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject: `📊 Relatório de ${monthName}/${year} — Nancy`,
-    html:    emailHtml,
+    html,
     attachments: [
       {
-        filename:    `relatorio-${monthName.toLowerCase()}-${year}.pdf`,
-        content:     pdfBuffer,
-        contentType: 'application/pdf'
+        filename: `relatorio-${monthName.toLowerCase()}-${year}.pdf`,
+        content:  pdfBuffer.toString('base64'),
       }
     ]
   })
@@ -133,16 +113,16 @@ async function sendResetEmail(toEmail, userName, resetLink) {
       <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject: 'Redefinição de senha — Nancy',
-    html
+    html,
   })
 }
 
 async function sendRenewalReminderEmail(toEmail, userName, planName, daysLeft) {
-  const appUrl  = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+  const appUrl    = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
   const planLabel = planName === 'elite' ? 'Elite' : 'Pro'
   const urgency   = daysLeft <= 1 ? 'expira hoje' : `expira em ${daysLeft} dias`
 
@@ -176,8 +156,8 @@ async function sendRenewalReminderEmail(toEmail, userName, planName, daysLeft) {
     </div>
   `
 
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject: `Seu plano ${planLabel} ${urgency} — Nancy`,
     html,
@@ -222,8 +202,8 @@ async function sendWelcomeEmail(toEmail, userName, trialEndsAt) {
     </div>
   `
 
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject: 'Bem-vindo(a) ao Nancy! Seu trial Pro começa agora 🎉',
     html,
@@ -262,8 +242,8 @@ async function sendTrialExpiryEmail(toEmail, userName, daysLeft) {
     </div>
   `
 
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject: `Seu trial Pro ${urgency} — Nancy`,
     html,
@@ -303,8 +283,8 @@ async function sendPlanActivationEmail(toEmail, userName, plan, planExpiresAt) {
     </div>
   `
 
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject: `Plano ${planLabel} ativado com sucesso! — Nancy`,
     html,
@@ -341,8 +321,8 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
     </div>
   `
 
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject: `🎉 ${esc(referredName)} entrou usando seu código — você ganhou +30 dias!`,
     html,
@@ -350,14 +330,10 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
 }
 
 async function sendPlanExpiredEmail(toEmail, userName, wasTrialOrPaid) {
-  const appUrl = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
-  const subject = wasTrialOrPaid === 'trial'
-    ? 'Seu trial Pro encerrou — Nancy'
-    : 'Seu plano expirou — Nancy'
-  const headline = wasTrialOrPaid === 'trial'
-    ? 'Seu trial de 7 dias encerrou'
-    : 'Seu plano expirou'
-  const detail = wasTrialOrPaid === 'trial'
+  const appUrl   = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
+  const subject  = wasTrialOrPaid === 'trial' ? 'Seu trial Pro encerrou — Nancy' : 'Seu plano expirou — Nancy'
+  const headline = wasTrialOrPaid === 'trial' ? 'Seu trial de 7 dias encerrou' : 'Seu plano expirou'
+  const detail   = wasTrialOrPaid === 'trial'
     ? 'Seu período de avaliação gratuita do <strong>Plano Pro</strong> chegou ao fim. Sua conta agora está no plano Grátis.'
     : 'Seu plano foi encerrado por falta de renovação. Sua conta agora está no plano Grátis.'
 
@@ -386,8 +362,8 @@ async function sendPlanExpiredEmail(toEmail, userName, wasTrialOrPaid) {
     </div>
   `
 
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject,
     html,
@@ -418,8 +394,8 @@ async function sendVerificationEmail(toEmail, userName, verifyLink) {
       <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
     subject: 'Confirme seu e-mail — Nancy',
     html,
@@ -430,9 +406,9 @@ async function sendWeeklyDigest(toEmail, userName, weekData) {
   const appUrl = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
   const { totalExpenses, totalIncome, topCategory, transactionCount, balance } = weekData
 
-  const fmtBRL = (v) => `R$ ${Math.abs(v).toFixed(2).replace('.', ',')}`
+  const fmtBRL       = (v) => `R$ ${Math.abs(v).toFixed(2).replace('.', ',')}`
   const balanceColor = balance >= 0 ? '#00d084' : '#ef4444'
-  const topCatLine = topCategory
+  const topCatLine   = topCategory
     ? `<tr style="background:#f8f8f8;"><td style="padding:12px;border-radius:8px 0 0 8px;color:#666;">📌 Categoria que mais gastou</td><td style="padding:12px;border-radius:0 8px 8px 0;text-align:right;font-weight:bold;color:#333;">${esc(topCategory)}</td></tr>`
     : ''
 
@@ -460,10 +436,10 @@ async function sendWeeklyDigest(toEmail, userName, weekData) {
     </div>
   `
 
-  await transporter.sendMail({
-    from:    `"Nancy" <${process.env.EMAIL_USER}>`,
+  await resend.emails.send({
+    from:    FROM,
     to:      toEmail,
-    subject: `📊 Seu resumo semanal — Nancy`,
+    subject: '📊 Seu resumo semanal — Nancy',
     html,
   })
 }

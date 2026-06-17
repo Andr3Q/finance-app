@@ -7,13 +7,13 @@
 # ═══════════════════════════════════════════════════════
 
 # ── Stage 1: Build do Frontend ──────────────────────────
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 WORKDIR /frontend
 
 # Instala dependências primeiro (melhor uso do cache Docker)
 COPY frontend/package*.json ./
-RUN npm install --legacy-peer-deps
+RUN npm ci
 
 # Copia o código e compila para produção
 COPY frontend/ ./
@@ -24,16 +24,16 @@ RUN npm run build
 
 
 # ── Stage 2: Backend de Produção ────────────────────────
-FROM node:20-slim
+FROM node:22-slim
 
-# OpenSSL, curl e ca-certificates necessários para o Prisma, SSL e trivy
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates curl && rm -rf /var/lib/apt/lists/*
+# OpenSSL e ca-certificates necessários para o Prisma e SSL
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Instala dependências do backend (só as de produção)
 COPY backend/package*.json ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 # Copia o código do backend
 COPY backend/ ./
@@ -44,11 +44,6 @@ RUN npx prisma generate
 # Copia o frontend compilado para a pasta /public do backend
 # O Express vai servir esses arquivos estáticos
 COPY --from=frontend-builder /frontend/dist ./public
-
-# Instala trivy (scanner de segurança) e cria pasta de cache
-RUN curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-    | sh -s -- -b /usr/local/bin \
-    && mkdir -p /app/.trivy-cache
 
 # Variáveis de ambiente de produção
 ENV NODE_ENV=production
