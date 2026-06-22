@@ -170,8 +170,8 @@ describe('PUT /api/transactions/:id', () => {
   test('atualiza transação do próprio usuário', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser())
     const tx = mockTx()
-    prisma.transaction.findFirst.mockResolvedValue(tx)
-    prisma.transaction.update.mockResolvedValue({ ...tx, amount: 2000 })
+    prisma.transaction.updateMany.mockResolvedValue({ count: 1 })
+    prisma.transaction.findUnique.mockResolvedValue({ ...tx, amount: 2000 })
 
     const res = await request(app)
       .put(`/api/transactions/${TX_UUID}`)
@@ -183,7 +183,7 @@ describe('PUT /api/transactions/:id', () => {
 
   test('transação de outro usuário retorna 404 (ownership)', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser())
-    prisma.transaction.findFirst.mockResolvedValue(null)
+    prisma.transaction.updateMany.mockResolvedValue({ count: 0 })
 
     const res = await request(app)
       .put(`/api/transactions/${TX_UUID2}`)
@@ -204,7 +204,6 @@ describe('PUT /api/transactions/:id', () => {
 
   test('data em formato inválido retorna 400', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser())
-    prisma.transaction.findFirst.mockResolvedValue(mockTx())
 
     const res = await request(app)
       .put(`/api/transactions/${TX_UUID}`)
@@ -216,8 +215,8 @@ describe('PUT /api/transactions/:id', () => {
 
   test('date no formato correto YYYY-MM-DD é aceita', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser())
-    prisma.transaction.findFirst.mockResolvedValue(mockTx())
-    prisma.transaction.update.mockResolvedValue(mockTx({ date: new Date('2026-06-15') }))
+    prisma.transaction.updateMany.mockResolvedValue({ count: 1 })
+    prisma.transaction.findUnique.mockResolvedValue(mockTx({ date: new Date('2026-06-15') }))
 
     const res = await request(app)
       .put(`/api/transactions/${TX_UUID}`)

@@ -11,8 +11,10 @@ function setDefaults() {
   prismaMock.user.update.mockResolvedValue(null)
   prismaMock.transaction.findMany.mockResolvedValue([])
   prismaMock.transaction.findFirst.mockResolvedValue(null)
+  prismaMock.transaction.findUnique.mockResolvedValue(null)
   prismaMock.transaction.create.mockResolvedValue(null)
   prismaMock.transaction.update.mockResolvedValue(null)
+  prismaMock.transaction.updateMany.mockResolvedValue({ count: 1 })
   prismaMock.transaction.delete.mockResolvedValue(null)
   prismaMock.transaction.deleteMany.mockResolvedValue({ count: 0 })
   prismaMock.transaction.count.mockResolvedValue(0)
@@ -29,7 +31,10 @@ function setDefaults() {
   prismaMock.goal.deleteMany.mockResolvedValue({ count: 0 })
   prismaMock.categoryLimit.findMany.mockResolvedValue([])
   prismaMock.loginAudit.create.mockResolvedValue({})
-  prismaMock.$transaction.mockResolvedValue([])
+  prismaMock.$transaction.mockImplementation((callbackOrArray) => {
+    if (typeof callbackOrArray === 'function') return callbackOrArray(prismaMock)
+    return Promise.resolve(callbackOrArray ?? [])
+  })
 }
 
 // Reseta chamadas e restaura defaults antes de cada teste
