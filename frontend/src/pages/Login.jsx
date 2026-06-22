@@ -116,7 +116,6 @@ export default function Login({ isRegister = false }) {
         setTwoFA({ active: true, tempToken: res.data.tempToken, code: '' })
         return
       }
-      if (res.data.token) sessionStorage.setItem('token', res.data.token)
       sessionStorage.setItem('user', JSON.stringify(res.data.user))
       if (mode === 'login') {
         analytics.identify(res.data.user.id, { plan: res.data.user.plan })
@@ -141,7 +140,6 @@ export default function Login({ isRegister = false }) {
     setLoading(true); setServerErr('')
     try {
       const res = await authAPI.twoFAVerifyLogin(twoFA.tempToken, twoFA.code)
-      if (res.data.token) sessionStorage.setItem('token', res.data.token)
       sessionStorage.setItem('user', JSON.stringify(res.data.user))
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true })
@@ -160,7 +158,6 @@ export default function Login({ isRegister = false }) {
     setLoading(true); setServerErr('')
     try {
       const res = await authAPI.twoFAUseBackupCode(twoFA.tempToken, code)
-      if (res.data.token) sessionStorage.setItem('token', res.data.token)
       sessionStorage.setItem('user', JSON.stringify(res.data.user))
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true, backupCode: true })

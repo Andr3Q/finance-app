@@ -280,42 +280,49 @@ router.post('/', dashboardLimiter, async (req, res) => {
 
     const { month: currentMonth, year: currentYear } = nowBrasilia()
 
-    // Plano Free: busca plan + count em 1 query (evita 2 round trips ao banco)
-    const userData = await prisma.user.findUnique({
-      where:  { id: req.userId },
-      select: {
-        plan: true,
-        _count: { select: { transactions: { where: { month: currentMonth, year: currentYear, archived: false } } } }
-      }
-    })
-    const txCount = userData._count.transactions
-    // Elite não tem limite de transações — sem bloco de limite aqui (intencional)
-    if (userData?.plan === 'free' && txCount >= 20) {
-      return res.status(403).json({
-        error: 'Limite de 20 transações por mês atingido no plano Gratuito.',
-        limitReached: true,
-        plan: 'free'
+    // Verifica limite de plano e cria a transação atomicamente para evitar race condition
+    // (dois requests simultâneos poderiam ambos passar na verificação antes de qualquer insert)
+    let transaction
+    try {
+      transaction = await prisma.$transaction(async (tx) => {
+        const userData = await tx.user.findUnique({
+          where:  { id: req.userId },
+          select: {
+            plan: true,
+            _count: { select: { transactions: { where: { month: currentMonth, year: currentYear, archived: false } } } }
+          }
+        })
+        const txCount = userData._count.transactions
+        if (userData?.plan === 'free' && txCount >= 20) {
+          const err = new Error('Limite de 20 transações por mês atingido no plano Gratuito.')
+          err.limitReached = true
+          err.plan = 'free'
+          throw err
+        }
+        if (userData?.plan === 'pro' && txCount >= 35) {
+          const err = new Error('Limite de 35 transações por mês atingido no plano Pro.')
+          err.limitReached = true
+          err.plan = 'pro'
+          throw err
+        }
+        return tx.transaction.create({
+          data: {
+            description: (description || '').substring(0, 255),
+            amount:      parsedAmount,
+            type,
+            category,
+            month:       currentMonth,
+            year:        currentYear,
+            userId:      req.userId
+          }
+        })
       })
-    }
-    if (userData?.plan === 'pro' && txCount >= 35) {
-      return res.status(403).json({
-        error: 'Limite de 35 transações por mês atingido no plano Pro.',
-        limitReached: true,
-        plan: 'pro'
-      })
-    }
-
-    const transaction = await prisma.transaction.create({
-      data: {
-        description: (description || '').substring(0, 255),
-        amount:      parsedAmount,
-        type,
-        category,
-        month:       currentMonth,
-        year:        currentYear,
-        userId:      req.userId
+    } catch (err) {
+      if (err.limitReached) {
+        return res.status(403).json({ error: err.message, limitReached: true, plan: err.plan })
       }
-    })
+      throw err
+    }
 
     // Envia push notification (não bloqueia a resposta)
     setImmediate(async () => {
@@ -445,12 +452,15 @@ router.put('/:id', dashboardLimiter, async (req, res) => {
   if (Object.keys(data).length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar.' })
 
   try {
-    const existing = await prisma.transaction.findFirst({
+    // updateMany com userId + archived garante que o usuário só edita a própria transação
+    // (padrão idêntico ao deleteMany abaixo — sem findFirst separado)
+    const result = await prisma.transaction.updateMany({
       where: { id, userId: req.userId, archived: false },
+      data,
     })
-    if (!existing) return res.status(404).json({ error: 'Transação não encontrada.' })
+    if (result.count === 0) return res.status(404).json({ error: 'Transação não encontrada.' })
 
-    const updated = await prisma.transaction.update({ where: { id }, data })
+    const updated = await prisma.transaction.findUnique({ where: { id } })
     res.json(updated)
   } catch (error) {
     console.error('Erro ao atualizar transação:', error)

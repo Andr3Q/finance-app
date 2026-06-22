@@ -144,7 +144,6 @@ router.post('/register', registerLimiter, async (req, res) => {
     setAuthCookie(res, token)
 
     res.status(201).json({
-      token,
       user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan, isOnTrial: true, trialEndsAt: trialEndsAt.toISOString(), referralCode }
     })
   } catch (error) {
@@ -197,7 +196,6 @@ router.post('/login', loginLimiter, async (req, res) => {
     setAuthCookie(res, token)
 
     res.json({
-      token,
       user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan, referralCode: user.referralCode || null }
     })
   } catch (error) {
@@ -569,6 +567,18 @@ router.delete('/account', authMiddleware, async (req, res) => {
 // ── POST /auth/downgrade ────────────────────────────────
 router.post('/downgrade', authMiddleware, async (req, res) => {
   try {
+    const { password } = req.body
+    if (!password) return res.status(400).json({ error: 'Senha obrigatória para confirmar o downgrade.' })
+
+    const current = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { password: true },
+    })
+    if (!current) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    const valid = await bcrypt.compare(password, current.password)
+    if (!valid) return res.status(401).json({ error: 'Senha incorreta.' })
+
     const user = await prisma.user.update({
       where:  { id: req.userId },
       data:   { plan: 'free' },

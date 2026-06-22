@@ -19,12 +19,6 @@ const api = axios.create({
   withCredentials: true,
 })
 
-api.interceptors.request.use(config => {
-  const token = sessionStorage.getItem('token')
-  if (token) config.headers['Authorization'] = `Bearer ${token}`
-  return config
-})
-
 // Interceptor de resposta:
 // Se o backend retornar 401 ou 403 (cookie expirado),
 // limpa os dados locais e redireciona para o login
@@ -36,7 +30,6 @@ api.interceptors.response.use(
     const isAuthError = (status === 401) || (status === 403 && !error.response?.data?.limitReached)
     if (isAuthError) {
       sessionStorage.removeItem('user')
-      sessionStorage.removeItem('token')
       window.location.href = '/login'
     }
     return Promise.reject(error)
@@ -53,7 +46,7 @@ export const authAPI = {
   resetPassword:  (token, password) => api.post('/auth/reset-password', { token, password }),
   updateProfile:  (data)            => api.put('/auth/profile', data),
   upgradePro:     ()                => api.post('/auth/upgrade'),
-  downgradeFree:  ()                => api.post('/auth/downgrade'),
+  downgradeFree:  (data)            => api.post('/auth/downgrade', data),
   changePassword:      (currentPassword, newPassword) => api.put('/auth/password', { currentPassword, newPassword }),
   deleteAccount:       (password) => api.delete('/auth/account', { data: { password } }),
   completeOnboarding: ()          => api.post('/auth/complete-onboarding'),
