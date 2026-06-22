@@ -11,8 +11,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Tabela: users ───────────────────────────────────────
@@ -59,7 +60,8 @@ model User {
   goals             Goal[]
   installmentPlans  InstallmentPlan[]
 
-  @@index([resetToken])  // busca de reset-password usa findFirst por hash — sem índice = full scan
+  @@index([resetToken])        // busca de reset-password usa findFirst por hash — sem índice = full scan
+  @@index([emailVerifyToken])  // busca de verify-email usa findFirst por hash — padrão idêntico ao resetToken
 }
 
 // ── Tabela: transactions ────────────────────────────────
