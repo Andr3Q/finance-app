@@ -304,7 +304,7 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
         <p style="color: #333; font-size: 15px; margin: 0 0 12px;">Olá, <strong>${esc(referrerName)}</strong>!</p>
         <p style="color: #555; font-size: 14px; line-height: 1.6; margin: 0 0 20px;">
           <strong>${esc(referredName)}</strong> criou uma conta usando o seu código de indicação.
-          Como recompensa, você ganhou <strong style="color: #00ffcc;">+30 dias</strong> no seu plano!
+          Como recompensa, você ganhou <strong style="color: #00ffcc;">+10 dias</strong> no seu plano!
         </p>
         <div style="background: #f0fff8; border-radius: 10px; padding: 16px; margin-bottom: 24px; border-left: 3px solid #00d084;">
           <p style="margin: 0; color: #555; font-size: 13px; line-height: 1.6;">
@@ -324,7 +324,7 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
   await resend.emails.send({
     from:    FROM,
     to:      toEmail,
-    subject: `🎉 ${esc(referredName)} entrou usando seu código — você ganhou +30 dias!`,
+    subject: `🎉 ${esc(referredName)} entrou usando seu código — você ganhou +10 dias!`,
     html,
   })
 }

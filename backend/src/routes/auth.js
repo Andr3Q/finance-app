@@ -35,7 +35,7 @@ async function rewardReferrer(referrer) {
   const rewardedCount = await prisma.user.count({
     where: { referredBy: referrer.referralCode, emailVerified: true },
   })
-  if (rewardedCount > 5) return  // limite atingido
+  if (rewardedCount >= 5) return false  // limite atingido
 
   const now      = new Date()
   if (referrer.plan !== 'free' && referrer.planExpiresAt && referrer.planExpiresAt > now) {
@@ -54,6 +54,7 @@ async function rewardReferrer(referrer) {
       data:  { plan: 'pro', trialEndsAt: new Date(now.getTime() + BONUS_MS) },
     })
   }
+  return true
 }
 
 // ── POST /auth/register ─────────────────────────────────
@@ -81,7 +82,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim()
     const existing = await prisma.user.findUnique({ where: { email: normalizedEmail } })
     if (existing) {
-      return res.status(400).json({ error: 'Este e-mail já está cadastrado.' })
+      return res.status(400).json({ error: 'Não foi possível criar a conta com os dados informados.' })
     }
 
     const parsedSalary = parseFloat(salary) || 0
@@ -126,12 +127,6 @@ router.post('/register', registerLimiter, async (req, res) => {
         emailVerifyExpiry:  verifyExpiry,
       }
     })
-
-    // Notificar indicador que um amigo se cadastrou — bônus liberado só após verificação de e-mail
-    // (rewardReferrer é chamado em GET /verify-email, não aqui — anti-abuso)
-    if (referrer) {
-      sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
-    }
 
     const appUrl     = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
     const verifyLink = `${appUrl}/verify-email?token=${verifyToken}`
@@ -651,7 +646,9 @@ router.get('/verify-email', async (req, res) => {
         where:  { referralCode: user.referredBy },
         select: { id: true, plan: true, trialEndsAt: true, planExpiresAt: true, referralCode: true, name: true, email: true },
       }).then(referrer => {
-        if (referrer) rewardReferrer(referrer).catch(() => {})
+        if (referrer) rewardReferrer(referrer).then(rewarded => {
+          if (rewarded) sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
+        }).catch(() => {})
       }).catch(() => {})
     }
 

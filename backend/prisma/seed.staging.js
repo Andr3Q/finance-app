@@ -23,6 +23,11 @@ const HASH = (pwd) => bcrypt.hashSync(pwd, 10)
 const STAGING_PASS = 'Staging123!'
 
 async function main() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('❌ seed.staging.js não pode ser executado em NODE_ENV=production. Abortando.')
+    process.exit(1)
+  }
+
   console.log('🌱 Iniciando seed de staging...\n')
 
   // ── Limpar dados anteriores (ordem inversa de FK) ──
