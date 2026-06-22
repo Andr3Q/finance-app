@@ -56,7 +56,7 @@ describe('POST /api/auth/register', () => {
       .send({ name: 'Test User', email: 'test@example.com', password: 'Password123' })
 
     expect(res.status).toBe(201)
-    expect(res.body).toHaveProperty('token')
+    expect(res.body).not.toHaveProperty('token')
     expect(res.body.user).toHaveProperty('email', 'test@example.com')
     expect(res.body.user).not.toHaveProperty('password')
   })
@@ -69,7 +69,7 @@ describe('POST /api/auth/register', () => {
       .send({ name: 'Test User', email: 'test@example.com', password: 'Password123' })
 
     expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/cadastrado/i)
+    expect(res.body.error).toMatch(/não foi possível criar a conta/i)
   })
 
   test('rejeita senha fraca (sem maiúscula/número) → 400', async () => {
@@ -139,7 +139,7 @@ describe('POST /api/auth/register', () => {
 // LOGIN
 // ══════════════════════════════════════════════════════════
 describe('POST /api/auth/login', () => {
-  test('login válido retorna token e cookie', async () => {
+  test('login válido retorna user e seta cookie HttpOnly', async () => {
     const user = mockUser()
     prisma.user.findUnique.mockResolvedValue(user)
     prisma.loginAudit.create.mockResolvedValue({})
@@ -149,10 +149,9 @@ describe('POST /api/auth/login', () => {
       .send({ email: 'test@example.com', password: 'Password123' })
 
     expect(res.status).toBe(200)
-    expect(res.body).toHaveProperty('token')
+    expect(res.body).not.toHaveProperty('token')
     expect(res.body.user.id).toBe('user-123')
     expect(res.headers['set-cookie']).toBeDefined()
-    // Cookie deve ter HttpOnly
     expect(res.headers['set-cookie'][0]).toMatch(/HttpOnly/i)
   })
 

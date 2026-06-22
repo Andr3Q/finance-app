@@ -65,14 +65,14 @@ describe('Login — modo entrar', () => {
 
   it('navega para /dashboard após login bem-sucedido', async () => {
     authAPI.login.mockResolvedValue({
-      data: { token: 'tok123', user: { id: '1', plan: 'free' } },
+      data: { user: { id: '1', plan: 'free' } },
     })
     setup()
     await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
     await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
-    expect(sessionStorage.getItem('token')).toBe('tok123')
+    expect(sessionStorage.getItem('token')).toBeNull()
   })
 
   it('exibe erro do servidor quando login falha', async () => {
@@ -118,7 +118,7 @@ describe('Login — 2FA', () => {
   it('navega para /dashboard após 2FA bem-sucedido', async () => {
     await enter2FAMode()
     authAPI.twoFAVerifyLogin.mockResolvedValue({
-      data: { token: 'tok2fa', user: { id: '1', plan: 'free' } },
+      data: { user: { id: '1', plan: 'free' } },
     })
     await userEvent.type(screen.getByPlaceholderText('000 000'), '123456')
     await userEvent.click(screen.getByRole('button', { name: /verificar/i }))
@@ -169,7 +169,7 @@ describe('Login — modo cadastro', () => {
 
   it('navega para /dashboard após cadastro bem-sucedido', async () => {
     authAPI.register.mockResolvedValue({
-      data: { token: 'tok_new', user: { id: '2', plan: 'free' } },
+      data: { user: { id: '2', plan: 'free' } },
     })
     setup({ isRegister: true })
     await userEvent.type(screen.getByLabelText('Nome completo'), 'André')
