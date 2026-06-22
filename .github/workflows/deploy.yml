@@ -191,6 +191,7 @@ jobs:
         run: npx prisma validate
         env:
           DATABASE_URL: "postgresql://localhost/fake"
+          DIRECT_URL:   "postgresql://localhost/fake"
 
       - name: Detectar schema sem migration correspondente
         # Se schema.prisma mudou neste commit mas sem novo arquivo de migration
@@ -215,6 +216,7 @@ jobs:
         run: npx prisma migrate status
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL:   ${{ secrets.DIRECT_URL }}
         continue-on-error: true  # informativo — não bloqueia (migrate deploy resolve)
 
   # ─────────────────────────────────────────────────────────────
