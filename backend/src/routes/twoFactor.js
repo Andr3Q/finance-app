@@ -219,9 +219,9 @@ router.post('/verify-login', twoFALimiter, async (req, res) => {
       return res.status(401).json({ error: 'Código incorreto.' })
     }
 
-    const fullToken = issueFullToken(res, user.id)
+    issueFullToken(res, user.id)
     const { twoFactorSecret: _s, ...userOut } = user
-    res.json({ token: fullToken, user: userOut })
+    res.json({ user: userOut })
   } catch (err) {
     console.error('[2fa] verify-login:', err.message)
     res.status(500).json({ error: 'Erro ao validar código.' })
@@ -269,8 +269,8 @@ router.post('/use-backup-code', twoFALimiter, async (req, res) => {
     })
     if (!user) return res.status(401).json({ error: 'Usuário não encontrado.' })
 
-    const fullToken = issueFullToken(res, user.id)
-    res.json({ token: fullToken, user })
+    issueFullToken(res, user.id)
+    res.json({ user })
   } catch (err) {
     console.error('[2fa] use-backup-code:', err.message)
     res.status(500).json({ error: 'Erro ao usar código de recuperação.' })

@@ -4,17 +4,21 @@
 // GET /api/monitor/user-stats   → métricas de utilizadores (Fase 4)
 
 const express = require('express')
+const crypto  = require('crypto')
 const prisma  = require('../lib/prisma')
 
 const router = express.Router()
 
-// Middleware: valida x-monitor-secret
+// Middleware: valida x-monitor-secret com comparação em tempo constante
+// (evita timing attack que revelaria o secret byte a byte via latência de resposta)
 router.use((req, res, next) => {
   const secret = process.env.MONITOR_SECRET
   if (!secret) return res.status(503).json({ error: 'MONITOR_SECRET não configurado.' })
-  if (req.headers['x-monitor-secret'] !== secret) {
-    return res.status(401).json({ error: 'Não autorizado.' })
-  }
+  const provided = Buffer.from(req.headers['x-monitor-secret'] || '')
+  const expected = Buffer.from(secret)
+  const valid = provided.length === expected.length &&
+    crypto.timingSafeEqual(provided, expected)
+  if (!valid) return res.status(401).json({ error: 'Não autorizado.' })
   next()
 })
 

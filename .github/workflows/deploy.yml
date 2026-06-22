@@ -416,14 +416,13 @@ jobs:
 
           $FAIL && { echo "❌ Smoke tests falharam — iniciando rollback"; exit 1; } || echo "✅ Todos os smoke tests passaram"
 
-      - name: Rollback automático (health check falhou)
+      - name: Rollback automático (deploy ou smoke tests falharam)
         if: |
           failure() &&
-          steps.current-revision.outputs.name != '' &&
-          (steps.health-check.outputs.FAILED == 'true' || steps.health-check.outcome == 'success')
+          steps.current-revision.outputs.name != ''
         run: |
           PREV="${{ steps.current-revision.outputs.name }}"
-          echo "🔄 Health check falhou — revertendo para $PREV"
+          echo "🔄 Falha detectada — revertendo para $PREV"
           gcloud run services update-traffic "$SERVICE" \
             --region "$REGION" \
             --to-revisions="${PREV}=100" \

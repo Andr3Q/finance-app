@@ -23,6 +23,9 @@ function authMiddleware(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] })
+    if (decoded.twofa) {
+      return res.status(403).json({ error: 'Autenticação 2FA pendente. Conclua a verificação.' })
+    }
     req.userId = decoded.userId
     next()
   } catch (error) {
