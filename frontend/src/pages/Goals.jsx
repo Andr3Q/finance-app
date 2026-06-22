@@ -13,6 +13,17 @@ import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt, fmtDate } from '../utils/format.js'
 import RemindersCard      from '../components/features/settings/RemindersCard.jsx'
 import CategoryLimitsCard from '../components/features/settings/CategoryLimitsCard.jsx'
+const amountBucket = (v) => {
+  const n = Number(v)
+  if (!n || n <= 0)      return '0'
+  if (n <= 100)          return '1-100'
+  if (n <= 500)          return '101-500'
+  if (n <= 1000)         return '501-1000'
+  if (n <= 5000)         return '1001-5000'
+  if (n <= 20000)        return '5001-20000'
+  return '20000+'
+}
+
 const CACHE_HISTORY = 'analytics:history'
 const CACHE_SUBS    = 'analytics:subs'
 const TTL_5MIN      = 5 * 60_000
@@ -368,7 +379,7 @@ export default function Goals() {
         showToast('Meta atualizada!')
       } else {
         await createGoal(form)
-        analytics.track('goal_created', { targetAmount: form.targetAmount })
+        analytics.track('goal_created', { targetAmountRange: amountBucket(form.targetAmount) })
         showToast('Meta criada!')
       }
       setModal(null)
@@ -393,7 +404,7 @@ export default function Goals() {
       const newAmount = depositGoal.currentAmount + amount
       await updateGoal(depositGoal.id, { currentAmount: newAmount })
       const done = newAmount >= depositGoal.targetAmount
-      analytics.track('goal_deposit_made', { amount, goalReached: done })
+      analytics.track('goal_deposit_made', { amountRange: amountBucket(amount), goalReached: done })
       showToast(done ? 'Meta atingida! Parabéns!' : 'Depósito registrado!')
       setDepositGoal(null)
     } catch (err) {

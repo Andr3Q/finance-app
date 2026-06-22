@@ -36,10 +36,13 @@ async function requirePlan(req, res, minimum) {
   const RANKS = { free: 0, pro: 1, elite: 2 }
   const user  = await prisma.user.findUnique({
     where:  { id: req.userId },
-    select: { plan: true, planExpiresAt: true },
+    select: { plan: true, planExpiresAt: true, trialEndsAt: true },
   })
-  const expired = user?.planExpiresAt && user.planExpiresAt < new Date()
-  const plan    = expired ? 'free' : (user?.plan || 'free')
+  const now          = new Date()
+  // Trial expirado: plan='pro', planExpiresAt=null, trialEndsAt=<passado>
+  const trialExpired = user?.trialEndsAt && user.trialEndsAt < now && !user.planExpiresAt
+  const expired      = (user?.planExpiresAt && user.planExpiresAt < now) || trialExpired
+  const plan         = expired ? 'free' : (user?.plan || 'free')
   if ((RANKS[plan] ?? 0) < (RANKS[minimum] ?? 0)) {
     res.status(403).json({
       error:        `Esta funcionalidade requer o plano ${minimum === 'elite' ? 'Elite' : 'Pro'}.`,
@@ -167,15 +170,18 @@ async function runTool(name, args, userId) {
     if (!['expense','income'].includes(args.type)) return { error: 'Tipo inválido.' }
     if (!VALID_CATEGORIES.includes(args.category)) return { error: 'Categoria inválida.' }
 
-    let date = new Date()
+    let txMonth, txYear
     if (args.date) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) return { error: 'Data inválida. Use YYYY-MM-DD.' }
       const parsed = new Date(args.date)
       if (isNaN(parsed.getTime())) return { error: 'Data inválida.' }
-      date = parsed
+      txMonth = parsed.getUTCMonth() + 1
+      txYear  = parsed.getUTCFullYear()
+    } else {
+      const br = nowBrasilia()
+      txMonth  = br.month
+      txYear   = br.year
     }
-
-    const { month: txMonth, year: txYear } = { month: date.getMonth() + 1, year: date.getFullYear() }
     const userData = await prisma.user.findUnique({
       where:  { id: userId },
       select: { plan: true, _count: { select: { transactions: { where: { month: txMonth, year: txYear, archived: false } } } } }

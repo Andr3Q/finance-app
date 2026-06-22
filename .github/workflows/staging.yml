@@ -37,7 +37,7 @@ permissions:
 
 env:
   DATABASE_URL:  postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
-  JWT_SECRET:    staging_jwt_secret_nao_usar_em_producao_000000000000000000000
+  JWT_SECRET:    ${{ secrets.STAGING_JWT_SECRET }}
   NODE_ENV:      production
   PORT:          3099
 
@@ -251,10 +251,10 @@ jobs:
 
       - name: 🔥 Smoke — POST /api/auth/login (credenciais válidas)
         run: |
-          RESP=$(curl -sf -X POST http://localhost:3099/api/auth/login \
+          RESP=$(curl -sf -c /tmp/cookies.txt -X POST http://localhost:3099/api/auth/login \
             -H "Content-Type: application/json" \
             -d '{"email":"alice@staging.test","password":"Staging123!"}')
-          echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'token' in d, 'token ausente'; print('✅ login OK')"
+          echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'user' in d, 'user ausente na resposta de login'; print('✅ login OK')"
 
       - name: 🔥 Smoke — Auth protegida sem token (deve retornar 401)
         run: |

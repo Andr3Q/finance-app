@@ -1,0 +1,10 @@
+node_modules
+__tests__
+coverage
+test-results
+*.test.js
+*.spec.js
+.env*
+.eslintrc*
+jest.config*
+prisma/migrations/.gitkeep
