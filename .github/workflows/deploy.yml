@@ -191,7 +191,6 @@ jobs:
         run: npx prisma validate
         env:
           DATABASE_URL: "postgresql://localhost/fake"
-          DIRECT_URL:   "postgresql://localhost/fake"
 
       - name: Detectar schema sem migration correspondente
         # Se schema.prisma mudou neste commit mas sem novo arquivo de migration
@@ -215,8 +214,7 @@ jobs:
       - name: Status das migrations em produção
         run: npx prisma migrate status
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL:   ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
         continue-on-error: true  # informativo — não bloqueia (migrate deploy resolve)
 
   # ─────────────────────────────────────────────────────────────
@@ -263,8 +261,7 @@ jobs:
           echo "❌ Migrations falharam após 3 tentativas — abortando deploy."
           exit 1
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL:   ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Confirmar schema em produção
         run: |
@@ -281,8 +278,7 @@ jobs:
             }).catch(e => { console.error('❌ Erro ao acessar banco:', e.message); process.exit(1) })
           "
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL:   ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
         continue-on-error: true  # conexão direta bloqueada pelo GitHub Actions; deploy segue
 
   # ─────────────────────────────────────────────────────────────
