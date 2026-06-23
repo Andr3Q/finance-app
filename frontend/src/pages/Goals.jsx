@@ -318,7 +318,8 @@ export default function Goals() {
   const now = new Date()
   const [reportMonth, setReportMonth] = useState(now.getMonth() + 1)
   const [reportYear,  setReportYear]  = useState(now.getFullYear())
-  const reportRef = useRef(null)
+  const reportRef   = useRef(null)
+  const reportCache = useRef(new Map()) // cache em memória — não persiste em sessionStorage
 
   const [activeTab, setActiveTab] = useState('metas')
 
@@ -428,15 +429,13 @@ export default function Goals() {
   }
 
   const generateReport = async () => {
-    const cacheKey = `ai-report-${reportMonth}-${reportYear}`
-    try {
-      const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null')
-      if (cached?.text && Date.now() - cached.ts < 6 * 3600 * 1000) {
-        setReport(cached.text)
-        setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-        return
-      }
-    } catch {}
+    const cacheKey = `${reportMonth}-${reportYear}`
+    const cached = reportCache.current.get(cacheKey)
+    if (cached?.text && Date.now() - cached.ts < 6 * 3600 * 1000) {
+      setReport(cached.text)
+      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+      return
+    }
 
     setReportLoading(true)
     setReport(null)
@@ -445,7 +444,7 @@ export default function Goals() {
       const text = data.report || data.text || ''
       setReport(text)
       if (text && !text.startsWith('Nenhuma')) {
-        try { sessionStorage.setItem(cacheKey, JSON.stringify({ text, ts: Date.now() })) } catch {}
+        reportCache.current.set(cacheKey, { text, ts: Date.now() })
         showToast('Relatório gerado com sucesso!')
       }
       setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)

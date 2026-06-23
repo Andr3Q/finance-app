@@ -33,12 +33,19 @@ self.addEventListener('push', e => {
 
 self.addEventListener('notificationclick', e => {
   e.notification.close()
-  const url = e.notification.data?.url || '/dashboard'
+  const rawUrl = e.notification.data?.url || '/dashboard'
+  // Valida que a URL pertence à mesma origem — impede phishing via payload push.
+  const safeUrl = (() => {
+    try {
+      const parsed = new URL(rawUrl, self.location.origin)
+      return parsed.origin === self.location.origin ? parsed.href : '/dashboard'
+    } catch { return '/dashboard' }
+  })()
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      const existing = list.find(c => c.url.includes(url) && 'focus' in c)
+      const existing = list.find(c => c.url.includes(safeUrl) && 'focus' in c)
       if (existing) return existing.focus()
-      return clients.openWindow(url)
+      return clients.openWindow(safeUrl)
     })
   )
 })

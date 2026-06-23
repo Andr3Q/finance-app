@@ -43,10 +43,15 @@ router.post('/subscribe', async (req, res) => {
     if (parsedUrl.port !== '' && parsedUrl.port !== '443') {
       return res.status(400).json({ error: 'Porta não permitida no endpoint.' })
     }
+    // Verifica se o endpoint já pertence a outro usuário — impede roubo de assinatura.
+    const existing = await prisma.pushSubscription.findUnique({ where: { endpoint } })
+    if (existing && existing.userId !== req.userId) {
+      return res.status(409).json({ error: 'Endpoint de notificação já associado a outra conta.' })
+    }
     await prisma.pushSubscription.upsert({
       where:  { endpoint },
       create: { endpoint, p256dh: keys.p256dh, auth: keys.auth, userId: req.userId },
-      update: { p256dh: keys.p256dh, auth: keys.auth, userId: req.userId },
+      update: { p256dh: keys.p256dh, auth: keys.auth },
     })
     res.json({ ok: true })
   } catch (err) {

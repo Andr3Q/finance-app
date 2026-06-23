@@ -38,6 +38,8 @@ model User {
   twoFactorSecret      String?
   twoFactorEnabled     Boolean   @default(false)
   tokenVersion         Int       @default(0)
+  lastUsedTotpToken    String?
+  lastUsedTotpAt       DateTime?
   onboardingComplete   Boolean   @default(false)
   renewalReminderSent  Boolean   @default(false)
   trialReminderSent    Boolean   @default(false)

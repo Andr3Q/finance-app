@@ -217,7 +217,7 @@ router.post('/verify-login', twoFALimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where:  { id: payload.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, twoFactorSecret: true, twoFactorEnabled: true, tokenVersion: true },
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, twoFactorSecret: true, twoFactorEnabled: true, tokenVersion: true, lastUsedTotpToken: true, lastUsedTotpAt: true },
     })
     if (!user?.twoFactorEnabled || !user?.twoFactorSecret) {
       return res.status(401).json({ error: 'Usuário não encontrado.' })
@@ -227,8 +227,23 @@ router.post('/verify-login', twoFALimiter, async (req, res) => {
       return res.status(401).json({ error: 'Código incorreto.' })
     }
 
+    // Anti-replay: rejeita código já usado dentro da janela de 90 segundos.
+    const TOTP_WINDOW_MS = 90_000
+    if (
+      user.lastUsedTotpToken === token &&
+      user.lastUsedTotpAt &&
+      Date.now() - user.lastUsedTotpAt.getTime() < TOTP_WINDOW_MS
+    ) {
+      return res.status(401).json({ error: 'Código TOTP já utilizado. Aguarde o próximo código.' })
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { lastUsedTotpToken: token, lastUsedTotpAt: new Date() },
+    })
+
     issueFullToken(res, user.id, user.tokenVersion ?? 0)
-    const { twoFactorSecret: _s, tokenVersion: _tv, ...userOut } = user
+    const { twoFactorSecret: _s, tokenVersion: _tv, lastUsedTotpToken: _lt, lastUsedTotpAt: _la, ...userOut } = user
     res.json({ user: userOut })
   } catch (err) {
     console.error('[2fa] verify-login:', err.message)
