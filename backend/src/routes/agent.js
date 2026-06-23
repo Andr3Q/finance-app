@@ -132,8 +132,9 @@ async function runTool(name, args, userId) {
     const start = new Date(year, month - 1, 1)
     const end   = new Date(year, month, 0, 23, 59, 59)
     const txs   = await prisma.transaction.findMany({
-      where: { userId, date: { gte: start, lte: end } },
+      where:   { userId, date: { gte: start, lte: end } },
       orderBy: { date: 'desc' },
+      take:    200,
     })
     return txs.map(t => ({
       id: t.id, type: t.type, amount: t.amount,

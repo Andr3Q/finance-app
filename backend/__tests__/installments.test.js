@@ -88,9 +88,35 @@ describe('GET /api/installments', () => {
 // POST /api/installments
 // ─────────────────────────────────────────────────────────────────
 describe('POST /api/installments', () => {
+  beforeEach(() => {
+    // Usuário Pro por default — testes que esperam 400/401 falham antes da checagem de plano
+    prisma.user.findUnique.mockResolvedValue({ plan: 'pro' })
+    prisma.installmentPlan.count.mockResolvedValue(0)
+  })
+
   test('401 sem token JWT', async () => {
     const res = await request(app).post('/api/installments').send({ name: 'iPhone', amount: 300, totalInstallments: 12 })
     expect(res.status).toBe(401)
+  })
+
+  test('403 quando plano é free', async () => {
+    prisma.user.findUnique.mockResolvedValue({ plan: 'free' })
+    const res = await request(app)
+      .post('/api/installments')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ name: 'iPhone', amount: 300, totalInstallments: 12 })
+    expect(res.status).toBe(403)
+    expect(res.body.limitReached).toBe(true)
+  })
+
+  test('400 quando limite de 50 parcelamentos é atingido', async () => {
+    prisma.installmentPlan.count.mockResolvedValue(50)
+    const res = await request(app)
+      .post('/api/installments')
+      .set('Authorization', `Bearer ${makeToken()}`)
+      .send({ name: 'iPhone', amount: 300, totalInstallments: 12 })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/limite/i)
   })
 
   test('cria parcelamento com dados válidos — retorna 201', async () => {

@@ -67,7 +67,7 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
     const currentBalance  = totalAvailable - totalExpenses
     const percentUsed     = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
 
-    const summary = { salary, totalExpenses, totalIncome, totalFixedCosts, totalAvailable, currentBalance, percentUsed }
+    const summary = { salary, totalExpenses, totalIncome, totalFixedCosts, totalAvailable, currentBalance, percentUsed, autoLaunched }
 
     // Gera PDF
     const pdfBuffer = await generateMonthlyPDF(user, month, year, summary, transactions)

@@ -48,12 +48,12 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
               R$ ${summary.salary.toFixed(2).replace('.', ',')}
             </td>
           </tr>
-          <tr>
+          ${!summary.autoLaunched ? `<tr>
             <td style="padding: 12px; color: #666;">📋 Contas Fixas</td>
             <td style="padding: 12px; text-align: right; font-weight: bold; color: #ff4757;">
               - R$ ${summary.totalFixedCosts.toFixed(2).replace('.', ',')}
             </td>
-          </tr>
+          </tr>` : ''}
           <tr style="background: #f8f8f8;">
             <td style="padding: 12px; border-radius: 8px 0 0 8px; color: #666;">🛍️ Total Gasto</td>
             <td style="padding: 12px; border-radius: 0 8px 8px 0; text-align: right; font-weight: bold; color: #ff4757;">

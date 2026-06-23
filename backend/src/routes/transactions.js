@@ -643,7 +643,7 @@ router.post('/import', dashboardLimiter, upload.single('file'), async (req, res)
 
       if (!isNaN(amount) && amount !== 0 && Math.abs(amount) <= MAX_AMOUNT) {
         transactions.push({
-          description: String(description).substring(0, 255),
+          description: String(description).replace(/[\x00-\x1F\x7F]/g, ' ').trim().substring(0, 255) || 'Importação',
           amount:      Math.abs(amount),
           type:        amount > 0 ? 'income' : 'expense',
           category:    'other',
