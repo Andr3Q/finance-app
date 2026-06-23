@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
+import { saveUser } from '../hooks/useUser.js'
 import PasswordStrength from '../components/ui/PasswordStrength.jsx'
 
 const EmailIcon = () => (
@@ -116,7 +117,7 @@ export default function Login({ isRegister = false }) {
         setTwoFA({ active: true, tempToken: res.data.tempToken, code: '' })
         return
       }
-      sessionStorage.setItem('user', JSON.stringify(res.data.user))
+      saveUser(res.data.user)
       if (mode === 'login') {
         analytics.identify(res.data.user.id, { plan: res.data.user.plan })
         analytics.track('user_logged_in', { plan: res.data.user.plan })
@@ -140,7 +141,7 @@ export default function Login({ isRegister = false }) {
     setLoading(true); setServerErr('')
     try {
       const res = await authAPI.twoFAVerifyLogin(twoFA.tempToken, twoFA.code)
-      sessionStorage.setItem('user', JSON.stringify(res.data.user))
+      saveUser(res.data.user)
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true })
       navigate('/dashboard')
@@ -158,7 +159,7 @@ export default function Login({ isRegister = false }) {
     setLoading(true); setServerErr('')
     try {
       const res = await authAPI.twoFAUseBackupCode(twoFA.tempToken, code)
-      sessionStorage.setItem('user', JSON.stringify(res.data.user))
+      saveUser(res.data.user)
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true, backupCode: true })
       navigate('/dashboard')

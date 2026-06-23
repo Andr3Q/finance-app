@@ -91,7 +91,7 @@ if (!isProd) {
 if (isPgBouncer) {
   console.log('[Prisma] Modo PgBouncer ativo (connection_limit=1)')
 } else {
-  console.log('[Prisma] Conexão direta (connection_limit=' + (isProd ? 8 : 5) + ')')
+  console.log('[Prisma] Conexão direta (connection_limit=' + (isProd ? 3 : 5) + ')')
 }
 
 // Códigos de erro Prisma que indicam falha transitória — recuperáveis com retry

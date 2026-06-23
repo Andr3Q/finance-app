@@ -37,7 +37,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dev_user -d financas_dev"]
       interval: 5s
@@ -58,7 +58,7 @@ services:
     env_file:
       - .env                            # JWT_SECRET, EMAIL_*, VAPID_*, MP_*, GROQ_*
     environment:
-      - NODE_ENV=production             # rate limits de prod ativos (loginLimiter max=10)
+      - NODE_ENV=development
       - DATABASE_URL=postgresql://dev_user:dev_pass_local@db:5432/financas_dev
       - ALLOWED_ORIGINS=http://localhost:5173  # libera CORS no ambiente dev local
     ports:

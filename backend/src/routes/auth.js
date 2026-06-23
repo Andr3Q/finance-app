@@ -620,11 +620,13 @@ router.put('/password', authMiddleware, async (req, res) => {
   }
 })
 
-// ── GET /auth/verify-email ──────────────────────────────
-// Pública — o token no link do e-mail é o mecanismo de autenticação
-router.get('/verify-email', async (req, res) => {
+// ── POST /auth/verify-email ─────────────────────────────
+// Pública — recebe o token no body (não na URL) para evitar exposição em logs.
+// O link do e-mail aponta para a rota do frontend que lê o token da URL
+// e o envia via POST body, evitando que apareça em logs de acesso do servidor.
+router.post('/verify-email', async (req, res) => {
   try {
-    const { token } = req.query
+    const { token } = req.body
     if (!token || typeof token !== 'string') {
       return res.status(400).json({ error: 'Token inválido.' })
     }

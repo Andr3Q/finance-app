@@ -102,6 +102,7 @@ router.patch('/:id', async (req, res) => {
 
   if (title !== undefined) {
     const t = String(title).trim()
+    if (t.length === 0)       return res.status(400).json({ error: 'Título não pode ser vazio.' })
     if (t.length > MAX_TITLE) return res.status(400).json({ error: `Título deve ter no máximo ${MAX_TITLE} caracteres.` })
     data.title = t
   }
