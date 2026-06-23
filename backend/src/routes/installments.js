@@ -44,6 +44,16 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Total de parcelas deve ser entre 2 e 360.' })
     }
 
+    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
+    if (!user || !['pro', 'elite'].includes(user.plan)) {
+      return res.status(403).json({ error: 'Parcelamentos são exclusivos do plano Pro.', limitReached: true })
+    }
+
+    const existing = await prisma.installmentPlan.count({ where: { userId: req.userId } })
+    if (existing >= 50) {
+      return res.status(400).json({ error: 'Limite de 50 parcelamentos atingido. Remova os concluídos.' })
+    }
+
     const { month, year } = nowBrasilia()
 
     const plan = await prisma.installmentPlan.create({

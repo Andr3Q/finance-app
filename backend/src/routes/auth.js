@@ -10,6 +10,8 @@ const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimit
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
 
+const APP_URL = process.env.APP_URL || ''
+
 // Gerado uma única vez na inicialização — bcrypt.compare é sempre executado
 // mesmo quando o e-mail não existe, prevenindo timing attack que revelaria
 // quais e-mails estão cadastrados (email enumeration via response time).
@@ -128,8 +130,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       }
     })
 
-    const appUrl     = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
-    const verifyLink = `${appUrl}/verify-email?token=${verifyToken}`
+    const verifyLink = `${APP_URL}/verify-email?token=${verifyToken}`
 
     // Welcome + verification emails — fire-and-forget
     sendWelcomeEmail(user.email, user.name, trialEndsAt).catch(() => {})
@@ -209,6 +210,11 @@ router.get('/me', authMiddleware, async (req, res) => {
 
     const now = new Date()
 
+    // LGPD: apaga logs de login com mais de 90 dias (fire-and-forget)
+    prisma.loginAudit.deleteMany({
+      where: { createdAt: { lt: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) } }
+    }).catch(() => {})
+
     // Rebaixa para free se o plano pago expirou
     let planJustExpired = false
     if (user.plan !== 'free' && user.planExpiresAt && user.planExpiresAt < now && !user.trialEndsAt) {
@@ -275,7 +281,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         sendWeeklyDigest(user.email, user.name, {
           totalExpenses, totalIncome, topCategory,
           transactionCount: txs.length,
-          balance: totalIncome - totalExpenses,
+          balance: Number(user.salary || 0) + totalIncome - totalExpenses,
         }).catch(() => {})
       }).catch(() => {})
     }
@@ -408,8 +414,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       data:  { resetToken: hash, resetTokenExpiry: expiry }
     })
 
-    const appUrl    = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
-    const resetLink = `${appUrl}/reset-password?token=${rawToken}`
+    const resetLink = `${APP_URL}/reset-password?token=${rawToken}`
 
     await sendResetEmail(user.email, user.name, resetLink)
 
@@ -680,8 +685,7 @@ router.post('/resend-verification', authMiddleware, verifyEmailLimiter, async (r
       data:  { emailVerifyToken: hash, emailVerifyExpiry: expiry },
     })
 
-    const appUrl     = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
-    const verifyLink = `${appUrl}/verify-email?token=${rawToken}`
+    const verifyLink = `${APP_URL}/verify-email?token=${rawToken}`
     sendVerificationEmail(user.email, user.name, verifyLink).catch(() => {})
 
     res.json({ ok: true })

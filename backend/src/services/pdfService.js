@@ -68,11 +68,13 @@ function generateMonthlyPDF(user, month, year, summary, transactions) {
     doc.fontSize(16).fillColor('#1a1a3e').text('Resumo do Mês', 50, 215)
 
     const rows = [
-      { label: '💰 Salário Mensal',       value: summary.salary,          color: '#00b871' },
-      { label: '📋 Contas Fixas',          value: -summary.totalFixedCosts, color: '#ff4757' },
-      { label: '💵 Entradas Extras',       value: summary.totalIncome,     color: '#00b871' },
-      { label: '🛍️  Total de Gastos',      value: -summary.totalExpenses,  color: '#ff4757' },
-      { label: '✅ Saldo Final',            value: summary.currentBalance,  color: summary.currentBalance >= 0 ? '#00b871' : '#ff4757' }
+      { label: '💰 Salário Mensal',  value: summary.salary,           color: '#00b871' },
+      // Contas Fixas só aparecem quando NÃO foram lançadas como transações (auto-launch).
+      // Se foram, já estão em "Total de Gastos" — exibi-las separadamente seria dupla contagem.
+      ...(!summary.autoLaunched ? [{ label: '📋 Contas Fixas', value: -summary.totalFixedCosts, color: '#ff4757' }] : []),
+      { label: '💵 Entradas Extras', value: summary.totalIncome,      color: '#00b871' },
+      { label: '🛍️  Total de Gastos', value: -summary.totalExpenses,  color: '#ff4757' },
+      { label: '✅ Saldo Final',      value: summary.currentBalance,   color: summary.currentBalance >= 0 ? '#00b871' : '#ff4757' }
     ]
 
     let rowY = 245

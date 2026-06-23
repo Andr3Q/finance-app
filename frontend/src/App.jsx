@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState, createContext, useContext } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
@@ -30,8 +30,14 @@ function isLoggedIn() {
   try { return !!JSON.parse(sessionStorage.getItem('user') || 'null') } catch { return false }
 }
 
+// Contexto compartilhado entre App (que faz /auth/me) e PrivateRoute (que bloqueia
+// a renderização de conteúdo protegido até a validação server-side terminar).
+const AuthValidContext = createContext(false)
+
 function PrivateRoute({ children }) {
+  const isValidating = useContext(AuthValidContext)
   if (!isLoggedIn()) return <Navigate to="/login" replace />
+  if (isValidating)  return <PageLoader />
   return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /></>
 }
 
@@ -48,36 +54,43 @@ function PageLoader() {
 }
 
 export default function App() {
+  // isValidating: true enquanto /auth/me não respondeu — PrivateRoute bloqueia
+  // renderização de conteúdo protegido nesse período para evitar flash de dados
+  // antes de o servidor confirmar que o cookie JWT ainda é válido.
+  const [isValidating, setIsValidating] = useState(isLoggedIn)
+
   useEffect(() => {
     // Valida sessão contra o servidor uma vez na inicialização
-    // Se o cookie JWT expirou mas localStorage ainda tem dados, limpa e redireciona
-    if (isLoggedIn()) {
-      authAPI.me()
-        .then(res => {
-          if (res.data) {
-            saveUser(res.data)
-            analytics.identify(res.data.id, { plan: res.data.plan })
-            if (res.data.trialJustExpired) {
-              analytics.track('trial_expired')
-              sessionStorage.setItem('trial_just_expired', '1')
-            }
+    // Se o cookie JWT expirou mas sessionStorage ainda tem dados, limpa e redireciona
+    if (!isLoggedIn()) return
+    authAPI.me()
+      .then(res => {
+        if (res.data) {
+          saveUser(res.data)
+          analytics.identify(res.data.id, { plan: res.data.plan })
+          if (res.data.trialJustExpired) {
+            analytics.track('trial_expired')
+            sessionStorage.setItem('trial_just_expired', '1')
           }
-        })
-        .catch((err) => {
-          const status = err.response?.status
-          if (status === 401 || status === 403) {
-            sessionStorage.removeItem('user')
-            sessionStorage.removeItem('token')
-            window.location.href = '/login'
-          }
-          // 429: rate limited — retry silently after 20s sem derrubar o app
-          if (status === 429) {
-            setTimeout(() => {
-              authAPI.me().then(res => { if (res.data) saveUser(res.data) }).catch(() => {})
-            }, 20000)
-          }
-        })
-    }
+        }
+        setIsValidating(false)
+      })
+      .catch((err) => {
+        const status = err.response?.status
+        if (status === 401 || status === 403) {
+          sessionStorage.removeItem('user')
+          sessionStorage.removeItem('token')
+          window.location.href = '/login'
+          return
+        }
+        // 429: rate limited — retry silently after 20s sem derrubar o app
+        if (status === 429) {
+          setTimeout(() => {
+            authAPI.me().then(res => { if (res.data) saveUser(res.data) }).catch(() => {})
+          }, 20000)
+        }
+        setIsValidating(false)
+      })
   }, [])
 
   useEffect(() => {
@@ -92,29 +105,31 @@ export default function App() {
   }, [])
 
   return (
-    <BrowserRouter>
-      <CookieBanner />
-      <InstallBanner />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/"                element={<HomeRoute />} />
-          <Route path="/login"           element={<Login />} />
-          <Route path="/register"        element={<Login isRegister />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password"  element={<ResetPassword />} />
-          <Route path="/verify-email"    element={<VerifyEmail />} />
-          <Route path="/dashboard"    element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-          <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
-          <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
-          <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
-          <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
-          <Route path="/calendar"    element={<PrivateRoute><Calendar /></PrivateRoute>} />
-          <Route path="/planos"       element={<Planos />} />
-          <Route path="/privacidade"  element={<PrivacyPolicy />} />
-          <Route path="/termos"       element={<TermsOfUse />} />
-          <Route path="*"             element={<NotFound />} />
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+    <AuthValidContext.Provider value={isValidating}>
+      <BrowserRouter>
+        <CookieBanner />
+        <InstallBanner />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/"                element={<HomeRoute />} />
+            <Route path="/login"           element={<Login />} />
+            <Route path="/register"        element={<Login isRegister />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password"  element={<ResetPassword />} />
+            <Route path="/verify-email"    element={<VerifyEmail />} />
+            <Route path="/dashboard"    element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+            <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
+            <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
+            <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
+            <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/calendar"     element={<PrivateRoute><Calendar /></PrivateRoute>} />
+            <Route path="/planos"       element={<Planos />} />
+            <Route path="/privacidade"  element={<PrivacyPolicy />} />
+            <Route path="/termos"       element={<TermsOfUse />} />
+            <Route path="*"             element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </AuthValidContext.Provider>
   )
 }

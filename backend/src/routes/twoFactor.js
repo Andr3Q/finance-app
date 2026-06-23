@@ -288,17 +288,22 @@ router.post('/use-backup-code', twoFALimiter, async (req, res) => {
       return res.status(401).json({ error: 'Código de recuperação inválido ou já utilizado.' })
     }
 
-    // Marca como usado
-    await prisma.twoFactorBackupCode.update({
-      where: { id: backupEntry.id },
-      data:  { usedAt: new Date() },
+    // Marca código como usado e busca usuário atomicamente.
+    // updateMany com usedAt: null garante que race conditions entre requests
+    // concorrentes não permitam usar o mesmo código duas vezes.
+    const user = await prisma.$transaction(async (tx) => {
+      const updated = await tx.twoFactorBackupCode.updateMany({
+        where: { id: backupEntry.id, usedAt: null },
+        data:  { usedAt: new Date() },
+      })
+      if (updated.count === 0) return null // race: outro request chegou primeiro
+      return tx.user.findUnique({
+        where:  { id: payload.userId },
+        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, tokenVersion: true },
+      })
     })
 
-    const user = await prisma.user.findUnique({
-      where:  { id: payload.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, tokenVersion: true },
-    })
-    if (!user) return res.status(401).json({ error: 'Usuário não encontrado.' })
+    if (!user) return res.status(401).json({ error: 'Código de recuperação inválido ou já utilizado.' })
 
     issueFullToken(res, user.id, user.tokenVersion ?? 0)
     const { tokenVersion: _tv, ...userOut } = user
