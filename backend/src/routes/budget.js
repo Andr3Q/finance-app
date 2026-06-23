@@ -65,19 +65,23 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Limite do plano Free: plan + count em 1 query (evita 2 round trips)
+    // Limite do plano: plan + count + datas de expiração em 1 query
     const userData = await prisma.user.findUnique({
       where:  { id: req.userId },
-      select: { plan: true, _count: { select: { budgets: true } } }
+      select: { plan: true, planExpiresAt: true, trialEndsAt: true, _count: { select: { budgets: true } } }
     })
-    if (userData?.plan === 'free' && userData._count.budgets >= 15) {
+    const now             = new Date()
+    const trialExpired    = userData?.trialEndsAt && userData.trialEndsAt < now && !userData.planExpiresAt
+    const planExpired     = userData?.planExpiresAt && userData.planExpiresAt < now
+    const effectivePlan   = (trialExpired || planExpired) ? 'free' : (userData?.plan || 'free')
+    if (effectivePlan === 'free' && userData._count.budgets >= 15) {
       return res.status(403).json({
         error: 'Limite de 15 contas fixas atingido no plano Gratuito.',
         limitReached: true,
         plan: 'free'
       })
     }
-    if (userData?.plan === 'pro' && userData._count.budgets >= 35) {
+    if (effectivePlan === 'pro' && userData._count.budgets >= 35) {
       return res.status(403).json({
         error: 'Limite de 35 contas fixas atingido no plano Pro.',
         limitReached: true,
@@ -229,9 +233,16 @@ router.post('/category-limits', async (req, res) => {
       return res.status(400).json({ error: 'Valor excede o limite permitido.' })
     }
 
-    // Limites por categoria são exclusivos do plano Pro
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
-    if (user.plan === 'free') {
+    // Limites por categoria são exclusivos do plano Pro (ativo — trial expirado = free)
+    const user = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { plan: true, planExpiresAt: true, trialEndsAt: true }
+    })
+    const _now           = new Date()
+    const _trialExpired  = user?.trialEndsAt && user.trialEndsAt < _now && !user.planExpiresAt
+    const _planExpired   = user?.planExpiresAt && user.planExpiresAt < _now
+    const _effectivePlan = (_trialExpired || _planExpired) ? 'free' : (user?.plan || 'free')
+    if (_effectivePlan === 'free') {
       return res.status(403).json({
         error: 'Limites por categoria são exclusivos do plano Pro.',
         limitReached: true,

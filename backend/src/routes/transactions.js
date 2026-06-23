@@ -45,24 +45,25 @@ router.get('/summary', dashboardLimiter, async (req, res) => {
       prisma.user.findUnique({ where: { id: req.userId } })
     ])
 
-    const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)
-    const totalIncome     = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
-    const totalFixedCosts = budgets.reduce((sum, b) => sum + b.amount, 0)
+    const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0)
+    const totalIncome     = transactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0)
+    const totalFixedCosts = budgets.reduce((sum, b) => sum + Number(b.amount), 0)
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
     // Se as contas já foram lançadas como transações este mês,
     // não deduç os orçamentos novamente (evita dupla contagem)
     const autoLaunched = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const salary       = Number(user.salary)
     const totalAvailable = autoLaunched
-      ? user.salary + totalIncome                    // fixas já estão em totalExpenses
-      : user.salary + totalIncome - totalFixedCosts  // subtrai manualmente se não lançadas
+      ? salary + totalIncome                    // fixas já estão em totalExpenses
+      : salary + totalIncome - totalFixedCosts  // subtrai manualmente se não lançadas
 
     const currentBalance = totalAvailable - totalExpenses
     const percentUsed    = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
 
     res.json({
-      salary:         user.salary,
+      salary,
       totalIncome,
       totalFixedCosts,
       totalExpenses,
@@ -98,18 +99,19 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
-    const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-    const totalIncome     = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-    const totalFixedCosts = budgets.reduce((s, b) => s + b.amount, 0)
+    const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    const totalIncome     = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+    const totalFixedCosts = budgets.reduce((s, b) => s + Number(b.amount), 0)
     const autoLaunched    = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const salary          = Number(user.salary)
     const totalAvailable  = autoLaunched
-      ? user.salary + totalIncome
-      : user.salary + totalIncome - totalFixedCosts
+      ? salary + totalIncome
+      : salary + totalIncome - totalFixedCosts
     const currentBalance  = totalAvailable - totalExpenses
     const percentUsed     = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
 
     res.json({
-      summary: { salary: user.salary, totalIncome, totalFixedCosts, totalExpenses, totalAvailable, currentBalance, percentUsed, autoLaunched, month, year },
+      summary: { salary, totalIncome, totalFixedCosts, totalExpenses, totalAvailable, currentBalance, percentUsed, autoLaunched, month, year },
       transactions,
       limits,
       budgets,
@@ -333,10 +335,10 @@ router.post('/', dashboardLimiter, async (req, res) => {
           prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, notifBudgetAlert: true, budgetAlertMonth: true, budgetAlertYear: true } }),
           prisma.budget.aggregate({ where: { userId: req.userId }, _sum: { amount: true } }),
         ])
-        const totalExpenses  = expenses._sum.amount || 0
-        const totalIncomes   = incomes._sum.amount  || 0
-        const totalFixed     = budgets._sum.amount  || 0
-        const balance        = (user.salary + totalIncomes) - totalFixed - totalExpenses
+        const totalExpenses  = Number(expenses._sum.amount || 0)
+        const totalIncomes   = Number(incomes._sum.amount  || 0)
+        const totalFixed     = Number(budgets._sum.amount  || 0)
+        const balance        = (Number(user.salary) + totalIncomes) - totalFixed - totalExpenses
         const balanceFmt     = balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
         const amountFmt      = parsedAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
         const catLabel       = CATEGORY_LABELS[category] || category
@@ -353,15 +355,16 @@ router.post('/', dashboardLimiter, async (req, res) => {
           const limit = await prisma.categoryLimit.findUnique({
             where: { userId_category: { userId: req.userId, category } },
           })
-          if (limit && limit.amount > 0) {
+          if (limit && Number(limit.amount) > 0) {
             const catTotal = await prisma.transaction.aggregate({
               where:  { userId: req.userId, type: 'expense', category, month: currentMonth, year: currentYear, archived: false },
               _sum:   { amount: true },
             })
-            const spent = catTotal._sum.amount || 0
-            const pct   = spent / limit.amount
+            const spent    = Number(catTotal._sum.amount || 0)
+            const limitAmt = Number(limit.amount)
+            const pct      = spent / limitAmt
             const spentFmt = spent.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
-            const limitFmt = limit.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+            const limitFmt = limitAmt.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
 
             if (pct >= 1) {
               await sendPushToUser(req.userId, {
@@ -383,7 +386,7 @@ router.post('/', dashboardLimiter, async (req, res) => {
           if (user?.notifBudgetAlert) {
             const alreadySent = user.budgetAlertMonth === currentMonth && user.budgetAlertYear === currentYear
             if (!alreadySent) {
-              const monthlyIncome = (user.salary || 0) + totalIncomes
+              const monthlyIncome = (Number(user.salary) || 0) + totalIncomes
               if (monthlyIncome > 0 && totalExpenses / monthlyIncome >= 0.8) {
                 await prisma.user.update({
                   where: { id: req.userId },

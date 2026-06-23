@@ -10,12 +10,15 @@ const { twoFALimiter } = require('../middleware/rateLimiter')
 
 const router = express.Router()
 
-// Deriva chave AES-256 do JWT_SECRET (uma vez na inicialização)
-const ENC_KEY = crypto.scryptSync(
-  process.env.JWT_SECRET || '__insecure_default__',
-  'totp-enc-v1',
-  32,
-)
+// Chave AES-256: usa TOTP_ENC_KEY dedicada se configurada; fallback para derivação do JWT_SECRET.
+// Para rotacionar: gere nova chave (openssl rand -hex 32), adicione ao Cloud Run e re-encripte os segredos.
+const ENC_KEY = process.env.TOTP_ENC_KEY
+  ? Buffer.from(process.env.TOTP_ENC_KEY, 'hex')
+  : crypto.scryptSync(process.env.JWT_SECRET || '__insecure_default__', 'totp-enc-v1', 32)
+
+if (!process.env.TOTP_ENC_KEY && process.env.NODE_ENV === 'production') {
+  console.warn('[2fa] TOTP_ENC_KEY não configurada — usando derivação do JWT_SECRET. Recomendado: defina TOTP_ENC_KEY como variável separada.')
+}
 
 function encryptSecret(plain) {
   const iv      = crypto.randomBytes(12)
@@ -44,8 +47,12 @@ function verifyTotp(encryptedSecret, token) {
   }
 }
 
-function hashBackupCode(code) {
-  return crypto.createHmac('sha256', process.env.JWT_SECRET || '__insecure_default__').update(code).digest('hex')
+async function hashBackupCode(code) {
+  return bcrypt.hash(code, 10)
+}
+
+async function verifyBackupCode(code, hash) {
+  return bcrypt.compare(code, hash)
 }
 
 function generateBackupCodes() {
@@ -58,8 +65,8 @@ function generateBackupCodes() {
   return codes
 }
 
-function issueFullToken(res, userId) {
-  const fullToken = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '24h' })
+function issueFullToken(res, userId, tokenVersion = 0) {
+  const fullToken = jwt.sign({ userId, tokenVersion }, process.env.JWT_SECRET, { expiresIn: '24h' })
   res.cookie('token', fullToken, {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
@@ -129,8 +136,9 @@ router.post('/verify-setup', authMiddleware, twoFALimiter, async (req, res) => {
       return res.status(400).json({ error: 'Código incorreto. Tente novamente.' })
     }
 
-    const plainCodes = generateBackupCodes()
-    const now        = new Date()
+    const plainCodes  = generateBackupCodes()
+    const now         = new Date()
+    const hashedCodes = await Promise.all(plainCodes.map(hashBackupCode))
 
     await prisma.$transaction([
       prisma.user.update({
@@ -139,9 +147,9 @@ router.post('/verify-setup', authMiddleware, twoFALimiter, async (req, res) => {
       }),
       // Remove eventuais códigos antigos (retry de setup)
       prisma.twoFactorBackupCode.deleteMany({ where: { userId: req.userId } }),
-      ...plainCodes.map(code =>
+      ...hashedCodes.map(codeHash =>
         prisma.twoFactorBackupCode.create({
-          data: { userId: req.userId, codeHash: hashBackupCode(code), createdAt: now },
+          data: { userId: req.userId, codeHash, createdAt: now },
         })
       ),
     ])
@@ -209,7 +217,7 @@ router.post('/verify-login', twoFALimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where:  { id: payload.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, twoFactorSecret: true, twoFactorEnabled: true },
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, twoFactorSecret: true, twoFactorEnabled: true, tokenVersion: true },
     })
     if (!user?.twoFactorEnabled || !user?.twoFactorSecret) {
       return res.status(401).json({ error: 'Usuário não encontrado.' })
@@ -219,8 +227,8 @@ router.post('/verify-login', twoFALimiter, async (req, res) => {
       return res.status(401).json({ error: 'Código incorreto.' })
     }
 
-    issueFullToken(res, user.id)
-    const { twoFactorSecret: _s, ...userOut } = user
+    issueFullToken(res, user.id, user.tokenVersion ?? 0)
+    const { twoFactorSecret: _s, tokenVersion: _tv, ...userOut } = user
     res.json({ user: userOut })
   } catch (err) {
     console.error('[2fa] verify-login:', err.message)
@@ -248,11 +256,19 @@ router.post('/use-backup-code', twoFALimiter, async (req, res) => {
 
     if (!payload.twofa) return res.status(401).json({ error: 'Token inválido.' })
 
-    const codeHash = hashBackupCode(backupCode.toUpperCase())
-
-    const backupEntry = await prisma.twoFactorBackupCode.findFirst({
-      where: { userId: payload.userId, codeHash, usedAt: null },
+    const normalizedCode = backupCode.toUpperCase()
+    const unusedCodes    = await prisma.twoFactorBackupCode.findMany({
+      where: { userId: payload.userId, usedAt: null },
     })
+
+    let backupEntry = null
+    for (const entry of unusedCodes) {
+      if (await verifyBackupCode(normalizedCode, entry.codeHash)) {
+        backupEntry = entry
+        break
+      }
+    }
+
     if (!backupEntry) {
       return res.status(401).json({ error: 'Código de recuperação inválido ou já utilizado.' })
     }
@@ -265,12 +281,13 @@ router.post('/use-backup-code', twoFALimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where:  { id: payload.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true },
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, tokenVersion: true },
     })
     if (!user) return res.status(401).json({ error: 'Usuário não encontrado.' })
 
-    issueFullToken(res, user.id)
-    res.json({ user })
+    issueFullToken(res, user.id, user.tokenVersion ?? 0)
+    const { tokenVersion: _tv, ...userOut } = user
+    res.json({ user: userOut })
   } catch (err) {
     console.error('[2fa] use-backup-code:', err.message)
     res.status(500).json({ error: 'Erro ao usar código de recuperação.' })
@@ -310,14 +327,15 @@ router.post('/regenerate-backup-codes', authMiddleware, twoFALimiter, async (req
     const valid = await bcrypt.compare(password, user.password)
     if (!valid) return res.status(401).json({ error: 'Senha incorreta.' })
 
-    const plainCodes = generateBackupCodes()
-    const now        = new Date()
+    const plainCodes  = generateBackupCodes()
+    const now         = new Date()
+    const hashedCodes = await Promise.all(plainCodes.map(hashBackupCode))
 
     await prisma.$transaction([
       prisma.twoFactorBackupCode.deleteMany({ where: { userId: req.userId } }),
-      ...plainCodes.map(code =>
+      ...hashedCodes.map(codeHash =>
         prisma.twoFactorBackupCode.create({
-          data: { userId: req.userId, codeHash: hashBackupCode(code), createdAt: now },
+          data: { userId: req.userId, codeHash, createdAt: now },
         })
       ),
     ])

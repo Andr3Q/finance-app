@@ -40,7 +40,12 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
-    if (user.plan === 'free') {
+    const now          = new Date()
+    const trialExpired = user.trialEndsAt && user.trialEndsAt < now && !user.planExpiresAt
+    const planExpired  = user.planExpiresAt && user.planExpiresAt < now
+    const effectivePlan = (trialExpired || planExpired) ? 'free' : user.plan
+
+    if (effectivePlan === 'free') {
       return res.status(403).json({
         error: 'O relatório mensal em PDF é exclusivo do plano Pro.',
         limitReached: true,
@@ -49,19 +54,20 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
     }
 
     // Calcula resumo
-    const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-    const totalIncome     = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-    const totalFixedCosts = budgets.reduce((s, b) => s + b.amount, 0)
+    const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    const totalIncome     = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+    const totalFixedCosts = budgets.reduce((s, b) => s + Number(b.amount), 0)
     // Se as contas fixas já foram lançadas como transações (auto-launch), elas já estão
     // em totalExpenses — não subtrair novamente para evitar dupla contagem
     const autoLaunched   = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const salary         = Number(user.salary)
     const totalAvailable = autoLaunched
-      ? user.salary + totalIncome
-      : user.salary + totalIncome - totalFixedCosts
+      ? salary + totalIncome
+      : salary + totalIncome - totalFixedCosts
     const currentBalance  = totalAvailable - totalExpenses
     const percentUsed     = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
 
-    const summary = { salary: user.salary, totalExpenses, totalIncome, totalFixedCosts, totalAvailable, currentBalance, percentUsed }
+    const summary = { salary, totalExpenses, totalIncome, totalFixedCosts, totalAvailable, currentBalance, percentUsed }
 
     // Gera PDF
     const pdfBuffer = await generateMonthlyPDF(user, month, year, summary, transactions)

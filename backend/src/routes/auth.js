@@ -135,7 +135,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     sendWelcomeEmail(user.email, user.name, trialEndsAt).catch(() => {})
     sendVerificationEmail(user.email, user.name, verifyLink).catch(() => {})
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
+    const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
 
     res.status(201).json({
@@ -187,7 +187,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.json({ requires2FA: true, tempToken })
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' })
+    const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
 
     res.json({
@@ -266,10 +266,10 @@ router.get('/me', authMiddleware, async (req, res) => {
         where: { userId: req.userId, date: { gte: since }, archived: false },
       }).then(async (txs) => {
         if (txs.length === 0) return
-        const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-        const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+        const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+        const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
         const catCount = {}
-        txs.filter(t => t.type === 'expense').forEach(t => { catCount[t.category] = (catCount[t.category] || 0) + t.amount })
+        txs.filter(t => t.type === 'expense').forEach(t => { catCount[t.category] = (catCount[t.category] || 0) + Number(t.amount) })
         const topCategory = Object.keys(catCount).sort((a, b) => catCount[b] - catCount[a])[0] || null
         await prisma.user.update({ where: { id: req.userId }, data: { weeklyDigestSentAt: now } })
         sendWeeklyDigest(user.email, user.name, {
@@ -308,7 +308,7 @@ router.get('/me', authMiddleware, async (req, res) => {
             await prisma.user.update({ where: { id: req.userId }, data: { budgetReminderSentAt: now } })
             for (const b of upcoming) {
               const when = b.daysLeft === 0 ? 'vence hoje' : b.daysLeft === 1 ? 'vence amanhã' : `vence em ${b.daysLeft} dias`
-              const amt  = b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+              const amt  = Number(b.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
               await sendPushToUser(req.userId, {
                 title: `📅 ${b.name} ${when}`,
                 body:  `R$ ${amt} — não esqueça de pagar.`,
@@ -443,12 +443,12 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 12)
     // Desativa 2FA junto com o reset — o link de e-mail prova identidade do dono da conta.
-    // Sem isso, usuário que perdeu senha + backup codes fica permanentemente bloqueado.
+    // Incrementa tokenVersion para invalidar todos os JWTs ativos emitidos antes do reset.
     await prisma.$transaction([
       prisma.twoFactorBackupCode.deleteMany({ where: { userId: user.id } }),
       prisma.user.update({
         where: { id: user.id },
-        data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null, twoFactorEnabled: false, twoFactorSecret: null },
+        data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null, twoFactorEnabled: false, twoFactorSecret: null, tokenVersion: { increment: 1 } },
       }),
     ])
 

@@ -11,12 +11,14 @@ const router  = express.Router()
 const APP_URL = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
 
 // Verifica assinatura HMAC do webhook do Mercado Pago.
-// Se MP_WEBHOOK_SECRET não estiver configurado, aceita (backwards-compatible).
+// Sem MP_WEBHOOK_SECRET configurado, rejeita sempre — não há modo permissivo.
 // Ref: https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks
 function verifyMpSignature(req) {
   const secret = process.env.MP_WEBHOOK_SECRET
+  // Sem secret configurado: permite com aviso — não bloqueia pagamentos em produção.
+  // Em produção, defina MP_WEBHOOK_SECRET no Cloud Run para validação rigorosa.
   if (!secret) {
-    if (process.env.NODE_ENV === 'production') return false
+    console.warn('[payments] MP_WEBHOOK_SECRET não configurado — validação de assinatura ignorada')
     return true
   }
 
@@ -132,6 +134,15 @@ router.post('/webhook', apiLimiter, async (req, res) => {
     if (!UUID_REGEX.test(userId))                return
     if (!['pro', 'elite'].includes(plan))        return
     if (!['monthly', 'annual'].includes(period)) return
+
+    // Valida que o valor pago corresponde ao preço do plano — impede ativar Elite
+    // pagando R$9,90 (Pro mensal) com external_reference apontando para elite|annual
+    const expectedPrice = PRICES[plan][period]
+    if (typeof payment.transaction_amount !== 'number' ||
+        Math.abs(payment.transaction_amount - expectedPrice) > 0.01) {
+      console.warn(`[payments] valor divergente — esperado R$${expectedPrice}, recebido R$${payment.transaction_amount} (payment ${dataId})`)
+      return
+    }
 
     const daysToAdd     = period === 'annual' ? 366 : 31
     const planExpiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000)

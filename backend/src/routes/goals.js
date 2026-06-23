@@ -145,9 +145,9 @@ router.patch('/:id', async (req, res) => {
     })
     res.json(updated)
 
-    if (prevGoal && updated.targetAmount > 0 && prevGoal.targetAmount > 0) {
-      const prevPct = prevGoal.currentAmount / prevGoal.targetAmount
-      const newPct  = updated.currentAmount  / updated.targetAmount
+    if (prevGoal && Number(updated.targetAmount) > 0 && Number(prevGoal.targetAmount) > 0) {
+      const prevPct = Number(prevGoal.currentAmount) / Number(prevGoal.targetAmount)
+      const newPct  = Number(updated.currentAmount)  / Number(updated.targetAmount)
       const title   = updated.title || prevGoal.title
 
       if (prevPct < 0.5 && newPct >= 0.5 && newPct < 1) {
