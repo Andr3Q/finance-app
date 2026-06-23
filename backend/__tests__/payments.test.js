@@ -178,6 +178,7 @@ describe('POST /api/payments/webhook', () => {
     id: 'pay_123',
     status: 'approved',
     external_reference: `${USER_ID}|pro|monthly`,
+    transaction_amount: 9.90,  // preço exato de pro|monthly — requerido pela validação de preço
   }
 
   function webhookBody(id = 'pay_123') {
@@ -255,7 +256,7 @@ describe('POST /api/payments/webhook', () => {
   })
 
   test('planExpiresAt = ~366 dias para plano anual', async () => {
-    mockPaymentGet({ ...VALID_PAYMENT, external_reference: `${USER_ID}|elite|annual` })
+    mockPaymentGet({ ...VALID_PAYMENT, external_reference: `${USER_ID}|elite|annual`, transaction_amount: 334.80 })
     let capturedData = null
     prisma.$transaction.mockImplementation(async (fn) =>
       fn({

@@ -19,8 +19,8 @@ WORKDIR /app
 # (otimização: o Docker faz cache desta etapa se package.json não mudar)
 COPY package*.json ./
 
-# Instala todas as dependências do projeto
-RUN npm install
+# Instala apenas dependências de produção (sem Jest, ESLint, devDeps)
+RUN npm ci --omit=dev
 
 # Copia o schema do Prisma e gera o cliente do banco
 COPY prisma ./prisma/

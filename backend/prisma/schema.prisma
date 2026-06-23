@@ -22,7 +22,7 @@ model User {
   name            String
   email           String        @unique
   password        String
-  salary          Float         @default(0)
+  salary          Decimal       @default(0)
   reportEmail     String?
   createdAt       DateTime      @default(now())
   // Controla o mês/ano do último lançamento automático de contas fixas
@@ -37,6 +37,7 @@ model User {
   referredBy           String?
   twoFactorSecret      String?
   twoFactorEnabled     Boolean   @default(false)
+  tokenVersion         Int       @default(0)
   onboardingComplete   Boolean   @default(false)
   renewalReminderSent  Boolean   @default(false)
   trialReminderSent    Boolean   @default(false)
@@ -68,7 +69,7 @@ model User {
 model Transaction {
   id          String   @id @default(uuid())
   description String                              // Ex: "Almoço no restaurante"
-  amount      Float                               // Valor em reais
+  amount      Decimal                             // Valor em reais
   type        String                              // "expense" (gasto) ou "income" (entrada)
   category    String                              // "food", "shopping", "transport", etc.
   date        DateTime @default(now())            // Data/hora do registro
@@ -88,7 +89,7 @@ model Transaction {
 model Budget {
   id               String    @id @default(uuid())
   name             String                         // Ex: "Aluguel", "Internet"
-  amount           Float                          // Valor mensal fixo
+  amount           Decimal                        // Valor mensal fixo
   dueDay           Int?                           // Dia do vencimento (1-31)
   endDate          DateTime?                      // Data final (conta com prazo, ex: parcelas)
   endDateNotifSent Boolean   @default(false)      // Notificação de expiração enviada
@@ -104,7 +105,7 @@ model Budget {
 model CategoryLimit {
   id       String @id @default(uuid())
   category String
-  amount   Float
+  amount   Decimal
   userId   String
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -115,8 +116,8 @@ model CategoryLimit {
 model Goal {
   id            String    @id @default(uuid())
   title         String
-  targetAmount  Float
-  currentAmount Float     @default(0)
+  targetAmount  Decimal
+  currentAmount Decimal   @default(0)
   color         String    @default("#4ac46e")
   deadline      DateTime?
   createdAt     DateTime  @default(now())
@@ -148,7 +149,7 @@ model InstallmentPlan {
   name              String                           // Ex: "Celular Samsung"
   totalInstallments Int                              // Total de parcelas (12)
   paidInstallments  Int      @default(0)             // Quantas já foram pagas
-  amount            Float                            // Valor de cada parcela
+  amount            Decimal                          // Valor de cada parcela
   startMonth          Int                            // Mês da 1ª parcela
   startYear           Int                            // Ano da 1ª parcela
   lastTransactionId   String?                        // ID da transação criada na última parcela paga (usado pelo /unpay)

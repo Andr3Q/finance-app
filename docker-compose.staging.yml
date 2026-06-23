@@ -55,7 +55,7 @@ services:
       NODE_ENV:    production                          # usa limites de produção
       PORT:        3099
       DATABASE_URL: postgresql://staging_user:staging_pass_local@db-staging:5432/financas_staging
-      JWT_SECRET:  staging_jwt_secret_nao_usar_em_producao_000000000000000000000
+      JWT_SECRET:  ${STAGING_JWT_SECRET:?STAGING_JWT_SECRET não definido — copie .env.staging.example para .env.staging}
       # Variáveis opcionais — serviços externos desativados em staging
       EMAIL_USER:  ""
       EMAIL_PASS:  ""
