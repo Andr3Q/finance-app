@@ -1,0 +1,14 @@
+# Cloud Build — usado por "gcloud run deploy --source ."
+# --no-cache garante que camadas obsoletas do Docker (ex: sitemap cacheado)
+# não sejam reutilizadas entre deploys.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--no-cache'
+      - '--tag'
+      - '$_IMAGE_NAME'
+      - '.'
+
+images:
+  - '$_IMAGE_NAME'
