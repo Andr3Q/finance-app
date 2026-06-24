@@ -361,9 +361,16 @@ jobs:
       - name: Deploy para Cloud Run
         if: github.event.inputs.modo != 'rollback'
         run: |
-          echo "🚀 Iniciando deploy..."
+          echo "🚀 Iniciando build sem cache..."
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/cloud-run-source-deploy/${SERVICE}:${{ github.sha }}"
+          gcloud builds submit \
+            --tag "$IMAGE" \
+            --no-cache \
+            .
+          echo "📦 Imagem construída: $IMAGE"
+          echo "🚀 Fazendo deploy da imagem..."
           gcloud run deploy "$SERVICE" \
-            --source . \
+            --image "$IMAGE" \
             --region "$REGION" \
             --set-env-vars "EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
             --set-secrets "RESEND_API_KEY=RESEND_API_KEY:latest" \
