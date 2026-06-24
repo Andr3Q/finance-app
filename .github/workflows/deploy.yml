@@ -361,35 +361,20 @@ jobs:
       - name: Deploy para Cloud Run
         if: github.event.inputs.modo != 'rollback'
         run: |
-          echo "🚀 Iniciando build sem cache..."
-          IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/cloud-run-source-deploy/${SERVICE}:${{ github.sha }}"
+          set -euo pipefail
+          echo "🚀 Configurando Docker com credenciais GCP..."
+          gcloud auth configure-docker gcr.io --quiet
 
-          # --async: SA não tem permissão de streamar logs do bucket padrão do Cloud Build.
-          # A role cloudbuild.builds.builder inclui cloudbuild.builds.get, então podemos
-          # fazer poll do status via API sem precisar acessar o bucket de logs.
-          BUILD_ID=$(gcloud builds submit \
-            --config cloudbuild.yaml \
-            --substitutions "_IMAGE_NAME=${IMAGE}" \
-            --async \
-            --format='value(id)' \
-            .)
-          echo "🔨 Build iniciado: $BUILD_ID"
+          IMAGE="gcr.io/${PROJECT}/${SERVICE}:${{ github.sha }}"
+          echo "📦 Imagem: $IMAGE"
 
-          # Poll até o build terminar (máx 20 min)
-          MAX=40; i=0
-          while [ $i -lt $MAX ]; do
-            STATUS=$(gcloud builds describe "$BUILD_ID" --format='value(status)')
-            echo "  [$i] status: $STATUS"
-            case "$STATUS" in
-              SUCCESS)  echo "✅ Build concluído!"; break ;;
-              FAILURE|CANCELLED|TIMEOUT|INTERNAL_ERROR)
-                echo "❌ Build falhou: $STATUS"; exit 1 ;;
-            esac
-            sleep 30; i=$((i+1))
-          done
-          [ $i -ge $MAX ] && { echo "❌ Timeout aguardando o build (20 min)"; exit 1; }
+          echo "🔨 Build local no runner (sem cache)..."
+          docker build --no-cache -t "$IMAGE" .
 
-          echo "🚀 Fazendo deploy da imagem..."
+          echo "⬆️  Push para gcr.io..."
+          docker push "$IMAGE"
+
+          echo "🚀 Deploy para Cloud Run..."
           gcloud run deploy "$SERVICE" \
             --image "$IMAGE" \
             --region "$REGION" \
