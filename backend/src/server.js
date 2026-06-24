@@ -125,6 +125,11 @@ app.use((req, res, next) => {
   next()
 })
 
+// Diagnóstico temporário — confirmar versão deployada
+app.get('/api/deploy-version', (req, res) => {
+  res.json({ commit: 'b98c5c8', sitemapRoute: 'express-line128', env: process.env.NODE_ENV })
+})
+
 // Sitemap dinâmico — ANTES do express.static (arquivo estático removido do frontend/public)
 app.get('/sitemap.xml', (req, res) => {
   const BASE = process.env.APP_URL || 'https://myfinancepro.com.br'
