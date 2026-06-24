@@ -125,7 +125,7 @@ app.use((req, res, next) => {
   next()
 })
 
-// Sitemap — registrado ANTES do express.static para não ser interceptado pelo arquivo estático
+// Sitemap dinâmico — ANTES do express.static (arquivo estático removido do frontend/public)
 app.get('/sitemap.xml', (req, res) => {
   const BASE = process.env.APP_URL || 'https://myfinancepro.com.br'
   res.setHeader('Content-Type', 'application/xml; charset=utf-8')
