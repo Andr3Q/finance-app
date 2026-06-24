@@ -15,6 +15,9 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci
 
+# Incrementar CACHE_BUST para forçar rebuild completo (ex: ao deletar/mover arquivos estáticos)
+ARG CACHE_BUST=2
+
 # Copia o código e compila para produção
 COPY frontend/ ./
 # Injeta timestamp de build no sw.js para forçar atualização do cache a cada deploy
