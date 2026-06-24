@@ -364,8 +364,8 @@ jobs:
           echo "🚀 Iniciando build sem cache..."
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT}/cloud-run-source-deploy/${SERVICE}:${{ github.sha }}"
           gcloud builds submit \
-            --tag "$IMAGE" \
-            --no-cache \
+            --config cloudbuild.yaml \
+            --substitutions "_IMAGE_NAME=${IMAGE}" \
             .
           echo "📦 Imagem construída: $IMAGE"
           echo "🚀 Fazendo deploy da imagem..."
