@@ -125,6 +125,22 @@ app.use((req, res, next) => {
   next()
 })
 
+// Sitemap — registrado ANTES do express.static para não ser interceptado pelo arquivo estático
+app.get('/sitemap.xml', (req, res) => {
+  const BASE = process.env.APP_URL || 'https://myfinancepro.com.br'
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8')
+  res.setHeader('Cache-Control', 'public, max-age=86400')
+  res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>${BASE}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>${BASE}/planos</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>${BASE}/register</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>${BASE}/login</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>${BASE}/privacidade</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>${BASE}/termos</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+</urlset>`)
+})
+
 // ── Arquivos estáticos com CORS aberto ──────────────────
 // Vite gera <script type="module" crossorigin> — o browser exige
 // Access-Control-Allow-Origin mesmo em same-origin. Solução: cors(*)
@@ -155,23 +171,6 @@ if (isProd) {
 
   app.use(express.static(publicPath, { maxAge: 0 }))
 }
-
-// Sitemap — deve vir antes de express.static e de qualquer bloco isProd
-// para garantir que as URLs corretas sejam servidas independente de cache Docker
-app.get('/sitemap.xml', (req, res) => {
-  const BASE = process.env.APP_URL || 'https://myfinancepro.com.br'
-  res.setHeader('Content-Type', 'application/xml; charset=utf-8')
-  res.setHeader('Cache-Control', 'public, max-age=86400')
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>${BASE}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>${BASE}/planos</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>${BASE}/register</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>${BASE}/login</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>${BASE}/privacidade</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
-  <url><loc>${BASE}/termos</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
-</urlset>`)
-})
 
 // ── CORS restrito apenas para rotas de API ──────────────
 // Configura via ALLOWED_ORIGINS no .env (vírgula separada)
