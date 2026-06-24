@@ -153,6 +153,22 @@ if (isProd) {
     })};`)
   })
 
+  // Sitemap servido diretamente para garantir URLs corretas independente de cache Docker
+  app.get('/sitemap.xml', (req, res) => {
+    const BASE = process.env.APP_URL || 'https://myfinancepro.com.br'
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8')
+    res.setHeader('Cache-Control', 'public, max-age=86400')
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>${BASE}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>${BASE}/planos</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>${BASE}/register</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>${BASE}/login</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>${BASE}/privacidade</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>${BASE}/termos</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+</urlset>`)
+  })
+
   app.use(express.static(publicPath, { maxAge: 0 }))
 }
 
