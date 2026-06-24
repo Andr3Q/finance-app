@@ -293,15 +293,15 @@ app.get('/health', apiLimiter, async (req, res) => {
 
   if (now - _health.ts < 30_000 && _health.ts > 0) {
     const status = _health.ok ? 'ok' : 'degraded'
-    if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms, cached: true })
-    return res.json({ status, db_ms: _health.db_ms, cached: true })
+    if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms, cached: true, v: 'cc5ec46' })
+    return res.json({ status, db_ms: _health.db_ms, cached: true, v: 'cc5ec46' })
   }
 
   // Fallback: cache expirou (keepalive falhou por >30s) — query direta
   await refreshHealth()
   const status = _health.ok ? 'ok' : 'degraded'
-  if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms })
-  res.json({ status, db_ms: _health.db_ms })
+  if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms, v: 'cc5ec46' })
+  res.json({ status, db_ms: _health.db_ms, v: 'cc5ec46' })
 })
 
 // ── Sentry error handler — captura todas as exceções não tratadas ───
