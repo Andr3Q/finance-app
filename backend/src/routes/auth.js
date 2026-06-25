@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert } = require('../services/emailService')
+const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
 
@@ -179,8 +179,26 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'E-mail ou senha incorretos.' })
     }
 
+    const loginTime = new Date()
+
     // Audit: registra login bem-sucedido em background
     prisma.loginAudit.create({ data: { email: normalizedEmail, success: true, ip, userAgent } }).catch(() => {})
+
+    // Alerta de novo IP: verifica em background se o IP já foi visto nos últimos 30 dias.
+    // Só alerta se já existir ao menos um login anterior (evita falso positivo no primeiro login).
+    if (ip) {
+      const thirtyDaysAgo = new Date(loginTime.getTime() - 30 * 24 * 60 * 60 * 1000)
+      prisma.loginAudit.findFirst({
+        where: { email: normalizedEmail, success: true, ip, createdAt: { gte: thirtyDaysAgo, lt: loginTime } },
+      }).then(knownIp => {
+        if (knownIp) return  // IP já visto — sem alerta
+        return prisma.loginAudit.findFirst({
+          where: { email: normalizedEmail, success: true, createdAt: { lt: loginTime } },
+        }).then(anyPrior => {
+          if (anyPrior) sendNewIpLoginAlert(user.email, user.name, ip).catch(() => {})
+        })
+      }).catch(() => {})
+    }
 
     // 2FA: se ativo, emite token temporário (5 min) e aguarda o código TOTP
     if (user.twoFactorEnabled) {

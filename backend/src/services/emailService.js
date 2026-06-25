@@ -483,4 +483,49 @@ async function sendPasswordChangedAlert(toEmail, userName) {
   })
 }
 
-module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert }
+async function sendNewIpLoginAlert(toEmail, userName, ip) {
+  const appUrl = process.env.APP_URL || 'https://myfinancepro.com.br'
+  const now    = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
+      <div style="background:linear-gradient(135deg,#0d1a00,#1a2d00);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(255,170,0,0.3);">
+        <h1 style="color:#ffaa00;margin:0;font-size:24px;">Nancy</h1>
+        <p style="color:#997a40;margin:8px 0 0;font-size:14px;">🌐 Acesso de novo local detectado</p>
+      </div>
+      <div style="background:#fff;padding:28px;border-radius:12px;">
+        <p style="color:#333;font-size:15px;margin:0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">
+          Detectamos um login na sua conta em <strong>${esc(now)}</strong> a partir de um endereço IP que não usou sua conta nos últimos 30 dias.
+        </p>
+        <div style="background:#f9f4e8;border-radius:10px;padding:16px;margin-bottom:24px;border-left:3px solid #ffaa00;">
+          <p style="margin:0 0 8px;color:#333;font-size:13px;font-weight:bold;">Detalhes do acesso:</p>
+          <p style="margin:0;color:#555;font-size:13px;line-height:1.6;">
+            📍 IP: <strong>${esc(ip)}</strong><br/>
+            🕐 Horário: <strong>${esc(now)}</strong> (Brasília)
+          </p>
+        </div>
+        <div style="background:#fff8f0;border-radius:10px;padding:16px;margin-bottom:24px;border-left:3px solid #ef4444;">
+          <p style="margin:0;color:#333;font-size:13px;line-height:1.6;">
+            <strong>Não foi você?</strong> Altere sua senha imediatamente e ative a autenticação em dois fatores (2FA) nas configurações da sua conta.
+          </p>
+        </div>
+        <div style="text-align:center;">
+          <a href="${appUrl}/settings" style="display:inline-block;background:#ffaa00;color:#1a0a00;text-decoration:none;padding:14px 36px;border-radius:12px;font-weight:700;font-size:15px;">
+            Proteger minha conta
+          </a>
+        </div>
+      </div>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await resend.emails.send({
+    from:    FROM,
+    to:      toEmail,
+    subject: '🌐 Acesso de novo local detectado — Nancy',
+    html,
+  })
+}
+
+module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert }

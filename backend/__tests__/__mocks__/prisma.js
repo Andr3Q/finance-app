@@ -31,6 +31,7 @@ function setDefaults() {
   prismaMock.goal.deleteMany.mockResolvedValue({ count: 0 })
   prismaMock.categoryLimit.findMany.mockResolvedValue([])
   prismaMock.loginAudit.create.mockResolvedValue({})
+  prismaMock.loginAudit.findFirst.mockResolvedValue(null)
   prismaMock.loginAudit.deleteMany.mockResolvedValue({ count: 0 })
   prismaMock.$transaction.mockImplementation((callbackOrArray) => {
     if (typeof callbackOrArray === 'function') return callbackOrArray(prismaMock)
