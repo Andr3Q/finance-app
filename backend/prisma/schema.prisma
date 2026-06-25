@@ -54,13 +54,18 @@ model User {
   budgetAlertYear      Int?
   budgetReminderSentAt DateTime?
 
-  transactions      Transaction[]
+  // Proteção anti-brute-force: conta falhas consecutivas e marca bloqueio
+  failedLoginCount     Int       @default(0)
+  accountLockedAt      DateTime?
+
+  transactions         Transaction[]
   twoFactorBackupCodes TwoFactorBackupCode[]
-  budgets           Budget[]
-  categoryLimits    CategoryLimit[]
-  pushSubscriptions PushSubscription[]
-  goals             Goal[]
-  installmentPlans  InstallmentPlan[]
+  budgets              Budget[]
+  categoryLimits       CategoryLimit[]
+  pushSubscriptions    PushSubscription[]
+  goals                Goal[]
+  installmentPlans     InstallmentPlan[]
+  accountUnlockTokens  AccountUnlockToken[]
 
   @@index([resetToken])        // busca de reset-password usa findFirst por hash — sem índice = full scan
   @@index([emailVerifyToken])  // busca de verify-email usa findFirst por hash — padrão idêntico ao resetToken
@@ -192,6 +197,23 @@ model ProcessedPayment {
 
   @@index([userId])
   @@map("processed_payments")
+}
+
+// ── Tabela: account_unlock_tokens ──────────────────────
+// Token enviado por email para desbloquear conta após 10 tentativas falhas.
+// Mesmo padrão do resetToken: hash SHA-256 no banco, nunca texto puro.
+model AccountUnlockToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique          // SHA-256 do token enviado no email
+  expiresAt DateTime                   // Expira em 1 hora
+  usedAt    DateTime?                  // Preenchido quando o link é clicado (uso único)
+  createdAt DateTime  @default(now())
+
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account_unlock_tokens")
 }
 
 // ── Tabela: login_audits ────────────────────────────────
