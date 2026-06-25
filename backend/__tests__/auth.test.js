@@ -9,7 +9,7 @@ jest.mock('../src/services/emailService', () => {
     sendEmail: fn(), sendWelcomeEmail: fn(), sendVerificationEmail: fn(),
     sendResetEmail: fn(), sendRenewalReminderEmail: fn(), sendTrialExpiryEmail: fn(),
     sendReferralRewardEmail: fn(), sendWeeklyDigest: fn(), sendPlanExpiredEmail: fn(),
-    sendMonthlyReport: fn(), sendPlanActivationEmail: fn(),
+    sendMonthlyReport: fn(), sendPlanActivationEmail: fn(), sendPasswordChangedAlert: fn(),
   }
 })
 
