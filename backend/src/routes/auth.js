@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert } = require('../services/emailService')
+const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
 
@@ -163,23 +163,60 @@ router.post('/login', loginLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Senha inválida.' })
     }
 
+    const LOCK_THRESHOLD = 10
+
     const normalizedEmail = email.toLowerCase().trim()
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
+
+    const ip        = req.ip || req.headers['x-forwarded-for'] || null
+    const userAgent = (req.headers['user-agent'] || '').slice(0, 200) || null
+
+    // Conta bloqueada: bcrypt roda com hash dummy para manter timing consistente
+    if (user?.accountLockedAt) {
+      await bcrypt.compare(password, DUMMY_HASH)
+      prisma.loginAudit.create({ data: { email: normalizedEmail, success: false, ip, userAgent } }).catch(() => {})
+      return res.status(423).json({ error: 'Conta bloqueada. Verifique seu e-mail para receber o link de desbloqueio.' })
+    }
 
     // Sempre executa bcrypt — sem isso, user inexistente retorna em ~1ms e user existente
     // em ~100ms, revelando quais e-mails estão cadastrados por timing attack.
     const passwordMatch = await bcrypt.compare(password, user?.password ?? DUMMY_HASH)
 
-    const ip        = req.ip || req.headers['x-forwarded-for'] || null
-    const userAgent = (req.headers['user-agent'] || '').slice(0, 200) || null
-
     if (!user || !passwordMatch) {
       // Audit: registra falha em background — não bloqueia resposta
       prisma.loginAudit.create({ data: { email: normalizedEmail, success: false, ip, userAgent } }).catch(() => {})
+
+      // Incrementa contador de falhas e bloqueia ao atingir o limite
+      if (user) {
+        const newCount = (user.failedLoginCount ?? 0) + 1
+        if (newCount >= LOCK_THRESHOLD) {
+          const rawToken  = crypto.randomBytes(32).toString('hex')
+          const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+          const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hora
+
+          prisma.$transaction([
+            prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: newCount, accountLockedAt: new Date() } }),
+            prisma.accountUnlockToken.create({ data: { tokenHash, expiresAt, userId: user.id } }),
+          ]).then(() => {
+            const unlockLink = `${APP_URL}/unlock-account?token=${rawToken}`
+            sendAccountUnlockEmail(user.email, user.name, unlockLink).catch(() => {})
+          }).catch(() => {})
+
+          return res.status(423).json({ error: 'Conta bloqueada após 10 tentativas. Verifique seu e-mail para desbloquear.' })
+        } else {
+          prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: newCount } }).catch(() => {})
+        }
+      }
+
       return res.status(401).json({ error: 'E-mail ou senha incorretos.' })
     }
 
     const loginTime = new Date()
+
+    // Login bem-sucedido: zera o contador de falhas em background
+    if (user.failedLoginCount > 0) {
+      prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: 0, accountLockedAt: null } }).catch(() => {})
+    }
 
     // Audit: registra login bem-sucedido em background
     prisma.loginAudit.create({ data: { email: normalizedEmail, success: true, ip, userAgent } }).catch(() => {})
@@ -687,6 +724,35 @@ router.post('/verify-email', async (req, res) => {
   } catch (err) {
     console.error('[auth] verify-email:', err.message)
     res.status(500).json({ error: 'Erro ao verificar e-mail.' })
+  }
+})
+
+// ── POST /auth/unlock-account ───────────────────────────
+// Pública — token recebido do link de email, SHA-256 verificado contra o banco.
+// Uso único e com expiração de 1 hora. Limpa o bloqueio da conta.
+router.post('/unlock-account', async (req, res) => {
+  try {
+    const { token } = req.body
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Token inválido.' })
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex')
+    const record = await prisma.accountUnlockToken.findUnique({ where: { tokenHash } })
+
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'Link inválido ou expirado. Tente fazer login novamente para receber um novo link.' })
+    }
+
+    await prisma.$transaction([
+      prisma.accountUnlockToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+      prisma.user.update({ where: { id: record.userId }, data: { failedLoginCount: 0, accountLockedAt: null } }),
+    ])
+
+    res.json({ ok: true })
+  } catch (err) {
+    console.error('[auth] unlock-account:', err.message)
+    res.status(500).json({ error: 'Erro ao desbloquear conta.' })
   }
 })
 

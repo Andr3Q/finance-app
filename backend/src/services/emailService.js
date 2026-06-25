@@ -528,4 +528,43 @@ async function sendNewIpLoginAlert(toEmail, userName, ip) {
   })
 }
 
-module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert }
+async function sendAccountUnlockEmail(toEmail, userName, unlockLink) {
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
+      <div style="background:linear-gradient(135deg,#020d10,#061520);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(239,68,68,0.3);">
+        <h1 style="color:#ef4444;margin:0;font-size:24px;">Nancy</h1>
+        <p style="color:#997a7a;margin:8px 0 0;font-size:14px;">🔒 Conta bloqueada temporariamente</p>
+      </div>
+      <div style="background:#fff;padding:28px;border-radius:12px;">
+        <p style="color:#333;font-size:15px;margin:0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">
+          Sua conta foi temporariamente bloqueada após <strong>10 tentativas de login incorretas</strong>.
+          Clique no botão abaixo para desbloquear o acesso:
+        </p>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${unlockLink}" style="display:inline-block;background:linear-gradient(135deg,#00ffcc,#00a89a);color:#021a14;text-decoration:none;padding:14px 32px;border-radius:12px;font-weight:700;font-size:15px;">
+            Desbloquear minha conta
+          </a>
+        </div>
+        <p style="color:#999;font-size:12px;line-height:1.5;margin:0 0 16px;">
+          Este link expira em <strong>1 hora</strong> e só pode ser usado uma vez.
+        </p>
+        <div style="background:#fff5f5;border-radius:10px;padding:16px;border-left:3px solid #ef4444;">
+          <p style="margin:0;color:#333;font-size:13px;line-height:1.6;">
+            <strong>Não foi você?</strong> Alguém pode estar tentando acessar sua conta. Após desbloquear, recomendamos alterar sua senha e ativar o 2FA.
+          </p>
+        </div>
+      </div>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await resend.emails.send({
+    from:    FROM,
+    to:      toEmail,
+    subject: '🔒 Desbloqueie sua conta Nancy',
+    html,
+  })
+}
+
+module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail }
