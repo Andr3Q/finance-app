@@ -10,6 +10,7 @@ jest.mock('../src/services/emailService', () => {
     sendResetEmail: fn(), sendRenewalReminderEmail: fn(), sendTrialExpiryEmail: fn(),
     sendReferralRewardEmail: fn(), sendWeeklyDigest: fn(), sendPlanExpiredEmail: fn(),
     sendMonthlyReport: fn(), sendPlanActivationEmail: fn(), sendPasswordChangedAlert: fn(),
+    sendNewIpLoginAlert: fn(),
   }
 })
 
