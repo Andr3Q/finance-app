@@ -40,14 +40,29 @@ function mpSignature(secret, dataId, requestId, ts) {
 // Aguarda resolução de promises pendentes (background tasks pós-webhook)
 const flushAsync = () => new Promise(resolve => setTimeout(resolve, 80))
 
+// Secret e helper usados nos testes gerais do webhook (sem secret = 503 é o comportamento correto)
+const OUTER_WEBHOOK_SECRET = 'test-webhook-secret'
+const OUTER_REQ_ID         = 'req-outer-001'
+
+function signedWebhookPost(id = 'pay_123', body = null) {
+  const ts  = String(Date.now())
+  const sig = mpSignature(OUTER_WEBHOOK_SECRET, id, OUTER_REQ_ID, ts)
+  return request(app)
+    .post('/api/payments/webhook')
+    .set('x-signature', sig)
+    .set('x-request-id', OUTER_REQ_ID)
+    .send(body ?? { type: 'payment', data: { id } })
+}
+
 beforeEach(() => {
-  process.env.MP_ACCESS_TOKEN = 'test-mp-token'
-  delete process.env.MP_WEBHOOK_SECRET
+  process.env.MP_ACCESS_TOKEN   = 'test-mp-token'
+  process.env.MP_WEBHOOK_SECRET = OUTER_WEBHOOK_SECRET
   sendPlanActivationEmail.mockClear()
 })
 
 afterEach(() => {
   delete process.env.MP_ACCESS_TOKEN
+  delete process.env.MP_WEBHOOK_SECRET
 })
 
 // ─────────────────────────────────────────────────────────────────
@@ -204,7 +219,7 @@ describe('POST /api/payments/webhook', () => {
   test('responde 200 imediatamente (antes de processar)', async () => {
     mockPaymentGet()
     mockTransaction()
-    const res = await request(app).post(ENDPOINT).send(webhookBody())
+    const res = await signedWebhookPost()
     expect(res.status).toBe(200)
   })
 
@@ -212,7 +227,7 @@ describe('POST /api/payments/webhook', () => {
     mockPaymentGet()
     mockTransaction()
 
-    await request(app).post(ENDPOINT).send(webhookBody())
+    await signedWebhookPost()
     await flushAsync()
 
     expect(prisma.$transaction).toHaveBeenCalledTimes(1)
@@ -222,7 +237,7 @@ describe('POST /api/payments/webhook', () => {
     mockPaymentGet()
     const user = mockTransaction()
 
-    await request(app).post(ENDPOINT).send(webhookBody())
+    await signedWebhookPost()
     await flushAsync()
 
     expect(sendPlanActivationEmail).toHaveBeenCalledWith(
@@ -245,7 +260,7 @@ describe('POST /api/payments/webhook', () => {
       })
     )
 
-    await request(app).post(ENDPOINT).send(webhookBody())
+    await signedWebhookPost()
     await flushAsync()
 
     expect(capturedData.plan).toBe('pro')
@@ -270,7 +285,7 @@ describe('POST /api/payments/webhook', () => {
       })
     )
 
-    await request(app).post(ENDPOINT).send(webhookBody())
+    await signedWebhookPost()
     await flushAsync()
 
     const diff = Math.abs(capturedData.planExpiresAt - new Date(Date.now() + 366 * 24 * 3600 * 1000))
@@ -281,7 +296,7 @@ describe('POST /api/payments/webhook', () => {
   test('ignora quando payment.status != approved', async () => {
     mockPaymentGet({ ...VALID_PAYMENT, status: 'pending' })
 
-    await request(app).post(ENDPOINT).send(webhookBody())
+    await signedWebhookPost()
     await flushAsync()
 
     expect(prisma.$transaction).not.toHaveBeenCalled()
@@ -290,7 +305,7 @@ describe('POST /api/payments/webhook', () => {
   test('ignora quando external_reference está ausente', async () => {
     mockPaymentGet({ ...VALID_PAYMENT, external_reference: null })
 
-    await request(app).post(ENDPOINT).send(webhookBody())
+    await signedWebhookPost()
     await flushAsync()
 
     expect(prisma.$transaction).not.toHaveBeenCalled()
@@ -299,7 +314,7 @@ describe('POST /api/payments/webhook', () => {
   test('ignora quando external_reference tem formato inválido', async () => {
     mockPaymentGet({ ...VALID_PAYMENT, external_reference: 'invalido' })
 
-    await request(app).post(ENDPOINT).send(webhookBody())
+    await signedWebhookPost()
     await flushAsync()
 
     expect(prisma.$transaction).not.toHaveBeenCalled()
@@ -308,7 +323,7 @@ describe('POST /api/payments/webhook', () => {
   test('ignora quando plano no external_reference é inválido', async () => {
     mockPaymentGet({ ...VALID_PAYMENT, external_reference: `${USER_ID}|vip|monthly` })
 
-    await request(app).post(ENDPOINT).send(webhookBody())
+    await signedWebhookPost()
     await flushAsync()
 
     expect(prisma.$transaction).not.toHaveBeenCalled()
@@ -317,7 +332,7 @@ describe('POST /api/payments/webhook', () => {
   test('ignora quando type != payment', async () => {
     mockPaymentGet()
 
-    await request(app).post(ENDPOINT).send({ type: 'topic', data: { id: 'pay_123' } })
+    await signedWebhookPost('pay_123', { type: 'topic', data: { id: 'pay_123' } })
     await flushAsync()
 
     expect(prisma.$transaction).not.toHaveBeenCalled()
@@ -333,11 +348,17 @@ describe('POST /api/payments/webhook', () => {
       })
     )
 
-    const res = await request(app).post(ENDPOINT).send(webhookBody())
+    const res = await signedWebhookPost()
     await flushAsync()
 
     expect(res.status).toBe(200)
     expect(sendPlanActivationEmail).not.toHaveBeenCalled()
+  })
+
+  test('503 quando MP_WEBHOOK_SECRET não está configurado', async () => {
+    delete process.env.MP_WEBHOOK_SECRET
+    const res = await request(app).post(ENDPOINT).send(webhookBody())
+    expect(res.status).toBe(503)
   })
 
   // ── Validação de assinatura HMAC ──────────────────────
