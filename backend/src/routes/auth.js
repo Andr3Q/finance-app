@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail } = require('../services/emailService')
+const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
 
@@ -605,7 +605,10 @@ router.put('/password', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'A nova senha deve conter maiúscula, minúscula e número.' })
     }
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { password: true } })
+    const user = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { password: true, email: true, name: true },
+    })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
     const match = await bcrypt.compare(currentPassword, user.password)
@@ -614,6 +617,9 @@ router.put('/password', authMiddleware, async (req, res) => {
     if (await bcrypt.compare(newPassword, user.password)) {
       return res.status(400).json({ error: 'A nova senha não pode ser igual à senha atual.' })
     }
+
+    // Alerta vai para o email ANTES do save — se foi o usuário, ignora; se não foi, ainda tem acesso ao email antigo
+    sendPasswordChangedAlert(user.email, user.name).catch(() => {})
 
     const hashed = await bcrypt.hash(newPassword, 12)
     await prisma.user.update({ where: { id: req.userId }, data: { password: hashed } })

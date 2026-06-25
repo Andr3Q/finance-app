@@ -444,4 +444,43 @@ async function sendWeeklyDigest(toEmail, userName, weekData) {
   })
 }
 
-module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail }
+async function sendPasswordChangedAlert(toEmail, userName) {
+  const appUrl = process.env.APP_URL || 'https://myfinancepro.com.br'
+  const now    = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
+      <div style="background:linear-gradient(135deg,#1a0005,#2d000e);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(239,68,68,0.3);">
+        <h1 style="color:#ef4444;margin:0;font-size:24px;">Nancy</h1>
+        <p style="color:#997a7a;margin:8px 0 0;font-size:14px;">🔐 Senha alterada</p>
+      </div>
+      <div style="background:#fff;padding:28px;border-radius:12px;">
+        <p style="color:#333;font-size:15px;margin:0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">
+          A senha da sua conta foi alterada em <strong>${esc(now)}</strong> (horário de Brasília).
+        </p>
+        <div style="background:#fff5f5;border-radius:10px;padding:16px;margin-bottom:24px;border-left:3px solid #ef4444;">
+          <p style="margin:0;color:#333;font-size:13px;line-height:1.6;">
+            <strong>Não foi você?</strong> Acesse o app imediatamente e use "Esqueci minha senha" para recuperar o acesso.
+            Se precisar de ajuda, entre em contato com o suporte.
+          </p>
+        </div>
+        <div style="text-align:center;">
+          <a href="${appUrl}/login" style="display:inline-block;background:#ef4444;color:#fff;text-decoration:none;padding:14px 36px;border-radius:12px;font-weight:700;font-size:15px;">
+            Acessar minha conta
+          </a>
+        </div>
+      </div>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await resend.emails.send({
+    from:    FROM,
+    to:      toEmail,
+    subject: '🔐 Sua senha foi alterada — Nancy',
+    html,
+  })
+}
+
+module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert }
