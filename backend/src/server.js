@@ -125,11 +125,6 @@ app.use((req, res, next) => {
   next()
 })
 
-// Diagnóstico temporário — confirmar versão deployada
-app.get('/api/deploy-version', (req, res) => {
-  res.json({ commit: 'b98c5c8', sitemapRoute: 'express-line128', env: process.env.NODE_ENV })
-})
-
 // Sitemap dinâmico — ANTES do express.static (arquivo estático removido do frontend/public)
 app.get('/sitemap.xml', (req, res) => {
   const BASE = process.env.APP_URL || 'https://myfinancepro.com.br'
@@ -293,15 +288,15 @@ app.get('/health', apiLimiter, async (req, res) => {
 
   if (now - _health.ts < 30_000 && _health.ts > 0) {
     const status = _health.ok ? 'ok' : 'degraded'
-    if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms, cached: true, v: 'cc5ec46' })
-    return res.json({ status, db_ms: _health.db_ms, cached: true, v: 'cc5ec46' })
+    if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms, cached: true })
+    return res.json({ status, db_ms: _health.db_ms, cached: true })
   }
 
   // Fallback: cache expirou (keepalive falhou por >30s) — query direta
   await refreshHealth()
   const status = _health.ok ? 'ok' : 'degraded'
-  if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms, v: 'cc5ec46' })
-  res.json({ status, db_ms: _health.db_ms, v: 'cc5ec46' })
+  if (!_health.ok) return res.status(503).json({ status, db_ms: _health.db_ms })
+  res.json({ status, db_ms: _health.db_ms })
 })
 
 // ── Sentry error handler — captura todas as exceções não tratadas ───
