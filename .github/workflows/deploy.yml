@@ -378,11 +378,16 @@ jobs:
           gcloud run deploy "$SERVICE" \
             --image "$IMAGE" \
             --region "$REGION" \
-            --traffic=LATEST \
             --set-env-vars "NODE_ENV=production,EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,EMAIL_USER=EMAIL_USER:latest,EMAIL_PASS=EMAIL_PASS:latest,GROQ_API_KEY=GROQ_API_KEY:latest,VAPID_PUBLIC_KEY=VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,MP_ACCESS_TOKEN=MP_ACCESS_TOKEN:latest,MONITOR_SECRET=MONITOR_SECRET:latest,UPGRADE_SECRET=UPGRADE_SECRET:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
             --quiet
-          echo "✅ Deploy enviado — aguardando health check..."
+
+          echo "🔀 Redirecionando tráfego para a nova revisão..."
+          gcloud run services update-traffic "$SERVICE" \
+            --region "$REGION" \
+            --to-latest \
+            --quiet
+          echo "✅ Deploy concluído — aguardando health check..."
 
       - name: Health check (3 tentativas · 20s de intervalo)
         if: github.event.inputs.modo != 'rollback'
