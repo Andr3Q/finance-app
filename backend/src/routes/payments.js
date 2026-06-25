@@ -15,12 +15,7 @@ const APP_URL = process.env.APP_URL || 'https://finance-app-1042158013294.southa
 // Ref: https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks
 function verifyMpSignature(req) {
   const secret = process.env.MP_WEBHOOK_SECRET
-  // Sem secret configurado: permite com aviso — não bloqueia pagamentos em produção.
-  // Em produção, defina MP_WEBHOOK_SECRET no Cloud Run para validação rigorosa.
-  if (!secret) {
-    console.warn('[payments] MP_WEBHOOK_SECRET não configurado — validação de assinatura ignorada')
-    return true
-  }
+  if (!secret) return null  // null = secret ausente (503), false = assinatura inválida (200)
 
   const sig   = req.headers['x-signature']
   const reqId = req.headers['x-request-id']
@@ -108,9 +103,15 @@ router.post('/create-preference', authMiddleware, async (req, res) => {
 // Recebe notificações do MP — sem auth JWT (chamado pelo MP).
 // Responde 200 imediatamente e processa em background.
 router.post('/webhook', apiLimiter, async (req, res) => {
-  if (!verifyMpSignature(req)) {
+  const sigResult = verifyMpSignature(req)
+  if (sigResult === null) {
+    // Secret não configurado: 503 para o MP retentar quando o servidor estiver pronto
+    console.error('[payments] MP_WEBHOOK_SECRET não configurado — rejeitando webhook com 503')
+    return res.sendStatus(503)
+  }
+  if (!sigResult) {
     console.warn('[payments] webhook rejeitado: assinatura inválida')
-    return res.sendStatus(200) // sempre 200 para o MP não retentar
+    return res.sendStatus(200) // 200 para o MP não retentar com dados inválidos
   }
   res.sendStatus(200)
 
