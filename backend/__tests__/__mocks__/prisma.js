@@ -33,6 +33,9 @@ function setDefaults() {
   prismaMock.loginAudit.create.mockResolvedValue({})
   prismaMock.loginAudit.findFirst.mockResolvedValue(null)
   prismaMock.loginAudit.deleteMany.mockResolvedValue({ count: 0 })
+  prismaMock.accountUnlockToken.create.mockResolvedValue({})
+  prismaMock.accountUnlockToken.findUnique.mockResolvedValue(null)
+  prismaMock.accountUnlockToken.update.mockResolvedValue({})
   prismaMock.$transaction.mockImplementation((callbackOrArray) => {
     if (typeof callbackOrArray === 'function') return callbackOrArray(prismaMock)
     return Promise.resolve(callbackOrArray ?? [])
