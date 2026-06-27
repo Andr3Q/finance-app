@@ -10,7 +10,7 @@ Aplicação web de controle financeiro pessoal com agente de IA, suporte a PWA, 
 
 | Módulo | Descrição |
 |--------|-----------|
-| **Autenticação** | Login/registro com JWT em cookie httpOnly, reset de senha por e-mail, verificação de e-mail, 2FA (TOTP + códigos de backup) |
+| **Autenticação** | Login/registro com JWT em cookie httpOnly, reset de senha por e-mail, verificação de e-mail, 2FA (TOTP + códigos de backup), anti-brute-force com desbloqueio por e-mail |
 | **Transações** | Registro de receitas e despesas por categoria, paginação, importação CSV |
 | **Parcelamentos** | Criação de planos de parcelamento, pagamento/estorno de parcelas individuais |
 | **Contas Fixas** | Cadastro de despesas recorrentes com lançamento automático mensal |
@@ -124,7 +124,7 @@ finance-app/
 │   │   │   └── rateLimiter.js      # Rate limiting por rota (express-rate-limit)
 │   │   │
 │   │   ├── services/
-│   │   │   ├── emailService.js     # Envio de e-mails (relatório PDF + reset + verificação)
+│   │   │   ├── emailService.js     # Envio de e-mails (relatório PDF + reset + verificação + alertas de segurança)
 │   │   │   ├── pdfService.js       # Geração de relatório PDF em memória (PDFKit)
 │   │   │   └── pushService.js      # Envio de Web Push para assinantes do usuário
 │   │   │
@@ -135,7 +135,7 @@ finance-app/
 │   │   ├── schema.prisma           # Modelos: User, Transaction, Budget, Goal, InstallmentPlan...
 │   │   └── migrations/             # 20+ migrations SQL com histórico completo
 │   │
-│   └── __tests__/                  # 201 testes Jest (mocks via jest-mock-extended)
+│   └── __tests__/                  # 204 testes Jest (mocks via jest-mock-extended)
 │
 └── frontend/
     ├── src/
@@ -152,6 +152,7 @@ finance-app/
     │   │   ├── Settings.jsx        # Perfil, salário, contas fixas, 2FA, notificações
     │   │   ├── Planos.jsx          # Página de planos Free/Pro/Elite + checkout MP
     │   │   ├── VerifyEmail.jsx     # Confirmação de e-mail via token
+    │   │   ├── UnlockAccount.jsx   # Desbloqueio de conta via link de e-mail (anti-brute-force)
     │   │   ├── ForgotPassword.jsx
     │   │   ├── ResetPassword.jsx
     │   │   ├── PrivacyPolicy.jsx
@@ -205,7 +206,7 @@ O projeto tem 4 workflows automatizados:
 Dispara em todo push (exceto `main`) e em PRs. Bloqueia o merge se qualquer job falhar.
 
 ```
-Backend · Jest (201)  ─┐
+Backend · Jest (204)  ─┐
 Frontend · Vitest (141)─┼─→  E2E · Playwright (91)
 Build · Vite (prod)   ─┘
 ```
@@ -343,6 +344,7 @@ Todas as rotas ficam sob `/api/`. Rotas protegidas exigem cookie `token` (JWT).
 | POST | `/resend-verification` | ✓ | Reenvia e-mail de verificação |
 | POST | `/upgrade` | ✓ | Ativa plano Pro (requer `UPGRADE_SECRET`) |
 | POST | `/downgrade` | ✓ | Volta para plano Free |
+| POST | `/unlock-account` | — | Desbloqueia conta via token de e-mail (uso único, 1h) |
 
 ### 2FA — `/api/auth/2fa`
 | Método | Rota | Auth | Descrição |
@@ -452,13 +454,15 @@ User
   ├── reportEmail, resetToken, resetTokenExpiry
   ├── autoLaunchMonth, autoLaunchYear
   ├── notifBudgetAlert, notifBudgetReminder
+  ├── failedLoginCount, accountLockedAt
   ├── transactions[]
   ├── budgets[]
   ├── categoryLimits[]
   ├── goals[]
   ├── installmentPlans[]
   ├── pushSubscriptions[]
-  └── twoFactorBackupCodes[]
+  ├── twoFactorBackupCodes[]
+  └── accountUnlockTokens[]
 
 Transaction
   └── id, description, amount, type, category, date, month, year, archived, userId
@@ -482,7 +486,10 @@ ProcessedPayment
   └── id, paymentId, userId, plan, amount, createdAt  [idempotência de webhook]
 
 LoginAudit
-  └── id, email, ip, success, createdAt  [índices para monitor de segurança]
+  └── id, email, success, ip, userAgent, createdAt  [índices para monitor de segurança]
+
+AccountUnlockToken
+  └── id, tokenHash (SHA-256), expiresAt, usedAt, createdAt, userId  [uso único, 1h]
 ```
 
 **Migrations:** 20+ arquivos SQL em `backend/prisma/migrations/` com histórico completo desde o baseline.
@@ -502,6 +509,10 @@ LoginAudit
 - **SSRF protection** no endpoint de Web Push (whitelist de hosts)
 - **`crypto.timingSafeEqual`** para comparação de segredos (UPGRADE_SECRET, MONITOR_SECRET)
 - **`X-Request-Id`** em todas as respostas para correlação de logs
-- **LoginAudit** — log de todas as tentativas de autenticação
+- **LoginAudit** — log de todas as tentativas de autenticação (email, IP, userAgent, sucesso)
+- **Anti-brute-force** — conta bloqueada após 10 tentativas falhas; link de desbloqueio por e-mail (SHA-256, uso único, 1h)
+- **Alerta de senha alterada** — e-mail enviado para o endereço antigo antes de salvar a nova senha no banco
+- **Alerta de novo IP** — e-mail de alerta quando o login vem de um IP não visto nos últimos 30 dias (fire-and-forget)
 - **Idempotência de webhook** — `ProcessedPayment` previne ativação dupla de plano
+- **Webhook MP fail-fast** — retorna 503 se `MP_WEBHOOK_SECRET` não estiver configurado; 200 silencioso se assinatura inválida
 - **RLS (Row Level Security)** habilitado no Supabase
