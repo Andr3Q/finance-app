@@ -23,6 +23,9 @@ const { nowBrasilia } = require('../utils/helpers')
 
 const router = express.Router()
 
+// Prisma retorna Decimal como string — normaliza para number antes de enviar ao cliente
+const normalizeTx = (t) => ({ ...t, amount: Number(t.amount) })
+
 // Aplica autenticação em TODAS as rotas deste arquivo
 router.use(authMiddleware)
 
@@ -112,7 +115,7 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
 
     res.json({
       summary: { salary, totalIncome, totalFixedCosts, totalExpenses, totalAvailable, currentBalance, percentUsed, autoLaunched, month, year },
-      transactions,
+      transactions: transactions.map(normalizeTx),
       limits,
       budgets,
     })
@@ -242,7 +245,7 @@ router.get('/', dashboardLimiter, async (req, res) => {
     ])
 
     res.json({
-      data,
+      data: data.map(normalizeTx),
       total,
       page,
       totalPages: Math.ceil(total / limit),
