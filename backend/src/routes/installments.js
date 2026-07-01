@@ -8,6 +8,8 @@ const { nowBrasilia } = require('../utils/helpers')
 
 router.use(authMiddleware)
 
+const normalizePlan = (p) => ({ ...p, amount: Number(p.amount) })
+
 // GET /installments
 router.get('/', async (req, res) => {
   try {
@@ -15,7 +17,7 @@ router.get('/', async (req, res) => {
       where:   { userId: req.userId },
       orderBy: { createdAt: 'asc' },
     })
-    res.json(plans)
+    res.json(plans.map(normalizePlan))
   } catch (err) {
     console.error('Erro ao listar parcelamentos:', err)
     res.status(500).json({ error: 'Erro ao carregar parcelamentos.' })
@@ -109,7 +111,7 @@ router.patch('/:id/pay', async (req, res) => {
       return { updatedPlan, transaction }
     })
 
-    res.json({ plan: updatedPlan, transaction })
+    res.json({ plan: normalizePlan(updatedPlan), transaction: { ...transaction, amount: Number(transaction.amount) } })
   } catch (err) {
     console.error('Erro ao pagar parcela:', err)
     res.status(500).json({ error: 'Erro ao registrar pagamento.' })
@@ -144,7 +146,7 @@ router.patch('/:id/unpay', async (req, res) => {
     }
 
     const [updated] = await prisma.$transaction(ops)
-    res.json(updated)
+    res.json(normalizePlan(updated))
   } catch (err) {
     console.error('Erro ao desfazer parcela:', err)
     res.status(500).json({ error: 'Erro ao desfazer parcela.' })

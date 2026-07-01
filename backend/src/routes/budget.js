@@ -20,6 +20,10 @@ const { UUID_REGEX, MAX_AMOUNT, VALID_CATEGORIES } = require('../utils/constants
 
 const router = express.Router()
 
+// Prisma retorna Decimal como string — normaliza para number antes de enviar ao cliente
+const normalizeBudget = (b) => ({ ...b, amount: Number(b.amount) })
+const normalizeLimit  = (l) => ({ ...l, amount: Number(l.amount) })
+
 router.use(authMiddleware)
 
 // ── GET /budget ─────────────────────────────────────────
@@ -29,7 +33,7 @@ router.get('/', async (req, res) => {
       where:   { userId: req.userId },
       orderBy: { name: 'asc' }
     })
-    res.json(budgets)
+    res.json(budgets.map(normalizeBudget))
   } catch (error) {
     res.status(500).json({ error: 'Erro ao listar contas fixas.' })
   }
@@ -94,7 +98,7 @@ router.post('/', async (req, res) => {
     if (endDate !== undefined && endDate !== null) createData.endDate = new Date(endDate)
 
     const budget = await prisma.budget.create({ data: createData })
-    res.status(201).json(budget)
+    res.status(201).json(normalizeBudget(budget))
   } catch (error) {
     res.status(500).json({ error: 'Erro ao criar conta fixa.' })
   }
@@ -118,7 +122,7 @@ router.put('/salary', async (req, res) => {
       where: { id: req.userId },
       data:  { salary: parsed }
     })
-    res.json({ salary: user.salary })
+    res.json({ salary: Number(user.salary) })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar salário.' })
   }
@@ -180,7 +184,7 @@ router.put('/:id', async (req, res) => {
   try {
     // update com userId na where = ownership check + update em 1 query (sem findFirst prévio)
     const budget = await prisma.budget.update({ where: { id, userId: req.userId }, data: updateData })
-    res.json(budget)
+    res.json(normalizeBudget(budget))
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Conta fixa não encontrada.' })
     console.error('Erro ao atualizar conta fixa:', err)
@@ -208,7 +212,7 @@ router.delete('/:id', async (req, res) => {
 router.get('/category-limits', async (req, res) => {
   try {
     const limits = await prisma.categoryLimit.findMany({ where: { userId: req.userId } })
-    res.json(limits)
+    res.json(limits.map(normalizeLimit))
   } catch (error) {
     res.status(500).json({ error: 'Erro ao listar limites.' })
   }
@@ -255,7 +259,7 @@ router.post('/category-limits', async (req, res) => {
       update: { amount: parsedCatAmount },
       create: { category, amount: parsedCatAmount, userId: req.userId }
     })
-    res.json(limit)
+    res.json(normalizeLimit(limit))
   } catch (error) {
     res.status(500).json({ error: 'Erro ao salvar limite.' })
   }
