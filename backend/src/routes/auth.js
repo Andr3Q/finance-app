@@ -140,7 +140,7 @@ router.post('/register', registerLimiter, async (req, res) => {
     setAuthCookie(res, token)
 
     res.status(201).json({
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan, isOnTrial: true, trialEndsAt: trialEndsAt.toISOString(), referralCode }
+      user: { id: user.id, name: user.name, email: user.email, salary: Number(user.salary || 0), reportEmail: user.reportEmail, plan: user.plan, isOnTrial: true, trialEndsAt: trialEndsAt.toISOString(), referralCode }
     })
   } catch (error) {
     console.error('[auth] register:', error.message)
@@ -247,7 +247,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     setAuthCookie(res, token)
 
     res.json({
-      user: { id: user.id, name: user.name, email: user.email, salary: user.salary, reportEmail: user.reportEmail, plan: user.plan, referralCode: user.referralCode || null }
+      user: { id: user.id, name: user.name, email: user.email, salary: Number(user.salary || 0), reportEmail: user.reportEmail, plan: user.plan, referralCode: user.referralCode || null }
     })
   } catch (error) {
     console.error('[auth] login:', error.message)
@@ -421,6 +421,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     const { planExpiresAt, trialEndsAt, renewalReminderSent: _rrs, trialReminderSent: _trs, weeklyDigestSentAt: _wds, emailVerified, planPeriod: _pp, budgetReminderSentAt: _brs, password: _pw, twoFactorSecret: _tfs, resetToken: _rt, ...userOut } = user
     userOut.emailVerified = emailVerified
     userOut.isOnTrial = isOnTrial
+    userOut.salary = Number(userOut.salary || 0)
     if (isOnTrial) userOut.trialEndsAt = trialEndsAt.toISOString()
     if (userOut.plan !== 'free' && planExpiresAt) {
       userOut.planExpiresAt = planExpiresAt.toISOString()
@@ -539,7 +540,7 @@ router.post('/upgrade', authMiddleware, async (req, res) => {
       data:   { plan: 'pro' },
       select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true }
     })
-    res.json({ message: 'Plano atualizado para Pro!', user })
+    res.json({ message: 'Plano atualizado para Pro!', user: { ...user, salary: Number(user.salary || 0) } })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar plano.' })
   }
@@ -575,7 +576,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
       data,
       select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true }
     })
-    res.json({ user })
+    res.json({ user: { ...user, salary: Number(user.salary || 0) } })
   } catch (error) {
     console.error('[auth] profile:', error.message)
     res.status(500).json({ error: 'Erro ao atualizar perfil.' })
@@ -639,7 +640,7 @@ router.post('/downgrade', authMiddleware, async (req, res) => {
       data:   { plan: 'free' },
       select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true }
     })
-    res.json({ message: 'Plano alterado para Free.', user })
+    res.json({ message: 'Plano alterado para Free.', user: { ...user, salary: Number(user.salary || 0) } })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar plano.' })
   }

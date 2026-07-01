@@ -409,7 +409,7 @@ router.post('/', dashboardLimiter, async (req, res) => {
       } catch (e) { console.error('Push error:', e.message) }
     })
 
-    res.status(201).json(transaction)
+    res.status(201).json(normalizeTx(transaction))
   } catch (error) {
     console.error('Erro ao criar transação:', error)
     res.status(500).json({ error: 'Erro ao registrar transação.' })
@@ -467,7 +467,7 @@ router.put('/:id', dashboardLimiter, async (req, res) => {
     if (result.count === 0) return res.status(404).json({ error: 'Transação não encontrada.' })
 
     const updated = await prisma.transaction.findUnique({ where: { id } })
-    res.json(updated)
+    res.json(normalizeTx(updated))
   } catch (error) {
     console.error('Erro ao atualizar transação:', error)
     res.status(500).json({ error: 'Erro ao atualizar transação.' })

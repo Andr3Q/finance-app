@@ -80,7 +80,7 @@ router.post('/', async (req, res) => {
         userId:        req.userId,
       },
     })
-    res.status(201).json(goal)
+    res.status(201).json(normalizeGoal(goal))
   } catch {
     res.status(500).json({ error: 'Erro ao criar meta.' })
   }
