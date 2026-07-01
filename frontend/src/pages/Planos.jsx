@@ -514,7 +514,7 @@ export default function Planos() {
       {/* ── Modal: Elite tentando fazer downgrade para Pro ── */}
       {showDowngradeModal && (
         <div
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:600, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
           onClick={() => setShowDowngradeModal(false)}
         >
           <div

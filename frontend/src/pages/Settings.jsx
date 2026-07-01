@@ -169,7 +169,7 @@ export default function Settings() {
       )}
 
       {deleteModal && (
-        <div className="modal-overlay" style={{ zIndex:500 }}>
+        <div className="modal-overlay" style={{ zIndex:9000 }}>
           <div className="modal del-modal" style={{ maxWidth:420, padding:0, overflow:'hidden', border:'1px solid rgba(239,68,68,.2)' }}>
 
             <div className="del-modal-bar" />
