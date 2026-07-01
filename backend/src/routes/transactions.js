@@ -116,8 +116,8 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
     res.json({
       summary: { salary, totalIncome, totalFixedCosts, totalExpenses, totalAvailable, currentBalance, percentUsed, autoLaunched, month, year },
       transactions: transactions.map(normalizeTx),
-      limits,
-      budgets,
+      limits: limits.map(l => ({ ...l, amount: Number(l.amount) })),
+      budgets: budgets.map(b => ({ ...b, amount: Number(b.amount) })),
     })
   } catch (err) {
     console.error('Erro no dashboard:', err)

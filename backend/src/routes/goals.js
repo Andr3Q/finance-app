@@ -8,6 +8,8 @@ router.use(authMiddleware)
 
 const { UUID_REGEX, HEX_COLOR } = require('../utils/constants')
 
+const normalizeGoal = (g) => ({ ...g, targetAmount: Number(g.targetAmount), currentAmount: Number(g.currentAmount) })
+
 function validId(id) { return UUID_REGEX.test(id) }
 
 router.get('/', async (req, res) => {
@@ -16,7 +18,7 @@ router.get('/', async (req, res) => {
       where:   { userId: req.userId },
       orderBy: { createdAt: 'desc' },
     })
-    res.json(goals)
+    res.json(goals.map(normalizeGoal))
   } catch {
     res.status(500).json({ error: 'Erro ao listar metas.' })
   }
@@ -144,7 +146,7 @@ router.patch('/:id', async (req, res) => {
       where: { id: req.params.id, userId: req.userId },
       data,
     })
-    res.json(updated)
+    res.json(normalizeGoal(updated))
 
     if (prevGoal && Number(updated.targetAmount) > 0 && Number(prevGoal.targetAmount) > 0) {
       const prevPct = Number(prevGoal.currentAmount) / Number(prevGoal.targetAmount)
