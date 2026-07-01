@@ -69,7 +69,7 @@ router.post('/', async (req, res) => {
         userId:            req.userId,
       },
     })
-    res.status(201).json(plan)
+    res.status(201).json(normalizePlan(plan))
   } catch (err) {
     console.error('Erro ao criar parcelamento:', err)
     res.status(500).json({ error: 'Erro ao criar parcelamento.' })

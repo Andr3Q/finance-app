@@ -1,10 +1,13 @@
-export const fmt = (n) =>
-  n?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'
+export const fmt = (n) => {
+  const num = Number(n)
+  return isFinite(num) ? num.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00'
+}
 
 export const fmtShort = (n) => {
-  if (!n && n !== 0) return '0'
-  if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return n.toLocaleString('pt-BR', { minimumFractionDigits: 0 })
+  const num = Number(n)
+  if (!isFinite(num)) return '0'
+  if (Math.abs(num) >= 1000) return `${(num / 1000).toFixed(1)}k`
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 0 })
 }
 
 export const fmtDate = (d) =>
