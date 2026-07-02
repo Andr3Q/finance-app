@@ -167,18 +167,20 @@ async function runTool(name, args, userId) {
 
   if (name === 'create_transaction') {
     const amount = Number(args.amount)
-    if (!amount || amount <= 0)    return { error: 'Valor inválido.' }
+    if (!isFinite(amount) || amount <= 0) return { error: 'Valor inválido.' }
     if (!['expense','income'].includes(args.type)) return { error: 'Tipo inválido.' }
     if (!VALID_CATEGORIES.includes(args.category)) return { error: 'Categoria inválida.' }
 
-    let txMonth, txYear
+    let txMonth, txYear, date
     if (args.date) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) return { error: 'Data inválida. Use YYYY-MM-DD.' }
       const parsed = new Date(args.date)
       if (isNaN(parsed.getTime())) return { error: 'Data inválida.' }
+      date    = parsed
       txMonth = parsed.getUTCMonth() + 1
       txYear  = parsed.getUTCFullYear()
     } else {
+      date    = new Date()
       const br = nowBrasilia()
       txMonth  = br.month
       txYear   = br.year
@@ -200,8 +202,8 @@ async function runTool(name, args, userId) {
         category: args.category,
         description: args.description ? String(args.description).slice(0, 255) : null,
         date,
-        month: date.getMonth() + 1,
-        year:  date.getFullYear(),
+        month: txMonth,
+        year:  txYear,
       },
     })
     return {

@@ -27,9 +27,11 @@ export default function Calendar() {
   const [goals,         setGoals]         = useState([])
   const [installments,  setInstallments]  = useState([])
   const [loading,       setLoading]       = useState(true)
+  const [fetchError,    setFetchError]    = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    setFetchError(false)
     try {
       const [txRes, budgetRes, goalsRes, instRes] = await Promise.all([
         transactionsAPI.list({ month, year, limit: 200 }),
@@ -43,6 +45,7 @@ export default function Calendar() {
       setInstallments(instRes.data || [])
     } catch {
       setTransactions([]); setBudgets([]); setGoals([]); setInstallments([])
+      setFetchError(true)
     } finally {
       setLoading(false)
     }
@@ -98,6 +101,11 @@ export default function Calendar() {
   return (
     <>
       <Navbar />
+      {fetchError && (
+        <div className="toast terr" style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:9001, whiteSpace:'nowrap' }}>
+          Erro ao carregar dados do calendário.
+        </div>
+      )}
       <div className="pwnav fade-in">
         <div className="dsb-content">
           <div className="cal-page">
