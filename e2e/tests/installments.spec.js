@@ -163,7 +163,6 @@ test.describe('Parcelamentos — Desfazer parcela', () => {
 test.describe('Parcelamentos — Excluir', () => {
   test('clica no X e remove o parcelamento', async ({ page }) => {
     await injectSession(page)
-    page.on('dialog', d => d.accept())
 
     let deleted = false
     page.route('**/api/installments**', (route) => {
@@ -191,6 +190,8 @@ test.describe('Parcelamentos — Excluir', () => {
     await page.getByText('iPhone 15').waitFor()
 
     await page.locator('[title="Remover"]').click()
+    // Modal de confirmação — clicar "Remover" para confirmar
+    await page.getByRole('button', { name: 'Remover', exact: true }).click()
     await expect(page.getByText(/parcelamento removido/i)).toBeVisible()
   })
 })
