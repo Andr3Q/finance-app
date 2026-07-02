@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { budgetAPI, transactionsAPI } from '../../../services/api.js'
 import { invalidateCache } from '../../../services/cache.js'
 import { useUser } from '../../../hooks/useUser.js'
@@ -274,9 +275,9 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       </div>
     </div>
 
-    {deleteConfirmId && (
-      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:400, textAlign:'center' }}>
+    {deleteConfirmId && createPortal(
+      <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+        <div className="cfg-del-confirm-card">
           <div style={{ width:52, height:52, borderRadius:14, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
               <polyline points="3 6 5 6 21 6"/>
@@ -298,7 +299,8 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     )}
     </>
   )

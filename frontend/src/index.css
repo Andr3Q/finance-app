@@ -226,8 +226,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .progress-fill { height: 100%; border-radius: 10px; background: linear-gradient(90deg, var(--c), var(--cb)); transition: width .7s cubic-bezier(.4,0,.2,1); }
 
 /* ── Animações ───────────────────────────────────────────── */
-@keyframes fadeIn    { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-@keyframes fadeUp    { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn    { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+@keyframes fadeUp    { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
 @keyframes slideUp   { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
 @keyframes pulse     { 0%,100% { opacity:1; } 50% { opacity:.6; } }
 @keyframes pdot      { 0%,100% { box-shadow:0 0 0 0 rgba(74,226,172,.5); } 50% { box-shadow:0 0 0 6px rgba(74,226,172,0); } }
@@ -6170,6 +6170,22 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .del-modal-inner { padding: 24px 28px 28px; }
 .del-modal-btns { display: flex; gap: 10px; }
 .del-modal-btns button { flex: 1; padding: 11px 0; border-radius: 9px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+.cfg-del-confirm-card {
+  background: #1e1e1e;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+}
+[data-theme="light"] .cfg-del-confirm-card {
+  background: #ffffff;
+  border-color: rgba(0,0,0,.1);
+  box-shadow: 0 20px 60px rgba(0,0,0,.15);
+}
 
 [data-theme="light"] .del-modal { background: #ffffff; border-color: rgba(239,68,68,.18); }
 [data-theme="light"] .del-modal-list { background: rgba(239,68,68,.04); border-color: rgba(239,68,68,.1); }

@@ -211,20 +211,16 @@ describe('Transactions — pagar e desfazer parcela', () => {
 
 describe('Transactions — remover parcelamento', () => {
   beforeEach(() => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     installmentsAPI.remove.mockResolvedValue({})
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
   })
 
-  afterEach(() => vi.restoreAllMocks())
-
   it('chama installmentsAPI.remove com id correto', async () => {
     render(<MemoryRouter><Transactions /></MemoryRouter>)
-    // O botão de remoção tem title="Remover"
-    const delBtn = await screen.findByTitle('Remover')
-    fireEvent.click(delBtn)
-
+    fireEvent.click(await screen.findByTitle('Remover'))
+    // Modal de confirmação abre — clicar "Remover" para confirmar
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover' }))
     await waitFor(() => {
       expect(installmentsAPI.remove).toHaveBeenCalledWith('plan-001')
     })
@@ -233,13 +229,14 @@ describe('Transactions — remover parcelamento', () => {
   it('mostra toast "Parcelamento removido." após remoção', async () => {
     render(<MemoryRouter><Transactions /></MemoryRouter>)
     fireEvent.click(await screen.findByTitle('Remover'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover' }))
     expect(await screen.findByText(/parcelamento removido/i)).toBeInTheDocument()
   })
 
   it('não remove quando usuário cancela o confirm', async () => {
-    window.confirm.mockReturnValue(false)
     render(<MemoryRouter><Transactions /></MemoryRouter>)
     fireEvent.click(await screen.findByTitle('Remover'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
     expect(installmentsAPI.remove).not.toHaveBeenCalled()
   })
 })
