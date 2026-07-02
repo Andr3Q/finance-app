@@ -378,9 +378,28 @@ jobs:
           gcloud run deploy "$SERVICE" \
             --image "$IMAGE" \
             --region "$REGION" \
+            --cpu 1 \
+            --memory 512Mi \
+            --min-instances 1 \
+            --max-instances 4 \
+            --cpu-throttling \
+            --concurrency 80 \
             --set-env-vars "NODE_ENV=production,EMAIL_FROM=${{ secrets.EMAIL_FROM }}" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,EMAIL_USER=EMAIL_USER:latest,EMAIL_PASS=EMAIL_PASS:latest,GROQ_API_KEY=GROQ_API_KEY:latest,VAPID_PUBLIC_KEY=VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,MP_ACCESS_TOKEN=MP_ACCESS_TOKEN:latest,MP_WEBHOOK_SECRET=MP_WEBHOOK_SECRET:latest,MONITOR_SECRET=MONITOR_SECRET:latest,UPGRADE_SECRET=UPGRADE_SECRET:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,RESEND_API_KEY=RESEND_API_KEY:latest" \
             --quiet
+
+          echo "🧹 Removendo imagens antigas do Container Registry (mantém as 5 mais recentes)..."
+          OLD_IMAGES=$(gcloud container images list-tags "gcr.io/${PROJECT}/${SERVICE}" \
+            --format="get(digest)" --sort-by="~timestamp" | tail -n +6 || true)
+          if [[ -n "$OLD_IMAGES" ]]; then
+            echo "$OLD_IMAGES" | while read digest; do
+              gcloud container images delete "gcr.io/${PROJECT}/${SERVICE}@${digest}" \
+                --force-delete-tags --quiet 2>/dev/null || true
+            done
+            echo "✅ Imagens antigas removidas."
+          else
+            echo "✅ Nenhuma imagem antiga para remover."
+          fi
 
           echo "🔀 Redirecionando tráfego para a nova revisão..."
           gcloud run services update-traffic "$SERVICE" \
