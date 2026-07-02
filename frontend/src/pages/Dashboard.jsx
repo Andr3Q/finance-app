@@ -34,6 +34,7 @@ export default function Dashboard() {
   const [prediction,   setPrediction]   = useState(null)
   const [predLoading,  setPredLoading]  = useState(false)
   const [goals,        setGoals]        = useState([])
+  const [confirmDeleteTx, setConfirmDeleteTx] = useState(null)
 
   const [showBell,           setShowBell]           = useState(false)
   const [bellDismissed,      setBellDismissed]      = useState(false)
@@ -158,13 +159,13 @@ export default function Dashboard() {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Remover esta transação?')) return
     try {
       await transactionsAPI.remove(id)
       fetchData(true)
     } catch {
       showToast('Erro ao remover transação.', false)
     }
+    setConfirmDeleteTx(null)
   }
 
   const pct        = summary?.percentUsed || 0
@@ -804,7 +805,7 @@ export default function Dashboard() {
                                   <div className="hb-feed-meta">
                                     <span className="hb-feed-cat">{CATEGORY_LABELS[t.category]}</span>
                                   </div>
-                                  <button className="hb-feed-del" onClick={() => handleDelete(t.id)} title="Remover">
+                                  <button className="hb-feed-del" onClick={() => setConfirmDeleteTx(t.id)} title="Remover" aria-label="Remover transação">
                                     <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
                                       <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
                                     </svg>
@@ -848,6 +849,19 @@ export default function Dashboard() {
         onClose={() => setShowSearch(false)}
         transactions={transactions}
       />
+
+      {confirmDeleteTx && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
+            <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Remover transação?</div>
+            <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20 }}>Esta ação não pode ser desfeita.</div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setConfirmDeleteTx(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
+              <button onClick={() => handleDelete(confirmDeleteTx)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>Remover</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 

@@ -43,9 +43,11 @@ export default function Transactions() {
   const [showParcForm,  setShowParcForm]  = useState(false)
   const [newParc,       setNewParc]       = useState({ name: '', amount: '', total: '' })
   const [parcLoading,   setParcLoading]   = useState(false)
-  const [payingId,      setPayingId]      = useState(null)
-  const [unpayingId,    setUnpayingId]    = useState(null)
-  const [editingTx,     setEditingTx]     = useState(null)
+  const [payingId,          setPayingId]          = useState(null)
+  const [unpayingId,        setUnpayingId]        = useState(null)
+  const [editingTx,         setEditingTx]         = useState(null)
+  const [confirmDeleteTx,   setConfirmDeleteTx]   = useState(null)
+  const [confirmDeleteParc, setConfirmDeleteParc] = useState(null)
   const fileInputRef = useRef(null)
   const now = new Date()
 
@@ -100,12 +102,12 @@ export default function Transactions() {
   }
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Remover esta transação?')) return
     try {
       await transactionsAPI.remove(id)
       invalidateCache(CACHE_KEY)
       fetchTransactions(true)
     } catch { showToast('Erro ao remover.', false) }
+    setConfirmDeleteTx(null)
   }
 
   const handlePay = async (id) => {
@@ -143,17 +145,20 @@ export default function Transactions() {
   }
 
   const handleDeleteInstallment = async (id) => {
-    if (!window.confirm('Remover este parcelamento?')) return
     try {
       await installmentsAPI.remove(id)
       fetchInstallments()
       showToast('Parcelamento removido.')
     } catch { showToast('Erro ao remover.', false) }
+    setConfirmDeleteParc(null)
   }
 
   const handleCreateInstallment = async (e) => {
     e.preventDefault()
-    if (!newParc.name || !newParc.amount || !newParc.total) return
+    if (!newParc.name || !newParc.amount || !newParc.total) {
+      showToast('Preencha nome, valor e número de parcelas.', false)
+      return
+    }
     setParcLoading(true)
     try {
       await installmentsAPI.create({
@@ -371,7 +376,7 @@ export default function Transactions() {
                         <div key={p.id} className={`parc-card${done ? ' parc-done' : ''}`}>
                           <div className="parc-card-top">
                             <div className="parc-name">{p.name}</div>
-                            <button className="parc-del" onClick={() => handleDeleteInstallment(p.id)} title="Remover">
+                            <button className="parc-del" onClick={() => setConfirmDeleteParc(p.id)} title="Remover" aria-label="Remover parcelamento">
                               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                               </svg>
@@ -510,7 +515,7 @@ export default function Transactions() {
                               <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                             </svg>
                           </button>
-                          <button className="tx1-del" onClick={() => handleDelete(t.id)} title="Remover">
+                          <button className="tx1-del" onClick={() => setConfirmDeleteTx(t.id)} title="Remover" aria-label="Remover transação">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                               <polyline points="3 6 5 6 21 6"/>
                               <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
@@ -581,6 +586,32 @@ export default function Transactions() {
           onClose={() => setEditingTx(null)}
           onSuccess={() => { setEditingTx(null); invalidateCache(CACHE_KEY); fetchTransactions(true) }}
         />
+      )}
+
+      {confirmDeleteTx && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
+            <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Remover transação?</div>
+            <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20 }}>Esta ação não pode ser desfeita.</div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setConfirmDeleteTx(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
+              <button onClick={() => handleDelete(confirmDeleteTx)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>Remover</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteParc && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
+            <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Remover parcelamento?</div>
+            <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20 }}>Esta ação não pode ser desfeita.</div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setConfirmDeleteParc(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
+              <button onClick={() => handleDeleteInstallment(confirmDeleteParc)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>Remover</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
