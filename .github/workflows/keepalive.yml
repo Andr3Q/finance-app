@@ -15,5 +15,12 @@ jobs:
     steps:
       - name: Ping /health
         run: |
-          curl -f --max-time 60 \
-            https://finance-app-1042158013294.southamerica-east1.run.app/health
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 \
+            https://finance-app-1042158013294.southamerica-east1.run.app/health)
+          echo "HTTP status: $STATUS"
+          # 200 = ok, 503 = degraded mas Cloud Run está vivo (DB acordando)
+          # Qualquer outra coisa (0, 404, 502, 429) = falha real
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "503" ]; then
+            echo "Falha inesperada: status $STATUS"
+            exit 1
+          fi
