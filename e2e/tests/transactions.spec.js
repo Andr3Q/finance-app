@@ -164,26 +164,21 @@ test.describe('Transações — Criar transação', () => {
 
 test.describe('Transações — Excluir transação', () => {
   test('exibe diálogo de confirmação ao remover', async ({ page }) => {
-    // setupBase funciona de forma confiável para mostrar transações
     await setupBase(page, [TX_EXPENSE])
 
-    // Intercepta DELETE (específico para /transactions/:id) — setupBase passa não-GET por continue()
     page.route('**/api/transactions/**', (route) => {
       if (route.request().method() === 'DELETE')
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: 'Removido.' }) })
       route.continue()
     })
 
-    let confirmed = false
-    page.on('dialog', d => { confirmed = true; d.accept() })
-
     await page.goto('/transactions')
     await page.getByText('Almoço').waitFor()
 
-    // Botão de delete: class tx1-del + title="Remover" (evita o botão Editar)
     await page.locator('button.tx1-del[title="Remover"]').first().click()
 
-    await expect(async () => expect(confirmed).toBe(true)).toPass({ timeout: 5000 })
+    // Modal customizado substitui window.confirm
+    await expect(page.getByText('Remover transação?')).toBeVisible()
   })
 })
 
