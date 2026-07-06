@@ -1,0 +1,255 @@
+# ══════════════════════════════════════════════════════════════════
+# CD — Deploy para Staging (Cloud Run)
+#
+# Dispara em:
+#   • Push na branch develop (= código em homologação)
+#   • workflow_dispatch (deploy manual de staging)
+#
+# Fluxo:
+#   test-backend → test-frontend → build-check → test-e2e
+#                                                      ↓
+#                                          migrate-staging → deploy-staging
+#                                                                 ↓
+#                                               seed do banco → health check ✅
+#
+# Segredos necessários (Settings > Secrets > Actions):
+#   GCP_SA_KEY              — mesma service account da produção
+#   STAGING_DIRECT_URL      — Direct URL do Supabase staging (para migrations)
+#   STAGING_DATABASE_URL    — connection pooler do Supabase staging
+#   STAGING_JWT_SECRET      — secret JWT isolado do staging
+# ══════════════════════════════════════════════════════════════════
+name: CD — Deploy para Staging
+
+on:
+  push:
+    branches: [develop]
+
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ── 1. Testes Backend ────────────────────────────────────────
+  test-backend:
+    name: 🧪 Backend · Jest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm test
+        env:
+          NODE_ENV: test
+
+  # ── 2. Testes Frontend ───────────────────────────────────────
+  test-frontend:
+    name: 🧪 Frontend · Vitest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run test:run
+
+  # ── 3. Build ─────────────────────────────────────────────────
+  build-check:
+    name: 🏗️ Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  # ── 4. Testes E2E ────────────────────────────────────────────
+  test-e2e:
+    name: 🎭 E2E · Playwright
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend, build-check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm ci
+        working-directory: frontend
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: playwright-chromium-${{ runner.os }}-
+      - name: Instalar Chromium (sem cache)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Instalar system deps (com cache)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - run: npm run test:e2e
+        env:
+          CI: true
+      - name: Upload relatório (em falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-staging-${{ github.sha }}
+          path: playwright-report/
+          retention-days: 7
+
+  # ── 5. Migration no Supabase Staging ─────────────────────────
+  migrate-staging:
+    name: 🗄️ Migration · Staging
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-frontend, test-e2e]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Aplicar migrations no banco de staging
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DIRECT_URL }}
+
+  # ── 6. Deploy no Cloud Run Staging ───────────────────────────
+  deploy-staging:
+    name: 🚀 Deploy · Staging
+    runs-on: ubuntu-latest
+    needs: [migrate-staging]
+    env:
+      PROJECT:    financaspro-2024
+      SERVICE:    finance-app-staging
+      REGION:     southamerica-east1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Autenticar no Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Configurar Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build e deploy para Cloud Run Staging
+        run: |
+          set -euo pipefail
+          gcloud auth configure-docker gcr.io --quiet
+
+          IMAGE="gcr.io/${PROJECT}/${SERVICE}:${{ github.sha }}"
+          echo "📦 Imagem: $IMAGE"
+
+          docker build --no-cache -t "$IMAGE" .
+          docker push "$IMAGE"
+
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --cpu 1 \
+            --memory 512Mi \
+            --min-instances 0 \
+            --max-instances 2 \
+            --cpu-throttling \
+            --concurrency 80 \
+            --set-env-vars "NODE_ENV=staging,EMAIL_FROM=staging@myfinancepro.com.br" \
+            --set-secrets "DATABASE_URL=STAGING_DATABASE_URL:latest,JWT_SECRET=STAGING_JWT_SECRET:latest,GROQ_API_KEY=GROQ_API_KEY:latest,VAPID_PUBLIC_KEY=VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,ALLOWED_ORIGINS=STAGING_ALLOWED_ORIGINS:latest" \
+            --quiet
+
+          echo "🔀 Redirecionando tráfego..."
+          gcloud run services update-traffic "$SERVICE" \
+            --region "$REGION" \
+            --to-latest \
+            --quiet
+
+      - name: Obter URL do serviço staging
+        id: staging-url
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" \
+            --region "$REGION" \
+            --format="value(status.url)")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "🌐 Staging URL: $URL"
+
+      - name: Seed do banco de staging
+        run: |
+          URL="${{ steps.staging-url.outputs.url }}"
+          echo "🌱 Rodando seed de staging via API..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 30 \
+            -X POST "${URL}/api/admin/seed-staging" \
+            -H "x-seed-secret: ${{ secrets.STAGING_SEED_SECRET }}")
+          if [[ "$STATUS" == "200" ]]; then
+            echo "✅ Seed executado com sucesso"
+          else
+            echo "⚠️  Seed retornou HTTP $STATUS — pode já ter sido executado antes"
+          fi
+
+      - name: Health check staging
+        run: |
+          URL="${{ steps.staging-url.outputs.url }}"
+          MAX=3; WAIT=15; OK=false
+          for i in $(seq 1 $MAX); do
+            echo "🏥 Health check $i/$MAX → ${URL}/health"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${URL}/health" || echo "000")
+            echo "   HTTP $STATUS"
+            if [[ "$STATUS" == "200" ]]; then
+              OK=true; break
+            fi
+            [[ $i -lt $MAX ]] && sleep $WAIT
+          done
+          $OK || exit 1
+
+      - name: Resumo do deploy de staging
+        if: success()
+        run: |
+          URL="${{ steps.staging-url.outputs.url }}"
+          echo "## ✅ Staging disponível" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| | |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **URL** | ${URL} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Commit** | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Branch** | \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Usuários de teste" >> "$GITHUB_STEP_SUMMARY"
+          echo "| E-mail | Senha | Plano |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| alice@staging.test | Staging123! | Free |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| bob@staging.test | Staging123! | Pro |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| admin@staging.test | Staging123! | Elite |" >> "$GITHUB_STEP_SUMMARY"
