@@ -167,6 +167,21 @@ jobs:
       - name: Configurar Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Criar/atualizar secrets de staging no GCP
+        run: |
+          upsert_secret() {
+            local NAME="$1"
+            local VALUE="$2"
+            if gcloud secrets describe "$NAME" --project="${PROJECT}" &>/dev/null; then
+              echo -n "$VALUE" | gcloud secrets versions add "$NAME" --data-file=- --project="${PROJECT}"
+            else
+              echo -n "$VALUE" | gcloud secrets create "$NAME" --data-file=- --project="${PROJECT}" --replication-policy=automatic
+            fi
+          }
+          upsert_secret "STAGING_DATABASE_URL"  "${{ secrets.STAGING_DATABASE_URL }}"
+          upsert_secret "STAGING_JWT_SECRET"     "${{ secrets.STAGING_JWT_SECRET }}"
+          upsert_secret "STAGING_ALLOWED_ORIGINS" "${{ secrets.STAGING_ALLOWED_ORIGINS }}"
+
       - name: Build e deploy para Cloud Run Staging
         run: |
           set -euo pipefail
