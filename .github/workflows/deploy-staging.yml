@@ -141,8 +141,8 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npx prisma generate
-      - name: Aplicar migrations no banco de staging
-        run: npx prisma migrate deploy
+      - name: Aplicar schema no banco de staging
+        run: npx prisma db push --accept-data-loss
         env:
           DATABASE_URL: ${{ secrets.STAGING_DIRECT_URL }}
 
