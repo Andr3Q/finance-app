@@ -678,7 +678,7 @@ router.put('/password', authMiddleware, async (req, res) => {
     sendPasswordChangedAlert(user.email, user.name).catch(() => {})
 
     const hashed = await bcrypt.hash(newPassword, 12)
-    await prisma.user.update({ where: { id: req.userId }, data: { password: hashed } })
+    await prisma.user.update({ where: { id: req.userId }, data: { password: hashed, tokenVersion: { increment: 1 } } })
 
     res.json({ ok: true })
   } catch (err) {
