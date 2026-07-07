@@ -68,4 +68,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
 # Após 4 tentativas sem sucesso, servidor sobe mesmo assim (migrations já aplicadas
 # pelo CI ou em deploy anterior). Advisory lock do PostgreSQL garante que instâncias
 # concorrentes não corrompem o banco — apenas serializam a execução.
-CMD ["sh", "-c", "i=1; until timeout 60 npx prisma migrate deploy; do if [ $i -ge 4 ]; then echo '[WARN] migrate deploy falhou após 4 tentativas, iniciando servidor mesmo assim'; break; fi; echo \"[migrate] tentativa $i falhou, aguardando $((i*2))s...\"; i=$((i+1)); sleep $((i*2)); done && node src/server.js"]
+CMD ["sh", "-c", "if [ \"$NODE_ENV\" = \"production\" ]; then i=1; until timeout 60 npx prisma migrate deploy; do if [ $i -ge 4 ]; then echo '[WARN] migrate deploy falhou após 4 tentativas, iniciando servidor mesmo assim'; break; fi; echo \"[migrate] tentativa $i falhou, aguardando $((i*2))s...\"; i=$((i+1)); sleep $((i*2)); done; fi && node src/server.js"]
