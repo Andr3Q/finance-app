@@ -34,10 +34,12 @@ router.get('/login-stats', async (req, res) => {
         where:   { createdAt: { gte: since24h } },
         select:  { email: true, success: true, ip: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
+        take:    5000,
       }),
       prisma.loginAudit.findMany({
         where:  { createdAt: { gte: since1h }, success: false },
         select: { ip: true },
+        take:   5000,
       }),
     ])
 

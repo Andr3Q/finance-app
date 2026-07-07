@@ -11,16 +11,25 @@ permissions:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
-      - name: Ping /health
+      - name: Ping /health (produção)
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 \
             https://finance-app-1042158013294.southamerica-east1.run.app/health)
-          echo "HTTP status: $STATUS"
-          # 200 = ok, 503 = degraded mas Cloud Run está vivo (DB acordando)
-          # Qualquer outra coisa (0, 404, 502, 429) = falha real
+          echo "Produção HTTP status: $STATUS"
           if [ "$STATUS" != "200" ] && [ "$STATUS" != "503" ]; then
-            echo "Falha inesperada: status $STATUS"
+            echo "Falha inesperada em produção: status $STATUS"
+            exit 1
+          fi
+
+      - name: Ping /health (staging)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 60 \
+            https://finance-app-staging-vzcnezphtq-rj.a.run.app/health)
+          echo "Staging HTTP status: $STATUS"
+          # Staging pode estar suspenso (0 instâncias) e demorar para acordar — 503 é aceitável
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "503" ]; then
+            echo "Staging offline: status $STATUS"
             exit 1
           fi
