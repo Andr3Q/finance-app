@@ -17,11 +17,10 @@ function esc(str) {
     .replace(/'/g, '&#x27;')
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
 if (!process.env.RESEND_API_KEY) {
   console.warn('[emailService] RESEND_API_KEY não configurada — envio de e-mails desativado.')
 }
+const resend = new Resend(process.env.RESEND_API_KEY || 'not_configured')
 
 const FROM = process.env.EMAIL_FROM || 'Nancy <noreply@nancy.app>'
 
