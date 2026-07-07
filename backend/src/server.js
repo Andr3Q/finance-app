@@ -5,6 +5,7 @@
 // Ignora SIGPIPE globalmente — libpq (Prisma) e subprocessos nativos (trivy, npm)
 // podem gerar SIGPIPE em conexões TCP/pipes quebrados. Sem este handler o processo morre.
 process.on('SIGPIPE', () => {})
+console.log('[STARTUP:1] NODE_ENV=' + process.env.NODE_ENV + ' PORT=' + process.env.PORT)
 
 // Monorepo: tenta .env no CWD (docker-compose / produção); se não encontrar,
 // busca na raiz do projeto (desenvolvimento direto via `npm run dev:backend`)
@@ -44,6 +45,7 @@ const cookieParser = require('cookie-parser')
 const crypto       = require('crypto')
 
 const { apiLimiter, agentLimiter, paymentLimiter } = require('./middleware/rateLimiter')
+console.log('[STARTUP:2] middleware OK')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -57,6 +59,7 @@ const twoFactorRoutes     = require('./routes/twoFactor')
 const monitorRoutes       = require('./routes/monitor')
 const adminRoutes         = require('./routes/admin')
 const errorHandler        = require('./interfaces/http/middlewares/errorHandler')
+console.log('[STARTUP:3] all routes loaded')
 
 // ── Logger estruturado (pino) ───────────────────────────
 const logger = require('./lib/logger')
@@ -359,7 +362,9 @@ if (isProd) {
 module.exports = app
 
 if (require.main === module || process.env.NODE_ENV !== 'test') {
+console.log('[STARTUP:4] calling app.listen on port', PORT)
 const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log('[STARTUP:5] LISTENING OK port', PORT)
   logger.info({ msg: `Backend rodando em http://localhost:${PORT}`, port: PORT })
   logger.info({ msg: `Ambiente: ${isProd ? 'PRODUÇÃO' : 'desenvolvimento'}`, isProd })
   if (isProd && allowedOrigins.length === 0) {
