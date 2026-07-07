@@ -247,6 +247,15 @@ jobs:
       - name: Gerar Prisma Client
         run: npx prisma generate
 
+      - name: Marcar squashed baseline como aplicada em produção
+        run: |
+          # As 28 migrations antigas foram squashadas em 20260707000000_squashed_baseline.
+          # Produção já tem o schema completo — marca como aplicada sem executar o SQL.
+          # Se já estiver marcada, resolve é idempotente (não falha).
+          npx prisma migrate resolve --applied 20260707000000_squashed_baseline 2>&1 || true
+        env:
+          DATABASE_URL: ${{ secrets.DIRECT_URL }}
+
       - name: Aplicar migrations pendentes no Supabase
         run: |
           echo "🗄️  Aplicando migrations no Supabase de produção..."
