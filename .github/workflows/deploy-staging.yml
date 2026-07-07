@@ -186,6 +186,7 @@ jobs:
             --min-instances 0 \
             --max-instances 2 \
             --cpu-throttling \
+            --startup-cpu-boost \
             --concurrency 80 \
             --set-env-vars "NODE_ENV=staging,EMAIL_FROM=staging@myfinancepro.com.br" \
             --set-secrets "DATABASE_URL=STAGING_DATABASE_URL:latest,JWT_SECRET=STAGING_JWT_SECRET:latest,GROQ_API_KEY=GROQ_API_KEY:latest,VAPID_PUBLIC_KEY=VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=VAPID_PRIVATE_KEY:latest,ALLOWED_ORIGINS=STAGING_ALLOWED_ORIGINS:latest" \
