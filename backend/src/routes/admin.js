@@ -5,12 +5,11 @@ const router  = express.Router()
 const path    = require('path')
 
 router.post('/seed-staging', async (req, res) => {
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: 'Não disponível em produção.' })
-  }
-
   const secret = process.env.STAGING_SEED_SECRET
-  if (!secret || req.headers['x-seed-secret'] !== secret) {
+  if (!secret) {
+    return res.status(403).json({ error: 'Não disponível neste ambiente.' })
+  }
+  if (req.headers['x-seed-secret'] !== secret) {
     return res.status(401).json({ error: 'Não autorizado.' })
   }
 
