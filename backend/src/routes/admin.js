@@ -1,6 +1,7 @@
 'use strict'
 // Endpoint de seed para staging — bloqueado em produção
 const express = require('express')
+const crypto  = require('crypto')
 const router  = express.Router()
 const path    = require('path')
 
@@ -9,7 +10,12 @@ router.post('/seed-staging', async (req, res) => {
   if (!secret) {
     return res.status(403).json({ error: 'Não disponível neste ambiente.' })
   }
-  if (req.headers['x-seed-secret'] !== secret) {
+
+  const provided = Buffer.from(req.headers['x-seed-secret'] || '')
+  const expected = Buffer.from(secret)
+  const valid = provided.length === expected.length &&
+    crypto.timingSafeEqual(provided, expected)
+  if (!valid) {
     return res.status(401).json({ error: 'Não autorizado.' })
   }
 
@@ -20,7 +26,8 @@ router.post('/seed-staging', async (req, res) => {
     require(seedPath)
     res.json({ ok: true, message: 'Seed iniciado em background.' })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[admin] seed-staging error:', err.message)
+    res.status(500).json({ error: 'Erro ao executar seed.' })
   }
 })
 
