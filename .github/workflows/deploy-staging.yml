@@ -142,7 +142,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - name: Aplicar migrations no banco de staging
-        run: npx prisma migrate deploy
+        run: npx prisma migrate reset --force --skip-seed
         env:
           DATABASE_URL: ${{ secrets.STAGING_DIRECT_URL }}
 
