@@ -188,7 +188,7 @@ app.use('/api/', cors({
     // Requests sem Origin = same-origin (browser nunca envia Origin em same-origin)
     if (!origin) return callback(null, true)
     const allowed = isProd ? allowedOrigins : devOrigins
-    if (allowed.includes('*') || allowed.includes(origin)) return callback(null, true)
+    if (allowed.includes(origin)) return callback(null, true)
     callback(new Error('CORS: origem não permitida'))
   },
   credentials: true,
