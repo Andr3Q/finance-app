@@ -1,1 +1,0 @@
-ALTER TABLE "User" ADD COLUMN "weeklyDigestSentAt" TIMESTAMP(3);
