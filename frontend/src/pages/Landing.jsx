@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
 const CheckIcon = () => (
@@ -94,6 +95,10 @@ const ELITE_FEATURES = [
 ]
 
 export default function Landing() {
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', 'dark')
+  }, [])
+
   const handleProClick = () => {
     window.location.href = '/planos'
   }
