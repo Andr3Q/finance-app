@@ -47,10 +47,9 @@ test.describe('Configurações — Salário', () => {
     await salaryInput.clear()
     await salaryInput.fill('6000')
 
-    // O SalaryCard tem um botão de submit sem texto específico — usa o primeiro btn próximo
-    await page.getByRole('button', { name: /salvar|atualizar/i }).first().click()
+    await page.getByRole('button', { name: /salvar/i }).first().click()
 
-    await expect(page.getByText(/salário|atualizado|salvo/i)).toBeVisible()
+    await expect(page.getByText(/atualizado com sucesso/i)).toBeVisible()
   })
 })
 
