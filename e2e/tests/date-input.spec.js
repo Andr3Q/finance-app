@@ -65,7 +65,7 @@ test.describe('Input de Data — Visibilidade e Estrutura', () => {
   test('campos ocultos antes de clicar no toggle', async ({ page }) => {
     await injectSession(page, TEST_USER)
     await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
-    await page.goto('/settings', { waitUntil: 'networkidle' })
+    await page.goto('/financas', { waitUntil: 'networkidle' })
     // Sem clicar no toggle, campos devem estar ocultos
     const field = page.locator('.cfg-date-part').first()
     await expect(field).not.toBeVisible()

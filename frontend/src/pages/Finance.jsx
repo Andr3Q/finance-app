@@ -39,7 +39,7 @@ export default function Finance() {
       </div>
 
       {upgradeModal && (
-        <UpgradeModal message={upgradeModal} onClose={() => setUpgradeModal(null)} />
+        <UpgradeModal reason={upgradeModal} onClose={() => setUpgradeModal(null)} />
       )}
     </>
   )
