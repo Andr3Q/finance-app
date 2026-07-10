@@ -27,9 +27,9 @@ test.describe('Configurações — Layout', () => {
     await expect(page.getByText('Ana E2E').first()).toBeVisible()
   })
 
-  test('exibe seção "Financeiro" com card de salário', async ({ page }) => {
+  test('exibe seção "Financeiro" com card de salário na página Finanças', async ({ page }) => {
     await setupSettings(page)
-    await page.goto('/settings')
+    await page.goto('/financas')
     await expect(page.getByPlaceholder('0,00').first()).toBeVisible()
   })
 })
@@ -42,7 +42,7 @@ test.describe('Configurações — Salário', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ salary: 6000 }) })
     })
 
-    await page.goto('/settings')
+    await page.goto('/financas')
     const salaryInput = page.getByPlaceholder('0,00').first()
     await salaryInput.clear()
     await salaryInput.fill('6000')
