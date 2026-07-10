@@ -112,7 +112,6 @@ export default function Navbar() {
   const navLinks = [
     { path: '/dashboard',    label: 'Dashboard',     Icon: HomeIcon   },
     { path: '/transactions', label: 'Transações',    Icon: TxIcon     },
-    { path: '/planos',       label: 'Planos',        Icon: BoltIcon   },
     { path: '/goals',        label: 'Metas',         Icon: TargetIcon },
     { path: '/financas',     label: 'Finanças',      Icon: WalletIcon },
     { path: '/settings',     label: 'Configurações', Icon: GearIcon   },
@@ -174,7 +173,14 @@ export default function Navbar() {
               </button>
             ))}
 
-            {/* Calendário — sidebar only (mobile tem apenas 5 itens no bottom nav) */}
+            {/* Sidebar only — mobile tem apenas 5 itens no bottom nav */}
+            <button
+              className={`dsb-s-item${isActive('/planos') ? ' active' : ''}`}
+              onClick={() => navigate('/planos')}
+            >
+              <BoltIcon />
+              Planos
+            </button>
             <button
               className={`dsb-s-item${isActive('/calendar') ? ' active' : ''}`}
               onClick={() => navigate('/calendar')}
