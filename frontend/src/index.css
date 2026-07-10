@@ -6363,6 +6363,39 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 }
 .tx1-btn-primary:hover { background: #5cd47e; transform: translateY(-1px); }
 
+/* ── Carrossel de meses ─────────────────────────────────── */
+.tx1-month-nav {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+}
+.tx1-month-arrow {
+  flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.55); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s;
+}
+.tx1-month-arrow:hover:not(:disabled) { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.2); }
+.tx1-month-arrow:disabled { opacity: .22; cursor: not-allowed; }
+.tx1-carousel {
+  flex: 1; display: flex; gap: 6px;
+  overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; padding: 2px 0;
+}
+.tx1-carousel::-webkit-scrollbar { display: none; }
+.tx1-carousel-item {
+  flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 7px 11px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.04);
+  color: rgba(255,255,255,.38); cursor: pointer; transition: all .15s; min-width: 50px;
+}
+.tx1-carousel-item:hover { background: rgba(255,255,255,.09); color: rgba(255,255,255,.75); border-color: rgba(255,255,255,.14); }
+.tx1-carousel-item.on { background: rgba(74,226,172,.13); border-color: rgba(74,226,172,.32); color: #4ae2ac; }
+.tx1-carousel-mon  { font-size: 11px; font-weight: 700; letter-spacing: .03em; }
+.tx1-carousel-year { font-size: 9px; opacity: .55; }
+.tx1-carousel-bal  { font-size: 10px; font-weight: 700; line-height: 1; }
+.tx1-carousel-bal.pos { color: #4ae2ac; }
+.tx1-carousel-bal.neg { color: #ff6b6b; }
+.tx1-carousel-item.on .tx1-carousel-bal.neg { color: #ff8c8c; }
+
 /* ── Lista agrupada ────────────────────────────────────── */
 .tx1-list-card {
   background: rgba(255,255,255,.035);
@@ -6574,6 +6607,12 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .tx1-pill.on { background: rgba(74,226,172,.14); color: #2e8a4a; }
 [data-theme="light"] .tx1-btn-ghost { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); color: rgba(0,0,0,.6); }
 [data-theme="light"] .tx1-btn-primary { background: #3aaa5c; }
+[data-theme="light"] .tx1-month-arrow { border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.04); color: rgba(0,0,0,.45); }
+[data-theme="light"] .tx1-month-arrow:hover:not(:disabled) { background: rgba(0,0,0,.08); color: #000; }
+[data-theme="light"] .tx1-carousel-item { border-color: rgba(0,0,0,.09); background: rgba(0,0,0,.03); color: rgba(0,0,0,.38); }
+[data-theme="light"] .tx1-carousel-item:hover { background: rgba(0,0,0,.07); color: rgba(0,0,0,.65); }
+[data-theme="light"] .tx1-carousel-item.on { background: rgba(74,226,172,.15); border-color: rgba(42,157,122,.3); color: #1a7a52; }
+[data-theme="light"] .tx1-carousel-bal.pos { color: #1a7a52; }
 [data-theme="light"] .tx1-list-card {
   background: linear-gradient(160deg, #ffffff 0%, rgba(74,226,172,.03) 100%);
   border-color: rgba(0,0,0,.08);
