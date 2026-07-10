@@ -18,8 +18,8 @@ export default function SalaryCard({ user, onMessage }) {
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
       onMessage('Salário atualizado com sucesso!')
-    } catch {
-      onMessage('Erro ao salvar salário.', 'error')
+    } catch (err) {
+      onMessage(err.response?.data?.error || 'Erro ao salvar salário.', 'error')
     } finally {
       setSaving(false)
     }
