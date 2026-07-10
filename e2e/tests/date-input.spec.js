@@ -24,7 +24,7 @@ async function setupSettings(page) {
   await page.route('**/api/auth/referral**',   r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
   await page.route('**/api/auth/2fa/**',       r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 8 }) }))
 
-  await page.goto('/settings', { waitUntil: 'networkidle' })
+  await page.goto('/financas', { waitUntil: 'networkidle' })
   await page.waitForTimeout(800)
 
   // Scroll até o formulário de contas fixas e clicar no toggle 📅
