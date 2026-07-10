@@ -75,7 +75,7 @@ export default function Transactions() {
   useEffect(() => {
     if (!carouselRef.current) return
     const el = carouselRef.current.querySelector('.tx1-carousel-item.on')
-    if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }, [selDate])
 
   const showToast = (msg, ok = true) => {
