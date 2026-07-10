@@ -6,7 +6,6 @@ import UpgradeModal from '../components/ui/UpgradeModal.jsx'
 import { useUser } from '../hooks/useUser.js'
 import SettingsHero        from '../components/features/settings/SettingsHero.jsx'
 import ProfileCard         from '../components/features/settings/ProfileCard.jsx'
-import SalaryCard          from '../components/features/settings/SalaryCard.jsx'
 import NotificationsCard   from '../components/features/settings/NotificationsCard.jsx'
 import MonthlyCloseCard    from '../components/features/settings/MonthlyCloseCard.jsx'
 import InstallCard         from '../components/features/settings/InstallCard.jsx'
@@ -14,7 +13,6 @@ import ReferralCard        from '../components/features/settings/ReferralCard.js
 import TwoFactorCard        from '../components/features/settings/TwoFactorCard.jsx'
 import ChangePasswordCard   from '../components/features/settings/ChangePasswordCard.jsx'
 import CancelPlanCard       from '../components/features/settings/CancelPlanCard.jsx'
-import FixedExpensesCard    from '../components/features/settings/FixedExpensesCard.jsx'
 import PaymentHistoryCard   from '../components/features/settings/PaymentHistoryCard.jsx'
 import EmailVerifyCard      from '../components/features/settings/EmailVerifyCard.jsx'
 
@@ -76,10 +74,6 @@ export default function Settings() {
             <div className="cfg-sec-title r2">Perfil</div>
             <EmailVerifyCard onMessage={showMsg} />
             <ProfileCard user={user} />
-
-            <div className="cfg-sec-title r4">Financeiro</div>
-            <SalaryCard user={user} onMessage={showMsg} />
-            <FixedExpensesCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <div className="cfg-sec-title r7">Preferências</div>
             <NotificationsCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
