@@ -48,8 +48,46 @@ export default function Transactions() {
   const [editingTx,         setEditingTx]         = useState(null)
   const [confirmDeleteTx,   setConfirmDeleteTx]   = useState(null)
   const [confirmDeleteParc, setConfirmDeleteParc] = useState(null)
-  const fileInputRef = useRef(null)
-  const now = new Date()
+  const fileInputRef  = useRef(null)
+  const carouselRef   = useRef(null)
+  const today         = new Date()
+  const [selDate,  setSelDate]  = useState(() => new Date())
+  const [selDir,   setSelDir]   = useState('none')
+  const [animKey,  setAnimKey]  = useState(0)
+  const selMonth = selDate.getMonth() + 1
+  const selYear  = selDate.getFullYear()
+  const isCurrentMonth = selDate.getMonth() === today.getMonth() && selDate.getFullYear() === today.getFullYear()
+
+  const carouselMonths = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1)
+    return { month: d.getMonth() + 1, year: d.getFullYear(), label: MONTHS[d.getMonth()].slice(0, 3) }
+  })
+
+  const minCarousel = carouselMonths[0]
+  const isOldestMonth = selDate.getFullYear() === minCarousel.year && selDate.getMonth() + 1 === minCarousel.month
+
+  const navigate = (newDate) => {
+    const cur = new Date(selDate.getFullYear(), selDate.getMonth(), 1)
+    setSelDir(newDate > cur ? 'next' : 'prev')
+    setAnimKey(k => k + 1)
+    setSelDate(newDate)
+  }
+  const goToPrev = () => { if (!isOldestMonth) navigate(new Date(selDate.getFullYear(), selDate.getMonth() - 1, 1)) }
+  const goToNext = () => { if (!isCurrentMonth) navigate(new Date(selDate.getFullYear(), selDate.getMonth() + 1, 1)) }
+
+  const getMonthBalance = (m, y) => {
+    const txs = transactions.filter(t => t.month === m && t.year === y)
+    if (!txs.length) return null
+    const inc = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+    const exp = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+    return inc - exp
+  }
+
+  useEffect(() => {
+    if (!carouselRef.current) return
+    const el = carouselRef.current.querySelector('.tx1-carousel-item.on')
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [selDate])
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -177,12 +215,14 @@ export default function Transactions() {
     }
   }
 
-  const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-  const totalIncome   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const monthTxs      = transactions.filter(t => t.month === selMonth && t.year === selYear)
+  const totalExpenses = monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const totalIncome   = monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const balance       = totalIncome - totalExpenses
   const balancePos    = balance >= 0
 
   const filtered = transactions.filter(t => {
+    const matchMonth  = t.month === selMonth && t.year === selYear
     const desc = (t.description || CATEGORY_LABELS[t.category] || '').toLowerCase()
     const cat  = (CATEGORY_LABELS[t.category] || '').toLowerCase()
     const matchSearch = !search || desc.includes(search.toLowerCase()) || cat.includes(search.toLowerCase())
@@ -192,7 +232,7 @@ export default function Transactions() {
       filter === 'income'  ? t.type === 'income'  :
       filter === 'fixed'   ? t.category === 'fixed' :
       true
-    return matchSearch && matchFilter
+    return matchMonth && matchSearch && matchFilter
   })
 
   const FILTER_PILLS = [
@@ -234,6 +274,37 @@ export default function Transactions() {
       <div className="pwnav fade-in">
         <div className="tx1-page">
 
+          {/* ── Carrossel de meses ── */}
+          <div className="tx1-month-nav">
+            <button className="tx1-month-arrow" onClick={goToPrev} disabled={isOldestMonth} aria-label="Mês anterior">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div className="tx1-carousel-wrap">
+              <div className="tx1-carousel" ref={carouselRef}>
+                {carouselMonths.map(({ month, year, label }) => {
+                  const active = month === selMonth && year === selYear
+                  const bal    = getMonthBalance(month, year)
+                  return (
+                    <button
+                      key={`${year}-${month}`}
+                      className={`tx1-carousel-item${active ? ' on' : ''}`}
+                      onClick={() => navigate(new Date(year, month - 1, 1))}
+                    >
+                      <span className="tx1-carousel-mon">{label}</span>
+                      {year !== today.getFullYear() && <span className="tx1-carousel-year">'{String(year).slice(2)}</span>}
+                      {bal !== null && (
+                        <span className={`tx1-carousel-bal ${bal >= 0 ? 'pos' : 'neg'}`}>{bal >= 0 ? '+' : '−'}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <button className="tx1-month-arrow" onClick={goToNext} disabled={isCurrentMonth} aria-label="Próximo mês">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
           {/* ── Hero card ── */}
           <div className="tx1-hero">
             <div className="tx1-hero-glow" />
@@ -250,8 +321,9 @@ export default function Transactions() {
                 }} />
               ))}
             </div>
+            <div className={`tx1-hero-content tx1-anim-${selDir}`} key={animKey}>
             <div className="tx1-hero-left">
-              <div className="tx1-hero-label">{MONTHS[now.getMonth()]} {now.getFullYear()}</div>
+              <div className="tx1-hero-label">{MONTHS[selDate.getMonth()]} {selYear}</div>
               <div className="tx1-hero-balance" style={{ color: balancePos ? 'var(--t1)' : '#ff6b6b' }}>
                 {balancePos ? '' : '−'}R$ {fmt(Math.abs(balance))}
               </div>
@@ -291,10 +363,11 @@ export default function Transactions() {
                 </div>
                 <div>
                   <div className="tx1-stat-lbl">Transações</div>
-                  <div className="tx1-stat-val">{transactions.length}</div>
+                  <div className="tx1-stat-val">{monthTxs.length}</div>
                 </div>
               </div>
             </div>
+            </div>{/* tx1-hero-content */}
           </div>
 
           {/* ── Parcelas ── */}
@@ -487,14 +560,14 @@ export default function Transactions() {
               <>
                 {grouped.map(([dateLabel, txs]) => (
                   <div key={dateLabel}>
-                    <div className="tx1-date-label">{dateLabel}</div>
+                    <div className={`tx1-date-label${dateLabel === 'Hoje' ? ' is-today' : dateLabel === 'Ontem' ? ' is-yest' : ''}`}>{dateLabel}</div>
                     {txs.map(t => {
                       const isInc    = t.type === 'income'
                       const isFixed  = t.category === 'fixed'
                       const catLabel = CATEGORY_LABELS[t.category] || t.category
                       const desc     = t.description || catLabel
                       return (
-                        <div key={t.id} className="tx1-row">
+                        <div key={t.id} className={`tx1-row${isInc ? ' is-inc' : ''}`}>
                           <div className={`tx1-row-ico ${isInc ? 'inc' : 'exp'}`}>
                             <CategoryIcon category={t.category} size={14} color="currentColor" />
                           </div>

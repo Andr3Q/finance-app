@@ -6,7 +6,6 @@ import UpgradeModal from '../components/ui/UpgradeModal.jsx'
 import { useUser } from '../hooks/useUser.js'
 import SettingsHero        from '../components/features/settings/SettingsHero.jsx'
 import ProfileCard         from '../components/features/settings/ProfileCard.jsx'
-import SalaryCard          from '../components/features/settings/SalaryCard.jsx'
 import NotificationsCard   from '../components/features/settings/NotificationsCard.jsx'
 import MonthlyCloseCard    from '../components/features/settings/MonthlyCloseCard.jsx'
 import InstallCard         from '../components/features/settings/InstallCard.jsx'
@@ -14,7 +13,6 @@ import ReferralCard        from '../components/features/settings/ReferralCard.js
 import TwoFactorCard        from '../components/features/settings/TwoFactorCard.jsx'
 import ChangePasswordCard   from '../components/features/settings/ChangePasswordCard.jsx'
 import CancelPlanCard       from '../components/features/settings/CancelPlanCard.jsx'
-import FixedExpensesCard    from '../components/features/settings/FixedExpensesCard.jsx'
 import PaymentHistoryCard   from '../components/features/settings/PaymentHistoryCard.jsx'
 import EmailVerifyCard      from '../components/features/settings/EmailVerifyCard.jsx'
 
@@ -73,13 +71,30 @@ export default function Settings() {
 
             <SettingsHero user={user} isPro={isPro} />
 
+            <div
+              className="cfg-card"
+              style={{ borderLeft: '3px solid #4ae2ac', cursor: 'pointer' }}
+              onClick={() => navigate('/financas')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => e.key === 'Enter' && navigate('/financas')}
+            >
+              <div className="cfg-card-body" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="#4ae2ac"/>
+                </svg>
+                <span style={{ fontSize: 13, color: 'var(--t2)', flex: 1 }}>
+                  Salário e contas fixas foram movidos para a página <strong style={{ color: 'var(--t1)' }}>Finanças</strong>.
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </div>
+            </div>
+
             <div className="cfg-sec-title r2">Perfil</div>
             <EmailVerifyCard onMessage={showMsg} />
             <ProfileCard user={user} />
-
-            <div className="cfg-sec-title r4">Financeiro</div>
-            <SalaryCard user={user} onMessage={showMsg} />
-            <FixedExpensesCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
 
             <div className="cfg-sec-title r7">Preferências</div>
             <NotificationsCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />

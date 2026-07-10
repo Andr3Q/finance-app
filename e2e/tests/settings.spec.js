@@ -27,9 +27,9 @@ test.describe('Configurações — Layout', () => {
     await expect(page.getByText('Ana E2E').first()).toBeVisible()
   })
 
-  test('exibe seção "Financeiro" com card de salário', async ({ page }) => {
+  test('exibe seção "Financeiro" com card de salário na página Finanças', async ({ page }) => {
     await setupSettings(page)
-    await page.goto('/settings')
+    await page.goto('/financas')
     await expect(page.getByPlaceholder('0,00').first()).toBeVisible()
   })
 })
@@ -42,15 +42,14 @@ test.describe('Configurações — Salário', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ salary: 6000 }) })
     })
 
-    await page.goto('/settings')
+    await page.goto('/financas')
     const salaryInput = page.getByPlaceholder('0,00').first()
     await salaryInput.clear()
     await salaryInput.fill('6000')
 
-    // O SalaryCard tem um botão de submit sem texto específico — usa o primeiro btn próximo
-    await page.getByRole('button', { name: /salvar|atualizar/i }).first().click()
+    await page.getByRole('button', { name: /salvar/i }).first().click()
 
-    await expect(page.getByText(/salário|atualizado|salvo/i)).toBeVisible()
+    await expect(page.getByText(/atualizado com sucesso/i)).toBeVisible()
   })
 })
 

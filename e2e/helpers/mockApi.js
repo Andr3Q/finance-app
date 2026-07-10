@@ -61,16 +61,20 @@ function createMock(page) {
 
 // ── Fixtures de dados de teste ────────────────────────────────────
 
+const _now   = new Date()
+const _month = _now.getMonth() + 1
+const _year  = _now.getFullYear()
+
 const TX_EXPENSE = {
   id: 'tx-001', type: 'expense', category: 'food', amount: 120,
-  description: 'Almoço', date: '2026-05-15T12:00:00.000Z',
-  month: 5, year: 2026, archived: false,
+  description: 'Almoço', date: _now.toISOString(),
+  month: _month, year: _year, archived: false,
 }
 
 const TX_INCOME = {
   id: 'tx-002', type: 'income', category: 'salary', amount: 5000,
-  description: 'Salário', date: '2026-05-01T10:00:00.000Z',
-  month: 5, year: 2026, archived: false,
+  description: 'Salário', date: _now.toISOString(),
+  month: _month, year: _year, archived: false,
 }
 
 const BUDGET_ITEM = {
