@@ -24,6 +24,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const refDD   = useRef(null)
   const refMM   = useRef(null)
   const refAAAA = useRef(null)
+  const [submitting, setSubmitting] = useState(false)
   const [launching,  setLaunching]  = useState(false)
   const [launched,   setLaunched]   = useState(() => isLaunchedThisMonth(user))
   const [endDateErr,      setEndDateErr]      = useState('')
@@ -45,6 +46,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
 
   const handleAdd = async (e) => {
     e.preventDefault()
+    if (submitting) return
     if (!newBudget.name || !newBudget.amount) {
       onMessage('Preencha o nome e o valor da conta fixa.', 'error')
       return
@@ -73,6 +75,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     }
     setEndDateErr('')
 
+    setSubmitting(true)
     try {
       await budgetAPI.create({
         name:    newBudget.name,
@@ -80,10 +83,35 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         dueDay:  newBudget.dueDay ? parseInt(newBudget.dueDay) : undefined,
         endDate: endDateISO || undefined,
       })
+
+      // Se o auto-launch já rodou este mês, cria a transação agora mesmo
+      // (caso contrário, será criada pelo auto-launch no início do próximo ciclo)
+      let txLimitReached = false
+      const now = new Date()
+      const currentMonth = now.getMonth() + 1
+      const currentYear  = now.getFullYear()
+      if (user.autoLaunchMonth === currentMonth && user.autoLaunchYear === currentYear) {
+        try {
+          await transactionsAPI.create({
+            description: newBudget.name,
+            amount:      newBudget.amount,
+            type:        'expense',
+            category:    'fixed',
+          })
+        } catch (txErr) {
+          if (txErr?.response?.status === 403) txLimitReached = true
+          // outros erros: silencioso — budget foi criado, falha no lançamento é secundária
+        }
+      }
+
       setNewBudget({ name: '', amount: '', dueDay: '', endDate: { dd: '', mm: '', aaaa: '' }, hasEndDate: false })
       fetchBudgets()
       notifyBudgetChanged()
-      onMessage('Conta fixa adicionada!')
+      if (txLimitReached) {
+        onMessage('Conta fixa criada, mas o lançamento não foi registrado (limite de transações atingido).', 'error')
+      } else {
+        onMessage('Conta fixa adicionada!')
+      }
     } catch (err) {
       if (err.response?.data?.limitReached) {
         analytics.track('limit_reached', { feature: 'budgets' })
@@ -91,6 +119,8 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       } else {
         onMessage(err.response?.data?.error || 'Erro ao adicionar conta fixa.', 'error')
       }
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -207,11 +237,15 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: { dd: '', mm: '', aaaa: '' } }))}>
             📅
           </button>
-          <button type="submit" className="cfg-btn-ghost">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Adicionar
+          <button type="submit" className="cfg-btn-ghost" disabled={submitting}>
+            {submitting ? (
+              <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            )}
+            {submitting ? 'Adicionando…' : 'Adicionar'}
           </button>
         </form>
         {dueDayErr && (
