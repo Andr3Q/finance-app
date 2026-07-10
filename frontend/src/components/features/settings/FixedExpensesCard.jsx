@@ -80,6 +80,26 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         dueDay:  newBudget.dueDay ? parseInt(newBudget.dueDay) : undefined,
         endDate: endDateISO || undefined,
       })
+
+      // Se o auto-launch já rodou este mês, cria a transação agora mesmo
+      // (caso contrário, será criada pelo auto-launch no início do próximo ciclo)
+      const now = new Date()
+      const currentMonth = now.getMonth() + 1
+      const currentYear  = now.getFullYear()
+      if (user.autoLaunchMonth === currentMonth && user.autoLaunchYear === currentYear) {
+        try {
+          await transactionsAPI.create({
+            description: newBudget.name,
+            amount:      newBudget.amount,
+            type:        'expense',
+            category:    'fixed',
+            month:       currentMonth,
+            year:        currentYear,
+            date:        now.toISOString(),
+          })
+        } catch { /* silencioso — não bloqueia o cadastro da conta fixa */ }
+      }
+
       setNewBudget({ name: '', amount: '', dueDay: '', endDate: { dd: '', mm: '', aaaa: '' }, hasEndDate: false })
       fetchBudgets()
       notifyBudgetChanged()
