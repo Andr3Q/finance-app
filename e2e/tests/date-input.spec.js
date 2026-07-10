@@ -224,7 +224,7 @@ async function setupSettingsNoToggle(page, budgetPostHandler) {
   })
   await page.route('**/api/auth/me**', r => r.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ ...TEST_USER, notifBudgetAlert: true, notifBudgetReminder: true }) }))
-  await page.goto('/settings', { waitUntil: 'networkidle' })
+  await page.goto('/financas', { waitUntil: 'networkidle' })
   await page.waitForTimeout(1000)
   const toggle = page.locator('.cfg-enddate-toggle').first()
   await toggle.scrollIntoViewIfNeeded()
