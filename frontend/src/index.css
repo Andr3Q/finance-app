@@ -6357,11 +6357,19 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .tx1-btn-ghost:hover { background: rgba(255,255,255,.07); color: #fff; }
 .tx1-btn-primary {
   display: flex; align-items: center; gap: 6px;
-  padding: 8px 16px; background: #4ae2ac; color: #000;
-  border: none; border-radius: 10px; cursor: pointer;
-  font-size: 12px; font-weight: 700; font-family: var(--fd); transition: var(--tr);
+  padding: 8px 18px;
+  background: linear-gradient(135deg, #4ae2ac 0%, #3bd4a0 100%);
+  box-shadow: 0 2px 14px rgba(74,226,172,.28), 0 1px 3px rgba(0,0,0,.2);
+  color: #072715; border: none; border-radius: 10px; cursor: pointer;
+  font-size: 12px; font-weight: 700; font-family: var(--fd);
+  transition: box-shadow .2s, transform .15s, filter .15s;
 }
-.tx1-btn-primary:hover { background: #5cd47e; transform: translateY(-1px); }
+.tx1-btn-primary:hover {
+  filter: brightness(1.07);
+  box-shadow: 0 4px 20px rgba(74,226,172,.4), 0 1px 4px rgba(0,0,0,.2);
+  transform: translateY(-1px);
+}
+.tx1-btn-primary:active { transform: translateY(0); filter: brightness(.97); }
 
 /* ── Carrossel de meses ─────────────────────────────────── */
 .tx1-month-nav {
@@ -6414,12 +6422,21 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .tx1-carousel-bal.neg { color: #ff6b6b; }
 .tx1-carousel-item.on .tx1-carousel-bal.neg { color: #ff8c8c; }
 
-/* Animação de troca de mês no hero */
-@keyframes txMonthFade {
-  from { opacity: 0; transform: translateY(5px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* Animações direcionais de troca de mês */
+@keyframes txFromRight {
+  from { opacity: 0; transform: translateX(22px) scale(.98); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
 }
-.tx1-hero-left { animation: txMonthFade .22s ease; }
+@keyframes txFromLeft {
+  from { opacity: 0; transform: translateX(-22px) scale(.98); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.tx1-hero-content {
+  display: flex; align-items: center; gap: 40px; flex: 1; min-width: 0;
+}
+.tx1-anim-next { animation: txFromRight .26s cubic-bezier(.22,.68,0,1.2); }
+.tx1-anim-prev { animation: txFromLeft  .26s cubic-bezier(.22,.68,0,1.2); }
+.tx1-anim-none { animation: none; }
 
 /* ── Lista agrupada ────────────────────────────────────── */
 .tx1-list-card {
@@ -6428,16 +6445,45 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   border-radius: 18px; overflow: hidden;
 }
 .tx1-date-label {
+  display: flex; align-items: center; gap: 10px;
   font-size: 10px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .1em; color: rgba(255,255,255,.2);
-  padding: 16px 22px 6px;
+  letter-spacing: .1em; color: rgba(255,255,255,.28);
+  padding: 18px 22px 8px;
 }
+.tx1-date-label::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,.18);
+}
+.tx1-date-label::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,.07) 0%, transparent 100%);
+}
+.tx1-date-label.is-today {
+  color: #4ae2ac;
+}
+.tx1-date-label.is-today::before {
+  background: #4ae2ac;
+  box-shadow: 0 0 6px rgba(74,226,172,.6);
+}
+.tx1-date-label.is-today::after {
+  background: linear-gradient(90deg, rgba(74,226,172,.18) 0%, transparent 100%);
+}
+.tx1-date-label.is-yest { color: rgba(255,255,255,.45); }
+.tx1-date-label.is-yest::before { background: rgba(255,255,255,.35); }
 .tx1-row {
   display: flex; align-items: center; gap: 14px;
   padding: 13px 22px; border-top: 1px solid rgba(255,255,255,.04);
   transition: background .15s; position: relative;
 }
 .tx1-row:hover { background: rgba(255,255,255,.025); }
+.tx1-row.is-inc::before {
+  content: '';
+  position: absolute; left: 0; top: 14px; bottom: 14px;
+  width: 2px; border-radius: 0 2px 2px 0;
+  background: linear-gradient(180deg, #4ae2ac 0%, rgba(74,226,172,.3) 100%);
+}
 .tx1-row-ico {
   width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -6631,7 +6677,11 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .tx1-pill  { color: rgba(0,0,0,.4); }
 [data-theme="light"] .tx1-pill.on { background: rgba(74,226,172,.14); color: #2e8a4a; }
 [data-theme="light"] .tx1-btn-ghost { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); color: rgba(0,0,0,.6); }
-[data-theme="light"] .tx1-btn-primary { background: #3aaa5c; }
+[data-theme="light"] .tx1-btn-primary {
+  background: linear-gradient(135deg, #3ecfa0 0%, #29ba8c 100%);
+  box-shadow: 0 2px 12px rgba(46,138,74,.25), 0 1px 3px rgba(0,0,0,.12);
+  color: #062010;
+}
 [data-theme="light"] .tx1-month-arrow { border-color: rgba(0,0,0,.12); background: rgba(0,0,0,.04); color: rgba(0,0,0,.45); }
 [data-theme="light"] .tx1-month-arrow:hover:not(:disabled) { background: rgba(0,0,0,.08); color: #000; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 [data-theme="light"] .tx1-carousel-item { border-color: rgba(0,0,0,.09); background: rgba(0,0,0,.03); color: rgba(0,0,0,.38); }
@@ -6644,7 +6694,15 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   background: linear-gradient(160deg, #ffffff 0%, rgba(74,226,172,.03) 100%);
   border-color: rgba(0,0,0,.08);
 }
-[data-theme="light"] .tx1-date-label { color: rgba(0,0,0,.3); }
+[data-theme="light"] .tx1-date-label { color: rgba(0,0,0,.32); }
+[data-theme="light"] .tx1-date-label::before { background: rgba(0,0,0,.2); }
+[data-theme="light"] .tx1-date-label::after { background: linear-gradient(90deg, rgba(0,0,0,.08) 0%, transparent 100%); }
+[data-theme="light"] .tx1-date-label.is-today { color: #1a7a52; }
+[data-theme="light"] .tx1-date-label.is-today::before { background: #2e9a68; box-shadow: 0 0 5px rgba(46,154,104,.4); }
+[data-theme="light"] .tx1-date-label.is-today::after { background: linear-gradient(90deg, rgba(46,154,104,.15) 0%, transparent 100%); }
+[data-theme="light"] .tx1-date-label.is-yest { color: rgba(0,0,0,.5); }
+[data-theme="light"] .tx1-date-label.is-yest::before { background: rgba(0,0,0,.35); }
+[data-theme="light"] .tx1-row.is-inc::before { background: linear-gradient(180deg, #2e9a68 0%, rgba(46,154,104,.25) 100%); }
 [data-theme="light"] .tx1-row { border-top-color: rgba(0,0,0,.05); }
 [data-theme="light"] .tx1-row:hover { background: rgba(0,0,0,.02); }
 [data-theme="light"] .tx1-row-ico.inc { background: rgba(74,226,172,.15); color: #2e8a4a; }
@@ -6661,6 +6719,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 /* ── Responsive ────────────────────────────────────────── */
 @media (max-width: 780px) {
   .tx1-hero { flex-direction: column; align-items: flex-start; gap: 20px; padding: 22px 20px; }
+  .tx1-hero-content { flex-direction: column; align-items: flex-start; gap: 18px; width: 100%; }
   .tx1-hero-balance { font-size: 32px; }
   .tx1-hero-stats { padding-left: 0; border-left: none; border-top: 1px solid rgba(255,255,255,.07); padding-top: 16px; width: 100%; }
   .tx1-toolbar { flex-wrap: wrap; }
