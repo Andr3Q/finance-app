@@ -56,13 +56,16 @@ export default function Transactions() {
   const selYear  = selDate.getFullYear()
   const isCurrentMonth = selDate.getMonth() === today.getMonth() && selDate.getFullYear() === today.getFullYear()
 
-  const goToPrev = () => setSelDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))
-  const goToNext = () => { if (!isCurrentMonth) setSelDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)) }
-
   const carouselMonths = Array.from({ length: 12 }, (_, i) => {
     const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1)
     return { month: d.getMonth() + 1, year: d.getFullYear(), label: MONTHS[d.getMonth()].slice(0, 3) }
   })
+
+  const minCarousel = carouselMonths[0]
+  const isOldestMonth = selDate.getFullYear() === minCarousel.year && selDate.getMonth() + 1 === minCarousel.month
+
+  const goToPrev = () => { if (!isOldestMonth) setSelDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1)) }
+  const goToNext = () => { if (!isCurrentMonth) setSelDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)) }
 
   const getMonthBalance = (m, y) => {
     const txs = transactions.filter(t => t.month === m && t.year === y)
@@ -265,30 +268,32 @@ export default function Transactions() {
 
           {/* ── Carrossel de meses ── */}
           <div className="tx1-month-nav">
-            <button className="tx1-month-arrow" onClick={goToPrev} aria-label="Mês anterior">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <button className="tx1-month-arrow" onClick={goToPrev} disabled={isOldestMonth} aria-label="Mês anterior">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <div className="tx1-carousel" ref={carouselRef}>
-              {carouselMonths.map(({ month, year, label }) => {
-                const active = month === selMonth && year === selYear
-                const bal    = getMonthBalance(month, year)
-                return (
-                  <button
-                    key={`${year}-${month}`}
-                    className={`tx1-carousel-item${active ? ' on' : ''}`}
-                    onClick={() => setSelDate(new Date(year, month - 1, 1))}
-                  >
-                    <span className="tx1-carousel-mon">{label}</span>
-                    {year !== today.getFullYear() && <span className="tx1-carousel-year">{String(year).slice(2)}</span>}
-                    {bal !== null && (
-                      <span className={`tx1-carousel-bal ${bal >= 0 ? 'pos' : 'neg'}`}>{bal >= 0 ? '+' : '−'}</span>
-                    )}
-                  </button>
-                )
-              })}
+            <div className="tx1-carousel-wrap">
+              <div className="tx1-carousel" ref={carouselRef}>
+                {carouselMonths.map(({ month, year, label }) => {
+                  const active = month === selMonth && year === selYear
+                  const bal    = getMonthBalance(month, year)
+                  return (
+                    <button
+                      key={`${year}-${month}`}
+                      className={`tx1-carousel-item${active ? ' on' : ''}`}
+                      onClick={() => setSelDate(new Date(year, month - 1, 1))}
+                    >
+                      <span className="tx1-carousel-mon">{label}</span>
+                      {year !== today.getFullYear() && <span className="tx1-carousel-year">'{String(year).slice(2)}</span>}
+                      {bal !== null && (
+                        <span className={`tx1-carousel-bal ${bal >= 0 ? 'pos' : 'neg'}`}>{bal >= 0 ? '+' : '−'}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             <button className="tx1-month-arrow" onClick={goToNext} disabled={isCurrentMonth} aria-label="Próximo mês">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
 
@@ -308,7 +313,7 @@ export default function Transactions() {
                 }} />
               ))}
             </div>
-            <div className="tx1-hero-left">
+            <div className="tx1-hero-left" key={`${selYear}-${selMonth}`}>
               <div className="tx1-hero-label">{MONTHS[selDate.getMonth()]} {selYear}</div>
               <div className="tx1-hero-balance" style={{ color: balancePos ? 'var(--t1)' : '#ff6b6b' }}>
                 {balancePos ? '' : '−'}R$ {fmt(Math.abs(balance))}
