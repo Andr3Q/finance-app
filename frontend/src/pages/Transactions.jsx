@@ -5,6 +5,8 @@ import Navbar from '../components/layout/Navbar.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
+import { useUser } from '../hooks/useUser.js'
+import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
@@ -32,6 +34,7 @@ function exportCSV(rows) {
 const CACHE_KEY = 'transactions:list'
 
 export default function Transactions() {
+  const user = useUser()
   const [transactions,  setTransactions]  = useState([])
   const [installments,  setInstallments]  = useState([])
   const [loading,       setLoading]       = useState(true)
@@ -369,6 +372,13 @@ export default function Transactions() {
             </div>
             </div>{/* tx1-hero-content */}
           </div>
+
+          <PlanUsageBanner
+            plan={user?.plan ?? 'free'}
+            feature="transactions"
+            used={monthTxs.length}
+            label="transações este mês"
+          />
 
           {/* ── Parcelas ── */}
           <div className="parc-section">

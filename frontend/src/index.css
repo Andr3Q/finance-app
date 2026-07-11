@@ -9696,3 +9696,104 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   box-sizing: border-box;
 }
 .lauth-input:focus { border-color: var(--cp); }
+
+/* ── PlanUsageBanner ─────────────────────────────────────── */
+.pub-wrap {
+  background: var(--s2);
+  border: 1px solid var(--bd);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.pub-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.pub-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pub-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+.pub-btn {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(74,226,172,.3);
+  background: rgba(74,226,172,.08);
+  color: #4ae2ac;
+  cursor: pointer;
+  transition: background .15s;
+  white-space: nowrap;
+}
+.pub-btn:hover { background: rgba(74,226,172,.15); }
+.pub-bar {
+  height: 3px;
+  background: var(--bd);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.pub-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width .3s ease;
+}
+
+/* ── Card de planos em Configurações (mobile only) ────────── */
+.cfg-plan-card-mobile {
+  display: none;
+}
+@media (max-width: 768px) {
+  .cfg-plan-card-mobile {
+    display: block;
+    margin-bottom: 8px;
+  }
+}
+.cfg-plan-upgrade-card {
+  background: linear-gradient(135deg, rgba(74,226,172,.08), rgba(79,142,247,.05));
+  border: 1px solid rgba(74,226,172,.2);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.cfg-plan-upgrade-card:hover {
+  border-color: rgba(74,226,172,.4);
+  background: linear-gradient(135deg, rgba(74,226,172,.12), rgba(79,142,247,.08));
+}
+.cfg-plan-badge {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.cfg-plan-badge-free  { background: rgba(255,255,255,.08); color: var(--t2); }
+.cfg-plan-badge-pro   { background: rgba(79,142,247,.15); color: #4f8ef7; }
+.cfg-plan-badge-elite { background: rgba(123,47,255,.15); color: #7b2fff; }
+.cfg-plan-upgrade-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t1);
+}
+.cfg-plan-upgrade-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--t2);
+  display: block;
+  margin-top: 2px;
+}

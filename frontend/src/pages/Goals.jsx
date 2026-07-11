@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 import { analytics } from '../services/analytics.js'
 import GradCard from '../components/ui/GradCard.jsx'
 import { transactionsAPI, agentAPI } from '../services/api.js'
@@ -551,24 +552,12 @@ export default function Goals() {
               </div>
             ) : activeTab === 'metas' ? (
               <>
-                {isFree && goals.length >= 1 && (
-                  <div className="gls-pro-limit-banner">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    Limite de 1 meta no plano Free.{' '}
-                    <button className="gls-pro-limit-link" onClick={() => navigate('/planos')}>Fazer upgrade para criar mais</button>
-                  </div>
-                )}
-                {isPro && goals.length >= proLimit && (
-                  <div className="gls-pro-limit-banner">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    Limite de {proLimit} metas atingido no plano Pro.{' '}
-                    <button className="gls-pro-limit-link" onClick={() => navigate('/planos')}>Fazer upgrade</button>
-                  </div>
-                )}
+                <PlanUsageBanner
+                  plan={plan ?? 'free'}
+                  feature="goals"
+                  used={goals.length}
+                  label="metas"
+                />
                 <div className="gls-grid">
                   {goals.map(g => {
                     const pct  = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0
