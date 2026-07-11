@@ -48,11 +48,14 @@ const DRAFT_KEY  = 'goal-form-draft'
 
 function DepositModal({ goal, onConfirm, onCancel, saving }) {
   const [amount, setAmount] = useState('')
-  const pct       = goal.targetAmount > 0
-    ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
+  const currentAmt   = Number(goal.currentAmount) || 0
+  const targetAmt    = Number(goal.targetAmount)  || 0
+  const pct          = targetAmt > 0
+    ? Math.min(100, Math.round((currentAmt / targetAmt) * 100))
     : 0
-  const remaining    = Math.max(0, goal.targetAmount - goal.currentAmount)
-  const depositValue = parseFloat(amount) || 0
+  const remaining    = Math.max(0, targetAmt - currentAmt)
+  const depositValue = Number(amount) || 0
+  const newTotal     = currentAmt + depositValue
   const willComplete = remaining > 0 && depositValue >= remaining
 
   return (
@@ -73,8 +76,8 @@ function DepositModal({ goal, onConfirm, onCancel, saving }) {
               <div className="gls-card-bar-fill" style={{ width: `${pct}%`, background: goal.color }} />
             </div>
             <div className="gls-dep-amounts">
-              <span style={{ color: goal.color }}>R$ {fmt(goal.currentAmount)}</span>
-              <span className="gls-dep-sep">de R$ {fmt(goal.targetAmount)}</span>
+              <span style={{ color: goal.color }}>R$ {fmt(currentAmt)}</span>
+              <span className="gls-dep-sep">de R$ {fmt(targetAmt)}</span>
               {remaining > 0 && <span className="gls-dep-rem">faltam R$ {fmt(remaining)}</span>}
             </div>
           </div>
@@ -89,8 +92,16 @@ function DepositModal({ goal, onConfirm, onCancel, saving }) {
               autoFocus
             />
           </div>
+          {depositValue > 0 && (
+            <div style={{ marginTop:8, fontSize:12, color:'var(--t2)', display:'flex', alignItems:'center', gap:6 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+              Novo total: <strong style={{ color: goal.color }}>R$ {fmt(newTotal)}</strong>
+            </div>
+          )}
           {willComplete && (
-            <div style={{ marginTop:10, padding:'10px 12px', borderRadius:10, background:'rgba(74,226,172,.1)', border:'1px solid rgba(74,226,172,.25)', display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#4ae2ac', fontWeight:600 }}>
+            <div style={{ marginTop:8, padding:'10px 12px', borderRadius:10, background:'rgba(74,226,172,.1)', border:'1px solid rgba(74,226,172,.25)', display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#4ae2ac', fontWeight:600 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2.5" strokeLinecap="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/>
               </svg>
@@ -403,7 +414,7 @@ export default function Goals() {
     if (!depositGoal || amount <= 0) return
     setSaving(true)
     try {
-      const newAmount = depositGoal.currentAmount + amount
+      const newAmount = Number(depositGoal.currentAmount) + Number(amount)
       await updateGoal(depositGoal.id, { currentAmount: newAmount })
       const done = newAmount >= depositGoal.targetAmount
       analytics.track('goal_deposit_made', { amountRange: amountBucket(amount), goalReached: done })
