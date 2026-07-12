@@ -9,7 +9,6 @@ import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
 
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
-  invalidateCache('transactions:list')
   window.dispatchEvent(new CustomEvent('budget-updated'))
 }
 
