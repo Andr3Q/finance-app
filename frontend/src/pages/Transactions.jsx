@@ -252,9 +252,6 @@ export default function Transactions() {
   const totalExpenses = monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const totalIncome   = monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const balance       = totalIncome - totalExpenses
-  // Totais específicos das transações filtradas (usados no rodapé)
-  const filteredIncome   = (filter === 'all' && !search) ? totalIncome   : filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const filteredExpenses = (filter === 'all' && !search) ? totalExpenses : filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balancePos    = balance >= 0
 
   const filtered = transactions.filter(t => {
@@ -270,6 +267,10 @@ export default function Transactions() {
       true
     return matchMonth && matchSearch && matchFilter
   })
+
+  // Totais específicos das transações filtradas (usados no rodapé)
+  const filteredIncome   = (filter === 'all' && !search) ? totalIncome   : filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const filteredExpenses = (filter === 'all' && !search) ? totalExpenses : filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
 
   const FILTER_PILLS = [
     { value: 'all',     label: 'Todas',    },
