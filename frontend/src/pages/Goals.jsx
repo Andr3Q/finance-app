@@ -473,7 +473,7 @@ export default function Goals() {
 
       {toast && (
         <div className={`toast ${toast.ok ? 'tok' : 'terr'}`}
-          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:500, whiteSpace:'nowrap' }}>
+          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:9001, whiteSpace:'nowrap' }}>
           {toast.msg}
         </div>
       )}

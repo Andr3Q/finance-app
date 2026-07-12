@@ -1,7 +1,7 @@
 // @ts-nocheck
 const { test, expect }          = require('@playwright/test')
 const { GOAL_ITEM }             = require('../helpers/mockApi')
-const { injectSession }         = require('../helpers/session')
+const { injectSession, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Metas Financeiras — E2E
@@ -17,6 +17,9 @@ async function setupGoals(page, goals = []) {
   })
   page.route('**/api/transactions/subscriptions**', (route) => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  page.route('**/api/auth/me**', (route) => {
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_USER) })
   })
 }
 
@@ -70,6 +73,9 @@ test.describe('Metas — Criar meta', () => {
     })
     page.route('**/api/transactions/subscriptions**', (route) => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) })
+    })
+    page.route('**/api/auth/me**', (route) => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_USER) })
     })
     await page.goto('/goals')
   })
@@ -126,6 +132,9 @@ test.describe('Metas — Depositar valor', () => {
     })
     // Mock analytics se necessário
     page.route('**/api/agent/**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
+    page.route('**/api/auth/me**', (route) => {
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_USER) })
+    })
     await page.goto('/goals')
     await page.getByText('Reserva de emergência').waitFor()
   })

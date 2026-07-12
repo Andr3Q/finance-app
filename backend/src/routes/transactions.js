@@ -222,9 +222,9 @@ router.get('/subscriptions', dashboardLimiter, async (req, res) => {
 // Query params: ?page=1&limit=100&month=5&year=2026
 router.get('/', dashboardLimiter, async (req, res) => {
   try {
-    const now   = new Date()
-    const month = req.query.month ? parseInt(req.query.month) : now.getMonth() + 1
-    const year  = req.query.year  ? parseInt(req.query.year)  : now.getFullYear()
+    const nowBrt = nowBrasilia()
+    const month  = req.query.month ? parseInt(req.query.month) : nowBrt.month
+    const year   = req.query.year  ? parseInt(req.query.year)  : nowBrt.year
 
     if (month < 1 || month > 12 || !Number.isInteger(month)) {
       return res.status(400).json({ error: 'Mês inválido (1-12).' })
@@ -529,32 +529,39 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
       if (budgets.length > remaining) budgetsToLaunch = budgets.slice(0, remaining)
     }
 
-    // Marca o mês atomicamente — se dois requests chegarem ao mesmo tempo, apenas um
-    // conseguirá fazer o update (o outro encontrará count=0 e retornará alreadyLaunched).
-    const claimed = await prisma.user.updateMany({
-      where: {
-        id: req.userId,
-        NOT: { autoLaunchMonth: month, autoLaunchYear: year },
-      },
-      data: { autoLaunchMonth: month, autoLaunchYear: year },
+    // Marca o mês e cria transações atomicamente — se dois requests chegarem ao mesmo
+    // tempo, apenas um consegue o update; o outro encontrará count=0 (alreadyLaunched).
+    // Ambas as operações estão na mesma transação de banco: se createMany falhar, o
+    // updateMany é revertido e o usuário pode tentar novamente.
+    let alreadyLaunched = false
+    await prisma.$transaction(async (db) => {
+      const claimed = await db.user.updateMany({
+        where: {
+          id: req.userId,
+          NOT: { autoLaunchMonth: month, autoLaunchYear: year },
+        },
+        data: { autoLaunchMonth: month, autoLaunchYear: year },
+      })
+
+      if (claimed.count === 0) { alreadyLaunched = true; return }
+
+      // createMany insere N contas em 1 round trip ao banco (vs N inserts individuais)
+      await db.transaction.createMany({
+        data: budgetsToLaunch.map(b => ({
+          description: b.name,
+          amount:      b.amount,
+          type:        'expense',
+          category:    'fixed',
+          month,
+          year,
+          userId:      req.userId
+        }))
+      })
     })
 
-    if (claimed.count === 0) {
+    if (alreadyLaunched) {
       return res.json({ message: 'Contas fixas já foram lançadas este mês.', alreadyLaunched: true })
     }
-
-    // createMany insere N contas em 1 round trip ao banco (vs N inserts individuais)
-    await prisma.transaction.createMany({
-      data: budgetsToLaunch.map(b => ({
-        description: b.name,
-        amount:      b.amount,
-        type:        'expense',
-        category:    'fixed',
-        month,
-        year,
-        userId:      req.userId
-      }))
-    })
 
     res.json({
       message:         `✅ ${budgetsToLaunch.length} contas fixas lançadas com sucesso!`,
