@@ -154,12 +154,21 @@ export default function Transactions() {
   }
 
   const handleDelete = async (id) => {
-    try {
-      await transactionsAPI.remove(id)
-      invalidateCache(txCacheKey(selMonth, selYear))
-      fetchTransactions(true)
-    } catch { showToast('Erro ao remover.', false) }
     setConfirmDeleteTx(null)
+    let lastErr
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await transactionsAPI.remove(id)
+        invalidateCache(txCacheKey(selMonth, selYear))
+        fetchTransactions(true)
+        return
+      } catch (err) {
+        lastErr = err
+        if (err?.response?.status === 404) break
+        if (attempt < 3) await new Promise(r => setTimeout(r, 600 * attempt))
+      }
+    }
+    showToast(lastErr?.response?.data?.error || 'Erro ao remover. Tente novamente.', false)
   }
 
   const handlePay = async (id) => {
@@ -197,12 +206,21 @@ export default function Transactions() {
   }
 
   const handleDeleteInstallment = async (id) => {
-    try {
-      await installmentsAPI.remove(id)
-      fetchInstallments()
-      showToast('Parcelamento removido.')
-    } catch { showToast('Erro ao remover.', false) }
     setConfirmDeleteParc(null)
+    let lastErr
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await installmentsAPI.remove(id)
+        fetchInstallments()
+        showToast('Parcelamento removido.')
+        return
+      } catch (err) {
+        lastErr = err
+        if (err?.response?.status === 404) break
+        if (attempt < 3) await new Promise(r => setTimeout(r, 600 * attempt))
+      }
+    }
+    showToast(lastErr?.response?.data?.error || 'Erro ao remover. Tente novamente.', false)
   }
 
   const handleCreateInstallment = async (e) => {
@@ -233,6 +251,9 @@ export default function Transactions() {
   const totalExpenses = monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const totalIncome   = monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const balance       = totalIncome - totalExpenses
+  // Totais específicos das transações filtradas (usados no rodapé)
+  const filteredIncome   = (filter === 'all' && !search) ? totalIncome   : filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const filteredExpenses = (filter === 'all' && !search) ? totalExpenses : filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balancePos    = balance >= 0
 
   const filtered = transactions.filter(t => {
@@ -624,9 +645,9 @@ export default function Transactions() {
                 <div className="tx1-footer">
                   <span>{filtered.length} transação(ões)</span>
                   <span>
-                    Entradas: <strong style={{ color:'#4ae2ac' }}>R$ {fmt(totalIncome)}</strong>
+                    Entradas: <strong style={{ color:'#4ae2ac' }}>R$ {fmt(filteredIncome)}</strong>
                     &nbsp;·&nbsp;
-                    Saídas: <strong style={{ color:'#ff4757' }}>R$ {fmt(totalExpenses)}</strong>
+                    Saídas: <strong style={{ color:'#ff4757' }}>R$ {fmt(filteredExpenses)}</strong>
                   </span>
                 </div>
               </>
