@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, createPortal } from 'react'
 import { transactionsAPI, installmentsAPI } from '../services/api.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
@@ -31,7 +31,7 @@ function exportCSV(rows) {
   URL.revokeObjectURL(url)
 }
 
-const CACHE_KEY = 'transactions:list'
+const txCacheKey = (m, y) => `transactions:list:${y}-${m}`
 
 export default function Transactions() {
   const user = useUser()
@@ -53,6 +53,7 @@ export default function Transactions() {
   const [confirmDeleteParc, setConfirmDeleteParc] = useState(null)
   const fileInputRef  = useRef(null)
   const carouselRef   = useRef(null)
+  const fetchRef      = useRef(null)
   const today         = new Date()
   const [selDate,  setSelDate]  = useState(() => new Date())
   const [selDir,   setSelDir]   = useState('none')
@@ -98,19 +99,21 @@ export default function Transactions() {
   }
 
   const fetchTransactions = async (force = false) => {
+    const key = txCacheKey(selMonth, selYear)
     if (!force) {
-      const cached = getCache(CACHE_KEY)
+      const cached = getCache(key)
       if (cached) { setTransactions(cached); setLoading(false); return }
     }
     try {
-      const res = await transactionsAPI.list({ limit: 200 })
+      const res = await transactionsAPI.list({ month: selMonth, year: selYear, limit: 200 })
       const raw  = res.data.data ?? res.data
       const data = Array.isArray(raw) ? raw : []
-      setCache(CACHE_KEY, data, 30_000)
+      setCache(key, data, 30_000)
       setTransactions(data)
     } catch { showToast('Erro ao carregar transações.', false) }
     finally { setLoading(false) }
   }
+  fetchRef.current = fetchTransactions
 
   const fetchInstallments = async () => {
     try {
@@ -119,9 +122,17 @@ export default function Transactions() {
     } catch {}
   }
 
+  useEffect(() => { fetchInstallments() }, [])
+
   useEffect(() => {
-    fetchTransactions()
-    fetchInstallments()
+    setLoading(true)
+    fetchRef.current()
+  }, [selMonth, selYear])
+
+  useEffect(() => {
+    const handler = () => fetchRef.current(true)
+    window.addEventListener('budget-updated', handler)
+    return () => window.removeEventListener('budget-updated', handler)
   }, [])
 
   const handleImportCSV = async (e) => {
@@ -133,7 +144,7 @@ export default function Transactions() {
       setLoading(true)
       const res = await transactionsAPI.importCSV(formData)
       showToast(res.data.message)
-      invalidateCache(CACHE_KEY)
+      invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
     } catch (err) {
       showToast(err.response?.data?.error || 'Erro ao importar CSV.', false)
@@ -145,7 +156,7 @@ export default function Transactions() {
   const handleDelete = async (id) => {
     try {
       await transactionsAPI.remove(id)
-      invalidateCache(CACHE_KEY)
+      invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
     } catch { showToast('Erro ao remover.', false) }
     setConfirmDeleteTx(null)
@@ -156,7 +167,7 @@ export default function Transactions() {
     try {
       await installmentsAPI.pay(id)
       fetchInstallments()
-      invalidateCache(CACHE_KEY)
+      invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
@@ -173,7 +184,7 @@ export default function Transactions() {
     try {
       await installmentsAPI.unpay(id)
       fetchInstallments()
-      invalidateCache(CACHE_KEY)
+      invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
@@ -658,7 +669,7 @@ export default function Transactions() {
       {showForm && (
         <TransactionForm
           onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); invalidateCache(CACHE_KEY); fetchTransactions(true) }}
+          onSuccess={() => { setShowForm(false); invalidateCache(txCacheKey(selMonth, selYear)); fetchTransactions(true) }}
         />
       )}
 
@@ -667,34 +678,78 @@ export default function Transactions() {
           initialData={editingTx}
           editingId={editingTx.id}
           onClose={() => setEditingTx(null)}
-          onSuccess={() => { setEditingTx(null); invalidateCache(CACHE_KEY); fetchTransactions(true) }}
+          onSuccess={() => { setEditingTx(null); invalidateCache(txCacheKey(selMonth, selYear)); fetchTransactions(true) }}
         />
       )}
 
-      {confirmDeleteTx && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
-            <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Remover transação?</div>
-            <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20 }}>Esta ação não pode ser desfeita.</div>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setConfirmDeleteTx(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
-              <button onClick={() => handleDelete(confirmDeleteTx)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>Remover</button>
+      {confirmDeleteTx && createPortal(
+        <div className="gls-modal-overlay" onClick={() => setConfirmDeleteTx(null)}>
+          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head">
+              <span>Remover transação</span>
+              <button className="gls-modal-close" onClick={() => setConfirmDeleteTx(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Esta transação será removida permanentemente.</div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirmDeleteTx(null)}>Cancelar</button>
+              <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={() => handleDelete(confirmDeleteTx)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                </svg>
+                Sim, excluir
+              </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {confirmDeleteParc && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
-            <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Remover parcelamento?</div>
-            <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20 }}>Esta ação não pode ser desfeita.</div>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setConfirmDeleteParc(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
-              <button onClick={() => handleDeleteInstallment(confirmDeleteParc)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>Remover</button>
+      {confirmDeleteParc && createPortal(
+        <div className="gls-modal-overlay" onClick={() => setConfirmDeleteParc(null)}>
+          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head">
+              <span>Remover parcelamento</span>
+              <button className="gls-modal-close" onClick={() => setConfirmDeleteParc(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Todas as parcelas restantes serão removidas permanentemente.</div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirmDeleteParc(null)}>Cancelar</button>
+              <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={() => handleDeleteInstallment(confirmDeleteParc)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                </svg>
+                Sim, excluir
+              </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
