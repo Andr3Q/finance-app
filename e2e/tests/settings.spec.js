@@ -17,6 +17,7 @@ async function setupSettings(page, user = TEST_USER) {
   page.route('**/api/auth/2fa/**',            (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 8 }) }))
   page.route('**/api/auth/referral-stats**',  (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ referrals: 0, rewards: 0 }) }))
   page.route('**/api/notifications/**',       (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
+  page.route('**/api/auth/me**',              (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) }))
 }
 
 test.describe('Configurações — Layout', () => {
