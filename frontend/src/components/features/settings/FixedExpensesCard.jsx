@@ -5,6 +5,7 @@ import { invalidateCache } from '../../../services/cache.js'
 import { useUser } from '../../../hooks/useUser.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 import { analytics } from '../../../services/analytics.js'
+import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
 
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
@@ -170,6 +171,12 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         </div>
       </div>
       <div className="cfg-card-body">
+        <PlanUsageBanner
+          plan={user.plan ?? 'free'}
+          feature="budgets"
+          used={budgets.length}
+          label="contas fixas"
+        />
         {budgets.length === 0 ? (
           <div className="cfg-empty-hint">Nenhuma conta fixa cadastrada.</div>
         ) : (

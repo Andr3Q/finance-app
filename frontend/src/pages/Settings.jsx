@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { nextPlanLabel } from '../config/planLimits.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import { authAPI } from '../services/api.js'
 import UpgradeModal from '../components/ui/UpgradeModal.jsx'
@@ -71,6 +72,7 @@ export default function Settings() {
 
             <SettingsHero user={user} isPro={isPro} />
 
+            {/* Aviso de Finanças — sempre visível */}
             <div
               className="cfg-card"
               style={{ borderLeft: '3px solid #4ae2ac', cursor: 'pointer' }}
@@ -91,6 +93,32 @@ export default function Settings() {
                 </svg>
               </div>
             </div>
+
+            {/* Card de planos — só mobile */}
+            {nextPlanLabel(user.plan) && (
+              <div className="cfg-plan-card-mobile">
+                <div
+                  className="cfg-plan-upgrade-card"
+                  onClick={() => navigate('/planos')}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => e.key === 'Enter' && navigate('/planos')}
+                >
+                  <span className={`cfg-plan-badge cfg-plan-badge-${user.plan ?? 'free'}`}>
+                    {(user.plan ?? 'free').toUpperCase()}
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div className="cfg-plan-upgrade-text">
+                      ⚡ Upgrade para {nextPlanLabel(user.plan)}
+                      <span className="cfg-plan-upgrade-sub">Desbloqueie mais recursos e limites maiores</span>
+                    </div>
+                  </div>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round">
+                    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                  </svg>
+                </div>
+              </div>
+            )}
 
             <div className="cfg-sec-title r2">Perfil</div>
             <EmailVerifyCard onMessage={showMsg} />
