@@ -268,10 +268,6 @@ export default function Transactions() {
     return matchMonth && matchSearch && matchFilter
   })
 
-  // Totais específicos das transações filtradas (usados no rodapé)
-  const filteredIncome   = (filter === 'all' && !search) ? totalIncome   : filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const filteredExpenses = (filter === 'all' && !search) ? totalExpenses : filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-
   const FILTER_PILLS = [
     { value: 'all',     label: 'Todas',    },
     { value: 'income',  label: 'Entradas', },
@@ -646,11 +642,6 @@ export default function Transactions() {
                 ))}
                 <div className="tx1-footer">
                   <span>{filtered.length} transação(ões)</span>
-                  <span>
-                    Entradas: <strong style={{ color:'#4ae2ac' }}>R$ {fmt(filteredIncome)}</strong>
-                    &nbsp;·&nbsp;
-                    Saídas: <strong style={{ color:'#ff4757' }}>R$ {fmt(filteredExpenses)}</strong>
-                  </span>
                 </div>
               </>
             )}
