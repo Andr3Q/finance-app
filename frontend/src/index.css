@@ -5745,9 +5745,8 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   background: rgba(255,255,255,.07); margin: 3px 0;
 }
 .hb-feed-body {
-  flex: 1; min-width: 0; padding: 14px 8px 14px 14px; position: relative;
+  flex: 1; min-width: 0; padding: 14px 8px 14px 14px;
   border-bottom: 1px solid rgba(255,255,255,.05);
-  overflow: hidden;
 }
 .hb-feed-item:last-child .hb-feed-body { border-bottom: none; }
 .hb-feed-row {
@@ -5771,13 +5770,15 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   background: rgba(255,255,255,.06); padding: 3px 10px; border-radius: 20px;
 }
 .hb-feed-del {
-  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  flex-shrink: 0; margin-left: 4px;
   background: none; border: none; cursor: pointer;
-  color: rgba(255,255,255,.18); padding: 8px; border-radius: 6px;
+  color: rgba(255,255,255,.18); padding: 6px; border-radius: 6px;
   transition: var(--tr); opacity: 0;
+  display: flex; align-items: center; justify-content: center;
 }
 .hb-feed-item:hover .hb-feed-del { opacity: 1; }
 .hb-feed-del:hover { color: #ff4757; background: rgba(255,71,87,.1); }
+@media (hover: none) { .hb-feed-del { display: none; } }
 
 /* ── Upgrade card ──────────────────────────────────────── */
 .hb-upgrade {
