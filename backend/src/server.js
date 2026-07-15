@@ -101,11 +101,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:  ["'self'"],
-      scriptSrc:   ["'self'"],
-      styleSrc:    ["'self'", "'unsafe-inline'"],  // Vite injeta estilos inline
+      scriptSrc:   ["'self'", 'https://static.cloudflareinsights.com'],
+      styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc:      ["'self'", 'data:', 'blob:'],
-      fontSrc:     ["'self'", 'data:'],
-      connectSrc:  ["'self'", 'https://api.groq.com'],
+      fontSrc:     ["'self'", 'data:', 'https://fonts.gstatic.com'],
+      connectSrc:  ["'self'", 'https://api.groq.com', 'https://static.cloudflareinsights.com'],
       objectSrc:   ["'none'"],
       frameAncestors: ["'none'"],
       baseUri:     ["'self'"],
