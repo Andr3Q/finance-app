@@ -186,7 +186,7 @@ select.input, select.inp {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff73' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; padding-right: 40px;
 }
-select.input option, select.inp option { background: #1a1a1a; color: var(--t1); }
+select.input option, select.inp option { background: var(--bg-card); color: var(--t1); }
 
 /* Remove setas dos inputs numéricos */
 input[type=number]::-webkit-outer-spin-button,
@@ -8244,6 +8244,15 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .gls-modal-head { border-bottom-color: rgba(0,0,0,.08); }
 [data-theme="light"] .gls-modal-close { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.1); }
 [data-theme="light"] .gls-modal-foot { border-top-color: rgba(0,0,0,.08); }
+
+/* ── TransactionForm modal — light mode ── */
+[data-theme="light"] .modal { background: #ffffff; border-color: rgba(0,0,0,.1); box-shadow: 0 24px 80px rgba(0,0,0,.12); }
+[data-theme="light"] .modal::before { background: linear-gradient(90deg, transparent, rgba(46,138,74,.25), transparent); }
+[data-theme="light"] .mcls { background: rgba(0,0,0,.05); border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .mtabs { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .mtab { color: rgba(0,0,0,.45); }
+[data-theme="light"] .amtinp { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.1); }
+[data-theme="light"] select.inp option { background: #ffffff; color: #0d0d0d; }
 [data-theme="light"] .gls-input { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.12); color: #0d0d0d; }
 [data-theme="light"] .gls-input:focus { border-color: rgba(74,226,172,.5); }
 [data-theme="light"] .gls-input-prefix { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.12); }
