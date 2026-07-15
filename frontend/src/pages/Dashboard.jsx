@@ -780,8 +780,8 @@ export default function Dashboard() {
                   <div className="hb-empty">Nenhuma transação encontrada</div>
                 ) : (
                   <>
-                    <div className={feedExpanded ? 'hb-feed' : 'hb-feed hb-feed-collapsed'}>
-                      {groupedTx.map(([dateLabel, txs]) => (
+                    <div className="hb-feed">
+                      {(feedExpanded ? groupedTx : groupedTx.slice(0, FEED_PREVIEW)).map(([dateLabel, txs]) => (
                         <div key={dateLabel}>
                           <div className="hb-feed-date">{dateLabel}</div>
                           {txs.map((t, i) => {

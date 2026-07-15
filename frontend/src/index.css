@@ -5693,13 +5693,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .hb-feed { padding: 4px 0 8px; }
 
-/* ── Feed colapsável ── */
-.hb-feed-collapsed {
-  max-height: 420px;
-  overflow: hidden;
-  mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent 100%);
-}
 
 /* Botão Ver mais / Ver menos */
 .hb-feed-toggle {
