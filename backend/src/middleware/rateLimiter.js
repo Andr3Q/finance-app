@@ -87,6 +87,16 @@ const paymentLimiter = rateLimit({
   message:      { error: 'Muitas tentativas de pagamento. Tente novamente em 15 minutos.' },
 })
 
+// Webhook do MP: limite alto por IP — o MP reenvia com retentativas progressivas
+// NÃO usar paymentLimiter aqui: 10 req/15min bloquearia entregas legítimas do MP
+// keyGenerator cai no IP (sem JWT nessa rota), o que é correto para chamadas externas
+const webhookLimiter = rateLimit({
+  ...opts,
+  windowMs:     15 * 60 * 1000,
+  max:          500,
+  message:      { error: 'Muitas requisições.' },
+})
+
 // 2FA: 10 tentativas / 15 min por IP — TOTP tem 10^6 possibilidades, impede brute-force
 const twoFALimiter = rateLimit({
   ...opts,
@@ -122,6 +132,7 @@ module.exports = {
   dashboardLimiter,
   reportLimiter,
   paymentLimiter,
+  webhookLimiter,
   twoFALimiter,
   exportLimiter,
   verifyEmailLimiter,

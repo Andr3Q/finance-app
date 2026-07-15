@@ -5,7 +5,7 @@ const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { UUID_REGEX } = require('../utils/constants')
 const { sendPlanActivationEmail } = require('../services/emailService')
-const { apiLimiter } = require('../middleware/rateLimiter')
+const { paymentLimiter, webhookLimiter } = require('../middleware/rateLimiter')
 
 const router  = express.Router()
 const APP_URL = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
@@ -55,7 +55,7 @@ function getMpClient() {
 
 // ── POST /api/payments/create-preference ───────────────
 // Cria preferência MP e retorna a URL de checkout.
-router.post('/create-preference', authMiddleware, async (req, res) => {
+router.post('/create-preference', authMiddleware, paymentLimiter, async (req, res) => {
   const client = getMpClient()
   if (!client) return res.status(503).json({ error: 'Pagamentos não configurados.' })
 
@@ -102,7 +102,7 @@ router.post('/create-preference', authMiddleware, async (req, res) => {
 // ── POST /api/payments/webhook ──────────────────────────
 // Recebe notificações do MP — sem auth JWT (chamado pelo MP).
 // Responde 200 imediatamente e processa em background.
-router.post('/webhook', apiLimiter, async (req, res) => {
+router.post('/webhook', webhookLimiter, async (req, res) => {
   const sigResult = verifyMpSignature(req)
   if (sigResult === null) {
     // Secret não configurado: 503 para o MP retentar quando o servidor estiver pronto
