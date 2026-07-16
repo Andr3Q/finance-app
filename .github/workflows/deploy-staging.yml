@@ -193,6 +193,19 @@ jobs:
             --set-secrets "DATABASE_URL=STAGING_DATABASE_URL:latest,JWT_SECRET=STAGING_JWT_SECRET:latest,GROQ_API_KEY=GROQ_API_KEY:latest,VAPID_PUBLIC_KEY=STAGING_VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=STAGING_VAPID_PRIVATE_KEY:latest,ALLOWED_ORIGINS=STAGING_ALLOWED_ORIGINS:latest,RESEND_API_KEY=RESEND_API_KEY:latest,STAGING_SEED_SECRET=STAGING_SEED_SECRET:latest" \
             --quiet
 
+          echo "🧹 Removendo imagens antigas do staging (mantém as 5 mais recentes)..."
+          OLD_IMAGES=$(gcloud container images list-tags "gcr.io/${PROJECT}/${SERVICE}" \
+            --format="get(digest)" --sort-by="~timestamp" | tail -n +6 || true)
+          if [[ -n "$OLD_IMAGES" ]]; then
+            echo "$OLD_IMAGES" | while read digest; do
+              gcloud container images delete "gcr.io/${PROJECT}/${SERVICE}@${digest}" \
+                --force-delete-tags --quiet 2>/dev/null || true
+            done
+            echo "✅ Imagens antigas removidas."
+          else
+            echo "✅ Nenhuma imagem antiga para remover."
+          fi
+
           echo "🔀 Redirecionando tráfego..."
           gcloud run services update-traffic "$SERVICE" \
             --region "$REGION" \
