@@ -238,7 +238,9 @@ jobs:
       - name: Health check staging
         run: |
           URL="${{ steps.staging-url.outputs.url }}"
-          MAX=3; WAIT=15; OK=false
+          echo "⏳ Aguardando 30s para cold start do container..."
+          sleep 30
+          MAX=5; WAIT=15; OK=false
           for i in $(seq 1 $MAX); do
             echo "🏥 Health check $i/$MAX → ${URL}/health"
             STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${URL}/health" || echo "000")
