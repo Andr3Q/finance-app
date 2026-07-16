@@ -357,26 +357,34 @@ export default function Goals() {
 
     let cancelled = false
 
-    const cachedHistory = getCache(CACHE_HISTORY)
-    if (cachedHistory) {
-      setHistory(cachedHistory)
-      setLoadingHist(false)
+    if (isPro) {
+      const cachedHistory = getCache(CACHE_HISTORY)
+      if (cachedHistory) {
+        setHistory(cachedHistory)
+        setLoadingHist(false)
+      } else {
+        transactionsAPI.monthlyHistory(6)
+          .then(r => { if (!cancelled) { setCache(CACHE_HISTORY, r.data, TTL_5MIN); setHistory(r.data) } })
+          .catch(() => { if (!cancelled) setLoadingHist(false) })
+          .finally(() => { if (!cancelled) setLoadingHist(false) })
+      }
     } else {
-      transactionsAPI.monthlyHistory(6)
-        .then(r => { if (!cancelled) { setCache(CACHE_HISTORY, r.data, TTL_5MIN); setHistory(r.data) } })
-        .catch(() => { if (!cancelled) setLoadingHist(false) })
-        .finally(() => { if (!cancelled) setLoadingHist(false) })
+      setLoadingHist(false)
     }
 
-    const cachedSubs = getCache(CACHE_SUBS)
-    if (cachedSubs) {
-      setSubs(cachedSubs)
-      setLoadingSubs(false)
+    if (isElite) {
+      const cachedSubs = getCache(CACHE_SUBS)
+      if (cachedSubs) {
+        setSubs(cachedSubs)
+        setLoadingSubs(false)
+      } else {
+        transactionsAPI.subscriptions()
+          .then(r => { if (!cancelled) { setCache(CACHE_SUBS, r.data, TTL_5MIN); setSubs(r.data) } })
+          .catch(() => { if (!cancelled) setLoadingSubs(false) })
+          .finally(() => { if (!cancelled) setLoadingSubs(false) })
+      }
     } else {
-      transactionsAPI.subscriptions()
-        .then(r => { if (!cancelled) { setCache(CACHE_SUBS, r.data, TTL_5MIN); setSubs(r.data) } })
-        .catch(() => { if (!cancelled) setLoadingSubs(false) })
-        .finally(() => { if (!cancelled) setLoadingSubs(false) })
+      setLoadingSubs(false)
     }
 
     return () => { cancelled = true }
@@ -634,23 +642,33 @@ export default function Goals() {
               </>
             ) : null}
 
-            {/* ── Histórico de Gastos ── */}
+            {/* ── Histórico de Gastos (Pro+) ── */}
             {activeTab === 'historico' && (
               <>
-                <GradCard
-                  iconBg="rgba(79,142,247,.1)" iconBorder="rgba(79,142,247,.25)"
-                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
-                  title="Evolução mensal"
-                  sub="Entradas e saídas dos últimos 6 meses"
-                >
-                  {loadingHist ? (
-                    <div className="anl-loading"><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /></div>
-                  ) : history.length > 0 ? (
-                    <BarChart data={history} />
-                  ) : (
-                    <div className="anl-empty"><span>Sem dados de histórico ainda</span></div>
-                  )}
-                </GradCard>
+                {!isPro ? (
+                  <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cp)" strokeWidth="1.5" strokeLinecap="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    <div className="cfg-pro-lock-title">Recurso Pro</div>
+                    <div className="cfg-pro-lock-sub">Veja a evolução mensal de entradas e saídas dos últimos 6 meses</div>
+                  </div>
+                ) : (
+                  <GradCard
+                    iconBg="rgba(79,142,247,.1)" iconBorder="rgba(79,142,247,.25)"
+                    icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
+                    title="Evolução mensal"
+                    sub="Entradas e saídas dos últimos 6 meses"
+                  >
+                    {loadingHist ? (
+                      <div className="anl-loading"><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /></div>
+                    ) : history.length > 0 ? (
+                      <BarChart data={history} />
+                    ) : (
+                      <div className="anl-empty"><span>Sem dados de histórico ainda</span></div>
+                    )}
+                  </GradCard>
+                )}
 
                 {/* ── Relatório IA (Elite only) ── */}
                 {isElite && (
@@ -687,21 +705,41 @@ export default function Goals() {
               </>
             )}
 
-            {/* ── Detector de Assinaturas ── */}
+            {/* ── Detector de Assinaturas (Elite) ── */}
             {activeTab === 'assinaturas' && (
-              <GradCard
-                iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
-                icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>}
-                title="Gastos recorrentes detectados"
-                sub="Transações que se repetem em meses diferentes"
-              >
-                <SubscriptionsList data={subs} loading={loadingSubs} />
-              </GradCard>
+              !isElite ? (
+                <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                  </svg>
+                  <div className="cfg-pro-lock-title">Recurso Elite</div>
+                  <div className="cfg-pro-lock-sub">Detecte automaticamente assinaturas e gastos recorrentes</div>
+                </div>
+              ) : (
+                <GradCard
+                  iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
+                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>}
+                  title="Gastos recorrentes detectados"
+                  sub="Transações que se repetem em meses diferentes"
+                >
+                  <SubscriptionsList data={subs} loading={loadingSubs} />
+                </GradCard>
+              )
             )}
 
-            {/* ── Lembretes ── */}
+            {/* ── Lembretes (Elite) ── */}
             {activeTab === 'lembretes' && (
-              <RemindersCard />
+              !isElite ? (
+                <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                  </svg>
+                  <div className="cfg-pro-lock-title">Recurso Elite</div>
+                  <div className="cfg-pro-lock-sub">Receba lembretes automáticos de contas a vencer</div>
+                </div>
+              ) : (
+                <RemindersCard />
+              )
             )}
 
             {/* ── Limites por categoria ── */}
