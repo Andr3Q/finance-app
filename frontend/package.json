@@ -18,7 +18,7 @@
     "@sentry/react": "^10.54.0",
     "axios": "^1.18.0",
     "posthog-js": "^1.376.0",
-    "react": "^18.3.0",
+    "react": "^19.2.8",
     "react-dom": "^18.3.0",
     "react-router-dom": "^6.30.4"
   },
