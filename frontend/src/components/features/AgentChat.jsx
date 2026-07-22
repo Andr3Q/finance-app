@@ -20,7 +20,7 @@ export default function AgentChat() {
   const inputRef              = useRef(null)
   const navigate              = useNavigate()
   const user                  = useUser()
-  const isPro                 = user.plan === 'pro' || user.plan === 'elite'
+  const isElite               = user.plan === 'elite'
 
   useEffect(() => {
     if (open) {
@@ -110,7 +110,7 @@ export default function AgentChat() {
 
           {/* Mensagens */}
           <div className="agent-messages">
-            {!isPro ? (
+            {!isElite ? (
               <div className="agent-welcome">
                 <div className="agent-welcome-ico" style={{ background: 'rgba(123,47,255,.12)', border: '1px solid rgba(123,47,255,.25)' }}>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="1.5" strokeLinecap="round">
@@ -119,11 +119,11 @@ export default function AgentChat() {
                 </div>
                 <div className="agent-welcome-title">Assistente IA</div>
                 <div className="agent-welcome-sub" style={{ marginBottom: 16 }}>
-                  Analise gastos, tire dúvidas e registre transações por texto. Disponível no plano <strong style={{ color: '#4ae2ac' }}>Pro</strong>.
+                  Analise gastos, tire dúvidas e registre transações por texto. Disponível no plano <strong style={{ color: '#a78bfa' }}>Elite</strong>.
                 </div>
                 <button
                   onClick={() => { setOpen(false); navigate('/planos') }}
-                  style={{ background: 'linear-gradient(135deg,#4ae2ac,#2bbf96)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#000', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
+                  style={{ background: 'linear-gradient(135deg,#a78bfa,#7c3aed)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
                 >
                   Ver planos →
                 </button>
@@ -174,8 +174,8 @@ export default function AgentChat() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input — só exibido para Pro/Elite */}
-          {isPro && <div className="agent-input-wrap">
+          {/* Input — só exibido para Elite */}
+          {isElite && <div className="agent-input-wrap">
             <textarea
               ref={inputRef}
               className="agent-input"
