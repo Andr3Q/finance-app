@@ -1,0 +1,64 @@
+# ══════════════════════════════════════════════════════════════════
+# Auto-merge — Dependabot Patches
+#
+# Aprova e habilita auto-merge APENAS para PRs do Dependabot que
+# sejam atualizações estritamente do tipo patch (ex: 1.2.3 → 1.2.4).
+#
+# Fluxo:
+#   PR aberta pelo Dependabot
+#       ↓
+#   Fetch metadata (tipo de atualização)
+#       ↓ patch?
+#   Aprovar PR + habilitar auto-merge
+#       ↓
+#   GitHub aguarda todos os required checks (CI verde)
+#       ↓
+#   Merge automático ✅
+#
+# Pré-requisito: habilitar "Allow auto-merge" em
+#   Settings → General → Pull Requests → Allow auto-merge
+# ══════════════════════════════════════════════════════════════════
+name: Auto-merge — Dependabot Patches
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    name: 🤖 Auto-merge patch do Dependabot
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+
+    steps:
+      - name: Fetch metadata do PR do Dependabot
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Aprovar e habilitar auto-merge (somente patches)
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: |
+          echo "✅ Patch detectado: ${{ steps.metadata.outputs.dependency-names }}"
+          echo "   ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}"
+
+          gh pr review "${{ github.event.pull_request.number }}" \
+            --approve \
+            --body "✅ Auto-aprovado: atualização patch segura. Aguardando CI verde para merge automático."
+
+          gh pr merge "${{ github.event.pull_request.number }}" \
+            --auto \
+            --merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Informar que não é patch (sem auto-merge)
+        if: steps.metadata.outputs.update-type != 'version-update:semver-patch'
+        run: |
+          echo "ℹ️  Tipo de atualização: ${{ steps.metadata.outputs.update-type }}"
+          echo "   Auto-merge desabilitado para minor/major — revisão manual necessária."

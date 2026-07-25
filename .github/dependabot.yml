@@ -1,31 +1,108 @@
 version: 2
 updates:
+  # ── GitHub Actions ──────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "github-actions"]
+    commit-message:
+      prefix: "chore(ci)"
 
+  # ── npm raiz (Playwright, configs) ──────────────────────────────
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore(deps)"
 
+  # ── npm backend ─────────────────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/backend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "backend"]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Express — v5 tem breaking changes na API de roteamento
+      - dependency-name: "express"
+        update-types: ["version-update:semver-major"]
+      # Prisma — major versions exigem migração de schema e testes completos
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+      # PDFKit — major versions alteram métricas de fonte e quebram layout
+      - dependency-name: "pdfkit"
+        update-types: ["version-update:semver-major"]
+      # dotenv — conservador; v17 removeu features mas testar antes
+      - dependency-name: "dotenv"
+        update-types: ["version-update:semver-major"]
 
+  # ── npm frontend ─────────────────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "frontend"]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # React 19 — breaking changes em ErrorBoundary e concurrent features
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
+      # React Router v7 — nova API de roteamento, quebra rotas existentes
+      - dependency-name: "react-router-dom"
+        update-types: ["version-update:semver-major"]
+      # Vite — major versions podem alterar config e plugins
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitejs/plugin-react"
+        update-types: ["version-update:semver-major"]
 
+  # ── Docker backend ───────────────────────────────────────────────
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "chore(docker)"
+    ignore:
+      # Node major versions — Prisma pode não suportar; testar antes
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
 
+  # ── Docker frontend ──────────────────────────────────────────────
   - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "chore(docker)"
+    ignore:
+      # Node major versions — alinhar com backend antes de atualizar
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
