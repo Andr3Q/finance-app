@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "br.com.myfinancepro.app",
+    "sha256_cert_fingerprints": [
+      "10:3B:6A:66:61:B3:3D:E0:B4:39:44:A9:E9:D0:4C:EC:BE:73:C5:F0:4E:9B:92:37:8E:D1:54:EF:62:FF:1A:57"
+    ]
+  }
+}]
