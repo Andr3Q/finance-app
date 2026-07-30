@@ -53,12 +53,14 @@ export default function Transactions() {
   const [confirmDeleteTx,   setConfirmDeleteTx]   = useState(null)
   const [confirmDeleteParc, setConfirmDeleteParc] = useState(null)
   const fileInputRef  = useRef(null)
-  const carouselRef   = useRef(null)
-  const fetchRef      = useRef(null)
+  const carouselRef     = useRef(null)
+  const carouselWrapRef = useRef(null)
+  const fetchRef        = useRef(null)
   const today         = new Date()
   const [selDate,  setSelDate]  = useState(() => new Date())
   const [selDir,   setSelDir]   = useState('none')
-  const [animKey,  setAnimKey]  = useState(0)
+  const [animKey,       setAnimKey]       = useState(0)
+  const [compromsOpen,  setCompromsOpen]  = useState(true)
   const selMonth = selDate.getMonth() + 1
   const selYear  = selDate.getFullYear()
   const isCurrentMonth = selDate.getMonth() === today.getMonth() && selDate.getFullYear() === today.getFullYear()
@@ -93,6 +95,17 @@ export default function Transactions() {
     const el = carouselRef.current.querySelector('.tx1-carousel-item.on')
     if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }, [selDate])
+
+  useEffect(() => {
+    if (selDir === 'none' || !carouselWrapRef.current) return
+    const wrap = carouselWrapRef.current
+    const cls = selDir === 'next' ? 'tx1-slide-next' : 'tx1-slide-prev'
+    wrap.classList.remove('tx1-slide-next', 'tx1-slide-prev')
+    void wrap.offsetWidth
+    wrap.classList.add(cls)
+    const t = setTimeout(() => wrap.classList.remove('tx1-slide-next', 'tx1-slide-prev'), 400)
+    return () => clearTimeout(t)
+  }, [animKey])
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -256,23 +269,22 @@ export default function Transactions() {
 
   const filtered = transactions.filter(t => {
     const matchMonth  = t.month === selMonth && t.year === selYear
+    const isFixed = t.category === 'fixed' && t.type === 'expense'
     const desc = (t.description || CATEGORY_LABELS[t.category] || '').toLowerCase()
     const cat  = (CATEGORY_LABELS[t.category] || '').toLowerCase()
     const matchSearch = !search || desc.includes(search.toLowerCase()) || cat.includes(search.toLowerCase())
     const matchFilter =
-      filter === 'all'     ? true :
-      filter === 'expense' ? t.type === 'expense' :
+      filter === 'all'     ? !isFixed :
+      filter === 'expense' ? t.type === 'expense' && !isFixed :
       filter === 'income'  ? t.type === 'income'  :
-      filter === 'fixed'   ? t.category === 'fixed' :
       true
     return matchMonth && matchSearch && matchFilter
   })
 
   const FILTER_PILLS = [
-    { value: 'all',     label: 'Todas',    },
+    { value: 'all',     label: 'Tudo',     },
     { value: 'income',  label: 'Entradas', },
     { value: 'expense', label: 'Saídas',   },
-    { value: 'fixed',   label: 'Fixas',    },
   ]
 
   const grouped = (() => {
@@ -284,11 +296,27 @@ export default function Transactions() {
       const key = dMs === todayMs ? 'Hoje'
         : dMs === yestMs ? 'Ontem'
         : new Date(t.date).toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'short' })
-      if (!map.has(key)) map.set(key, [])
-      map.get(key).push(t)
+      if (!map.has(key)) map.set(key, { txs: [], totalExp: 0, cats: {} })
+      const entry = map.get(key)
+      entry.txs.push(t)
+      if (t.type === 'expense') {
+        entry.totalExp += t.amount
+        entry.cats[t.category] = (entry.cats[t.category] || 0) + t.amount
+      }
     })
     return [...map.entries()]
   })()
+
+  const comproms = monthTxs
+    .filter(t => t.category === 'fixed' && t.type === 'expense')
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+  const compromsTotal = comproms.reduce((s, t) => s + t.amount, 0)
+
+  const expsByCategory = monthTxs
+    .filter(t => t.type === 'expense' && t.category !== 'fixed')
+    .reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc }, {})
+  const topCats = Object.entries(expsByCategory).sort((a, b) => b[1] - a[1]).slice(0, 3)
+  const totalVarExp = Object.values(expsByCategory).reduce((s, v) => s + v, 0)
 
   const activeInstallments = installments.filter(p => p.paidInstallments < p.totalInstallments)
 
@@ -309,10 +337,15 @@ export default function Transactions() {
 
           {/* ── Carrossel de meses ── */}
           <div className="tx1-month-nav">
-            <button className="tx1-month-arrow" onClick={goToPrev} disabled={isOldestMonth} aria-label="Mês anterior">
+            <button
+              className="tx1-month-arrow"
+              onClick={e => { goToPrev(); const b = e.currentTarget; b.classList.remove('press-left'); void b.offsetWidth; b.classList.add('press-left'); setTimeout(() => b.classList.remove('press-left'), 250) }}
+              disabled={isOldestMonth}
+              aria-label="Mês anterior"
+            >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <div className="tx1-carousel-wrap">
+            <div className="tx1-carousel-wrap" ref={carouselWrapRef}>
               <div className="tx1-carousel" ref={carouselRef}>
                 {carouselMonths.map(({ month, year, label }) => {
                   const active = month === selMonth && year === selYear
@@ -333,7 +366,12 @@ export default function Transactions() {
                 })}
               </div>
             </div>
-            <button className="tx1-month-arrow" onClick={goToNext} disabled={isCurrentMonth} aria-label="Próximo mês">
+            <button
+              className="tx1-month-arrow"
+              onClick={e => { goToNext(); const b = e.currentTarget; b.classList.remove('press-right'); void b.offsetWidth; b.classList.add('press-right'); setTimeout(() => b.classList.remove('press-right'), 250) }}
+              disabled={isCurrentMonth}
+              aria-label="Próximo mês"
+            >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
@@ -496,23 +534,32 @@ export default function Transactions() {
                             </button>
                           </div>
 
-                          <div className="parc-progress-track">
-                            <div className="parc-progress-fill" style={{ width: `${pct}%` }} />
-                          </div>
-
-                          <div className="parc-stats">
-                            <span className="parc-count">
-                              {done
-                                ? '✓ Quitado'
-                                : <><strong>{p.paidInstallments}</strong>/{p.totalInstallments} pagas</>
-                              }
-                            </span>
-                            <span className="parc-pct">{pct}%</span>
+                          <div className="parc-progress-wrap">
+                            <div className="parc-progress-header">
+                              <span className="parc-count">
+                                {done
+                                  ? '✓ Quitado'
+                                  : <>{p.paidInstallments}/{p.totalInstallments} pagas</>
+                                }
+                              </span>
+                              <span className="parc-pct">{pct}%</span>
+                            </div>
+                            <div className="parc-progress-track">
+                              <div className="parc-progress-fill" style={{ width: `${pct}%` }} />
+                            </div>
                           </div>
 
                           <div className="parc-values">
-                            <span>R$ {fmt(p.amount)}/parcela</span>
-                            {!done && <span className="parc-remaining">R$ {fmt(totalRem)} restante</span>}
+                            <div className="parc-val-item">
+                              <span className="parc-val-label">Por parcela</span>
+                              <span className="parc-val-amount">R$ {fmt(p.amount)}</span>
+                            </div>
+                            {!done && (
+                              <div className="parc-val-item" style={{ textAlign: 'right' }}>
+                                <span className="parc-val-label">Restante</span>
+                                <span className="parc-remaining">R$ {fmt(totalRem)}</span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="parc-actions">
@@ -561,6 +608,69 @@ export default function Transactions() {
             )}
           </div>
 
+          {/* ── Compromissos do Mês ── */}
+          {comproms.length > 0 && (
+            <div className="comproms-section">
+              <div className="comproms-header" onClick={() => setCompromsOpen(p => !p)}>
+                <div className="comproms-header-left">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                  </svg>
+                  <span>Compromissos do mês</span>
+                  <span className="parc-badge">{comproms.length}</span>
+                </div>
+                <div className="parc-header-right">
+                  <span className="comproms-header-total">R$ {fmt(compromsTotal)}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                    style={{ transition:'transform .2s', transform: compromsOpen ? 'rotate(180deg)' : 'rotate(0deg)', opacity:.4 }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </div>
+              </div>
+              {compromsOpen && (
+                <div className="comproms-body">
+                  <div className="comproms-banner">
+                    <div className="comproms-stat">
+                      <span className="comproms-stat-num comproms-ok">{comproms.length}/{comproms.length}</span>
+                      <span className="comproms-stat-lbl">registradas</span>
+                    </div>
+                    <div className="comproms-stat-div" />
+                    <div className="comproms-stat">
+                      <span className="comproms-stat-num">R$ {fmt(compromsTotal)}</span>
+                      <span className="comproms-stat-lbl">este mês</span>
+                    </div>
+                    <div className="comproms-stat-div" />
+                    <div className="comproms-stat">
+                      <span className="comproms-stat-num comproms-ok">✓ Em dia</span>
+                      <span className="comproms-stat-lbl">sem atrasos</span>
+                    </div>
+                  </div>
+                  <div className="comproms-bills">
+                    {comproms.map(t => (
+                      <div key={t.id} className="comproms-bill paid">
+                        <div className="comproms-check">
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        </div>
+                        <div className="comproms-bill-info">
+                          <span className="comproms-bill-name">{t.description || CATEGORY_LABELS[t.category] || t.category}</span>
+                          <span className="comproms-bill-date">{new Date(t.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>
+                        </div>
+                        <span className="comproms-bill-amount">R$ {fmt(t.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Section: Gastos do Dia a Dia ── */}
+          <div className="tx1-section-sep">
+            <span className="tx1-section-title">Gastos do dia a dia</span>
+          </div>
+
           {/* ── Toolbar ── */}
           <div className="tx1-toolbar">
             <div className="tx1-search-wrap">
@@ -594,13 +704,25 @@ export default function Transactions() {
                   <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
                 <div style={{ fontSize:14, fontWeight:600, color:'rgba(255,255,255,.4)', marginBottom:4 }}>Nenhuma transação encontrada</div>
-                <div style={{ fontSize:12, color:'rgba(255,255,255,.2)' }}>{search || filter !== 'all' ? 'Ajuste os filtros de busca.' : 'Registre sua primeira transação.'}</div>
+                <div style={{ fontSize:12, color:'rgba(255,255,255,.2)' }}>{search || filter !== 'all' ? 'Ajuste os filtros de busca.' : comproms.length > 0 ? 'Nenhum gasto variável. Os compromissos aparecem acima.' : 'Registre sua primeira transação.'}</div>
               </div>
             ) : (
               <>
-                {grouped.map(([dateLabel, txs]) => (
+                {grouped.map(([dateLabel, { txs, totalExp, cats }]) => (
                   <div key={dateLabel}>
-                    <div className={`tx1-date-label${dateLabel === 'Hoje' ? ' is-today' : dateLabel === 'Ontem' ? ' is-yest' : ''}`}>{dateLabel}</div>
+                    <div className="tx1-date-header">
+                      <div className={`tx1-date-label${dateLabel === 'Hoje' ? ' is-today' : dateLabel === 'Ontem' ? ' is-yest' : ''}`}>{dateLabel}</div>
+                      {totalExp > 0 && <span className="tx1-day-subtotal">−R$ {fmt(totalExp)}</span>}
+                    </div>
+                    {Object.keys(cats).length > 1 && (
+                      <div className="tx1-day-cats">
+                        {Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([cat, val]) => (
+                          <span key={cat} className="tx1-day-cat-pill">
+                            {CATEGORY_LABELS[cat] || cat} · R$ {fmt(val)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {txs.map(t => {
                       const isInc    = t.type === 'income'
                       const isFixed  = t.category === 'fixed'
@@ -640,6 +762,38 @@ export default function Transactions() {
                     })}
                   </div>
                 ))}
+                {topCats.length >= 2 && !search && filter === 'all' && (
+                  <div className="tx1-ai-box">
+                    <div className="tx1-ai-header">
+                      <div className="tx1-ai-icon">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                      </div>
+                      <span>Análise do mês</span>
+                    </div>
+                    <div className="tx1-ai-insights">
+                      <div className="tx1-ai-insight">
+                        <span className="tx1-ai-insight-label">Maior gasto variável</span>
+                        <span className="tx1-ai-insight-val">{CATEGORY_LABELS[topCats[0][0]] || topCats[0][0]} · R$ {fmt(topCats[0][1])} ({Math.round(topCats[0][1] / totalVarExp * 100)}% do total)</span>
+                      </div>
+                      <div className="tx1-ai-insight">
+                        <span className="tx1-ai-insight-label">Top categorias</span>
+                        <div className="tx1-ai-cats">
+                          {topCats.map(([cat, val]) => (
+                            <div key={cat} className="tx1-ai-cat-bar">
+                              <span className="tx1-ai-cat-name">{CATEGORY_LABELS[cat] || cat}</span>
+                              <div className="tx1-ai-bar-wrap">
+                                <div className="tx1-ai-bar-fill" style={{ width:`${Math.round(val / topCats[0][1] * 100)}%` }} />
+                              </div>
+                              <span className="tx1-ai-cat-val">R$ {fmt(val)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="tx1-footer">
                   <span>{filtered.length} transação(ões)</span>
                 </div>

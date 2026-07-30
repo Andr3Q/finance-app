@@ -12,15 +12,23 @@ const SUGGESTIONS = [
 ]
 
 export default function AgentChat() {
-  const [open,    setOpen]    = useState(false)
-  const [input,   setInput]   = useState('')
-  const [loading, setLoading] = useState(false)
-  const [history, setHistory] = useState([])  // { role, content }
-  const bottomRef             = useRef(null)
-  const inputRef              = useRef(null)
-  const navigate              = useNavigate()
-  const user                  = useUser()
-  const isElite               = user.plan === 'elite'
+  const [open,         setOpen]         = useState(false)
+  const [input,        setInput]        = useState('')
+  const [loading,      setLoading]      = useState(false)
+  const [history,      setHistory]      = useState([])
+  const [listening,    setListening]    = useState(false)
+  const [voiceError,   setVoiceError]   = useState('')
+  const [voiceSupport, setVoiceSupport] = useState(false)
+  const bottomRef      = useRef(null)
+  const inputRef       = useRef(null)
+  const recognitionRef = useRef(null)
+  const navigate       = useNavigate()
+  const user           = useUser()
+  const isElite        = user.plan === 'elite'
+
+  useEffect(() => {
+    setVoiceSupport(!!(window.SpeechRecognition || window.webkitSpeechRecognition))
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -65,6 +73,55 @@ export default function AgentChat() {
 
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+  }
+
+  const toggleVoice = () => {
+    if (listening) {
+      recognitionRef.current?.stop()
+      return
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) return
+    setVoiceError('')
+    const rec = new SR()
+    rec.lang = 'pt-BR'
+    rec.continuous = false
+    rec.interimResults = true
+
+    rec.onstart = () => setListening(true)
+
+    rec.onerror = (e) => {
+      setListening(false)
+      const code = e.error || 'unknown'
+      if (code === 'not-allowed' || code === 'permission-denied') {
+        setVoiceError('Permissão de microfone negada. Libere nas configurações do browser.')
+      } else if (code === 'no-speech') {
+        setVoiceError('Nenhuma fala detectada. Tente novamente.')
+      } else if (code === 'network') {
+        setVoiceError('Erro de rede no reconhecimento de voz.')
+      } else if (code === 'audio-capture') {
+        setVoiceError('Microfone não encontrado. Verifique o hardware.')
+      } else if (code === 'service-not-available') {
+        setVoiceError('Serviço de voz indisponível. Tente no Chrome.')
+      } else {
+        setVoiceError(`Erro: ${code}`)
+      }
+      setTimeout(() => setVoiceError(''), 5000)
+    }
+
+    rec.onend = () => setListening(false)
+
+    rec.onresult = (e) => {
+      const transcript = Array.from(e.results).map(r => r[0].transcript).join('')
+      setInput(transcript)
+      if (e.results[e.results.length - 1].isFinal) {
+        setListening(false)
+        setTimeout(() => inputRef.current?.focus(), 50)
+      }
+    }
+
+    recognitionRef.current = rec
+    rec.start()
   }
 
   return (
@@ -175,11 +232,14 @@ export default function AgentChat() {
           </div>
 
           {/* Input — só exibido para Elite */}
+          {isElite && voiceError && (
+            <div className="agent-voice-error">{voiceError}</div>
+          )}
           {isElite && <div className="agent-input-wrap">
             <textarea
               ref={inputRef}
-              className="agent-input"
-              placeholder="Pergunte algo sobre suas finanças…"
+              className={`agent-input${listening ? ' voice-active' : ''}`}
+              placeholder={listening ? 'Ouvindo…' : 'Pergunte algo sobre suas finanças…'}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
@@ -187,6 +247,26 @@ export default function AgentChat() {
               maxLength={2000}
               disabled={loading}
             />
+            {voiceSupport && (
+              <button
+                className={`agent-mic${listening ? ' listening' : ''}`}
+                onClick={toggleVoice}
+                disabled={loading}
+                aria-label={listening ? 'Parar gravação' : 'Falar mensagem'}
+                type="button"
+              >
+                {listening ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="5" y="5" width="14" height="14" rx="2"/>
+                  </svg>
+                ) : (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                    <path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                )}
+              </button>
+            )}
             <button
               className="agent-send"
               onClick={() => send()}
