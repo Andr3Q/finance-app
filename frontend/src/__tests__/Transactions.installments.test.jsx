@@ -219,8 +219,8 @@ describe('Transactions — remover parcelamento', () => {
   it('chama installmentsAPI.remove com id correto', async () => {
     render(<MemoryRouter><Transactions /></MemoryRouter>)
     fireEvent.click(await screen.findByTitle('Remover'))
-    // Modal de confirmação abre — clicar "Remover" para confirmar
-    fireEvent.click(await screen.findByRole('button', { name: 'Remover' }))
+    // Modal de confirmação abre — clicar "Sim, excluir" para confirmar
+    fireEvent.click(await screen.findByRole('button', { name: /sim, excluir/i }))
     await waitFor(() => {
       expect(installmentsAPI.remove).toHaveBeenCalledWith('plan-001')
     })
@@ -229,14 +229,14 @@ describe('Transactions — remover parcelamento', () => {
   it('mostra toast "Parcelamento removido." após remoção', async () => {
     render(<MemoryRouter><Transactions /></MemoryRouter>)
     fireEvent.click(await screen.findByTitle('Remover'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Remover' }))
+    fireEvent.click(await screen.findByRole('button', { name: /sim, excluir/i }))
     expect(await screen.findByText(/parcelamento removido/i)).toBeInTheDocument()
   })
 
   it('não remove quando usuário cancela o confirm', async () => {
     render(<MemoryRouter><Transactions /></MemoryRouter>)
     fireEvent.click(await screen.findByTitle('Remover'))
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+    fireEvent.click(await screen.findByRole('button', { name: /cancelar/i }))
     expect(installmentsAPI.remove).not.toHaveBeenCalled()
   })
 })

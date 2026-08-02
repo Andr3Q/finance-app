@@ -23,6 +23,7 @@ const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
 const Planos         = lazy(() => import('./pages/Planos.jsx'))
 const Calendar       = lazy(() => import('./pages/Calendar.jsx'))
+const Finance        = lazy(() => import('./pages/Finance.jsx'))
 const PrivacyPolicy  = lazy(() => import('./pages/PrivacyPolicy.jsx'))
 const TermsOfUse     = lazy(() => import('./pages/TermsOfUse.jsx'))
 const NotFound       = lazy(() => import('./pages/NotFound.jsx'))
@@ -124,6 +125,7 @@ export default function App() {
             <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
             <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
             <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/financas"     element={<PrivateRoute><Finance /></PrivateRoute>} />
             <Route path="/calendar"     element={<PrivateRoute><Calendar /></PrivateRoute>} />
             <Route path="/planos"       element={<Planos />} />
             <Route path="/privacidade"  element={<PrivacyPolicy />} />

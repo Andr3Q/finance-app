@@ -1,7 +1,7 @@
 // @ts-nocheck
 const { test, expect }                      = require('@playwright/test')
 const { TX_EXPENSE, TX_INCOME } = require('../helpers/mockApi')
-const { injectSession }                     = require('../helpers/session')
+const { injectSession, TEST_USER }          = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Transações — E2E
@@ -22,6 +22,9 @@ async function setupBase(page, transactions = [TX_EXPENSE, TX_INCOME]) {
   page.route('**/api/installments**', (route) => {
     if (route.request().method() !== 'GET') return route.continue()
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  page.route('**/api/auth/me**', (route) => {
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_USER) })
   })
 }
 
@@ -178,7 +181,7 @@ test.describe('Transações — Excluir transação', () => {
     await page.locator('button.tx1-del[title="Remover"]').first().click()
 
     // Modal customizado substitui window.confirm
-    await expect(page.getByText('Remover transação?')).toBeVisible()
+    await expect(page.getByText('Remover transação')).toBeVisible()
   })
 })
 
