@@ -24,7 +24,7 @@ async function setupSettings(page) {
   await page.route('**/api/auth/referral**',   r => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }))
   await page.route('**/api/auth/2fa/**',       r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ count: 8 }) }))
 
-  await page.goto('/settings', { waitUntil: 'networkidle' })
+  await page.goto('/financas', { waitUntil: 'networkidle' })
   await page.waitForTimeout(800)
 
   // Scroll até o formulário de contas fixas e clicar no toggle 📅
@@ -65,7 +65,7 @@ test.describe('Input de Data — Visibilidade e Estrutura', () => {
   test('campos ocultos antes de clicar no toggle', async ({ page }) => {
     await injectSession(page, TEST_USER)
     await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
-    await page.goto('/settings', { waitUntil: 'networkidle' })
+    await page.goto('/financas', { waitUntil: 'networkidle' })
     // Sem clicar no toggle, campos devem estar ocultos
     const field = page.locator('.cfg-date-part').first()
     await expect(field).not.toBeVisible()
@@ -224,7 +224,7 @@ async function setupSettingsNoToggle(page, budgetPostHandler) {
   })
   await page.route('**/api/auth/me**', r => r.fulfill({ status: 200, contentType: 'application/json',
     body: JSON.stringify({ ...TEST_USER, notifBudgetAlert: true, notifBudgetReminder: true }) }))
-  await page.goto('/settings', { waitUntil: 'networkidle' })
+  await page.goto('/financas', { waitUntil: 'networkidle' })
   await page.waitForTimeout(1000)
   const toggle = page.locator('.cfg-enddate-toggle').first()
   await toggle.scrollIntoViewIfNeeded()

@@ -47,32 +47,8 @@
     <link rel="icon" href="/logo-icon.png" type="image/png" sizes="200x200" />
     <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
 
-    <script>
-      // Aplica o tema antes do React montar para evitar flash
-      (function() {
-        try { var t = localStorage.getItem('theme') || 'dark'; document.documentElement.setAttribute('data-theme', t); } catch {}
-      })();
-    </script>
-    <script>
-      // Captura beforeinstallprompt o mais cedo possível — antes do React montar.
-      // O evento pode disparar durante o carregamento inicial da página, antes
-      // do useEffect do App.jsx ter chance de registrar o listener.
-      window.__installPrompt = null;
-      window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        window.__installPrompt = e;
-      });
-
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
-            .then(function(reg) { reg.update(); });
-          navigator.serviceWorker.addEventListener('controllerchange', function() {
-            window.location.reload();
-          });
-        });
-      }
-    </script>
+    <script src="/theme-init.js"></script>
+    <script src="/pwa-init.js"></script>
     <!-- Runtime config injetado pelo backend (PostHog key, etc.) -->
     <!-- Executado sincronamente antes do module script para garantir disponibilidade -->
     <script src="/app-config.js"></script>
