@@ -1,7 +1,7 @@
 // @ts-nocheck
 const { test, expect }                          = require('@playwright/test')
 const { createMock, INSTALLMENT_ITEM, TX_EXPENSE } = require('../helpers/mockApi')
-const { injectSession }                         = require('../helpers/session')
+const { injectSession, TEST_USER }              = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Parcelamentos — E2E
@@ -16,6 +16,7 @@ async function setupBase(page, installments = []) {
   mock.get('/api/transactions/dashboard', {
     salary: 5000, totalExpenses: 120, currentBalance: 4880,
   })
+  mock.get('/api/auth/me', TEST_USER)
   return mock
 }
 
@@ -190,8 +191,8 @@ test.describe('Parcelamentos — Excluir', () => {
     await page.getByText('iPhone 15').waitFor()
 
     await page.locator('[title="Remover"]').click()
-    // Modal de confirmação — clicar "Remover" para confirmar
-    await page.getByRole('button', { name: 'Remover', exact: true }).click()
+    // Modal de confirmação — clicar "Sim, excluir" para confirmar
+    await page.getByRole('button', { name: /sim, excluir/i }).click()
     await expect(page.getByText(/parcelamento removido/i)).toBeVisible()
   })
 })

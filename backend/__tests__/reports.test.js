@@ -98,7 +98,9 @@ describe('POST /api/reports/monthly-close', () => {
   })
 
   test('404 quando usuário não existe', async () => {
-    prisma.user.findUnique.mockResolvedValue(null)
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ tokenVersion: 0 })  // auth middleware
+      .mockResolvedValueOnce(null)                   // route handler
     const res = await request(app)
       .post(ENDPOINT)
       .set('Authorization', `Bearer ${makeToken()}`)
