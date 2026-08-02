@@ -20,12 +20,15 @@ module.exports = defineConfig({
     serviceWorkers:    'block',
     locale:            'pt-BR',
     timezoneId:        'America/Sao_Paulo',
-    // Dispensa o banner de cookies em todos os testes
+    // Dispensa banners de consentimento e de instalação PWA em todos os testes
     storageState: {
       cookies: [],
       origins: [{
         origin: 'http://localhost:5173',
-        localStorage: [{ name: 'analytics-consent', value: 'accepted' }],
+        localStorage: [
+          { name: 'analytics-consent',    value: 'accepted' },
+          { name: 'install-banner-dismissed', value: String(Date.now()) },
+        ],
       }],
     },
   },

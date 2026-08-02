@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { budgetAPI } from '../../../services/api.js'
 import { saveUser } from '../../../hooks/useUser.js'
 import { invalidateCache } from '../../../services/cache.js'
@@ -7,6 +7,10 @@ import CurrencyInput from '../../ui/CurrencyInput.jsx'
 export default function SalaryCard({ user, onMessage }) {
   const [salary, setSalary] = useState(user.salary || '')
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (user.salary != null) setSalary(user.salary)
+  }, [user.salary])
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -18,8 +22,8 @@ export default function SalaryCard({ user, onMessage }) {
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
       onMessage('Salário atualizado com sucesso!')
-    } catch {
-      onMessage('Erro ao salvar salário.', 'error')
+    } catch (err) {
+      onMessage(err.response?.data?.error || 'Erro ao salvar salário.', 'error')
     } finally {
       setSaving(false)
     }
