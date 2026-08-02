@@ -282,7 +282,7 @@ export default function Transactions() {
   })
 
   const FILTER_PILLS = [
-    { value: 'all',     label: 'Tudo',     },
+    { value: 'all',     label: 'Todas',    },
     { value: 'income',  label: 'Entradas', },
     { value: 'expense', label: 'Saídas',   },
   ]
