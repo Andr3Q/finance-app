@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { budgetAPI, transactionsAPI } from '../../../services/api.js'
 import { invalidateCache } from '../../../services/cache.js'
-import { useUser } from '../../../hooks/useUser.js'
+import { useUser, saveUser } from '../../../hooks/useUser.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 import { analytics } from '../../../services/analytics.js'
+import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
 
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
@@ -24,6 +25,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const refDD   = useRef(null)
   const refMM   = useRef(null)
   const refAAAA = useRef(null)
+  const [submitting, setSubmitting] = useState(false)
   const [launching,  setLaunching]  = useState(false)
   const [launched,   setLaunched]   = useState(() => isLaunchedThisMonth(user))
   const [endDateErr,      setEndDateErr]      = useState('')
@@ -45,6 +47,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
 
   const handleAdd = async (e) => {
     e.preventDefault()
+    if (submitting) return
     if (!newBudget.name || !newBudget.amount) {
       onMessage('Preencha o nome e o valor da conta fixa.', 'error')
       return
@@ -73,6 +76,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     }
     setEndDateErr('')
 
+    setSubmitting(true)
     try {
       await budgetAPI.create({
         name:    newBudget.name,
@@ -80,10 +84,35 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         dueDay:  newBudget.dueDay ? parseInt(newBudget.dueDay) : undefined,
         endDate: endDateISO || undefined,
       })
+
+      // Se o auto-launch já rodou este mês, cria a transação agora mesmo
+      // (caso contrário, será criada pelo auto-launch no início do próximo ciclo)
+      let txLimitReached = false
+      const now = new Date()
+      const currentMonth = now.getMonth() + 1
+      const currentYear  = now.getFullYear()
+      if (user.autoLaunchMonth === currentMonth && user.autoLaunchYear === currentYear) {
+        try {
+          await transactionsAPI.create({
+            description: newBudget.name,
+            amount:      newBudget.amount,
+            type:        'expense',
+            category:    'fixed',
+          })
+        } catch (txErr) {
+          if (txErr?.response?.status === 403) txLimitReached = true
+          // outros erros: silencioso — budget foi criado, falha no lançamento é secundária
+        }
+      }
+
       setNewBudget({ name: '', amount: '', dueDay: '', endDate: { dd: '', mm: '', aaaa: '' }, hasEndDate: false })
       fetchBudgets()
       notifyBudgetChanged()
-      onMessage('Conta fixa adicionada!')
+      if (txLimitReached) {
+        onMessage('Conta fixa criada, mas o lançamento não foi registrado (limite de transações atingido).', 'error')
+      } else {
+        onMessage('Conta fixa adicionada!')
+      }
     } catch (err) {
       if (err.response?.data?.limitReached) {
         analytics.track('limit_reached', { feature: 'budgets' })
@@ -91,6 +120,8 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       } else {
         onMessage(err.response?.data?.error || 'Erro ao adicionar conta fixa.', 'error')
       }
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -105,6 +136,8 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         notifyBudgetChanged()
       }
       setLaunched(true)
+      const now = new Date()
+      saveUser({ ...user, autoLaunchMonth: now.getMonth() + 1, autoLaunchYear: now.getFullYear() })
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao lançar contas fixas.', 'error')
     } finally {
@@ -140,6 +173,12 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         </div>
       </div>
       <div className="cfg-card-body">
+        <PlanUsageBanner
+          plan={user.plan ?? 'free'}
+          feature="budgets"
+          used={budgets.length}
+          label="contas fixas"
+        />
         {budgets.length === 0 ? (
           <div className="cfg-empty-hint">Nenhuma conta fixa cadastrada.</div>
         ) : (
@@ -207,11 +246,15 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: { dd: '', mm: '', aaaa: '' } }))}>
             📅
           </button>
-          <button type="submit" className="cfg-btn-ghost">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Adicionar
+          <button type="submit" className="cfg-btn-ghost" disabled={submitting}>
+            {submitting ? (
+              <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+            ) : (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            )}
+            {submitting ? 'Adicionando…' : 'Adicionar'}
           </button>
         </form>
         {dueDayErr && (
@@ -276,25 +319,34 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     </div>
 
     {deleteConfirmId && createPortal(
-      <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-        <div className="cfg-del-confirm-card">
-          <div style={{ width:52, height:52, borderRadius:14, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/>
-              <path d="M9 6V4h6v2"/>
-            </svg>
-          </div>
-          <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Excluir conta fixa?</div>
-          <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20, lineHeight:1.6 }}>
-            Tem certeza que deseja excluir esta conta fixa? Esta ação não pode ser desfeita.
-          </div>
-          <div style={{ display:'flex', gap:10 }}>
-            <button onClick={() => setDeleteConfirmId(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-              Cancelar
+      <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
+        <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+          <div className="gls-modal-head">
+            <span>Excluir conta fixa</span>
+            <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
-            <button onClick={confirmDelete} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
+          </div>
+          <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+            <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+              </svg>
+            </div>
+            <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+            <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Esta conta fixa será removida permanentemente.</div>
+          </div>
+          <div className="gls-modal-foot">
+            <button className="gls-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</button>
+            <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={confirmDelete}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              </svg>
               Sim, excluir
             </button>
           </div>

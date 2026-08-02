@@ -5,7 +5,7 @@ const prismaMock = mockDeep()
 
 // Valores default seguros — evitam TypeError quando rota chama .then() sem mock explícito
 function setDefaults() {
-  prismaMock.user.findUnique.mockResolvedValue(null)
+  prismaMock.user.findUnique.mockResolvedValue({ tokenVersion: 0 })
   prismaMock.user.findFirst.mockResolvedValue(null)
   prismaMock.user.create.mockResolvedValue(null)
   prismaMock.user.update.mockResolvedValue(null)
