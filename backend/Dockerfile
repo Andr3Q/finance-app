@@ -7,7 +7,7 @@
 # ═══════════════════════════════════════════════════════
 
 # Base: Node.js versão 20 Debian slim (compatível com Prisma 5.22+ WASM)
-FROM node:20-slim
+FROM node:26-slim
 
 # Instala OpenSSL e ca-certificates necessários para o Prisma e conexões SSL
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
