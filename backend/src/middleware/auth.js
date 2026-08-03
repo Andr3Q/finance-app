@@ -19,13 +19,13 @@ async function authMiddleware(req, res, next) {
     return res.status(403).json({ error: 'Autenticação 2FA pendente. Conclua a verificação.' })
   }
 
-  // Verifica tokenVersion para invalidar JWTs emitidos antes de um reset de senha.
-  // Se o usuário não existir, deixa a rota retornar 404 normalmente.
+  // Verifica se o usuário ainda existe e se o tokenVersion não foi invalidado
+  // (ex: após reset de senha ou exclusão de conta).
   const user = await prisma.user.findUnique({
     where:  { id: decoded.userId },
     select: { tokenVersion: true },
   })
-  if (user && (decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
+  if (!user || (decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
     return res.status(401).json({ error: 'Sessão inválida. Faça login novamente.' })
   }
 

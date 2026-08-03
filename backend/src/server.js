@@ -43,7 +43,7 @@ const compression  = require('compression')
 const cookieParser = require('cookie-parser')
 const crypto       = require('crypto')
 
-const { apiLimiter, agentLimiter, paymentLimiter } = require('./middleware/rateLimiter')
+const { apiLimiter, agentLimiter } = require('./middleware/rateLimiter')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -101,11 +101,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:  ["'self'"],
-      scriptSrc:   ["'self'"],
-      styleSrc:    ["'self'", "'unsafe-inline'"],  // Vite injeta estilos inline
+      scriptSrc:   ["'self'", 'https://static.cloudflareinsights.com'],
+      styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc:      ["'self'", 'data:', 'blob:'],
-      fontSrc:     ["'self'", 'data:'],
-      connectSrc:  ["'self'", 'https://api.groq.com'],
+      fontSrc:     ["'self'", 'data:', 'https://fonts.gstatic.com'],
+      connectSrc:  ["'self'", 'https://api.groq.com', 'https://static.cloudflareinsights.com'],
       objectSrc:   ["'none'"],
       frameAncestors: ["'none'"],
       baseUri:     ["'self'"],
@@ -227,7 +227,7 @@ app.use('/api/notifications', notificationRoutes)
 app.use('/api/agent',        agentLimiter, agentRoutes)
 app.use('/api/goals',        goalRoutes)
 app.use('/api/installments', installmentRoutes)
-app.use('/api/payments',     paymentLimiter, paymentRoutes)
+app.use('/api/payments',     paymentRoutes)
 app.use('/api/monitor',     monitorRoutes)
 app.use('/api/admin',       adminRoutes)
 

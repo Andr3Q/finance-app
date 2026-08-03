@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 import { analytics } from '../services/analytics.js'
 import GradCard from '../components/ui/GradCard.jsx'
 import { transactionsAPI, agentAPI } from '../services/api.js'
@@ -47,11 +48,14 @@ const DRAFT_KEY  = 'goal-form-draft'
 
 function DepositModal({ goal, onConfirm, onCancel, saving }) {
   const [amount, setAmount] = useState('')
-  const pct       = goal.targetAmount > 0
-    ? Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100))
+  const currentAmt   = Number(goal.currentAmount) || 0
+  const targetAmt    = Number(goal.targetAmount)  || 0
+  const pct          = targetAmt > 0
+    ? Math.min(100, Math.round((currentAmt / targetAmt) * 100))
     : 0
-  const remaining    = Math.max(0, goal.targetAmount - goal.currentAmount)
-  const depositValue = parseFloat(amount) || 0
+  const remaining    = Math.max(0, targetAmt - currentAmt)
+  const depositValue = Number(amount) || 0
+  const newTotal     = currentAmt + depositValue
   const willComplete = remaining > 0 && depositValue >= remaining
 
   return (
@@ -72,8 +76,8 @@ function DepositModal({ goal, onConfirm, onCancel, saving }) {
               <div className="gls-card-bar-fill" style={{ width: `${pct}%`, background: goal.color }} />
             </div>
             <div className="gls-dep-amounts">
-              <span style={{ color: goal.color }}>R$ {fmt(goal.currentAmount)}</span>
-              <span className="gls-dep-sep">de R$ {fmt(goal.targetAmount)}</span>
+              <span style={{ color: goal.color }}>R$ {fmt(currentAmt)}</span>
+              <span className="gls-dep-sep">de R$ {fmt(targetAmt)}</span>
               {remaining > 0 && <span className="gls-dep-rem">faltam R$ {fmt(remaining)}</span>}
             </div>
           </div>
@@ -88,8 +92,16 @@ function DepositModal({ goal, onConfirm, onCancel, saving }) {
               autoFocus
             />
           </div>
+          {depositValue > 0 && (
+            <div style={{ marginTop:8, fontSize:12, color:'var(--t2)', display:'flex', alignItems:'center', gap:6 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+              Novo total: <strong style={{ color: goal.color }}>R$ {fmt(newTotal)}</strong>
+            </div>
+          )}
           {willComplete && (
-            <div style={{ marginTop:10, padding:'10px 12px', borderRadius:10, background:'rgba(74,226,172,.1)', border:'1px solid rgba(74,226,172,.25)', display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#4ae2ac', fontWeight:600 }}>
+            <div style={{ marginTop:8, padding:'10px 12px', borderRadius:10, background:'rgba(74,226,172,.1)', border:'1px solid rgba(74,226,172,.25)', display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#4ae2ac', fontWeight:600 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2.5" strokeLinecap="round">
                 <circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/>
               </svg>
@@ -345,26 +357,34 @@ export default function Goals() {
 
     let cancelled = false
 
-    const cachedHistory = getCache(CACHE_HISTORY)
-    if (cachedHistory) {
-      setHistory(cachedHistory)
-      setLoadingHist(false)
+    if (isPro) {
+      const cachedHistory = getCache(CACHE_HISTORY)
+      if (cachedHistory) {
+        setHistory(cachedHistory)
+        setLoadingHist(false)
+      } else {
+        transactionsAPI.monthlyHistory(6)
+          .then(r => { if (!cancelled) { setCache(CACHE_HISTORY, r.data, TTL_5MIN); setHistory(r.data) } })
+          .catch(() => { if (!cancelled) setLoadingHist(false) })
+          .finally(() => { if (!cancelled) setLoadingHist(false) })
+      }
     } else {
-      transactionsAPI.monthlyHistory(6)
-        .then(r => { if (!cancelled) { setCache(CACHE_HISTORY, r.data, TTL_5MIN); setHistory(r.data) } })
-        .catch(() => { if (!cancelled) setLoadingHist(false) })
-        .finally(() => { if (!cancelled) setLoadingHist(false) })
+      setLoadingHist(false)
     }
 
-    const cachedSubs = getCache(CACHE_SUBS)
-    if (cachedSubs) {
-      setSubs(cachedSubs)
-      setLoadingSubs(false)
+    if (isElite) {
+      const cachedSubs = getCache(CACHE_SUBS)
+      if (cachedSubs) {
+        setSubs(cachedSubs)
+        setLoadingSubs(false)
+      } else {
+        transactionsAPI.subscriptions()
+          .then(r => { if (!cancelled) { setCache(CACHE_SUBS, r.data, TTL_5MIN); setSubs(r.data) } })
+          .catch(() => { if (!cancelled) setLoadingSubs(false) })
+          .finally(() => { if (!cancelled) setLoadingSubs(false) })
+      }
     } else {
-      transactionsAPI.subscriptions()
-        .then(r => { if (!cancelled) { setCache(CACHE_SUBS, r.data, TTL_5MIN); setSubs(r.data) } })
-        .catch(() => { if (!cancelled) setLoadingSubs(false) })
-        .finally(() => { if (!cancelled) setLoadingSubs(false) })
+      setLoadingSubs(false)
     }
 
     return () => { cancelled = true }
@@ -402,7 +422,7 @@ export default function Goals() {
     if (!depositGoal || amount <= 0) return
     setSaving(true)
     try {
-      const newAmount = depositGoal.currentAmount + amount
+      const newAmount = Number(depositGoal.currentAmount) + Number(amount)
       await updateGoal(depositGoal.id, { currentAmount: newAmount })
       const done = newAmount >= depositGoal.targetAmount
       analytics.track('goal_deposit_made', { amountRange: amountBucket(amount), goalReached: done })
@@ -461,7 +481,7 @@ export default function Goals() {
 
       {toast && (
         <div className={`toast ${toast.ok ? 'tok' : 'terr'}`}
-          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:500, whiteSpace:'nowrap' }}>
+          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:9001, whiteSpace:'nowrap' }}>
           {toast.msg}
         </div>
       )}
@@ -551,24 +571,12 @@ export default function Goals() {
               </div>
             ) : activeTab === 'metas' ? (
               <>
-                {isFree && goals.length >= 1 && (
-                  <div className="gls-pro-limit-banner">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    Limite de 1 meta no plano Free.{' '}
-                    <button className="gls-pro-limit-link" onClick={() => navigate('/planos')}>Fazer upgrade para criar mais</button>
-                  </div>
-                )}
-                {isPro && goals.length >= proLimit && (
-                  <div className="gls-pro-limit-banner">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    Limite de {proLimit} metas atingido no plano Pro.{' '}
-                    <button className="gls-pro-limit-link" onClick={() => navigate('/planos')}>Fazer upgrade</button>
-                  </div>
-                )}
+                <PlanUsageBanner
+                  plan={plan ?? 'free'}
+                  feature="goals"
+                  used={goals.length}
+                  label="metas"
+                />
                 <div className="gls-grid">
                   {goals.map(g => {
                     const pct  = g.targetAmount > 0 ? Math.min(100, Math.round((g.currentAmount / g.targetAmount) * 100)) : 0
@@ -634,23 +642,33 @@ export default function Goals() {
               </>
             ) : null}
 
-            {/* ── Histórico de Gastos ── */}
+            {/* ── Histórico de Gastos (Pro+) ── */}
             {activeTab === 'historico' && (
               <>
-                <GradCard
-                  iconBg="rgba(79,142,247,.1)" iconBorder="rgba(79,142,247,.25)"
-                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
-                  title="Evolução mensal"
-                  sub="Entradas e saídas dos últimos 6 meses"
-                >
-                  {loadingHist ? (
-                    <div className="anl-loading"><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /></div>
-                  ) : history.length > 0 ? (
-                    <BarChart data={history} />
-                  ) : (
-                    <div className="anl-empty"><span>Sem dados de histórico ainda</span></div>
-                  )}
-                </GradCard>
+                {!isPro ? (
+                  <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cp)" strokeWidth="1.5" strokeLinecap="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                    </svg>
+                    <div className="cfg-pro-lock-title">Recurso Pro</div>
+                    <div className="cfg-pro-lock-sub">Veja a evolução mensal de entradas e saídas dos últimos 6 meses</div>
+                  </div>
+                ) : (
+                  <GradCard
+                    iconBg="rgba(79,142,247,.1)" iconBorder="rgba(79,142,247,.25)"
+                    icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
+                    title="Evolução mensal"
+                    sub="Entradas e saídas dos últimos 6 meses"
+                  >
+                    {loadingHist ? (
+                      <div className="anl-loading"><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /></div>
+                    ) : history.length > 0 ? (
+                      <BarChart data={history} />
+                    ) : (
+                      <div className="anl-empty"><span>Sem dados de histórico ainda</span></div>
+                    )}
+                  </GradCard>
+                )}
 
                 {/* ── Relatório IA (Elite only) ── */}
                 {isElite && (
@@ -687,21 +705,41 @@ export default function Goals() {
               </>
             )}
 
-            {/* ── Detector de Assinaturas ── */}
+            {/* ── Detector de Assinaturas (Elite) ── */}
             {activeTab === 'assinaturas' && (
-              <GradCard
-                iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
-                icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>}
-                title="Gastos recorrentes detectados"
-                sub="Transações que se repetem em meses diferentes"
-              >
-                <SubscriptionsList data={subs} loading={loadingSubs} />
-              </GradCard>
+              !isElite ? (
+                <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                  </svg>
+                  <div className="cfg-pro-lock-title">Recurso Elite</div>
+                  <div className="cfg-pro-lock-sub">Detecte automaticamente assinaturas e gastos recorrentes</div>
+                </div>
+              ) : (
+                <GradCard
+                  iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
+                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>}
+                  title="Gastos recorrentes detectados"
+                  sub="Transações que se repetem em meses diferentes"
+                >
+                  <SubscriptionsList data={subs} loading={loadingSubs} />
+                </GradCard>
+              )
             )}
 
-            {/* ── Lembretes ── */}
+            {/* ── Lembretes (Elite) ── */}
             {activeTab === 'lembretes' && (
-              <RemindersCard />
+              !isElite ? (
+                <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                  </svg>
+                  <div className="cfg-pro-lock-title">Recurso Elite</div>
+                  <div className="cfg-pro-lock-sub">Receba lembretes automáticos de contas a vencer</div>
+                </div>
+              ) : (
+                <RemindersCard />
+              )
             )}
 
             {/* ── Limites por categoria ── */}

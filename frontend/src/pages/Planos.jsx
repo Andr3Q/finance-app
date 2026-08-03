@@ -16,7 +16,7 @@ const FREE_FEATS = [
   'Dashboard com saldo do mês',
   'Até 20 transações por mês',
   'Categorias de gastos',
-  'Relatório mensal em PDF',
+  'Exportação CSV',
   'Contas fixas automáticas',
 ]
 
@@ -47,7 +47,7 @@ const COMPARE_GROUPS = [
     label: 'Dashboard & Relatórios',
     rows: [
       { feat: 'Saldo do mês em tempo real',     free: true,  pro: true,  elite: true  },
-      { feat: 'Relatório PDF mensal',            free: true,  pro: true,  elite: true  },
+      { feat: 'Relatório PDF mensal',            free: false, pro: true,  elite: true  },
       { feat: 'Histórico de meses anteriores',   free: false, pro: true,  elite: true  },
       { feat: 'Exportação CSV',                  free: true,  pro: true,  elite: true  },
       { feat: 'Previsão IA mensal',              free: false, pro: false, elite: true  },
@@ -210,7 +210,7 @@ export default function Planos() {
 
       {toast && (
         <div className={`toast ${toast.type === 'error' ? 'terr' : toast.type === 'warn' ? 'twarn' : 'tok'}`}
-          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:400, whiteSpace:'nowrap' }}>
+          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:9001, whiteSpace:'nowrap' }}>
           {toast.msg}
         </div>
       )}

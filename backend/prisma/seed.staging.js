@@ -69,7 +69,9 @@ async function main() {
   await prisma.transaction.createMany({
     data: [
       { userId: alice.id, description: 'Salário',          amount: 5000, type: 'income',  category: 'salary',   date: new Date(year, month-1, 5),  month, year, archived: false },
-      { userId: alice.id, description: 'Aluguel',           amount: 1200, type: 'expense', category: 'housing',  date: new Date(year, month-1, 10), month, year, archived: false },
+      { userId: alice.id, description: 'Aluguel',           amount: 1200, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 10), month, year, archived: false },
+      { userId: alice.id, description: 'Plano de celular',  amount:   60, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 12), month, year, archived: false },
+      { userId: alice.id, description: 'Academia',          amount:   90, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 15), month, year, archived: false },
       { userId: alice.id, description: 'Supermercado',      amount:  450, type: 'expense', category: 'food',     date: new Date(year, month-1, 12), month, year, archived: false },
       { userId: alice.id, description: 'Freelance extra',   amount: 1500, type: 'income',  category: 'freelance',date: new Date(year, month-1, 15), month, year, archived: false },
       { userId: alice.id, description: 'Conta de luz',      amount:  180, type: 'expense', category: 'utilities',date: new Date(year, month-1, 18), month, year, archived: false },
@@ -117,10 +119,15 @@ async function main() {
 
   await prisma.transaction.createMany({
     data: [
-      { userId: bob.id, description: 'Salário empresa',  amount: 8500, type: 'income',  category: 'salary',   date: new Date(year, month-1, 1), month, year, archived: false },
-      { userId: bob.id, description: 'Financiamento',    amount: 2100, type: 'expense', category: 'housing',  date: new Date(year, month-1, 5), month, year, archived: false },
-      { userId: bob.id, description: 'Combustível',      amount:  350, type: 'expense', category: 'transport',date: new Date(year, month-1, 8), month, year, archived: false },
-      { userId: bob.id, description: 'Bônus trimestral', amount: 2000, type: 'income',  category: 'bonus',    date: new Date(year, month-1,12), month, year, archived: false },
+      { userId: bob.id, description: 'Salário empresa',  amount: 8500, type: 'income',  category: 'salary',   date: new Date(year, month-1, 1),  month, year, archived: false },
+      { userId: bob.id, description: 'Financiamento',    amount: 2100, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 5),  month, year, archived: false },
+      { userId: bob.id, description: 'Plano de saúde',   amount:  520, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 8),  month, year, archived: false },
+      { userId: bob.id, description: 'Netflix',          amount:   45, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 10), month, year, archived: false },
+      { userId: bob.id, description: 'Seguro do carro',  amount:  280, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 25), month, year, archived: false },
+      { userId: bob.id, description: 'Combustível',      amount:  350, type: 'expense', category: 'transport',date: new Date(year, month-1, 8),  month, year, archived: false },
+      { userId: bob.id, description: 'Bônus trimestral', amount: 2000, type: 'income',  category: 'bonus',    date: new Date(year, month-1,12),  month, year, archived: false },
+      { userId: bob.id, description: 'Supermercado',     amount:  680, type: 'expense', category: 'food',     date: new Date(year, month-1, 14), month, year, archived: false },
+      { userId: bob.id, description: 'Farmácia',         amount:   95, type: 'expense', category: 'health',   date: new Date(year, month-1, 17), month, year, archived: false },
     ],
   })
 
@@ -155,6 +162,25 @@ async function main() {
     },
   })
   console.log('  ✓ Admin (elite):', elite.id)
+
+  await prisma.transaction.createMany({
+    data: [
+      { userId: elite.id, description: 'Salário',           amount: 15000, type: 'income',  category: 'salary',   date: new Date(year, month-1, 5),  month, year, archived: false },
+      { userId: elite.id, description: 'Aluguel',            amount:  3500, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 5),  month, year, archived: false },
+      { userId: elite.id, description: 'Plano de saúde',     amount:   850, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 8),  month, year, archived: false },
+      { userId: elite.id, description: 'Internet fibra',     amount:   150, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 15), month, year, archived: false },
+      { userId: elite.id, description: 'Academia premium',   amount:   200, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 20), month, year, archived: false },
+      { userId: elite.id, description: 'Conta de luz',       amount:   380, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 22), month, year, archived: false },
+      { userId: elite.id, description: 'Supermercado',       amount:   920, type: 'expense', category: 'food',     date: new Date(year, month-1, 10), month, year, archived: false },
+      { userId: elite.id, description: 'Restaurante sushi',  amount:   245, type: 'expense', category: 'food',     date: new Date(year, month-1, 14), month, year, archived: false },
+      { userId: elite.id, description: 'Combustível',        amount:   480, type: 'expense', category: 'transport',date: new Date(year, month-1, 12), month, year, archived: false },
+      { userId: elite.id, description: 'Uber',               amount:    95, type: 'expense', category: 'transport',date: new Date(year, month-1, 18), month, year, archived: false },
+      { userId: elite.id, description: 'Farmácia',           amount:   130, type: 'expense', category: 'health',   date: new Date(year, month-1, 16), month, year, archived: false },
+      { userId: elite.id, description: 'Roupa',              amount:   350, type: 'expense', category: 'shopping', date: new Date(year, month-1, 20), month, year, archived: false },
+      { userId: elite.id, description: 'Dividendos',         amount:  1800, type: 'income',  category: 'bonus',    date: new Date(year, month-1, 25), month, year, archived: false },
+    ],
+  })
+  console.log('  ✓ Transações de Admin criadas\n')
 
   // ── Login audits (simula histórico) ─────────────
   await prisma.loginAudit.createMany({

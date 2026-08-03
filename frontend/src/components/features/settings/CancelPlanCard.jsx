@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useUser, saveUser } from '../../../hooks/useUser.js'
 import { authAPI } from '../../../services/api.js'
 import { analytics } from '../../../services/analytics.js'
@@ -96,57 +97,64 @@ export default function CancelPlanCard({ onMessage }) {
         )}
       </div>
 
-      {modal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:440 }}>
-
-            <div style={{ textAlign:'center', marginBottom:20 }}>
-              <div style={{ width:52, height:52, borderRadius:14, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      {modal && createPortal(
+        <div className="gls-modal-overlay" onClick={closeModal}>
+          <div className="gls-modal" style={{ maxWidth:440 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head">
+              <span>Confirmar cancelamento</span>
+              <button className="gls-modal-close" onClick={closeModal}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
-              </div>
-              <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Confirmar cancelamento</div>
-              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
-                Ao confirmar, a renovação automática é cancelada. Você mantém acesso a todos os recursos premium até o fim do período já pago
-                {expiryFormatted && <> (<strong style={{ color:'var(--t1)' }}>{expiryFormatted}</strong>)</>}.
-              </div>
-            </div>
-
-            <div style={{ background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>
-              Seus dados ficam salvos. Você pode reativar o plano a qualquer momento em <strong style={{ color:'var(--c)' }}>Planos</strong>.
-            </div>
-
-            <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:13, color:'var(--t2)', display:'block', marginBottom:6 }}>
-                Confirme sua senha para continuar
-              </label>
-              <input
-                type="password"
-                placeholder="Sua senha atual"
-                value={confirmPwd}
-                onChange={e => { setConfirmPwd(e.target.value); setPwdErr('') }}
-                autoFocus
-                style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:`1px solid ${pwdErr ? '#ef4444' : 'var(--bd)'}`, background:'var(--bg)', color:'var(--t1)', fontSize:14, boxSizing:'border-box', outline:'none' }}
-              />
-              {pwdErr && <span style={{ fontSize:12, color:'#ef4444', marginTop:4, display:'block' }}>{pwdErr}</span>}
-            </div>
-
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={closeModal} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-                Voltar
               </button>
+            </div>
+            <div className="gls-modal-body">
+              <div style={{ textAlign:'center', marginBottom:16 }}>
+                <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px' }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                </div>
+                <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+                  Ao confirmar, a renovação automática é cancelada. Você mantém acesso a todos os recursos premium até o fim do período já pago
+                  {expiryFormatted && <> (<strong style={{ color:'var(--t1)' }}>{expiryFormatted}</strong>)</>}.
+                </div>
+              </div>
+
+              <div style={{ background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>
+                Seus dados ficam salvos. Você pode reativar o plano a qualquer momento em <strong style={{ color:'var(--c)' }}>Planos</strong>.
+              </div>
+
+              <div>
+                <label style={{ fontSize:13, color:'var(--t2)', display:'block', marginBottom:6 }}>
+                  Confirme sua senha para continuar
+                </label>
+                <input
+                  type="password"
+                  placeholder="Sua senha atual"
+                  value={confirmPwd}
+                  onChange={e => { setConfirmPwd(e.target.value); setPwdErr('') }}
+                  autoFocus
+                  style={{ width:'100%', padding:'10px 12px', borderRadius:8, border:`1px solid ${pwdErr ? '#ef4444' : 'var(--bd)'}`, background:'var(--bg)', color:'var(--t1)', fontSize:14, boxSizing:'border-box', outline:'none' }}
+                />
+                {pwdErr && <span style={{ fontSize:12, color:'#ef4444', marginTop:4, display:'block' }}>{pwdErr}</span>}
+              </div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={closeModal}>Voltar</button>
               <button
+                className="gls-btn-save"
+                style={{ background:'#ef4444', opacity:(loading || !confirmPwd.trim()) ? 0.6 : 1, cursor:(loading || !confirmPwd.trim()) ? 'not-allowed' : 'pointer' }}
                 onClick={handleConfirm}
                 disabled={loading || !confirmPwd.trim()}
-                style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:(loading || !confirmPwd.trim()) ? 'not-allowed' : 'pointer', opacity:(loading || !confirmPwd.trim()) ? 0.6 : 1 }}
               >
                 {loading ? 'Cancelando…' : 'Sim, cancelar plano'}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

@@ -1,10 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { transactionsAPI, installmentsAPI } from '../services/api.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
+import { useUser } from '../hooks/useUser.js'
+import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
@@ -29,9 +32,10 @@ function exportCSV(rows) {
   URL.revokeObjectURL(url)
 }
 
-const CACHE_KEY = 'transactions:list'
+const txCacheKey = (m, y) => `transactions:list:${y}-${m}`
 
 export default function Transactions() {
+  const user = useUser()
   const [transactions,  setTransactions]  = useState([])
   const [installments,  setInstallments]  = useState([])
   const [loading,       setLoading]       = useState(true)
@@ -48,8 +52,60 @@ export default function Transactions() {
   const [editingTx,         setEditingTx]         = useState(null)
   const [confirmDeleteTx,   setConfirmDeleteTx]   = useState(null)
   const [confirmDeleteParc, setConfirmDeleteParc] = useState(null)
-  const fileInputRef = useRef(null)
-  const now = new Date()
+  const fileInputRef  = useRef(null)
+  const carouselRef     = useRef(null)
+  const carouselWrapRef = useRef(null)
+  const fetchRef        = useRef(null)
+  const today         = new Date()
+  const [selDate,  setSelDate]  = useState(() => new Date())
+  const [selDir,   setSelDir]   = useState('none')
+  const [animKey,       setAnimKey]       = useState(0)
+  const [compromsOpen,  setCompromsOpen]  = useState(true)
+  const selMonth = selDate.getMonth() + 1
+  const selYear  = selDate.getFullYear()
+  const isCurrentMonth = selDate.getMonth() === today.getMonth() && selDate.getFullYear() === today.getFullYear()
+
+  const carouselMonths = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(today.getFullYear(), today.getMonth() - (11 - i), 1)
+    return { month: d.getMonth() + 1, year: d.getFullYear(), label: MONTHS[d.getMonth()].slice(0, 3) }
+  })
+
+  const minCarousel = carouselMonths[0]
+  const isOldestMonth = selDate.getFullYear() === minCarousel.year && selDate.getMonth() + 1 === minCarousel.month
+
+  const navigate = (newDate) => {
+    const cur = new Date(selDate.getFullYear(), selDate.getMonth(), 1)
+    setSelDir(newDate > cur ? 'next' : 'prev')
+    setAnimKey(k => k + 1)
+    setSelDate(newDate)
+  }
+  const goToPrev = () => { if (!isOldestMonth) navigate(new Date(selDate.getFullYear(), selDate.getMonth() - 1, 1)) }
+  const goToNext = () => { if (!isCurrentMonth) navigate(new Date(selDate.getFullYear(), selDate.getMonth() + 1, 1)) }
+
+  const getMonthBalance = (m, y) => {
+    const txs = transactions.filter(t => t.month === m && t.year === y)
+    if (!txs.length) return null
+    const inc = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+    const exp = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+    return inc - exp
+  }
+
+  useEffect(() => {
+    if (!carouselRef.current) return
+    const el = carouselRef.current.querySelector('.tx1-carousel-item.on')
+    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [selDate])
+
+  useEffect(() => {
+    if (selDir === 'none' || !carouselWrapRef.current) return
+    const wrap = carouselWrapRef.current
+    const cls = selDir === 'next' ? 'tx1-slide-next' : 'tx1-slide-prev'
+    wrap.classList.remove('tx1-slide-next', 'tx1-slide-prev')
+    void wrap.offsetWidth
+    wrap.classList.add(cls)
+    const t = setTimeout(() => wrap.classList.remove('tx1-slide-next', 'tx1-slide-prev'), 400)
+    return () => clearTimeout(t)
+  }, [animKey])
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -57,19 +113,21 @@ export default function Transactions() {
   }
 
   const fetchTransactions = async (force = false) => {
+    const key = txCacheKey(selMonth, selYear)
     if (!force) {
-      const cached = getCache(CACHE_KEY)
+      const cached = getCache(key)
       if (cached) { setTransactions(cached); setLoading(false); return }
     }
     try {
-      const res = await transactionsAPI.list({ limit: 200 })
+      const res = await transactionsAPI.list({ month: selMonth, year: selYear, limit: 200 })
       const raw  = res.data.data ?? res.data
       const data = Array.isArray(raw) ? raw : []
-      setCache(CACHE_KEY, data, 30_000)
+      setCache(key, data, 30_000)
       setTransactions(data)
     } catch { showToast('Erro ao carregar transações.', false) }
     finally { setLoading(false) }
   }
+  fetchRef.current = fetchTransactions
 
   const fetchInstallments = async () => {
     try {
@@ -78,9 +136,17 @@ export default function Transactions() {
     } catch {}
   }
 
+  useEffect(() => { fetchInstallments() }, [])
+
   useEffect(() => {
-    fetchTransactions()
-    fetchInstallments()
+    setLoading(true)
+    fetchRef.current()
+  }, [selMonth, selYear])
+
+  useEffect(() => {
+    const handler = () => fetchRef.current(true)
+    window.addEventListener('budget-updated', handler)
+    return () => window.removeEventListener('budget-updated', handler)
   }, [])
 
   const handleImportCSV = async (e) => {
@@ -92,7 +158,7 @@ export default function Transactions() {
       setLoading(true)
       const res = await transactionsAPI.importCSV(formData)
       showToast(res.data.message)
-      invalidateCache(CACHE_KEY)
+      invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
     } catch (err) {
       showToast(err.response?.data?.error || 'Erro ao importar CSV.', false)
@@ -102,12 +168,21 @@ export default function Transactions() {
   }
 
   const handleDelete = async (id) => {
-    try {
-      await transactionsAPI.remove(id)
-      invalidateCache(CACHE_KEY)
-      fetchTransactions(true)
-    } catch { showToast('Erro ao remover.', false) }
     setConfirmDeleteTx(null)
+    let lastErr
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await transactionsAPI.remove(id)
+        invalidateCache(txCacheKey(selMonth, selYear))
+        fetchTransactions(true)
+        return
+      } catch (err) {
+        lastErr = err
+        if (err?.response?.status === 404) break
+        if (attempt < 3) await new Promise(r => setTimeout(r, 600 * attempt))
+      }
+    }
+    showToast(lastErr?.response?.data?.error || 'Erro ao remover. Tente novamente.', false)
   }
 
   const handlePay = async (id) => {
@@ -115,7 +190,7 @@ export default function Transactions() {
     try {
       await installmentsAPI.pay(id)
       fetchInstallments()
-      invalidateCache(CACHE_KEY)
+      invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
@@ -132,7 +207,7 @@ export default function Transactions() {
     try {
       await installmentsAPI.unpay(id)
       fetchInstallments()
-      invalidateCache(CACHE_KEY)
+      invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
@@ -145,12 +220,21 @@ export default function Transactions() {
   }
 
   const handleDeleteInstallment = async (id) => {
-    try {
-      await installmentsAPI.remove(id)
-      fetchInstallments()
-      showToast('Parcelamento removido.')
-    } catch { showToast('Erro ao remover.', false) }
     setConfirmDeleteParc(null)
+    let lastErr
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await installmentsAPI.remove(id)
+        fetchInstallments()
+        showToast('Parcelamento removido.')
+        return
+      } catch (err) {
+        lastErr = err
+        if (err?.response?.status === 404) break
+        if (attempt < 3) await new Promise(r => setTimeout(r, 600 * attempt))
+      }
+    }
+    showToast(lastErr?.response?.data?.error || 'Erro ao remover. Tente novamente.', false)
   }
 
   const handleCreateInstallment = async (e) => {
@@ -177,29 +261,30 @@ export default function Transactions() {
     }
   }
 
-  const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-  const totalIncome   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+  const monthTxs      = transactions.filter(t => t.month === selMonth && t.year === selYear)
+  const totalExpenses = monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const totalIncome   = monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const balance       = totalIncome - totalExpenses
   const balancePos    = balance >= 0
 
   const filtered = transactions.filter(t => {
+    const matchMonth  = t.month === selMonth && t.year === selYear
+    const isFixed = t.category === 'fixed' && t.type === 'expense'
     const desc = (t.description || CATEGORY_LABELS[t.category] || '').toLowerCase()
     const cat  = (CATEGORY_LABELS[t.category] || '').toLowerCase()
     const matchSearch = !search || desc.includes(search.toLowerCase()) || cat.includes(search.toLowerCase())
     const matchFilter =
-      filter === 'all'     ? true :
-      filter === 'expense' ? t.type === 'expense' :
+      filter === 'all'     ? !isFixed :
+      filter === 'expense' ? t.type === 'expense' && !isFixed :
       filter === 'income'  ? t.type === 'income'  :
-      filter === 'fixed'   ? t.category === 'fixed' :
       true
-    return matchSearch && matchFilter
+    return matchMonth && matchSearch && matchFilter
   })
 
   const FILTER_PILLS = [
     { value: 'all',     label: 'Todas',    },
     { value: 'income',  label: 'Entradas', },
     { value: 'expense', label: 'Saídas',   },
-    { value: 'fixed',   label: 'Fixas',    },
   ]
 
   const grouped = (() => {
@@ -211,11 +296,27 @@ export default function Transactions() {
       const key = dMs === todayMs ? 'Hoje'
         : dMs === yestMs ? 'Ontem'
         : new Date(t.date).toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'short' })
-      if (!map.has(key)) map.set(key, [])
-      map.get(key).push(t)
+      if (!map.has(key)) map.set(key, { txs: [], totalExp: 0, cats: {} })
+      const entry = map.get(key)
+      entry.txs.push(t)
+      if (t.type === 'expense') {
+        entry.totalExp += t.amount
+        entry.cats[t.category] = (entry.cats[t.category] || 0) + t.amount
+      }
     })
     return [...map.entries()]
   })()
+
+  const comproms = monthTxs
+    .filter(t => t.category === 'fixed' && t.type === 'expense')
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+  const compromsTotal = comproms.reduce((s, t) => s + t.amount, 0)
+
+  const expsByCategory = monthTxs
+    .filter(t => t.type === 'expense' && t.category !== 'fixed')
+    .reduce((acc, t) => { acc[t.category] = (acc[t.category] || 0) + t.amount; return acc }, {})
+  const topCats = Object.entries(expsByCategory).sort((a, b) => b[1] - a[1]).slice(0, 3)
+  const totalVarExp = Object.values(expsByCategory).reduce((s, v) => s + v, 0)
 
   const activeInstallments = installments.filter(p => p.paidInstallments < p.totalInstallments)
 
@@ -234,6 +335,47 @@ export default function Transactions() {
       <div className="pwnav fade-in">
         <div className="tx1-page">
 
+          {/* ── Carrossel de meses ── */}
+          <div className="tx1-month-nav">
+            <button
+              className="tx1-month-arrow"
+              onClick={e => { goToPrev(); const b = e.currentTarget; b.classList.remove('press-left'); void b.offsetWidth; b.classList.add('press-left'); setTimeout(() => b.classList.remove('press-left'), 250) }}
+              disabled={isOldestMonth}
+              aria-label="Mês anterior"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div className="tx1-carousel-wrap" ref={carouselWrapRef}>
+              <div className="tx1-carousel" ref={carouselRef}>
+                {carouselMonths.map(({ month, year, label }) => {
+                  const active = month === selMonth && year === selYear
+                  const bal    = getMonthBalance(month, year)
+                  return (
+                    <button
+                      key={`${year}-${month}`}
+                      className={`tx1-carousel-item${active ? ' on' : ''}`}
+                      onClick={() => navigate(new Date(year, month - 1, 1))}
+                    >
+                      <span className="tx1-carousel-mon">{label}</span>
+                      {year !== today.getFullYear() && <span className="tx1-carousel-year">'{String(year).slice(2)}</span>}
+                      {bal !== null && (
+                        <span className={`tx1-carousel-bal ${bal >= 0 ? 'pos' : 'neg'}`}>{bal >= 0 ? '+' : '−'}</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <button
+              className="tx1-month-arrow"
+              onClick={e => { goToNext(); const b = e.currentTarget; b.classList.remove('press-right'); void b.offsetWidth; b.classList.add('press-right'); setTimeout(() => b.classList.remove('press-right'), 250) }}
+              disabled={isCurrentMonth}
+              aria-label="Próximo mês"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+
           {/* ── Hero card ── */}
           <div className="tx1-hero">
             <div className="tx1-hero-glow" />
@@ -250,8 +392,9 @@ export default function Transactions() {
                 }} />
               ))}
             </div>
+            <div className={`tx1-hero-content tx1-anim-${selDir}`} key={animKey}>
             <div className="tx1-hero-left">
-              <div className="tx1-hero-label">{MONTHS[now.getMonth()]} {now.getFullYear()}</div>
+              <div className="tx1-hero-label">{MONTHS[selDate.getMonth()]} {selYear}</div>
               <div className="tx1-hero-balance" style={{ color: balancePos ? 'var(--t1)' : '#ff6b6b' }}>
                 {balancePos ? '' : '−'}R$ {fmt(Math.abs(balance))}
               </div>
@@ -291,11 +434,19 @@ export default function Transactions() {
                 </div>
                 <div>
                   <div className="tx1-stat-lbl">Transações</div>
-                  <div className="tx1-stat-val">{transactions.length}</div>
+                  <div className="tx1-stat-val">{monthTxs.length}</div>
                 </div>
               </div>
             </div>
+            </div>{/* tx1-hero-content */}
           </div>
+
+          <PlanUsageBanner
+            plan={user?.plan ?? 'free'}
+            feature="transactions"
+            used={monthTxs.length}
+            label="transações este mês"
+          />
 
           {/* ── Parcelas ── */}
           <div className="parc-section">
@@ -383,23 +534,32 @@ export default function Transactions() {
                             </button>
                           </div>
 
-                          <div className="parc-progress-track">
-                            <div className="parc-progress-fill" style={{ width: `${pct}%` }} />
-                          </div>
-
-                          <div className="parc-stats">
-                            <span className="parc-count">
-                              {done
-                                ? '✓ Quitado'
-                                : <><strong>{p.paidInstallments}</strong>/{p.totalInstallments} pagas</>
-                              }
-                            </span>
-                            <span className="parc-pct">{pct}%</span>
+                          <div className="parc-progress-wrap">
+                            <div className="parc-progress-header">
+                              <span className="parc-count">
+                                {done
+                                  ? '✓ Quitado'
+                                  : <>{p.paidInstallments}/{p.totalInstallments} pagas</>
+                                }
+                              </span>
+                              <span className="parc-pct">{pct}%</span>
+                            </div>
+                            <div className="parc-progress-track">
+                              <div className="parc-progress-fill" style={{ width: `${pct}%` }} />
+                            </div>
                           </div>
 
                           <div className="parc-values">
-                            <span>R$ {fmt(p.amount)}/parcela</span>
-                            {!done && <span className="parc-remaining">R$ {fmt(totalRem)} restante</span>}
+                            <div className="parc-val-item">
+                              <span className="parc-val-label">Por parcela</span>
+                              <span className="parc-val-amount">R$ {fmt(p.amount)}</span>
+                            </div>
+                            {!done && (
+                              <div className="parc-val-item" style={{ textAlign: 'right' }}>
+                                <span className="parc-val-label">Restante</span>
+                                <span className="parc-remaining">R$ {fmt(totalRem)}</span>
+                              </div>
+                            )}
                           </div>
 
                           <div className="parc-actions">
@@ -448,6 +608,69 @@ export default function Transactions() {
             )}
           </div>
 
+          {/* ── Compromissos do Mês ── */}
+          {comproms.length > 0 && (
+            <div className="comproms-section">
+              <div className="comproms-header" onClick={() => setCompromsOpen(p => !p)}>
+                <div className="comproms-header-left">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                  </svg>
+                  <span>Compromissos do mês</span>
+                  <span className="parc-badge">{comproms.length}</span>
+                </div>
+                <div className="parc-header-right">
+                  <span className="comproms-header-total">R$ {fmt(compromsTotal)}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
+                    style={{ transition:'transform .2s', transform: compromsOpen ? 'rotate(180deg)' : 'rotate(0deg)', opacity:.4 }}>
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </div>
+              </div>
+              {compromsOpen && (
+                <div className="comproms-body">
+                  <div className="comproms-banner">
+                    <div className="comproms-stat">
+                      <span className="comproms-stat-num comproms-ok">{comproms.length}/{comproms.length}</span>
+                      <span className="comproms-stat-lbl">registradas</span>
+                    </div>
+                    <div className="comproms-stat-div" />
+                    <div className="comproms-stat">
+                      <span className="comproms-stat-num">R$ {fmt(compromsTotal)}</span>
+                      <span className="comproms-stat-lbl">este mês</span>
+                    </div>
+                    <div className="comproms-stat-div" />
+                    <div className="comproms-stat">
+                      <span className="comproms-stat-num comproms-ok">✓ Em dia</span>
+                      <span className="comproms-stat-lbl">sem atrasos</span>
+                    </div>
+                  </div>
+                  <div className="comproms-bills">
+                    {comproms.map(t => (
+                      <div key={t.id} className="comproms-bill paid">
+                        <div className="comproms-check">
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        </div>
+                        <div className="comproms-bill-info">
+                          <span className="comproms-bill-name">{t.description || CATEGORY_LABELS[t.category] || t.category}</span>
+                          <span className="comproms-bill-date">{new Date(t.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>
+                        </div>
+                        <span className="comproms-bill-amount">R$ {fmt(t.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Section: Gastos do Dia a Dia ── */}
+          <div className="tx1-section-sep">
+            <span className="tx1-section-title">Gastos do dia a dia</span>
+          </div>
+
           {/* ── Toolbar ── */}
           <div className="tx1-toolbar">
             <div className="tx1-search-wrap">
@@ -481,20 +704,32 @@ export default function Transactions() {
                   <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
                 <div style={{ fontSize:14, fontWeight:600, color:'rgba(255,255,255,.4)', marginBottom:4 }}>Nenhuma transação encontrada</div>
-                <div style={{ fontSize:12, color:'rgba(255,255,255,.2)' }}>{search || filter !== 'all' ? 'Ajuste os filtros de busca.' : 'Registre sua primeira transação.'}</div>
+                <div style={{ fontSize:12, color:'rgba(255,255,255,.2)' }}>{search || filter !== 'all' ? 'Ajuste os filtros de busca.' : comproms.length > 0 ? 'Nenhum gasto variável. Os compromissos aparecem acima.' : 'Registre sua primeira transação.'}</div>
               </div>
             ) : (
               <>
-                {grouped.map(([dateLabel, txs]) => (
+                {grouped.map(([dateLabel, { txs, totalExp, cats }]) => (
                   <div key={dateLabel}>
-                    <div className="tx1-date-label">{dateLabel}</div>
+                    <div className="tx1-date-header">
+                      <div className={`tx1-date-label${dateLabel === 'Hoje' ? ' is-today' : dateLabel === 'Ontem' ? ' is-yest' : ''}`}>{dateLabel}</div>
+                      {totalExp > 0 && <span className="tx1-day-subtotal">−R$ {fmt(totalExp)}</span>}
+                    </div>
+                    {Object.keys(cats).length > 1 && (
+                      <div className="tx1-day-cats">
+                        {Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([cat, val]) => (
+                          <span key={cat} className="tx1-day-cat-pill">
+                            {CATEGORY_LABELS[cat] || cat} · R$ {fmt(val)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {txs.map(t => {
                       const isInc    = t.type === 'income'
                       const isFixed  = t.category === 'fixed'
                       const catLabel = CATEGORY_LABELS[t.category] || t.category
                       const desc     = t.description || catLabel
                       return (
-                        <div key={t.id} className="tx1-row">
+                        <div key={t.id} className={`tx1-row${isInc ? ' is-inc' : ''}`}>
                           <div className={`tx1-row-ico ${isInc ? 'inc' : 'exp'}`}>
                             <CategoryIcon category={t.category} size={14} color="currentColor" />
                           </div>
@@ -527,13 +762,40 @@ export default function Transactions() {
                     })}
                   </div>
                 ))}
+                {topCats.length >= 2 && !search && filter === 'all' && (
+                  <div className="tx1-ai-box">
+                    <div className="tx1-ai-header">
+                      <div className="tx1-ai-icon">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                      </div>
+                      <span>Análise do mês</span>
+                    </div>
+                    <div className="tx1-ai-insights">
+                      <div className="tx1-ai-insight">
+                        <span className="tx1-ai-insight-label">Maior gasto variável</span>
+                        <span className="tx1-ai-insight-val">{CATEGORY_LABELS[topCats[0][0]] || topCats[0][0]} · R$ {fmt(topCats[0][1])} ({Math.round(topCats[0][1] / totalVarExp * 100)}% do total)</span>
+                      </div>
+                      <div className="tx1-ai-insight">
+                        <span className="tx1-ai-insight-label">Top categorias</span>
+                        <div className="tx1-ai-cats">
+                          {topCats.map(([cat, val]) => (
+                            <div key={cat} className="tx1-ai-cat-bar">
+                              <span className="tx1-ai-cat-name">{CATEGORY_LABELS[cat] || cat}</span>
+                              <div className="tx1-ai-bar-wrap">
+                                <div className="tx1-ai-bar-fill" style={{ width:`${Math.round(val / topCats[0][1] * 100)}%` }} />
+                              </div>
+                              <span className="tx1-ai-cat-val">R$ {fmt(val)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="tx1-footer">
                   <span>{filtered.length} transação(ões)</span>
-                  <span>
-                    Entradas: <strong style={{ color:'#4ae2ac' }}>R$ {fmt(totalIncome)}</strong>
-                    &nbsp;·&nbsp;
-                    Saídas: <strong style={{ color:'#ff4757' }}>R$ {fmt(totalExpenses)}</strong>
-                  </span>
                 </div>
               </>
             )}
@@ -575,7 +837,7 @@ export default function Transactions() {
       {showForm && (
         <TransactionForm
           onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); invalidateCache(CACHE_KEY); fetchTransactions(true) }}
+          onSuccess={() => { setShowForm(false); invalidateCache(txCacheKey(selMonth, selYear)); fetchTransactions(true) }}
         />
       )}
 
@@ -584,34 +846,78 @@ export default function Transactions() {
           initialData={editingTx}
           editingId={editingTx.id}
           onClose={() => setEditingTx(null)}
-          onSuccess={() => { setEditingTx(null); invalidateCache(CACHE_KEY); fetchTransactions(true) }}
+          onSuccess={() => { setEditingTx(null); invalidateCache(txCacheKey(selMonth, selYear)); fetchTransactions(true) }}
         />
       )}
 
-      {confirmDeleteTx && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
-            <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Remover transação?</div>
-            <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20 }}>Esta ação não pode ser desfeita.</div>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setConfirmDeleteTx(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
-              <button onClick={() => handleDelete(confirmDeleteTx)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>Remover</button>
+      {confirmDeleteTx && createPortal(
+        <div className="gls-modal-overlay" onClick={() => setConfirmDeleteTx(null)}>
+          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head">
+              <span>Remover transação</span>
+              <button className="gls-modal-close" onClick={() => setConfirmDeleteTx(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Esta transação será removida permanentemente.</div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirmDeleteTx(null)}>Cancelar</button>
+              <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={() => handleDelete(confirmDeleteTx)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                </svg>
+                Sim, excluir
+              </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {confirmDeleteParc && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
-            <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Remover parcelamento?</div>
-            <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20 }}>Esta ação não pode ser desfeita.</div>
-            <div style={{ display:'flex', gap:10 }}>
-              <button onClick={() => setConfirmDeleteParc(null)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>Cancelar</button>
-              <button onClick={() => handleDeleteInstallment(confirmDeleteParc)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>Remover</button>
+      {confirmDeleteParc && createPortal(
+        <div className="gls-modal-overlay" onClick={() => setConfirmDeleteParc(null)}>
+          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head">
+              <span>Remover parcelamento</span>
+              <button className="gls-modal-close" onClick={() => setConfirmDeleteParc(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Todas as parcelas restantes serão removidas permanentemente.</div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirmDeleteParc(null)}>Cancelar</button>
+              <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={() => handleDeleteInstallment(confirmDeleteParc)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                </svg>
+                Sim, excluir
+              </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

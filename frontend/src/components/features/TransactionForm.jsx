@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { transactionsAPI } from '../../services/api.js'
 import CurrencyInput from '../ui/CurrencyInput.jsx'
 
@@ -203,29 +204,33 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
       </div>
     </div>
 
-    {showDiscardConfirm && (
-      <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.75)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-        <div style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:380, textAlign:'center' }}>
-          <div style={{ width:52, height:52, borderRadius:14, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-          </div>
-          <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Descartar alterações?</div>
-          <div style={{ fontSize:13, color:'var(--t2)', marginBottom:20, lineHeight:1.6 }}>
-            Os dados preenchidos serão perdidos.
-          </div>
-          <div style={{ display:'flex', gap:10 }}>
-            <button onClick={() => setShowDiscardConfirm(false)} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-              Continuar editando
+    {showDiscardConfirm && createPortal(
+      <div className="gls-modal-overlay" onClick={() => setShowDiscardConfirm(false)}>
+        <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+          <div className="gls-modal-head">
+            <span>Descartar alterações?</span>
+            <button className="gls-modal-close" onClick={() => setShowDiscardConfirm(false)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
-            <button onClick={onClose} style={{ flex:1, padding:'10px 0', borderRadius:8, border:'none', background:'#ef4444', color:'#fff', fontSize:14, fontWeight:700, cursor:'pointer' }}>
-              Descartar
-            </button>
+          </div>
+          <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+            <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Os dados preenchidos serão perdidos.</div>
+          </div>
+          <div className="gls-modal-foot">
+            <button className="gls-btn-ghost" onClick={() => setShowDiscardConfirm(false)}>Continuar editando</button>
+            <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={onClose}>Descartar</button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     )}
     </>
   )

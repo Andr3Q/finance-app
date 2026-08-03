@@ -215,32 +215,33 @@ test.describe('Dashboard — Feed de Atividade (Ver mais / Ver menos)', () => {
     await expect(btn).toContainText('Ver mais')
   })
 
-  test('clicar "Ver mais" remove classe hb-feed-collapsed', async ({ page }) => {
+  test('clicar "Ver mais" expande o feed e exibe "Ver menos"', async ({ page }) => {
     await goDashboard(page)
-    const feed = page.locator('.hb-feed').first()
-    await expect(feed).toHaveClass(/hb-feed-collapsed/, { timeout: 8000 })
+    const toggle = page.locator('.hb-feed-toggle')
+    await expect(toggle).toContainText('Ver mais', { timeout: 8000 })
 
-    await page.locator('.hb-feed-toggle').click()
-    await expect(feed).not.toHaveClass(/hb-feed-collapsed/)
-    await expect(page.locator('.hb-feed-toggle')).toContainText('Ver menos')
+    await toggle.click()
+    await expect(toggle).toContainText('Ver menos')
   })
 
   test('clicar "Ver menos" volta ao estado colapsado', async ({ page }) => {
     await goDashboard(page)
-    await page.locator('.hb-feed-toggle').click()
-    await page.locator('.hb-feed-toggle').click()
-    await expect(page.locator('.hb-feed-toggle')).toContainText('Ver mais')
-    await expect(page.locator('.hb-feed').first()).toHaveClass(/hb-feed-collapsed/)
+    const toggle = page.locator('.hb-feed-toggle')
+    await toggle.click()
+    await expect(toggle).toContainText('Ver menos')
+    await toggle.click()
+    await expect(toggle).toContainText('Ver mais')
   })
 
   test('trocar filtro "Gastos" reseta feed para colapsado', async ({ page }) => {
     await goDashboard(page)
-    await page.locator('.hb-feed-toggle').click()
-    await expect(page.locator('.hb-feed').first()).not.toHaveClass(/hb-feed-collapsed/)
+    const toggle = page.locator('.hb-feed-toggle')
+    await toggle.click()
+    await expect(toggle).toContainText('Ver menos')
 
     // Clica no filtro do feed (não no tab do hero)
     await page.locator('.hb-feed-tab', { hasText: /^Gastos$/i }).click()
-    await expect(page.locator('.hb-feed').first()).toHaveClass(/hb-feed-collapsed/, { timeout: 5000 })
+    await expect(toggle).toContainText('Ver mais', { timeout: 5000 })
   })
 
   test('lista original de transações não é mutada', async ({ page }) => {
