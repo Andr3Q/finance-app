@@ -39,6 +39,7 @@ jobs:
     name: 🔒 Dependency Review
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    continue-on-error: true  # Requer GitHub Advanced Security (GHAS) — não disponível em repo privado free
     steps:
       - name: Checkout
         uses: actions/checkout@v4
