@@ -298,13 +298,13 @@ router.post('/', dashboardLimiter, async (req, res) => {
           }
         })
         const txCount = userData._count.transactions
-        if (userData?.plan === 'free' && txCount >= 20) {
+        if (req.userPlan === 'free' && txCount >= 20) {
           const err = new Error('Limite de 20 transações por mês atingido no plano Gratuito.')
           err.limitReached = true
           err.plan = 'free'
           throw err
         }
-        if (userData?.plan === 'pro' && txCount >= 35) {
+        if (req.userPlan === 'pro' && txCount >= 35) {
           const err = new Error('Limite de 35 transações por mês atingido no plano Pro.')
           err.limitReached = true
           err.plan = 'pro'
@@ -513,8 +513,8 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
 
     // Verifica limite do plano Free antes de criar transações
     let budgetsToLaunch = budgets
-    if (userCheck.plan === 'free' || userCheck.plan === 'pro') {
-      const planLimit  = userCheck.plan === 'pro' ? 35 : 20
+    if (req.userPlan === 'free' || req.userPlan === 'pro') {
+      const planLimit  = req.userPlan === 'pro' ? 35 : 20
       const currentCount = await prisma.transaction.count({
         where: { userId: req.userId, month, year, archived: false }
       })
@@ -608,8 +608,8 @@ router.post('/import', dashboardLimiter, upload.single('file'), async (req, res)
       }
     })
     let importLimit = null
-    if (userData?.plan === 'free' || userData?.plan === 'pro') {
-      const planLimit    = userData.plan === 'pro' ? 35 : 20
+    if (req.userPlan === 'free' || req.userPlan === 'pro') {
+      const planLimit    = req.userPlan === 'pro' ? 35 : 20
       const currentCount = userData._count.transactions
       if (currentCount >= planLimit) {
         return res.status(403).json({

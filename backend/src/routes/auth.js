@@ -37,7 +37,7 @@ async function rewardReferrer(referrer) {
   const rewardedCount = await prisma.user.count({
     where: { referredBy: referrer.referralCode, emailVerified: true },
   })
-  if (rewardedCount >= 5) return false  // limite atingido
+  if (rewardedCount > 5) return false  // limite atingido (> 5 pois o indicado já consta como verified ao contar)
 
   const now      = new Date()
   if (referrer.plan !== 'free' && referrer.planExpiresAt && referrer.planExpiresAt > now) {
@@ -628,16 +628,28 @@ router.post('/downgrade', authMiddleware, async (req, res) => {
 
     const current = await prisma.user.findUnique({
       where:  { id: req.userId },
-      select: { password: true },
+      select: { password: true, planExpiresAt: true, trialEndsAt: true },
     })
     if (!current) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
     const valid = await bcrypt.compare(password, current.password)
     if (!valid) return res.status(401).json({ error: 'Senha incorreta.' })
 
+    const now = new Date()
+
+    // A-02: respeita dias pagos restantes — mantém acesso até planExpiresAt
+    // C-02: sempre limpa trialEndsAt para evitar estado inconsistente
+    if (current.planExpiresAt && current.planExpiresAt > now) {
+      await prisma.user.update({ where: { id: req.userId }, data: { trialEndsAt: null } })
+      return res.json({
+        message: `Seu plano permanece ativo até ${current.planExpiresAt.toLocaleDateString('pt-BR')} e será rebaixado para Free automaticamente.`,
+        scheduledAt: current.planExpiresAt.toISOString(),
+      })
+    }
+
     const user = await prisma.user.update({
       where:  { id: req.userId },
-      data:   { plan: 'free' },
+      data:   { plan: 'free', planExpiresAt: null, trialEndsAt: null },
       select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true }
     })
     res.json({ message: 'Plano alterado para Free.', user: { ...user, salary: Number(user.salary || 0) } })

@@ -55,14 +55,14 @@ router.post('/', async (req, res) => {
       select: { plan: true, _count: { select: { goals: true } } },
     })
     const count = userData?._count.goals ?? 0
-    if (userData?.plan === 'free' && count >= 1) {
+    if (req.userPlan === 'free' && count >= 1) {
       return res.status(403).json({
         error: 'Crie mais metas com o plano Pro ou Elite.',
         limitReached: true,
         plan: 'free',
       })
     }
-    if (userData?.plan === 'pro' && count >= 4) {
+    if (req.userPlan === 'pro' && count >= 4) {
       return res.status(403).json({
         error: 'Limite de 4 metas atingido no plano Pro.',
         limitReached: true,

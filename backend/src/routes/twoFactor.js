@@ -81,14 +81,14 @@ function issueFullToken(res, userId, tokenVersion = 0) {
 // Gera segredo + QR code. Salva segredo (não ativa ainda).
 router.post('/setup', authMiddleware, twoFALimiter, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where:  { id: req.userId },
-      select: { plan: true, twoFactorEnabled: true, name: true, email: true },
-    })
-    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
-    if (!['pro', 'elite'].includes(user.plan)) {
+    if (!['pro', 'elite'].includes(req.userPlan)) {
       return res.status(403).json({ error: '2FA disponível apenas para planos Pro e Elite.' })
     }
+    const user = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { twoFactorEnabled: true, name: true, email: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
     if (user.twoFactorEnabled) {
       return res.status(400).json({ error: '2FA já está ativo.' })
     }
