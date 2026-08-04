@@ -26,7 +26,7 @@ class GoalController {
    */
   async create(req, res, next) {
     try {
-      const goal = await goalService.create(req.userId, req.body)
+      const goal = await goalService.create(req.userId, req.userPlan, req.body)
       res.status(201).json(goal)
     } catch (err) {
       next(err)

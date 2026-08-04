@@ -182,6 +182,59 @@ describe('POST /api/goals', () => {
 
     expect(res.status).toBe(201)
   })
+
+  // C-01: plano pago expirado deve ser tratado como Free — o campo `plan`
+  // no banco só é resetado de forma lazy em /auth/me, então o authMiddleware
+  // precisa recalcular o plano efetivo em toda escrita, não só ali.
+  test('plano pro com planExpiresAt no passado é tratado como free → 403 na 2ª meta', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      plan: 'pro',
+      planExpiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // expirou ontem
+      _count: { goals: 1 },
+    }))
+
+    const res = await request(app)
+      .post('/api/goals')
+      .set(authHeader())
+      .send({ title: 'Segunda meta', targetAmount: 1000 })
+
+    expect(res.status).toBe(403)
+    expect(res.body.limitReached).toBe(true)
+    expect(res.body.plan).toBe('free')
+  })
+
+  test('plano elite com trialEndsAt expirado é tratado como free → 403 na 2ª meta', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      plan: 'elite',
+      planExpiresAt: null,
+      trialEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // trial acabou ontem
+      _count: { goals: 1 },
+    }))
+
+    const res = await request(app)
+      .post('/api/goals')
+      .set(authHeader())
+      .send({ title: 'Segunda meta', targetAmount: 1000 })
+
+    expect(res.status).toBe(403)
+    expect(res.body.plan).toBe('free')
+  })
+
+  test('plano pro ainda dentro do prazo (planExpiresAt no futuro) continua liberado', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      plan: 'pro',
+      planExpiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 dias restantes
+      _count: { goals: 3 },
+    }))
+    prisma.goal.create.mockResolvedValue(mockGoal())
+
+    const res = await request(app)
+      .post('/api/goals')
+      .set(authHeader())
+      .send({ title: 'Quarta meta', targetAmount: 1000 })
+
+    expect(res.status).toBe(201)
+  })
 })
 
 // ══════════════════════════════════════════════════════════
