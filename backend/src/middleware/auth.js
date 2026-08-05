@@ -23,11 +23,17 @@ async function authMiddleware(req, res, next) {
   // (ex: após reset de senha ou exclusão de conta).
   const user = await prisma.user.findUnique({
     where:  { id: decoded.userId },
-    select: { tokenVersion: true },
+    select: { tokenVersion: true, plan: true, planExpiresAt: true, trialEndsAt: true },
   })
   if (!user || (decoded.tokenVersion ?? 0) !== (user.tokenVersion ?? 0)) {
     return res.status(401).json({ error: 'Sessão inválida. Faça login novamente.' })
   }
+
+  // Plano efetivo considerando expiração — evita que planos expirados aceitem writes (C-01)
+  const now          = new Date()
+  const planExpired  = user.plan !== 'free' && user.planExpiresAt && user.planExpiresAt < now && !user.trialEndsAt
+  const trialExpired = user.trialEndsAt && user.trialEndsAt < now && (!user.planExpiresAt || user.planExpiresAt < now)
+  req.userPlan = (planExpired || trialExpired) ? 'free' : user.plan
 
   req.userId = decoded.userId
   next()

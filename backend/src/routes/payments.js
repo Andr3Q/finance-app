@@ -145,8 +145,8 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
       return
     }
 
-    const daysToAdd     = period === 'annual' ? 366 : 31
-    const planExpiresAt = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000)
+    const daysToAdd = period === 'annual' ? 366 : 31
+    const DAY_MS    = 24 * 60 * 60 * 1000
 
     // Deduplicação atômica: processedPayment.create falha com P2002 se já existir,
     // garantindo que plano nunca seja ativado duas vezes mesmo com webhooks concorrentes.
@@ -156,10 +156,14 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
         await tx.processedPayment.create({
           data: { paymentId: String(dataId), userId, plan, period },
         })
+        // A-03: acumula dias restantes — renovação antecipada não perde dias já pagos
+        const cur  = await tx.user.findUnique({ where: { id: userId }, select: { planExpiresAt: true } })
+        const base = cur?.planExpiresAt && cur.planExpiresAt > new Date() ? cur.planExpiresAt : new Date()
+        const planExpiresAt = new Date(base.getTime() + daysToAdd * DAY_MS)
         return tx.user.update({
           where:  { id: userId },
           data:   { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
-          select: { email: true, name: true },
+          select: { email: true, name: true, planExpiresAt: true },
         })
       })
     } catch (txErr) {
@@ -171,9 +175,9 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
     }
 
     // E-mail de confirmação — fire-and-forget
-    sendPlanActivationEmail(activatedUser.email, activatedUser.name, plan, planExpiresAt).catch(() => {})
+    sendPlanActivationEmail(activatedUser.email, activatedUser.name, plan, activatedUser.planExpiresAt).catch(() => {})
 
-    console.log(`[payments] ${plan} ativado para ${userId} até ${planExpiresAt.toISOString().slice(0, 10)}`)
+    console.log(`[payments] ${plan} ativado para ${userId} até ${activatedUser.planExpiresAt.toISOString().slice(0, 10)}`)
   } catch (err) {
     console.error('[payments] webhook:', err.message)
   }

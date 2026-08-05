@@ -22,26 +22,29 @@ class GoalService {
   /**
    * Cria uma nova meta respeitando os limites do plano.
    * @param {string} userId
+   * @param {string} effectivePlan - plano já resolvido pelo authMiddleware
+   *   (considera planExpiresAt/trialEndsAt — nunca confiar no campo `plan`
+   *   bruto do banco aqui, ou planos expirados ficam com limite ilimitado)
    * @param {object} body   - dados brutos da requisição
    * @returns {Promise<Goal>}
    * @throws {ValidationError|ForbiddenError}
    */
-  async create(userId, body) {
+  async create(userId, effectivePlan, body) {
     // 1. Validar dados (pode lançar ValidationError)
     const payload = Goal.validateCreate(body)
 
-    // 2. Verificar limite do plano — query isolada no repositório
-    const { plan, count } = await goalRepository.findUserPlanAndCount(userId)
-    const limit = Goal.limitForPlan(plan)
+    // 2. Verificar limite do plano — só a contagem depende do repositório
+    const count = await goalRepository.countByUser(userId)
+    const limit = Goal.limitForPlan(effectivePlan)
 
     if (count >= limit) {
       const messages = {
         free: 'Crie mais metas com o plano Pro ou Elite.',
         pro:  'Limite de 4 metas atingido no plano Pro.',
       }
-      throw new ForbiddenError(messages[plan] ?? 'Limite de metas atingido.', {
+      throw new ForbiddenError(messages[effectivePlan] ?? 'Limite de metas atingido.', {
         limitReached: true,
-        plan,
+        plan: effectivePlan,
       })
     }
 

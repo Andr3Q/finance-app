@@ -208,11 +208,14 @@ describe('POST /api/payments/webhook', () => {
     return mockGet
   }
 
-  function mockTransaction(userResult = { email: 'user@test.com', name: 'Test User' }) {
+  function mockTransaction(userResult = { email: 'user@test.com', name: 'Test User', planExpiresAt: new Date(Date.now() + 31 * 24 * 3600 * 1000) }) {
     prisma.$transaction.mockImplementation(async (fn) =>
       fn({
         processedPayment: { create: jest.fn().mockResolvedValue({}) },
-        user: { update: jest.fn().mockResolvedValue(userResult) },
+        user: {
+          findUnique: jest.fn().mockResolvedValue({ planExpiresAt: null }),
+          update: jest.fn().mockResolvedValue(userResult),
+        },
       })
     )
     return userResult
@@ -254,9 +257,10 @@ describe('POST /api/payments/webhook', () => {
       fn({
         processedPayment: { create: jest.fn().mockResolvedValue({}) },
         user: {
+          findUnique: jest.fn().mockResolvedValue({ planExpiresAt: null }),
           update: jest.fn().mockImplementation(({ data }) => {
             capturedData = data
-            return Promise.resolve({ email: 'u@t.com', name: 'U' })
+            return Promise.resolve({ email: 'u@t.com', name: 'U', planExpiresAt: data.planExpiresAt })
           }),
         },
       })
@@ -279,9 +283,10 @@ describe('POST /api/payments/webhook', () => {
       fn({
         processedPayment: { create: jest.fn().mockResolvedValue({}) },
         user: {
+          findUnique: jest.fn().mockResolvedValue({ planExpiresAt: null }),
           update: jest.fn().mockImplementation(({ data }) => {
             capturedData = data
-            return Promise.resolve({ email: 'u@t.com', name: 'U' })
+            return Promise.resolve({ email: 'u@t.com', name: 'U', planExpiresAt: data.planExpiresAt })
           }),
         },
       })

@@ -60,21 +60,18 @@ class GoalRepository {
   }
 
   /**
-   * Retorna plano e contagem de metas do usuário.
-   * Usado pelo GoalService para verificar limites de plano
-   * sem que a camada de aplicação acesse Prisma diretamente.
+   * Conta quantas metas o usuário já tem.
+   * O plano efetivo (considerando expiração) vem do authMiddleware via
+   * req.userPlan — o repositório não decide plano, só conta registros.
    * @param {string} userId
-   * @returns {Promise<{ plan: string, count: number }>}
+   * @returns {Promise<number>}
    */
-  async findUserPlanAndCount(userId) {
+  async countByUser(userId) {
     const user = await prisma.user.findUnique({
       where:  { id: userId },
-      select: { plan: true, _count: { select: { goals: true } } },
+      select: { _count: { select: { goals: true } } },
     })
-    return {
-      plan:  user?.plan ?? 'free',
-      count: user?._count?.goals ?? 0,
-    }
+    return user?._count?.goals ?? 0
   }
 
   /**

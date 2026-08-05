@@ -46,8 +46,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Total de parcelas deve ser entre 2 e 360.' })
     }
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId }, select: { plan: true } })
-    if (!user || !['pro', 'elite'].includes(user.plan)) {
+    if (!['pro', 'elite'].includes(req.userPlan)) {
       return res.status(403).json({ error: 'Parcelamentos são exclusivos do plano Pro.', limitReached: true })
     }
 
