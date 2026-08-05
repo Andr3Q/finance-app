@@ -160,6 +160,7 @@ describe('POST /api/auth/login', () => {
     const user = mockUser()
     prisma.user.findUnique.mockResolvedValue(user)
     prisma.loginAudit.create.mockResolvedValue({})
+    prisma.user.update.mockResolvedValue({ failedLoginCount: 1 })
 
     const res = await request(app)
       .post('/api/auth/login')
@@ -168,6 +169,68 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(401)
     // Mensagem não deve revelar se o email existe
     expect(res.body.error).toMatch(/inválid|incorret|não encontrad/i)
+  })
+
+  // Regressão: o contador de tentativas falhas usava leitura+escrita não-atômica
+  // (newCount = count+1 calculado na aplicação) — sob requisições concorrentes,
+  // updates se perdiam e a conta podia nunca bloquear. Agora usa increment atômico.
+  test('senha errada incrementa failedLoginCount atomicamente ({ increment: 1 })', async () => {
+    const user = mockUser({ failedLoginCount: 3 })
+    prisma.user.findUnique.mockResolvedValue(user)
+    prisma.loginAudit.create.mockResolvedValue({})
+    prisma.user.update.mockResolvedValue({ failedLoginCount: 4 })
+
+    await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'WrongPassword1' })
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where:  { id: 'user-123' },
+      data:   { failedLoginCount: { increment: 1 } },
+      select: { failedLoginCount: true },
+    })
+  })
+
+  test('10ª tentativa errada bloqueia a conta → 423 e envia e-mail de desbloqueio', async () => {
+    const user = mockUser({ failedLoginCount: 9 })
+    prisma.user.findUnique.mockResolvedValue(user)
+    prisma.loginAudit.create.mockResolvedValue({})
+    prisma.user.update.mockResolvedValue({ failedLoginCount: 10 })
+    prisma.$transaction.mockResolvedValue([{}, {}])
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'WrongPassword1' })
+
+    expect(res.status).toBe(423)
+    expect(res.body.error).toMatch(/bloqueada/i)
+  })
+
+  test('9ª tentativa errada NÃO bloqueia a conta → 401', async () => {
+    const user = mockUser({ failedLoginCount: 8 })
+    prisma.user.findUnique.mockResolvedValue(user)
+    prisma.loginAudit.create.mockResolvedValue({})
+    prisma.user.update.mockResolvedValue({ failedLoginCount: 9 })
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'WrongPassword1' })
+
+    expect(res.status).toBe(401)
+  })
+
+  test('conta já bloqueada retorna 423 sem tentar a senha', async () => {
+    const user = mockUser({ accountLockedAt: new Date() })
+    prisma.user.findUnique.mockResolvedValue(user)
+    prisma.loginAudit.create.mockResolvedValue({})
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'Password123' })
+
+    expect(res.status).toBe(423)
+    // Conta já bloqueada não deve reincrementar o contador
+    expect(prisma.user.update).not.toHaveBeenCalled()
   })
 
   test('usuário inexistente retorna 401 (não vaza se email existe)', async () => {
