@@ -315,7 +315,9 @@ describe('POST /api/transactions/import', () => {
 
   test('decimal pt-BR com separador de milhar (1.234,56) continua correto', async () => {
     prisma.transaction.createMany.mockResolvedValue({ count: 1 })
-    const csv = 'description;amount\nCompra nacional;1.234,56\n'
+    // Valor entre aspas — a vírgula do decimal pt-BR não deve ser confundida com o
+    // delimitador ';' do CSV (RFC 4180: conteúdo entre aspas não é dividido).
+    const csv = 'description;amount\nCompra nacional;"1.234,56"\n'
 
     const res = await request(app)
       .post('/api/transactions/import')
