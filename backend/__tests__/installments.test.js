@@ -370,9 +370,11 @@ describe('PATCH /api/installments/:id/unpay', () => {
     expect(res.body.lastTransactionId).toBeNull()
   })
 
-  test('inclui deleteMany na transação quando lastTransactionId existe', async () => {
+  test('inclui deleteMany quando encontra a transação correspondente à parcela atual', async () => {
     const plan = mockPlan({ paidInstallments: 1, lastTransactionId: 'tx-to-delete' })
     prisma.installmentPlan.findFirst.mockResolvedValue(plan)
+    // A busca agora é por descrição determinística, não mais pelo lastTransactionId
+    prisma.transaction.findFirst.mockResolvedValueOnce({ id: 'tx-to-delete', description: 'iPhone 15 (parcela 1/12)' })
     prisma.$transaction.mockResolvedValue([{ ...plan, paidInstallments: 0, lastTransactionId: null }])
 
     await request(app)
@@ -385,9 +387,10 @@ describe('PATCH /api/installments/:id/unpay', () => {
     expect(ops).toHaveLength(2)
   })
 
-  test('não inclui deleteMany quando lastTransactionId é null', async () => {
+  test('não inclui deleteMany quando a transação correspondente não é encontrada', async () => {
     const plan = mockPlan({ paidInstallments: 1, lastTransactionId: null })
     prisma.installmentPlan.findFirst.mockResolvedValue(plan)
+    prisma.transaction.findFirst.mockResolvedValueOnce(null)
     prisma.$transaction.mockResolvedValue([{ ...plan, paidInstallments: 0 }])
 
     await request(app)
@@ -397,6 +400,38 @@ describe('PATCH /api/installments/:id/unpay', () => {
     const ops = prisma.$transaction.mock.calls[0][0]
     expect(Array.isArray(ops)).toBe(true)
     expect(ops).toHaveLength(1) // só o update
+  })
+
+  // Regressão: com a lógica antiga (lastTransactionId), a 2ª chamada consecutiva
+  // de /unpay não encontrava mais nada pra remover (o campo já tinha sido zerado
+  // na 1ª chamada) — decrementava o contador mas deixava a transação órfã.
+  test('desfazer 2 parcelas em sequência remove a transação certa em cada chamada', async () => {
+    const basePlan = mockPlan({ paidInstallments: 3 })
+
+    // 1ª chamada: desfaz a parcela 3 → remove "iPhone 15 (parcela 3/12)"
+    prisma.installmentPlan.findFirst.mockResolvedValueOnce(basePlan)
+    prisma.transaction.findFirst.mockResolvedValueOnce({ id: 'tx-3', description: 'iPhone 15 (parcela 3/12)' })
+    prisma.$transaction.mockResolvedValueOnce([{ ...basePlan, paidInstallments: 2, lastTransactionId: null }])
+
+    const res1 = await request(app)
+      .patch(`/api/installments/${PLAN_ID}/unpay`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+
+    expect(res1.status).toBe(200)
+    expect(prisma.transaction.deleteMany).toHaveBeenNthCalledWith(1, { where: { id: 'tx-3', userId: USER_ID } })
+
+    // 2ª chamada consecutiva: plano já está com paidInstallments=2 (estado real após a 1ª)
+    // → deve remover "iPhone 15 (parcela 2/12)", não repetir a tentativa da parcela 3
+    prisma.installmentPlan.findFirst.mockResolvedValueOnce({ ...basePlan, paidInstallments: 2, lastTransactionId: null })
+    prisma.transaction.findFirst.mockResolvedValueOnce({ id: 'tx-2', description: 'iPhone 15 (parcela 2/12)' })
+    prisma.$transaction.mockResolvedValueOnce([{ ...basePlan, paidInstallments: 1, lastTransactionId: null }])
+
+    const res2 = await request(app)
+      .patch(`/api/installments/${PLAN_ID}/unpay`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+
+    expect(res2.status).toBe(200)
+    expect(prisma.transaction.deleteMany).toHaveBeenNthCalledWith(2, { where: { id: 'tx-2', userId: USER_ID } })
   })
 })
 
