@@ -19,6 +19,10 @@ export default function AgentChat() {
   const [listening,    setListening]    = useState(false)
   const [voiceError,   setVoiceError]   = useState('')
   const [voiceSupport, setVoiceSupport] = useState(false)
+  // 'unknown' | 'granted' | 'denied' | 'prompt' — consultado via Permissions API.
+  // Uma vez negada, o browser NUNCA mostra o prompt de novo sozinho — só dá pra
+  // detectar o estado e orientar o usuário a liberar manualmente nas configurações.
+  const [micPermission, setMicPermission] = useState('unknown')
   const bottomRef      = useRef(null)
   const inputRef       = useRef(null)
   const recognitionRef = useRef(null)
@@ -28,6 +32,17 @@ export default function AgentChat() {
 
   useEffect(() => {
     setVoiceSupport(!!(window.SpeechRecognition || window.webkitSpeechRecognition))
+
+    // Permissions API — não existe no Safari/iOS, então falha silenciosamente
+    // e o app cai de volta no comportamento antigo (detecta só pelo onerror).
+    if (!navigator.permissions?.query) return
+    let status
+    navigator.permissions.query({ name: 'microphone' }).then(s => {
+      status = s
+      setMicPermission(s.state)
+      s.onchange = () => setMicPermission(s.state)
+    }).catch(() => {})
+    return () => { if (status) status.onchange = null }
   }, [])
 
   useEffect(() => {
@@ -75,6 +90,8 @@ export default function AgentChat() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
 
+  const MIC_HELP = 'Toque no ícone de cadeado/informações ao lado do endereço do site (ou, se instalou o Nancy como app, vá em Configurações do Android → Apps → Nancy → Permissões) e libere o Microfone. Depois recarregue a página.'
+
   const toggleVoice = () => {
     if (listening) {
       recognitionRef.current?.stop()
@@ -82,6 +99,15 @@ export default function AgentChat() {
     }
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SR) return
+
+    // Permissão já sabidamente negada — nem tenta iniciar (evitaria só repetir o
+    // mesmo erro "service-not-allowed"). Mostra a instrução direto, sem timeout,
+    // porque exige uma ação manual do usuário fora do app.
+    if (micPermission === 'denied') {
+      setVoiceError(`Microfone bloqueado. ${MIC_HELP}`)
+      return
+    }
+
     setVoiceError('')
     const rec = new SR()
     rec.lang = 'pt-BR'
@@ -93,8 +119,10 @@ export default function AgentChat() {
     rec.onerror = (e) => {
       setListening(false)
       const code = e.error || 'unknown'
-      if (code === 'not-allowed' || code === 'permission-denied') {
-        setVoiceError('Permissão de microfone negada. Libere nas configurações do browser.')
+      if (code === 'not-allowed' || code === 'permission-denied' || code === 'service-not-allowed') {
+        setMicPermission('denied')
+        setVoiceError(`Permissão de microfone negada. ${MIC_HELP}`)
+        return // não some depois de 5s — o usuário precisa de tempo pra agir
       } else if (code === 'no-speech') {
         setVoiceError('Nenhuma fala detectada. Tente novamente.')
       } else if (code === 'network') {
@@ -249,10 +277,11 @@ export default function AgentChat() {
             />
             {voiceSupport && (
               <button
-                className={`agent-mic${listening ? ' listening' : ''}`}
+                className={`agent-mic${listening ? ' listening' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
                 onClick={toggleVoice}
                 disabled={loading}
-                aria-label={listening ? 'Parar gravação' : 'Falar mensagem'}
+                aria-label={listening ? 'Parar gravação' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
+                title={micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : undefined}
                 type="button"
               >
                 {listening ? (

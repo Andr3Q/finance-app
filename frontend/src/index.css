@@ -7974,6 +7974,22 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   0%, 100% { box-shadow: 0 0 0 0 rgba(255,71,87,.45); }
   50%       { box-shadow: 0 0 0 7px rgba(255,71,87,0); }
 }
+/* Permissão de microfone negada — indicador estático (sem pulso), visível
+   antes mesmo do usuário tocar no botão */
+.agent-mic.blocked {
+  position: relative;
+  background: rgba(255,71,87,.1);
+  border-color: rgba(255,71,87,.3);
+  color: #ff6b6b;
+}
+.agent-mic.blocked::after {
+  content: '';
+  position: absolute;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #ff4757;
+  top: -2px; right: -2px;
+  box-shadow: 0 0 0 2px var(--bg); /* --bg já é theme-aware — sem override extra */
+}
 .agent-input.voice-active {
   border-color: rgba(255,71,87,.35);
   background: rgba(255,71,87,.04);
