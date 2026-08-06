@@ -167,6 +167,14 @@ describe('Cabeçalhos de segurança HTTP', () => {
     expect(hasFrameOptions || hasCSP).toBe(true)
   })
 
+  // Regressão: microphone=() bloqueava o recurso de voz do AgentChat mesmo com
+  // o usuário concedendo permissão no navegador — Permissions-Policy do servidor
+  // tem prioridade sobre a concessão manual do usuário.
+  test('Permissions-Policy libera microfone para o próprio site (self)', async () => {
+    const res = await request(app).get('/api/auth/me')
+    expect(res.headers['permissions-policy']).toContain('microphone=(self)')
+  })
+
   test('endpoint de dados financeiros inclui Cache-Control: no-store', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser())
 

@@ -120,9 +120,13 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,  // necessário para Vite assets
 }))
 
-// Bloqueia APIs de hardware desnecessárias — reduz superfície de ataque
+// Bloqueia APIs de hardware desnecessárias — reduz superfície de ataque.
+// microphone=(self): o AgentChat usa Web Speech API para registro de
+// transações por voz — bloquear microphone=() por completo quebra essa
+// função mesmo com o usuário concedendo permissão no navegador, porque
+// este header tem prioridade sobre a concessão manual do usuário.
 app.use((req, res, next) => {
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()')
   next()
 })
 
