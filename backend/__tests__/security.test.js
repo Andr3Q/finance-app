@@ -133,6 +133,13 @@ describe('Proteção contra injeção e payloads maliciosos', () => {
   })
 
   test('injeção de prototype pollution via __proto__ não afeta validação', async () => {
+    // Intenção do teste é "user não existe" — precisa ser explícito: o mock
+    // padrão global de prisma.user.findUnique resolve para {tokenVersion:0}
+    // (objeto truthy, mas sem id/password), o que faria o fluxo de login
+    // tratar como "usuário encontrado" e tentar atualizar failedLoginCount
+    // de um id inexistente.
+    prisma.user.findUnique.mockResolvedValue(null)
+
     const res = await request(app)
       .post('/api/auth/login')
       .send({ email: 'test@example.com', password: 'Password123', '__proto__': { admin: true } })

@@ -283,3 +283,63 @@ describe('Isolamento de dados por usuário', () => {
     expect(res.status).toBe(404)
   })
 })
+
+// ══════════════════════════════════════════════════════════
+// IMPORTAÇÃO CSV — parsing de valor decimal
+// ══════════════════════════════════════════════════════════
+describe('POST /api/transactions/import', () => {
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', _count: { transactions: 0 } }))
+  })
+
+  test('sem arquivo retorna 400', async () => {
+    const res = await request(app).post('/api/transactions/import').set(authHeader())
+    expect(res.status).toBe(400)
+  })
+
+  // Regressão: a lógica antiga sempre removia '.' assumindo pt-BR, então um
+  // decimal americano ("1234.56") virava 123456 — valor 100x maior, sem erro.
+  test('decimal americano (1234.56) não é multiplicado por 100', async () => {
+    prisma.transaction.createMany.mockResolvedValue({ count: 1 })
+    const csv = 'description;amount\nCompra internacional;1234.56\n'
+
+    const res = await request(app)
+      .post('/api/transactions/import')
+      .set(authHeader())
+      .attach('file', Buffer.from(csv), 'extrato.csv')
+
+    expect(res.status).toBe(200)
+    const created = prisma.transaction.createMany.mock.calls[0][0].data
+    expect(created[0].amount).toBe(1234.56)
+  })
+
+  test('decimal pt-BR com separador de milhar (1.234,56) continua correto', async () => {
+    prisma.transaction.createMany.mockResolvedValue({ count: 1 })
+    // Valor entre aspas — a vírgula do decimal pt-BR não deve ser confundida com o
+    // delimitador ';' do CSV (RFC 4180: conteúdo entre aspas não é dividido).
+    const csv = 'description;amount\nCompra nacional;"1.234,56"\n'
+
+    const res = await request(app)
+      .post('/api/transactions/import')
+      .set(authHeader())
+      .attach('file', Buffer.from(csv), 'extrato.csv')
+
+    expect(res.status).toBe(200)
+    const created = prisma.transaction.createMany.mock.calls[0][0].data
+    expect(created[0].amount).toBe(1234.56)
+  })
+
+  test('milhar pt-BR sem decimais (1.234) não é interpretado como 1,234', async () => {
+    prisma.transaction.createMany.mockResolvedValue({ count: 1 })
+    const csv = 'description;amount\nValor redondo;1.234\n'
+
+    const res = await request(app)
+      .post('/api/transactions/import')
+      .set(authHeader())
+      .attach('file', Buffer.from(csv), 'extrato.csv')
+
+    expect(res.status).toBe(200)
+    const created = prisma.transaction.createMany.mock.calls[0][0].data
+    expect(created[0].amount).toBe(1234)
+  })
+})

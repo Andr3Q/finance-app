@@ -248,7 +248,7 @@ Ao analisar gastos, seja específico com valores. Ao criar transações, confirm
 // ── POST /api/agent/chat ────────────────────────────────
 router.post('/chat', async (req, res) => {
   if (!requireGroq(res)) return
-  if (!await requirePlan(req, res, 'pro')) return
+  if (!await requirePlan(req, res, 'elite')) return
 
   const { message, history } = req.body
 

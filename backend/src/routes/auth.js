@@ -186,16 +186,24 @@ router.post('/login', loginLimiter, async (req, res) => {
       // Audit: registra falha em background — não bloqueia resposta
       prisma.loginAudit.create({ data: { email: normalizedEmail, success: false, ip, userAgent } }).catch(() => {})
 
-      // Incrementa contador de falhas e bloqueia ao atingir o limite
+      // Incrementa contador de falhas e bloqueia ao atingir o limite.
+      // increment atômico no banco — ler failedLoginCount e escrever newCount
+      // calculado na aplicação permite lost update sob tentativas concorrentes
+      // (a proteção anti-brute-force podia nunca disparar sob ataque paralelo).
       if (user) {
-        const newCount = (user.failedLoginCount ?? 0) + 1
+        const { failedLoginCount: newCount } = await prisma.user.update({
+          where:  { id: user.id },
+          data:   { failedLoginCount: { increment: 1 } },
+          select: { failedLoginCount: true },
+        })
+
         if (newCount >= LOCK_THRESHOLD) {
           const rawToken  = crypto.randomBytes(32).toString('hex')
           const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
           const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hora
 
           prisma.$transaction([
-            prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: newCount, accountLockedAt: new Date() } }),
+            prisma.user.update({ where: { id: user.id }, data: { accountLockedAt: new Date() } }),
             prisma.accountUnlockToken.create({ data: { tokenHash, expiresAt, userId: user.id } }),
           ]).then(() => {
             const unlockLink = `${APP_URL}/unlock-account?token=${rawToken}`
@@ -203,8 +211,6 @@ router.post('/login', loginLimiter, async (req, res) => {
           }).catch(() => {})
 
           return res.status(423).json({ error: 'Conta bloqueada após 10 tentativas. Verifique seu e-mail para desbloquear.' })
-        } else {
-          prisma.user.update({ where: { id: user.id }, data: { failedLoginCount: newCount } }).catch(() => {})
         }
       }
 

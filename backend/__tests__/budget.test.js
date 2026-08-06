@@ -178,6 +178,83 @@ describe('POST /api/budget', () => {
 
     expect(res.status).toBe(201)
   })
+
+  // C-01: esta rota tinha sua própria fórmula de "plano efetivo", divergente da do
+  // authMiddleware (não considerava trialEndsAt ativo), o que podia negar acesso
+  // pago indevidamente. Agora usa req.userPlan — mesma fonte de verdade do resto da API.
+  test('plano pro com planExpiresAt no passado mas trialEndsAt futuro (bônus de indicação) permanece pro → 201', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      plan: 'pro',
+      planExpiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // stale, ainda não resetado
+      trialEndsAt:   new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // bônus de indicação ativo
+      _count: { budgets: 20 },
+    }))
+    prisma.budget.create.mockResolvedValue(mockBudget())
+
+    const res = await request(app)
+      .post('/api/budget')
+      .set(authHeader())
+      .send({ name: 'Conta com bônus', amount: 100 })
+
+    expect(res.status).toBe(201)
+  })
+
+  test('plano pro com planExpiresAt no passado e sem trial ativo cai para free → 403 na 16ª conta', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      plan: 'pro',
+      planExpiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      _count: { budgets: 15 },
+    }))
+
+    const res = await request(app)
+      .post('/api/budget')
+      .set(authHeader())
+      .send({ name: 'Conta expirada', amount: 100 })
+
+    expect(res.status).toBe(403)
+    expect(res.body.plan).toBe('free')
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// LIMITES POR CATEGORIA (exclusivo Pro/Elite)
+// ══════════════════════════════════════════════════════════
+describe('POST /api/budget/category-limits', () => {
+  test('plano free é bloqueado → 403', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+
+    const res = await request(app)
+      .post('/api/budget/category-limits')
+      .set(authHeader())
+      .send({ category: 'food', amount: 300 })
+
+    expect(res.status).toBe(403)
+    expect(res.body.limitReached).toBe(true)
+  })
+
+  test('plano pro cria/atualiza limite → 200', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.categoryLimit.upsert.mockResolvedValue({ id: 'limit-1', category: 'food', amount: 300, userId: 'user-123' })
+
+    const res = await request(app)
+      .post('/api/budget/category-limits')
+      .set(authHeader())
+      .send({ category: 'food', amount: 300 })
+
+    expect(res.status).toBe(200)
+    expect(res.body.category).toBe('food')
+  })
+
+  test('categoria inválida retorna 400', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+
+    const res = await request(app)
+      .post('/api/budget/category-limits')
+      .set(authHeader())
+      .send({ category: 'categoria-inexistente', amount: 300 })
+
+    expect(res.status).toBe(400)
+  })
 })
 
 // ══════════════════════════════════════════════════════════

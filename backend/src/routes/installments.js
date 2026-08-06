@@ -129,17 +129,33 @@ router.patch('/:id/unpay', async (req, res) => {
       return res.status(400).json({ error: 'Nenhuma parcela paga para desfazer.' })
     }
 
+    // Localiza a transação da parcela ATUAL pela descrição determinística criada em
+    // /pay — não pode depender só de lastTransactionId, que guarda o ID do ÚLTIMO
+    // pagamento e fica null após o 1º /unpay. Desfazer 2+ parcelas em sequência com
+    // a lógica antiga decrementava o contador mas não removia a transação seguinte,
+    // deixando-a órfã (e duplicada se a parcela fosse paga de novo depois).
+    const targetDescription = `${plan.name} (parcela ${plan.paidInstallments}/${plan.totalInstallments})`
+    const txToRemove = await prisma.transaction.findFirst({
+      where: {
+        userId:      req.userId,
+        description: targetDescription,
+        category:    'shopping',
+        type:        'expense',
+      },
+      orderBy: { date: 'desc' },
+    })
+
     const ops = [
       prisma.installmentPlan.update({
         where: { id: plan.id },
         data:  { paidInstallments: plan.paidInstallments - 1, lastTransactionId: null },
       }),
     ]
-    // Remove a transação vinculada se existir (deleteMany é safe — não lança erro se não existir)
-    if (plan.lastTransactionId) {
+    // Remove a transação encontrada, se existir (deleteMany é safe — não lança erro se não existir)
+    if (txToRemove) {
       ops.push(
         prisma.transaction.deleteMany({
-          where: { id: plan.lastTransactionId, userId: req.userId },
+          where: { id: txToRemove.id, userId: req.userId },
         })
       )
     }

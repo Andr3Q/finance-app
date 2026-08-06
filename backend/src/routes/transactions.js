@@ -576,6 +576,29 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
 
 // ── POST /transactions/import ───────────────────────────
 // Importa transações de um arquivo CSV (ex: extrato bancário)
+
+// Detecta o separador decimal em vez de assumir sempre pt-BR — um CSV com
+// decimal americano ("1234.56") teria o ponto removido pela lógica antiga
+// e o valor virava 100x maior (123456), silenciosamente, sem erro.
+function parseCsvAmount(raw) {
+  let s = raw.toString().replace('R$', '').trim()
+  const lastComma = s.lastIndexOf(',')
+  const lastDot   = s.lastIndexOf('.')
+
+  if (lastComma === -1 && lastDot === -1) return parseFloat(s)
+
+  if (lastComma > lastDot) {
+    // ',' é o separador mais à direita → decimal pt-BR ("1.234,56"). '.' = milhar.
+    s = s.replace(/\./g, '').replace(',', '.')
+  } else {
+    // '.' é o separador mais à direita (ou único). 3 dígitos após ele = milhar
+    // pt-BR sem decimais ("1.234" → 1234); qualquer outra contagem = decimal ("1234.56").
+    const digitsAfter = s.length - lastDot - 1
+    s = digitsAfter === 3 ? s.replace(/\./g, '') : s.replace(/,/g, '')
+  }
+  return parseFloat(s)
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -647,9 +670,8 @@ router.post('/import', dashboardLimiter, upload.single('file'), async (req, res)
         record['Descrição'] || record['Historico'] || record['description'] ||
         record['HISTÓRICO'] || record['Detalhes'] || 'Importação'
       )
-      const amountStr = (record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0')
-        .toString().replace('R$', '').replace(/\./g, '').replace(',', '.').trim()
-      const amount = parseFloat(amountStr)
+      const amountRaw = record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0'
+      const amount    = parseCsvAmount(amountRaw)
 
       if (!isNaN(amount) && amount !== 0 && Math.abs(amount) <= MAX_AMOUNT) {
         transactions.push({
