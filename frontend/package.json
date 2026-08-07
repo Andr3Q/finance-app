@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@sentry/react": "^10.54.0",
-    "axios": "^1.18.0",
+    "axios": "^1.19.0",
     "posthog-js": "^1.376.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
