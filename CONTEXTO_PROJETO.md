@@ -194,12 +194,23 @@ O arquivo `keepalive.yml` roda todo dia às 12h UTC fazendo curl no `/health`. I
 
 ---
 
-## 11. Estado atual (2026-06-15)
+## 11. Estado atual (2026-08-07)
 
-- Branch main atualizado e limpo
-- Último commit: `feat(ui): adicionar sino de notificações no header mobile do Dashboard`
-- CD em andamento após o último push
-- 136 testes Vitest passando
+- Branch main atualizado e limpo, deploy de produção confirmado saudável (`/health` ok)
+- Auditoria de QA em profundidade concluída: 5 bugs de negócio corrigidos e testados
+  (gate de plano do chat IA, plano efetivo em budget.js, parsing de decimal no
+  import de CSV, transação órfã em desfazer parcelamento, atomicidade do
+  contador anti-brute-force)
+- Bug do microfone do AgentChat resolvido — causa raiz era o header
+  `Permissions-Policy: microphone=()` no servidor, que sobrepunha qualquer
+  permissão concedida pelo usuário no navegador
+- 7 vulnerabilidades de segurança do Dependabot corrigidas (axios, brace-expansion
+  x2, undici, postcss, dompurify, body-parser) + upgrade major de
+  react-router-dom (6.30.4 → 7.18.1), validado com CI completo e staging real
+- Pendências conhecidas: bug no `staging.yml` (falta `STAGING_SEED_SECRET` no
+  env do workflow — bloqueado por falta do escopo `workflow` no token), 8
+  achados de severidade média da auditoria ainda não corrigidos, melhoria de
+  transcrição de voz (Whisper via Groq) ainda não decidida
 - Redesign completo ("Liquid Aurora v4") está na branch `feature/redesign-nancy` aguardando design final da esposa (telas + hexadecimais)
 
 ---
