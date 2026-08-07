@@ -203,6 +203,7 @@ async function runTool(name, args, userId, effectivePlan) {
   if (name === 'create_transaction') {
     const amount = Number(args.amount)
     if (!isFinite(amount) || amount <= 0) return { error: 'Valor inválido.' }
+    if (amount > MAX_AMOUNT) return { error: 'Valor excede o limite permitido.' }
     if (!['expense','income'].includes(args.type)) return { error: 'Tipo inválido.' }
     if (!VALID_CATEGORIES.includes(args.category)) return { error: 'Categoria inválida.' }
 
@@ -219,6 +220,19 @@ async function runTool(name, args, userId, effectivePlan) {
       const br = nowBrasilia()
       txMonth  = br.month
       txYear   = br.year
+    }
+
+    // A rota manual POST /transactions sempre usa o mês atual — só a IA aceita
+    // uma data arbitrária. Sem essa checagem, dava pra lançar uma transação viva
+    // (archived:false) dentro de um mês já fechado (relatório em PDF já enviado),
+    // quebrando a garantia de imutabilidade que /unpay, update_transaction e
+    // delete_transaction respeitam em todo outro lugar.
+    const monthAlreadyClosed = await prisma.transaction.findFirst({
+      where:  { userId, month: txMonth, year: txYear, archived: true },
+      select: { id: true },
+    })
+    if (monthAlreadyClosed) {
+      return { error: `O mês ${txMonth}/${txYear} já foi fechado (relatório mensal já enviado) e não aceita mais lançamentos retroativos.` }
     }
     // Usa req.userPlan (efetivo, via authMiddleware) em vez do campo `plan` bruto
     // do banco, por consistência com o padrão C-01 usado nas outras rotas. Na
@@ -338,10 +352,18 @@ Para editar ou excluir uma transação que o usuário descreveu (ex: "exclui a c
 // ── Upload de áudio para transcrição ────────────────────
 // Buffer em memória (arquivo curto, poucos segundos de fala) — sem gravar em
 // disco. Formatos aceitos = exatamente os suportados pela API do Groq.
+//
+// Limite de 3MB (não 10MB): a 12kbps (opus em bitrate baixo), 3MB ainda cobre
+// ~33 minutos de áudio — bem mais que os 60s reais que o app grava — mas reduz
+// o pior caso de abuso (quem chama a API direto, ignorando o timer de 60s do
+// navegador) e o footprint de memória por requisição sob concorrência no
+// Cloud Run (512Mi, --concurrency 80 — buffers de 10MB simultâneos eram uma
+// via real de OOM).
 const AUDIO_MIME_TYPES = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/x-m4a', 'audio/flac']
+const AUDIO_MAX_BYTES = 3 * 1024 * 1024
 const audioUpload = multer({
   storage: multer.memoryStorage(),
-  limits:  { fileSize: 10 * 1024 * 1024 }, // 10MB — generoso para uma mensagem de voz curta
+  limits:  { fileSize: AUDIO_MAX_BYTES },
   fileFilter: (_req, file, cb) => {
     const type = (file.mimetype || '').split(';')[0].trim() // remove ";codecs=opus" etc.
     if (!AUDIO_MIME_TYPES.includes(type)) {
@@ -358,7 +380,7 @@ function handleAudioUpload(req, res, next) {
   audioUpload.single('audio')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'Áudio muito grande. Limite de 10MB.' })
+        return res.status(400).json({ error: 'Áudio muito grande. Limite de 3MB (~vários minutos de fala).' })
       }
       return res.status(400).json({ error: 'Erro ao processar o áudio enviado.' })
     }
@@ -373,36 +395,56 @@ function handleAudioUpload(req, res, next) {
 // que não é suportado de forma confiável no Safari/iOS nem no Firefox —
 // gravar áudio (MediaRecorder) e transcrever no servidor funciona igual em
 // qualquer navegador/aparelho.
-router.post('/transcribe', transcribeLimiter, handleAudioUpload, async (req, res) => {
-  if (!requireGroq(res)) return
-  if (!await requirePlan(req, res, 'elite')) return // mesmo gate do /chat — voz é parte do recurso Elite
+router.post('/transcribe',
+  transcribeLimiter,
+  // Timeout maior que o global (30s, definido em server.js): o cliente Groq já
+  // tem seu próprio timeout de 30s, mas esse relógio só começa a contar DEPOIS
+  // do upload+parse do multipart. Sem esse ajuste, o timeout global do Express
+  // podia cortar a conexão com 503 antes do Groq responder, mesmo quando a
+  // transcrição terminaria com sucesso segundos depois.
+  (req, res, next) => {
+    res.setTimeout(60_000, () => {
+      if (!res.headersSent) res.status(503).json({ error: 'Tempo de resposta esgotado.' })
+    })
+    next()
+  },
+  // Gate de plano/disponibilidade ANTES do multer processar o upload — evita
+  // gastar banda e alocar memória parseando até 3MB para quem nem tem o plano
+  // necessário (autenticação já rodou no authMiddleware do router, acima).
+  async (req, res, next) => {
+    if (!requireGroq(res)) return
+    if (!await requirePlan(req, res, 'elite')) return // mesmo gate do /chat — voz é parte do recurso Elite
+    next()
+  },
+  handleAudioUpload,
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'Nenhum áudio enviado.' })
+      }
+      if (req.file.size === 0) {
+        return res.status(400).json({ error: 'Áudio vazio.' })
+      }
 
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Nenhum áudio enviado.' })
+      const file = await toFile(req.file.buffer, req.file.originalname || 'audio.webm')
+      const transcription = await withRetry(() => groq.audio.transcriptions.create({
+        file,
+        model:            'whisper-large-v3-turbo',
+        language:         'pt',
+        response_format:  'json',
+      }))
+
+      const text = (transcription.text || '').trim()
+      if (!text) {
+        return res.status(422).json({ error: 'Não consegui entender o áudio. Tente falar novamente.' })
+      }
+
+      res.json({ text })
+    } catch (err) {
+      handleGroqError(err, res)
     }
-    if (req.file.size === 0) {
-      return res.status(400).json({ error: 'Áudio vazio.' })
-    }
-
-    const file = await toFile(req.file.buffer, req.file.originalname || 'audio.webm')
-    const transcription = await withRetry(() => groq.audio.transcriptions.create({
-      file,
-      model:            'whisper-large-v3-turbo',
-      language:         'pt',
-      response_format:  'json',
-    }))
-
-    const text = (transcription.text || '').trim()
-    if (!text) {
-      return res.status(422).json({ error: 'Não consegui entender o áudio. Tente falar novamente.' })
-    }
-
-    res.json({ text })
-  } catch (err) {
-    handleGroqError(err, res)
   }
-})
+)
 
 // ── POST /api/agent/chat ────────────────────────────────
 router.post('/chat', async (req, res) => {
@@ -438,6 +480,11 @@ router.post('/chat', async (req, res) => {
 
     let msg        = response.choices[0].message
     let iterations = 0
+    // Barreira técnica contra exclusão em massa — não apenas a instrução em
+    // linguagem natural no prompt de sistema (que o modelo pode simplesmente
+    // não seguir). No máximo 1 delete_transaction bem-sucedido por mensagem do
+    // usuário, contando em todas as iterações do loop de tool_calls abaixo.
+    let deleteCount = 0
 
     while (msg.tool_calls?.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
       iterations++
@@ -452,6 +499,15 @@ router.post('/chat', async (req, res) => {
             console.error(`[AGENT] parse args ${call.function.name}:`, e.message)
             args = {}
           }
+
+          if (call.function.name === 'delete_transaction') {
+            deleteCount++ // síncrono, antes de qualquer await — sem race entre chamadas paralelas
+            if (deleteCount > 1) {
+              const blocked = { error: 'Por segurança, só posso excluir uma transação por vez. Confirme e peça a próxima exclusão numa mensagem separada.' }
+              return { role: 'tool', tool_call_id: call.id, content: JSON.stringify(blocked) }
+            }
+          }
+
           let result
           try {
             result = await runTool(call.function.name, args, req.userId, req.userPlan)

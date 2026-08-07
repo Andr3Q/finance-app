@@ -172,7 +172,9 @@ describe('Cabeçalhos de segurança HTTP', () => {
   // tem prioridade sobre a concessão manual do usuário.
   test('Permissions-Policy libera microfone para o próprio site (self)', async () => {
     const res = await request(app).get('/api/auth/me')
-    expect(res.headers['permissions-policy']).toContain('microphone=(self)')
+    // toBe (não toContain): trava o valor completo — pega também regressão em
+    // camera/geolocation e qualquer duplicação silenciosa do header.
+    expect(res.headers['permissions-policy']).toBe('camera=(), microphone=(self), geolocation=()')
   })
 
   test('endpoint de dados financeiros inclui Cache-Control: no-store', async () => {

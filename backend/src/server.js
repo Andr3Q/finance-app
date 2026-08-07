@@ -121,10 +121,13 @@ app.use(helmet({
 }))
 
 // Bloqueia APIs de hardware desnecessárias — reduz superfície de ataque.
-// microphone=(self): o AgentChat usa Web Speech API para registro de
-// transações por voz — bloquear microphone=() por completo quebra essa
-// função mesmo com o usuário concedendo permissão no navegador, porque
-// este header tem prioridade sobre a concessão manual do usuário.
+// ⚠️ ATENÇÃO: microphone=(self) é obrigatório, NUNCA troque para microphone=().
+// O AgentChat grava áudio (MediaRecorder) para registro de transações por voz,
+// transcrito via Whisper/Groq em POST /api/agent/transcribe — allowlist vazia
+// bloqueia essa função por completo mesmo com o usuário concedendo permissão
+// no navegador, porque este header tem prioridade sobre a concessão manual do
+// usuário. Já causou um incidente em produção (2026-08) por exatamente isso.
+// Protegido por teste em __tests__/security.test.js — rode-o antes de alterar.
 app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(self), geolocation=()')
   next()
