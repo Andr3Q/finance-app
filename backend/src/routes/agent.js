@@ -220,10 +220,12 @@ async function runTool(name, args, userId, effectivePlan) {
       txMonth  = br.month
       txYear   = br.year
     }
-    // Plano efetivo vem do authMiddleware (req.userPlan), não do campo `plan`
-    // bruto do banco — este mesmo bug (C-01) já foi corrigido em transactions.js,
-    // budget.js, installments.js, goals.js e twoFactor.js; o agente tinha sua
-    // própria checagem independente que ficou de fora daquela correção.
+    // Usa req.userPlan (efetivo, via authMiddleware) em vez do campo `plan` bruto
+    // do banco, por consistência com o padrão C-01 usado nas outras rotas. Na
+    // prática esta função só é alcançável com plano Elite — /chat já exige Elite
+    // antes de rodar qualquer tool, com a mesma fórmula de expiração, então um
+    // Pro ou Elite expirado nunca chega até aqui. PLAN_LIMITS não tem entrada
+    // 'elite', ou seja, sem limite de transações por mês pra quem chega aqui hoje.
     const userData = await prisma.user.findUnique({
       where:  { id: userId },
       select: { _count: { select: { transactions: { where: { month: txMonth, year: txYear, archived: false } } } } }

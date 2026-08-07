@@ -216,35 +216,19 @@ describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {
   })
 })
 
-describe('Ferramenta create_transaction — limite de plano usa o plano EFETIVO', () => {
-  // Regressão: essa checagem de limite era independente da correção C-01 já
-  // aplicada em outras rotas — usava o campo `plan` bruto do banco em vez do
-  // plano efetivo calculado pelo authMiddleware (req.userPlan).
-  test('plano pro com assinatura expirada aplica o limite do Free (20), não do Pro (35)', async () => {
+describe('Ferramenta create_transaction — plano efetivo (req.userPlan)', () => {
+  // /chat exige Elite antes de qualquer tool rodar (requirePlan no topo da rota),
+  // então create_transaction NUNCA é alcançado com plano Pro/Free ou com Elite
+  // expirado — o próprio gate de /chat já bloqueia com 403 antes disso (mesma
+  // fórmula de expiração usada em req.userPlan). PLAN_LIMITS não tem entrada
+  // 'elite', então quem chega até aqui nunca tem limite de transações por mês.
+  // A troca pra req.userPlan em vez do campo `plan` bruto continua correta como
+  // consistência com o padrão C-01 (e blindagem caso o gate de /chat mude no
+  // futuro para aceitar Pro), mas não corresponde a um bug alcançável hoje.
+  test('plano elite não tem limite de transações por mês', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({
-      plan: 'pro',
-      planExpiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // expirou ontem → req.userPlan = 'free'
-      _count: { transactions: 20 }, // já no limite do Free
-    }))
-    mockCreate
-      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 50, category: 'food' }))
-      .mockResolvedValueOnce(simpleReply('Limite atingido.'))
-
-    await request(app)
-      .post('/api/agent/chat')
-      .set(authHeader())
-      .send({ message: 'Registra 50 reais em alimentação' })
-
-    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
-    expect(toolResult.error).toMatch(/Limite de 20.*Gratuito/)
-    expect(prisma.transaction.create).not.toHaveBeenCalled()
-  })
-
-  test('plano pro ativo (não expirado) aplica o limite de 35, não de 20', async () => {
-    prisma.user.findUnique.mockResolvedValue(mockUser({
-      plan: 'pro',
-      planExpiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000), // ainda válido
-      _count: { transactions: 20 }, // acima do limite Free, mas dentro do limite Pro
+      plan: 'elite',
+      _count: { transactions: 500 }, // bem acima de qualquer limite Free/Pro
     }))
     prisma.transaction.create.mockResolvedValue({ id: TX_ID })
     mockCreate
