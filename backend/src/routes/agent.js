@@ -5,7 +5,7 @@ const { toFile }     = require('groq-sdk')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { transcribeLimiter } = require('../middleware/rateLimiter')
-const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS } = require('../utils/constants')
+const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS, UUID_REGEX, MAX_AMOUNT } = require('../utils/constants')
 const { nowBrasilia } = require('../utils/helpers')
 
 const router = express.Router()
@@ -122,9 +122,41 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'update_transaction',
+      description: 'Atualiza uma transação existente (valor, categoria, descrição ou tipo). Chame get_transactions ANTES para descobrir o id correto pelo que o usuário descreveu — nunca invente um id. Se mais de uma transação combinar com a descrição do usuário, pergunte qual delas antes de chamar esta ferramenta.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id:          { type: 'string', description: 'id da transação, obtido via get_transactions.' },
+          amount:      { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Novo valor positivo em reais. Null para não alterar.' },
+          category:    { anyOf: [{ type: 'string', enum: VALID_CATEGORIES }, { type: 'null' }] },
+          description: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+          type:        { anyOf: [{ type: 'string', enum: ['expense','income'] }, { type: 'null' }] },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_transaction',
+      description: 'Exclui permanentemente uma transação. Chame get_transactions ANTES para descobrir o id correto pelo que o usuário descreveu — nunca invente um id. Se mais de uma transação combinar com a descrição do usuário, pergunte qual delas antes de excluir. Ação irreversível — se o pedido do usuário for ambíguo, prefira perguntar a excluir a errada.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'id da transação, obtido via get_transactions.' },
+        },
+        required: ['id'],
+      },
+    },
+  },
 ]
 
-async function runTool(name, args, userId) {
+async function runTool(name, args, userId, effectivePlan) {
   if (name === 'get_transactions') {
     const br    = nowBrasilia()
     const month = (args.month != null && args.month > 0) ? Number(args.month) : br.month
@@ -188,15 +220,19 @@ async function runTool(name, args, userId) {
       txMonth  = br.month
       txYear   = br.year
     }
+    // Plano efetivo vem do authMiddleware (req.userPlan), não do campo `plan`
+    // bruto do banco — este mesmo bug (C-01) já foi corrigido em transactions.js,
+    // budget.js, installments.js, goals.js e twoFactor.js; o agente tinha sua
+    // própria checagem independente que ficou de fora daquela correção.
     const userData = await prisma.user.findUnique({
       where:  { id: userId },
-      select: { plan: true, _count: { select: { transactions: { where: { month: txMonth, year: txYear, archived: false } } } } }
+      select: { _count: { select: { transactions: { where: { month: txMonth, year: txYear, archived: false } } } } }
     })
     const txCount = userData?._count?.transactions ?? 0
     const PLAN_LIMITS = { free: 20, pro: 35 }
-    const planLimit = PLAN_LIMITS[userData?.plan]
+    const planLimit = PLAN_LIMITS[effectivePlan]
     if (planLimit && txCount >= planLimit) {
-      return { error: `Limite de ${planLimit} transações por mês atingido no plano ${userData.plan === 'free' ? 'Gratuito' : 'Pro'}.` }
+      return { error: `Limite de ${planLimit} transações por mês atingido no plano ${effectivePlan === 'free' ? 'Gratuito' : 'Pro'}.` }
     }
 
     const tx = await prisma.transaction.create({
@@ -213,6 +249,53 @@ async function runTool(name, args, userId) {
       success: true, id: tx.id,
       message: `Transação criada: ${args.type === 'income' ? '+' : '-'}R$ ${amount.toFixed(2)} em ${CATEGORY_LABELS[args.category]}`,
     }
+  }
+
+  if (name === 'update_transaction') {
+    if (!args.id || !UUID_REGEX.test(args.id)) return { error: 'id de transação inválido — chame get_transactions primeiro.' }
+
+    const data = {}
+    if (args.amount != null) {
+      const amount = Number(args.amount)
+      if (!isFinite(amount) || amount <= 0 || amount > MAX_AMOUNT) return { error: 'Valor inválido.' }
+      data.amount = amount
+    }
+    if (args.category != null) {
+      if (!VALID_CATEGORIES.includes(args.category)) return { error: 'Categoria inválida.' }
+      data.category = args.category
+    }
+    if (args.type != null) {
+      if (!['expense','income'].includes(args.type)) return { error: 'Tipo inválido.' }
+      data.type = args.type
+    }
+    if (args.description != null) data.description = String(args.description).slice(0, 255)
+    if (Object.keys(data).length === 0) return { error: 'Nenhum campo para atualizar.' }
+
+    // updateMany com userId + archived: mesma trava de transactions.js PUT /:id —
+    // usuário não edita transação de outro usuário, nem de mês já fechado.
+    const result = await prisma.transaction.updateMany({
+      where: { id: args.id, userId, archived: false },
+      data,
+    })
+    if (result.count === 0) return { error: 'Transação não encontrada (ou já pertence a um mês fechado, que não pode mais ser editado).' }
+
+    const updated = await prisma.transaction.findUnique({ where: { id: args.id } })
+    return {
+      success: true,
+      message: `Transação atualizada: ${updated.type === 'income' ? '+' : '-'}R$ ${Number(updated.amount).toFixed(2)} em ${CATEGORY_LABELS[updated.category] || updated.category}`,
+    }
+  }
+
+  if (name === 'delete_transaction') {
+    if (!args.id || !UUID_REGEX.test(args.id)) return { error: 'id de transação inválido — chame get_transactions primeiro.' }
+
+    // deleteMany com userId + archived: mesma trava de transactions.js DELETE /:id
+    const result = await prisma.transaction.deleteMany({
+      where: { id: args.id, userId, archived: false },
+    })
+    if (result.count === 0) return { error: 'Transação não encontrada (ou já pertence a um mês fechado, que não pode mais ser excluída).' }
+
+    return { success: true, message: 'Transação excluída com sucesso.' }
   }
 
   return { error: 'Ferramenta desconhecida.' }
@@ -246,7 +329,9 @@ function handleGroqError(err, res) {
 const SYSTEM = `Você é o assistente financeiro pessoal do Nancy.
 Responda sempre em português, de forma clara e objetiva.
 Use as ferramentas disponíveis para buscar os dados reais do usuário — nunca invente números.
-Ao analisar gastos, seja específico com valores. Ao criar transações, confirme o que foi registrado.`
+Ao analisar gastos, seja específico com valores. Ao criar transações, confirme o que foi registrado.
+
+Para editar ou excluir uma transação que o usuário descreveu (ex: "exclui a conta de alimentação de 400", "muda o valor do mercado de 400 para 300"), SEMPRE chame get_transactions primeiro para encontrar o id correto — nunca invente ou adivinhe um id. Se mais de uma transação combinar com a descrição, liste as opções (com valor e data) e peça pro usuário confirmar qual delas antes de editar ou excluir. Exclusão é permanente e irreversível — na dúvida, pergunte antes de agir. Transações de meses já fechados não podem mais ser editadas nem excluídas; avise o usuário se isso acontecer.`
 
 // ── Upload de áudio para transcrição ────────────────────
 // Buffer em memória (arquivo curto, poucos segundos de fala) — sem gravar em
@@ -367,7 +452,7 @@ router.post('/chat', async (req, res) => {
           }
           let result
           try {
-            result = await runTool(call.function.name, args, req.userId)
+            result = await runTool(call.function.name, args, req.userId, req.userPlan)
           } catch (toolErr) {
             console.error(`[AGENT] tool ${call.function.name}:`, toolErr.message)
             result = { error: 'Erro ao buscar dados. Tente novamente.' }
