@@ -22,7 +22,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (['react/', 'react-dom/', 'react-router-dom/'].some(m => id.includes(`/node_modules/${m}`))) {
+          // react-router-dom v7 é um wrapper fino sobre react-router — o grosso do
+          // código de rotas agora mora em node_modules/react-router/, não mais em
+          // react-router-dom/. Sem essa entrada, o chunk vendor-react ficaria vazio
+          // de código de rotas e ele cairia no bundle principal.
+          if (['react/', 'react-dom/', 'react-router/', 'react-router-dom/'].some(m => id.includes(`/node_modules/${m}`))) {
             return 'vendor-react'
           }
           if (id.includes('/node_modules/axios/')) {
