@@ -129,6 +129,9 @@ Basta fazer `git push origin main` — o CD dispara automaticamente.
 ### Keep-alive do Supabase
 O arquivo `keepalive.yml` roda todo dia às 12h UTC fazendo curl no `/health`. Isso evita que o Supabase pause o banco (ele pausa após 7 dias sem acesso no plano free).
 
+### Proteção de branch (main)
+Desde 07/08, `main` exige 1 aprovação de PR antes de mergear (`enforce_admins: false` — dono e colaboradores com permissão de admin podem usar merge de override quando necessário, ex: `gh pr merge <n> --admin`).
+
 ---
 
 ## 6. Funcionalidades implementadas (histórico recente)
