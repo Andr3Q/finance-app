@@ -182,6 +182,20 @@ async create(req, res, next) {
 
 ---
 
+## Segurança — armadilhas conhecidas
+
+> ⚠️ **`Permissions-Policy` do microfone deve ficar em `microphone=(self)`, nunca `microphone=()`.**
+> `backend/src/server.js` manda esse header em toda resposta. Allowlist vazia (`()`) desabilita a API
+> de microfone incondicionalmente — inclusive para o próprio site — e esse header tem prioridade
+> sobre qualquer permissão que o usuário conceda manualmente no navegador. Isso já quebrou o registro
+> por voz do `AgentChat` em produção (incidente de 2026-08, ver `CONTEXTO_PROJETO.md`) e é o tipo de
+> coisa que um "enrijecimento de segurança" genérico (ex: copiar um exemplo de CSP/Permissions-Policy
+> de outro projeto que bloqueia tudo por padrão) reintroduz sem ninguém perceber até o próximo bug
+> report. Protegido por teste em `backend/__tests__/security.test.js` — se for alterar esse header,
+> rode esse teste primeiro.
+
+---
+
 ## Migração dos domínios legados
 
 | Domínio | Arquivo atual | Status |

@@ -48,7 +48,16 @@ const toolCallReply = (name, args, id = 'call_1') => ({
   choices: [{ message: { role: 'assistant', tool_calls: [{ id, function: { name, arguments: JSON.stringify(args) } }] } }],
 })
 
-const TX_ID = 'b2c3d4e5-f6a7-8901-bcde-f12345678901'
+// Simula o modelo pedindo várias tool calls na MESMA resposta (mesma iteração
+// do loop de /chat) — é o caminho que testa a barreira de "1 exclusão por vez".
+const multiToolCallReply = (calls) => ({
+  choices: [{ message: { role: 'assistant', tool_calls: calls.map((c, i) => ({
+    id: `call_${i + 1}`, function: { name: c.name, arguments: JSON.stringify(c.args) },
+  })) } }],
+})
+
+const TX_ID  = 'b2c3d4e5-f6a7-8901-bcde-f12345678901'
+const TX_ID2 = 'c3d4e5f6-a7b8-9012-cdef-123456789013'
 
 // ══════════════════════════════════════════════════════════
 // POST /api/agent/chat — regressão: Pro NÃO deve mais passar
@@ -214,6 +223,36 @@ describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {
     const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
     expect(toolResult.error).toBeTruthy()
   })
+
+  // Regressão: barreira técnica de "1 exclusão por mensagem" — o modelo pode
+  // pedir 2 delete_transaction na mesma resposta (mesma iteração do loop),
+  // então a defesa em profundidade (SYSTEM prompt) não basta.
+  test('duas exclusões pedidas na mesma resposta do modelo: só a 1ª executa', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.deleteMany.mockResolvedValue({ count: 1 })
+    mockCreate
+      .mockResolvedValueOnce(multiToolCallReply([
+        { name: 'delete_transaction', args: { id: TX_ID } },
+        { name: 'delete_transaction', args: { id: TX_ID2 } },
+      ]))
+      .mockResolvedValueOnce(simpleReply('Excluí a primeira. Peça a segunda numa mensagem separada.'))
+
+    const res = await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Exclui a conta de alimentação de 400 e a de transporte de 100' })
+
+    expect(res.status).toBe(200)
+    expect(prisma.transaction.deleteMany).toHaveBeenCalledTimes(1)
+    expect(prisma.transaction.deleteMany).toHaveBeenCalledWith({
+      where: { id: TX_ID, userId: 'user-123', archived: false },
+    })
+
+    const toolMessages = mockCreate.mock.calls[1][0].messages.filter(m => m.role === 'tool')
+    expect(toolMessages).toHaveLength(2)
+    expect(JSON.parse(toolMessages[0].content).success).toBe(true)
+    expect(JSON.parse(toolMessages[1].content).error).toMatch(/uma transação por vez/i)
+  })
 })
 
 describe('Ferramenta create_transaction — plano efetivo (req.userPlan)', () => {
@@ -242,6 +281,43 @@ describe('Ferramenta create_transaction — plano efetivo (req.userPlan)', () =>
 
     const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
     expect(toolResult.success).toBe(true)
+  })
+
+  test('valor acima de MAX_AMOUNT é rejeitado sem criar a transação', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 1_000_000_000, category: 'food' }))
+      .mockResolvedValueOnce(simpleReply('Esse valor não é permitido.'))
+
+    await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Registra um bilhão de reais em alimentação' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(toolResult.error).toMatch(/limite/i)
+    expect(prisma.transaction.create).not.toHaveBeenCalled()
+  })
+
+  // Regressão: sem essa checagem, a IA podia lançar uma transação viva
+  // (archived:false) dentro de um mês já fechado por relatório PDF — a rota
+  // manual POST /transactions não tem esse risco pois sempre usa o mês atual,
+  // mas a IA aceita `date` arbitrária.
+  test('mês já fechado (archived) rejeita a criação da transação', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue({ id: 'tx-closed' }) // mês já fechado
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 50, category: 'food', date: '2026-01-15' }))
+      .mockResolvedValueOnce(simpleReply('Esse mês já foi fechado.'))
+
+    await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Registra 50 reais em alimentação em janeiro' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(toolResult.error).toMatch(/já foi fechado/i)
+    expect(prisma.transaction.create).not.toHaveBeenCalled()
   })
 })
 
@@ -337,12 +413,12 @@ describe('POST /api/agent/transcribe', () => {
     expect(mockTranscribe).not.toHaveBeenCalled()
   })
 
-  test('áudio maior que 10MB retorna 400 (não 500)', async () => {
+  test('áudio maior que 3MB retorna 400 (não 500)', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
 
     const res = await attachAudio(
       request(app).post('/api/agent/transcribe').set(authHeader()),
-      { bytes: 10 * 1024 * 1024 + 1 }
+      { bytes: 3 * 1024 * 1024 + 1 }
     )
 
     expect(res.status).toBe(400)
