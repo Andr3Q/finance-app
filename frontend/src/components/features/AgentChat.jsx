@@ -11,30 +11,67 @@ const SUGGESTIONS = [
   'Registrar gasto de R$ 50 em alimentação',
 ]
 
+// Duração máxima de uma gravação — evita upload/transcrição gigante se o
+// usuário esquecer o microfone ligado (custo de Whisper cresce com a duração).
+const MAX_RECORDING_MS = 60_000
+
+// Ordem de preferência de formato — webm/opus é o padrão em Chrome/Firefox/Edge;
+// Safari (desktop e iOS) não suporta webm e cai para mp4/aac.
+const PREFERRED_MIME_TYPES = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
+
+function pickSupportedMimeType() {
+  if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return ''
+  return PREFERRED_MIME_TYPES.find(t => MediaRecorder.isTypeSupported(t)) || ''
+}
+
+// A mensagem antiga assumia Android para todo mundo — no iPhone o caminho pra
+// liberar o microfone é outro, e nem sempre existe se o app foi instalado na
+// tela de início (WebKit historicamente restringe getUserMedia em PWA standalone).
+function getMicHelpText() {
+  const ua = navigator.userAgent || ''
+  if (/iPad|iPhone|iPod/.test(ua)) {
+    return 'Toque no ícone "aA" ao lado do endereço do site → Configurações do Site → Microfone → Permitir. Se você instalou o Nancy na Tela de Início, abra pelo Safari normal primeiro (apps instalados têm mais restrição pra microfone no iPhone). Depois recarregue a página.'
+  }
+  if (/Android/.test(ua)) {
+    return 'Toque no ícone de cadeado/informações ao lado do endereço do site (ou, se instalou o Nancy como app, vá em Configurações do Android → Apps → Nancy → Permissões) e libere o Microfone. Depois recarregue a página.'
+  }
+  return 'Clique no ícone de cadeado/informações ao lado do endereço do site, libere o Microfone e recarregue a página.'
+}
+
 export default function AgentChat() {
   const [open,         setOpen]         = useState(false)
   const [input,        setInput]        = useState('')
   const [loading,      setLoading]      = useState(false)
   const [history,      setHistory]      = useState([])
-  const [listening,    setListening]    = useState(false)
-  const [voiceError,   setVoiceError]   = useState('')
-  const [voiceSupport, setVoiceSupport] = useState(false)
+  const [listening,     setListening]     = useState(false) // gravando
+  const [transcribing,  setTranscribing]  = useState(false) // enviado, aguardando texto
+  const [voiceError,    setVoiceError]    = useState('')
+  const [voiceSupport,  setVoiceSupport]  = useState(false)
   // 'unknown' | 'granted' | 'denied' | 'prompt' — consultado via Permissions API.
   // Uma vez negada, o browser NUNCA mostra o prompt de novo sozinho — só dá pra
   // detectar o estado e orientar o usuário a liberar manualmente nas configurações.
   const [micPermission, setMicPermission] = useState('unknown')
-  const bottomRef      = useRef(null)
-  const inputRef       = useRef(null)
-  const recognitionRef = useRef(null)
-  const navigate       = useNavigate()
-  const user           = useUser()
-  const isElite        = user.plan === 'elite'
+  const bottomRef        = useRef(null)
+  const inputRef         = useRef(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef   = useRef([])
+  const streamRef        = useRef(null)
+  const maxDurationTimer = useRef(null)
+  const navigate         = useNavigate()
+  const user             = useUser()
+  const isElite          = user.plan === 'elite'
 
   useEffect(() => {
-    setVoiceSupport(!!(window.SpeechRecognition || window.webkitSpeechRecognition))
+    // MediaRecorder + getUserMedia são suportados de forma muito mais ampla e
+    // consistente entre navegadores do que o SpeechRecognition nativo (que o
+    // Firefox nunca implementou de verdade e o Safari/iOS suporta de forma
+    // instável) — gravar áudio bruto e transcrever no servidor funciona igual
+    // em qualquer navegador moderno.
+    setVoiceSupport(!!(navigator.mediaDevices?.getUserMedia && window.MediaRecorder))
 
     // Permissions API — não existe no Safari/iOS, então falha silenciosamente
-    // e o app cai de volta no comportamento antigo (detecta só pelo onerror).
+    // e o app cai de volta no comportamento antigo (detecta só pelo erro do
+    // getUserMedia quando o usuário tentar gravar).
     if (!navigator.permissions?.query) return
     let status
     navigator.permissions.query({ name: 'microphone' }).then(s => {
@@ -45,11 +82,25 @@ export default function AgentChat() {
     return () => { if (status) status.onchange = null }
   }, [])
 
+  // Libera o microfone (indicador do navegador) se o componente desmontar
+  // durante uma gravação em andamento — sem isso, o ícone de "gravando" do
+  // navegador ficaria ativo indefinidamente.
+  useEffect(() => () => {
+    clearTimeout(maxDurationTimer.current)
+    streamRef.current?.getTracks().forEach(t => t.stop())
+  }, [])
+
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 120)
+    } else if (listening) {
+      // O painel esconde o botão de "parar gravação" ao fechar, mas o
+      // componente continua montado (só o conteúdo interno é condicional) —
+      // sem isso, o microfone ficaria gravando em segundo plano indefinidamente,
+      // sem nenhuma forma de interromper pela interface.
+      mediaRecorderRef.current?.stop()
     }
-  }, [open])
+  }, [open, listening])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -57,7 +108,7 @@ export default function AgentChat() {
 
   const send = async (msg) => {
     const text = (msg || input).trim()
-    if (!text || loading) return
+    if (!text || loading || transcribing) return
     setInput('')
     analytics.track('ai_message_sent')
 
@@ -90,66 +141,109 @@ export default function AgentChat() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
 
-  const MIC_HELP = 'Toque no ícone de cadeado/informações ao lado do endereço do site (ou, se instalou o Nancy como app, vá em Configurações do Android → Apps → Nancy → Permissões) e libere o Microfone. Depois recarregue a página.'
+  const stopStream = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
+  }
 
-  const toggleVoice = () => {
-    if (listening) {
-      recognitionRef.current?.stop()
+  const showVoiceError = (msg, { persistent = false } = {}) => {
+    setVoiceError(msg)
+    if (!persistent) setTimeout(() => setVoiceError(''), 5000)
+  }
+
+  const transcribeAndFill = async (blob, mimeType) => {
+    // Gravação muito curta = provável clique acidental ou nenhuma fala captada.
+    // Evita gastar uma chamada de transcrição (e a cota do usuário) sem necessidade.
+    if (blob.size < 1000) {
+      showVoiceError('Nenhuma fala detectada. Tente novamente.')
       return
     }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SR) return
 
-    // Permissão já sabidamente negada — nem tenta iniciar (evitaria só repetir o
-    // mesmo erro "service-not-allowed"). Mostra a instrução direto, sem timeout,
+    setTranscribing(true)
+    try {
+      const ext = mimeType.includes('mp4') ? 'm4a' : 'webm'
+      const formData = new FormData()
+      formData.append('audio', blob, `voz.${ext}`)
+      const res = await agentAPI.transcribe(formData)
+      if (res.data.text) {
+        setInput(res.data.text)
+        setTimeout(() => inputRef.current?.focus(), 50)
+      }
+    } catch (err) {
+      const status    = err.response?.status
+      const serverMsg = err.response?.data?.error
+      const msg =
+        status === 429 ? 'Muitas transcrições seguidas. Aguarde um pouco.' :
+        status === 403 ? 'Recurso de voz exclusivo do plano Elite.' :
+        status === 422 ? (serverMsg || 'Não consegui entender o áudio. Tente novamente.') :
+        !err.response  ? 'Sem conexão com o servidor.' :
+        serverMsg || 'Erro ao transcrever áudio.'
+      showVoiceError(msg)
+    } finally {
+      setTranscribing(false)
+    }
+  }
+
+  const toggleVoice = async () => {
+    if (listening) {
+      mediaRecorderRef.current?.stop() // dispara onstop, que envia pro backend
+      return
+    }
+    if (transcribing) return // já tem uma transcrição em andamento
+
+    // Permissão já sabidamente negada — nem tenta abrir o getUserMedia de novo
+    // (só repetiria o mesmo erro). Mostra a instrução direto, sem timeout,
     // porque exige uma ação manual do usuário fora do app.
     if (micPermission === 'denied') {
-      setVoiceError(`Microfone bloqueado. ${MIC_HELP}`)
+      showVoiceError(`Microfone bloqueado. ${getMicHelpText()}`, { persistent: true })
       return
     }
 
     setVoiceError('')
-    const rec = new SR()
-    rec.lang = 'pt-BR'
-    rec.continuous = false
-    rec.interimResults = true
 
-    rec.onstart = () => setListening(true)
+    let stream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      setMicPermission('denied')
+      showVoiceError(`Permissão de microfone negada. ${getMicHelpText()}`, { persistent: true })
+      return
+    }
+    streamRef.current = stream
 
-    rec.onerror = (e) => {
+    const mimeType = pickSupportedMimeType()
+    const recorder = mimeType
+      ? new MediaRecorder(stream, { mimeType })
+      : new MediaRecorder(stream)
+    audioChunksRef.current = []
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunksRef.current.push(e.data)
+    }
+
+    recorder.onstop = () => {
+      clearTimeout(maxDurationTimer.current)
+      stopStream()
       setListening(false)
-      const code = e.error || 'unknown'
-      if (code === 'not-allowed' || code === 'permission-denied' || code === 'service-not-allowed') {
-        setMicPermission('denied')
-        setVoiceError(`Permissão de microfone negada. ${MIC_HELP}`)
-        return // não some depois de 5s — o usuário precisa de tempo pra agir
-      } else if (code === 'no-speech') {
-        setVoiceError('Nenhuma fala detectada. Tente novamente.')
-      } else if (code === 'network') {
-        setVoiceError('Erro de rede no reconhecimento de voz.')
-      } else if (code === 'audio-capture') {
-        setVoiceError('Microfone não encontrado. Verifique o hardware.')
-      } else if (code === 'service-not-available') {
-        setVoiceError('Serviço de voz indisponível. Tente no Chrome.')
-      } else {
-        setVoiceError(`Erro: ${code}`)
-      }
-      setTimeout(() => setVoiceError(''), 5000)
+      const finalType = recorder.mimeType || mimeType || 'audio/webm'
+      const blob = new Blob(audioChunksRef.current, { type: finalType })
+      transcribeAndFill(blob, finalType)
     }
 
-    rec.onend = () => setListening(false)
-
-    rec.onresult = (e) => {
-      const transcript = Array.from(e.results).map(r => r[0].transcript).join('')
-      setInput(transcript)
-      if (e.results[e.results.length - 1].isFinal) {
-        setListening(false)
-        setTimeout(() => inputRef.current?.focus(), 50)
-      }
+    recorder.onerror = () => {
+      clearTimeout(maxDurationTimer.current)
+      stopStream()
+      setListening(false)
+      showVoiceError('Erro ao gravar áudio. Tente novamente.')
     }
 
-    recognitionRef.current = rec
-    rec.start()
+    mediaRecorderRef.current = recorder
+    recorder.start()
+    setListening(true)
+
+    maxDurationTimer.current = setTimeout(() => {
+      if (recorder.state !== 'inactive') recorder.stop()
+    }, MAX_RECORDING_MS)
   }
 
   return (
@@ -267,20 +361,20 @@ export default function AgentChat() {
             <textarea
               ref={inputRef}
               className={`agent-input${listening ? ' voice-active' : ''}`}
-              placeholder={listening ? 'Ouvindo…' : 'Pergunte algo sobre suas finanças…'}
+              placeholder={listening ? 'Ouvindo…' : transcribing ? 'Transcrevendo…' : 'Pergunte algo sobre suas finanças…'}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKey}
               rows={1}
               maxLength={2000}
-              disabled={loading}
+              disabled={loading || transcribing}
             />
             {voiceSupport && (
               <button
-                className={`agent-mic${listening ? ' listening' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
+                className={`agent-mic${listening ? ' listening' : ''}${transcribing ? ' transcribing' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
                 onClick={toggleVoice}
-                disabled={loading}
-                aria-label={listening ? 'Parar gravação' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
+                disabled={loading || transcribing}
+                aria-label={listening ? 'Parar gravação' : transcribing ? 'Transcrevendo áudio' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
                 title={micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : undefined}
                 type="button"
               >
@@ -288,6 +382,8 @@ export default function AgentChat() {
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="5" y="5" width="14" height="14" rx="2"/>
                   </svg>
+                ) : transcribing ? (
+                  <span className="agent-mic-spinner" />
                 ) : (
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                     <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
@@ -299,7 +395,7 @@ export default function AgentChat() {
             <button
               className="agent-send"
               onClick={() => send()}
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || transcribing}
               aria-label="Enviar"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
