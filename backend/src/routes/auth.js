@@ -10,7 +10,11 @@ const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimit
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
 
-const APP_URL = process.env.APP_URL || ''
+// Mesmo fallback usado em server.js/emailService.js/payments.js — sem ele,
+// os links de verify-email/reset-password/unlock-account viravam caminhos
+// relativos sem domínio (ex: "/reset-password?token=...") sempre que
+// APP_URL não estivesse definida no ambiente.
+const APP_URL = process.env.APP_URL || 'https://myfinancepro.com.br'
 
 // Gerado uma única vez na inicialização — bcrypt.compare é sempre executado
 // mesmo quando o e-mail não existe, prevenindo timing attack que revelaria

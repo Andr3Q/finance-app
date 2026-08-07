@@ -24,6 +24,21 @@ const resend = new Resend(process.env.RESEND_API_KEY || 'not_configured')
 
 const FROM = process.env.EMAIL_FROM || 'Nancy <noreply@nancy.app>'
 
+// O SDK da Resend NÃO lança exceção quando a API rejeita o envio (domínio não
+// verificado, remetente inválido, limite de conta, etc.) — ele resolve
+// normalmente com { data: null, error: {...} }. Sem checar esse campo, uma
+// rejeição da Resend passa batido e o chamador (ex: /forgot-password) segue
+// achando que o e-mail foi enviado quando na verdade nunca saiu. Incidente
+// real: EMAIL_FROM apontando para o domínio de sandbox (onboarding@resend.dev)
+// rejeitava silenciosamente todo envio para qualquer destinatário que não
+// fosse o dono da conta Resend, e o app respondia "e-mail enviado" mesmo assim.
+async function send(payload) {
+  const { error } = await resend.emails.send(payload)
+  if (error) {
+    throw new Error(`Resend rejeitou o envio: ${error.message || error.name || JSON.stringify(error)}`)
+  }
+}
+
 async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuffer) {
   const monthNames = [
     'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -74,7 +89,7 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: `📊 Relatório de ${monthName}/${year} — Nancy`,
@@ -112,7 +127,7 @@ async function sendResetEmail(toEmail, userName, resetLink) {
       <p style="color: #bbb; font-size: 11px; text-align: center; margin-top: 16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: 'Redefinição de senha — Nancy',
@@ -155,7 +170,7 @@ async function sendRenewalReminderEmail(toEmail, userName, planName, daysLeft) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: `Seu plano ${planLabel} ${urgency} — Nancy`,
@@ -201,7 +216,7 @@ async function sendWelcomeEmail(toEmail, userName, trialEndsAt) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: 'Bem-vindo(a) ao Nancy! Seu trial Pro começa agora 🎉',
@@ -241,7 +256,7 @@ async function sendTrialExpiryEmail(toEmail, userName, daysLeft) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: `Seu trial Pro ${urgency} — Nancy`,
@@ -282,7 +297,7 @@ async function sendPlanActivationEmail(toEmail, userName, plan, planExpiresAt) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: `Plano ${planLabel} ativado com sucesso! — Nancy`,
@@ -320,7 +335,7 @@ async function sendReferralRewardEmail(toEmail, referrerName, referredName) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: `🎉 ${esc(referredName)} entrou usando seu código — você ganhou +10 dias!`,
@@ -361,7 +376,7 @@ async function sendPlanExpiredEmail(toEmail, userName, wasTrialOrPaid) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject,
@@ -393,7 +408,7 @@ async function sendVerificationEmail(toEmail, userName, verifyLink) {
       <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>
   `
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: 'Confirme seu e-mail — Nancy',
@@ -435,7 +450,7 @@ async function sendWeeklyDigest(toEmail, userName, weekData) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: '📊 Seu resumo semanal — Nancy',
@@ -474,7 +489,7 @@ async function sendPasswordChangedAlert(toEmail, userName) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: '🔐 Sua senha foi alterada — Nancy',
@@ -519,7 +534,7 @@ async function sendNewIpLoginAlert(toEmail, userName, ip) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: '🌐 Acesso de novo local detectado — Nancy',
@@ -558,7 +573,7 @@ async function sendAccountUnlockEmail(toEmail, userName, unlockLink) {
     </div>
   `
 
-  await resend.emails.send({
+  await send({
     from:    FROM,
     to:      toEmail,
     subject: '🔒 Desbloqueie sua conta Nancy',

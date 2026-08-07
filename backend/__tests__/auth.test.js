@@ -446,6 +446,56 @@ describe('DELETE /api/auth/account', () => {
 })
 
 // ══════════════════════════════════════════════════════════
+// ESQUECI MINHA SENHA
+// ══════════════════════════════════════════════════════════
+describe('POST /api/auth/forgot-password', () => {
+  test('e-mail existente: dispara sendResetEmail e retorna mensagem genérica', async () => {
+    const emailService = require('../src/services/emailService')
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.user.update.mockResolvedValue({})
+
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'test@example.com' })
+
+    expect(res.status).toBe(200)
+    expect(emailService.sendResetEmail).toHaveBeenCalled()
+  })
+
+  test('e-mail inexistente: mesma mensagem genérica, sem chamar sendResetEmail (anti-enumeração)', async () => {
+    const emailService = require('../src/services/emailService')
+    prisma.user.findUnique.mockResolvedValue(null)
+
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'naoexiste@example.com' })
+
+    expect(res.status).toBe(200)
+    expect(emailService.sendResetEmail).not.toHaveBeenCalled()
+  })
+
+  // Regressão do incidente real: EMAIL_FROM apontando pro domínio de sandbox
+  // da Resend (onboarding@resend.dev) rejeitava o envio pra qualquer
+  // destinatário que não fosse o dono da conta — e como emailService.js não
+  // checava o campo `error` da resposta, sendResetEmail nunca lançava exceção,
+  // então esta rota respondia 200 "enviado" mesmo o e-mail nunca tendo saído.
+  // Agora que emailService.js propaga o erro, a rota precisa refletir a falha
+  // real em vez de mentir sucesso pro usuário.
+  test('falha real no envio (Resend rejeitou): retorna 500, não finge sucesso', async () => {
+    const emailService = require('../src/services/emailService')
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.user.update.mockResolvedValue({})
+    emailService.sendResetEmail.mockRejectedValueOnce(new Error('Resend rejeitou o envio: domain not verified'))
+
+    const res = await request(app)
+      .post('/api/auth/forgot-password')
+      .send({ email: 'test@example.com' })
+
+    expect(res.status).toBe(500)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
 // RESET DE SENHA
 // ══════════════════════════════════════════════════════════
 describe('POST /api/auth/reset-password', () => {
