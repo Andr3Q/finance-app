@@ -38,6 +38,16 @@ const agentLimiter = rateLimit({
   message:  { error: 'Limite de mensagens para a IA atingido. Tente novamente em 1 hora.' },
 })
 
+// Transcrição de voz: 20 por hora por usuário — cada chamada envia áudio ao
+// Groq (payload maior e mais custoso que uma mensagem de texto), por isso um
+// balde separado do agentLimiter em vez de compartilhar a mesma cota.
+const transcribeLimiter = rateLimit({
+  ...opts,
+  windowMs: 60 * 60 * 1000,
+  max:      20,
+  message:  { error: 'Limite de transcrições de voz atingido. Tente novamente em 1 hora.' },
+})
+
 // Recuperação de senha: 3 tentativas / hora — reduzido de 5 para limitar spam de e-mail
 const forgotPasswordLimiter = rateLimit({
   ...opts,
@@ -127,6 +137,7 @@ module.exports = {
   loginLimiter,
   registerLimiter,
   agentLimiter,
+  transcribeLimiter,
   forgotPasswordLimiter,
   resetPasswordLimiter,
   dashboardLimiter,

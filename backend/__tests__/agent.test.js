@@ -4,10 +4,17 @@ const jwt     = require('jsonwebtoken')
 
 process.env.GROQ_API_KEY = 'test-groq-key'
 
-const mockCreate = jest.fn()
-jest.mock('groq-sdk', () => jest.fn().mockImplementation(() => ({
-  chat: { completions: { create: mockCreate } },
-})))
+const mockCreate     = jest.fn()
+const mockTranscribe = jest.fn()
+const mockToFile     = jest.fn(async (buffer, filename) => ({ buffer, filename }))
+jest.mock('groq-sdk', () => {
+  const Groq = jest.fn().mockImplementation(() => ({
+    chat:  { completions:    { create: mockCreate } },
+    audio: { transcriptions: { create: mockTranscribe } },
+  }))
+  Groq.toFile = mockToFile
+  return Groq
+})
 jest.mock('../src/lib/prisma', () => require('./__mocks__/prisma'))
 jest.mock('../src/services/emailService', () => {
   const fn = () => jest.fn().mockResolvedValue(true)
@@ -139,5 +146,117 @@ describe('POST /api/agent/monthly-report — gate de plano', () => {
 
     expect(res.status).toBe(403)
     expect(res.body.requiredPlan).toBe('elite')
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// POST /api/agent/transcribe — registro de transação por voz (Whisper/Groq)
+// ══════════════════════════════════════════════════════════
+describe('POST /api/agent/transcribe', () => {
+  const attachAudio = (req, { field = 'audio', filename = 'voz.webm', contentType = 'audio/webm', bytes = 2000 } = {}) =>
+    req.attach(field, Buffer.alloc(bytes, 1), { filename, contentType })
+
+  test('plano free é bloqueado → 403 (mesmo gate do /chat)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader())
+    )
+
+    expect(res.status).toBe(403)
+    expect(res.body.requiredPlan).toBe('elite')
+    expect(mockTranscribe).not.toHaveBeenCalled()
+  })
+
+  test('plano pro é bloqueado → 403 (voz é exclusiva do Elite, igual ao /chat)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader())
+    )
+
+    expect(res.status).toBe(403)
+    expect(mockTranscribe).not.toHaveBeenCalled()
+  })
+
+  test('sem arquivo de áudio retorna 400', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+
+    const res = await request(app)
+      .post('/api/agent/transcribe')
+      .set(authHeader())
+
+    expect(res.status).toBe(400)
+    expect(mockTranscribe).not.toHaveBeenCalled()
+  })
+
+  test('formato de áudio não suportado retorna 400 (não 500)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader()),
+      { filename: 'malware.exe', contentType: 'application/x-msdownload' }
+    )
+
+    expect(res.status).toBe(400)
+    expect(mockTranscribe).not.toHaveBeenCalled()
+  })
+
+  test('áudio maior que 10MB retorna 400 (não 500)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader()),
+      { bytes: 10 * 1024 * 1024 + 1 }
+    )
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/grande/i)
+  }, 15000)
+
+  test('transcrição bem-sucedida retorna o texto', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockTranscribe.mockResolvedValueOnce({ text: 'Gastei 50 reais no mercado' })
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader())
+    )
+
+    expect(res.status).toBe(200)
+    expect(res.body.text).toBe('Gastei 50 reais no mercado')
+    expect(mockTranscribe).toHaveBeenCalledTimes(1)
+    expect(mockTranscribe).toHaveBeenCalledWith(expect.objectContaining({
+      model:    'whisper-large-v3-turbo',
+      language: 'pt',
+    }))
+  })
+
+  test('transcrição vazia (silêncio) retorna 422', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockTranscribe.mockResolvedValueOnce({ text: '   ' })
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader())
+    )
+
+    expect(res.status).toBe(422)
+  })
+
+  test('erro do Groq é tratado via handleGroqError (429 sobrecarga)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    // mockRejectedValue (não Once): withRetry tenta até 3x — todas precisam falhar
+    // pra simular sobrecarga persistente e cair no handleGroqError como esperado.
+    mockTranscribe.mockRejectedValue(Object.assign(new Error('overloaded'), { status: 529 }))
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader())
+    )
+
+    expect(res.status).toBe(429)
+  }, 15000)
+
+  test('sem autenticação retorna 401', async () => {
+    const res = await attachAudio(request(app).post('/api/agent/transcribe'))
+    expect(res.status).toBe(401)
   })
 })

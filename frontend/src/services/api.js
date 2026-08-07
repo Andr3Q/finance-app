@@ -110,6 +110,7 @@ export const agentAPI = {
   chat:          (message, history) => api.post('/agent/chat', { message, history }),
   predict:       ()                 => api.post('/agent/predict', {}),
   monthlyReport: (month, year)      => api.post('/agent/monthly-report', { month, year }),
+  transcribe:    (formData)         => api.post('/agent/transcribe', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 }
 
 // ── Funções de metas financeiras ────────────────────────

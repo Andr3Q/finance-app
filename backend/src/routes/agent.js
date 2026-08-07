@@ -1,7 +1,10 @@
 const express        = require('express')
+const multer         = require('multer')
 const Groq           = require('groq-sdk')
+const { toFile }     = require('groq-sdk')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
+const { transcribeLimiter } = require('../middleware/rateLimiter')
 const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS } = require('../utils/constants')
 const { nowBrasilia } = require('../utils/helpers')
 
@@ -244,6 +247,75 @@ const SYSTEM = `Você é o assistente financeiro pessoal do Nancy.
 Responda sempre em português, de forma clara e objetiva.
 Use as ferramentas disponíveis para buscar os dados reais do usuário — nunca invente números.
 Ao analisar gastos, seja específico com valores. Ao criar transações, confirme o que foi registrado.`
+
+// ── Upload de áudio para transcrição ────────────────────
+// Buffer em memória (arquivo curto, poucos segundos de fala) — sem gravar em
+// disco. Formatos aceitos = exatamente os suportados pela API do Groq.
+const AUDIO_MIME_TYPES = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/x-m4a', 'audio/flac']
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  limits:  { fileSize: 10 * 1024 * 1024 }, // 10MB — generoso para uma mensagem de voz curta
+  fileFilter: (_req, file, cb) => {
+    const type = (file.mimetype || '').split(';')[0].trim() // remove ";codecs=opus" etc.
+    if (!AUDIO_MIME_TYPES.includes(type)) {
+      return cb(new Error('Formato de áudio não suportado.'))
+    }
+    cb(null, true)
+  },
+})
+
+// Envelope do multer.single() que converte os próprios erros dele (arquivo
+// grande demais, formato rejeitado pelo fileFilter) em 400 — sem isso, o
+// erro cai no handler global de exceções do server.js e vira 500 genérico.
+function handleAudioUpload(req, res, next) {
+  audioUpload.single('audio')(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Áudio muito grande. Limite de 10MB.' })
+      }
+      return res.status(400).json({ error: 'Erro ao processar o áudio enviado.' })
+    }
+    if (err) return res.status(400).json({ error: err.message || 'Formato de áudio não suportado.' })
+    next()
+  })
+}
+
+// ── POST /api/agent/transcribe ──────────────────────────
+// Transcreve áudio gravado no navegador (registro de transação por voz).
+// Substitui o reconhecimento de voz nativo do navegador (SpeechRecognition),
+// que não é suportado de forma confiável no Safari/iOS nem no Firefox —
+// gravar áudio (MediaRecorder) e transcrever no servidor funciona igual em
+// qualquer navegador/aparelho.
+router.post('/transcribe', transcribeLimiter, handleAudioUpload, async (req, res) => {
+  if (!requireGroq(res)) return
+  if (!await requirePlan(req, res, 'elite')) return // mesmo gate do /chat — voz é parte do recurso Elite
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Nenhum áudio enviado.' })
+    }
+    if (req.file.size === 0) {
+      return res.status(400).json({ error: 'Áudio vazio.' })
+    }
+
+    const file = await toFile(req.file.buffer, req.file.originalname || 'audio.webm')
+    const transcription = await withRetry(() => groq.audio.transcriptions.create({
+      file,
+      model:            'whisper-large-v3-turbo',
+      language:         'pt',
+      response_format:  'json',
+    }))
+
+    const text = (transcription.text || '').trim()
+    if (!text) {
+      return res.status(422).json({ error: 'Não consegui entender o áudio. Tente falar novamente.' })
+    }
+
+    res.json({ text })
+  } catch (err) {
+    handleGroqError(err, res)
+  }
+})
 
 // ── POST /api/agent/chat ────────────────────────────────
 router.post('/chat', async (req, res) => {
