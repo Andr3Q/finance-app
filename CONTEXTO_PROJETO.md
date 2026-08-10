@@ -222,3 +222,4 @@ Desde 07/08, `main` exige 1 aprovação de PR antes de mergear (`enforce_admins:
 
 - **Andr3Q** — dono (read/write)
 - **Gabriel-RdS** — colaborador (read)
+- **almeida155** — colaborador (read)
