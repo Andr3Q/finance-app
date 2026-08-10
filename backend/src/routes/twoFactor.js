@@ -12,9 +12,23 @@ const router = express.Router()
 
 // Chave AES-256: usa TOTP_ENC_KEY dedicada se configurada; fallback para derivação do JWT_SECRET.
 // Para rotacionar: gere nova chave (openssl rand -hex 32), adicione ao Cloud Run e re-encripte os segredos.
+//
+// Sem JWT_SECRET, falha ao carregar o módulo (nunca usa um valor fixo como
+// chave) — o boot normal via server.js já recusa iniciar sem JWT_SECRET
+// (REQUIRED_ENV), mas esse módulo pode ser requerido fora desse caminho (ex:
+// um script ou teste que importa a rota direto) e um fallback fixo aqui
+// deixaria os segredos de 2FA de todo usuário cifrados com uma chave
+// conhecida por qualquer um que leia o código-fonte.
+function requireJwtSecretForEncryption() {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET não definida — necessária para derivar a chave de criptografia do 2FA (defina JWT_SECRET ou, preferencialmente, TOTP_ENC_KEY).')
+  }
+  return process.env.JWT_SECRET
+}
+
 const ENC_KEY = process.env.TOTP_ENC_KEY
   ? Buffer.from(process.env.TOTP_ENC_KEY, 'hex')
-  : crypto.scryptSync(process.env.JWT_SECRET || '__insecure_default__', 'totp-enc-v1', 32)
+  : crypto.scryptSync(requireJwtSecretForEncryption(), 'totp-enc-v1', 32)
 
 if (!process.env.TOTP_ENC_KEY && process.env.NODE_ENV === 'production') {
   console.warn('[2fa] TOTP_ENC_KEY não configurada — usando derivação do JWT_SECRET. Recomendado: defina TOTP_ENC_KEY como variável separada.')

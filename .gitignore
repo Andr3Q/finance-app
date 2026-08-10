@@ -8,6 +8,20 @@ frontend/node_modules/
 .env.*
 !.env.example
 
+# ── Chaves, certificados e credenciais de nuvem (NUNCA commitar) ──────
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+*-service-account*.json
+.aws/
+.kube/
+.gcloud/
+.npmrc
+
 # ── Build outputs ──────────────────────────────────────
 dist/
 frontend/dist/
