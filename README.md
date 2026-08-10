@@ -18,7 +18,7 @@ Aplicação web de controle financeiro pessoal com agente de IA, suporte a PWA, 
 | **Calendário** | Visualização de transações por data em formato de calendário |
 | **Metas** | Metas financeiras com progresso e prazo |
 | **Busca** | Overlay de busca global de transações com atalho de teclado |
-| **Agente IA** | Chat com assistente financeiro (Groq), cria transações por linguagem natural |
+| **Agente IA** | Chat por texto ou voz com assistente financeiro (Groq + Whisper), cria, edita e exclui transações por linguagem natural, gera previsões e relatórios |
 | **Relatório** | Fechamento mensal com PDF gerado no servidor e enviado por e-mail |
 | **Notificações** | Web Push via Service Worker (PWA) + alertas de disponibilidade |
 | **Planos** | Free · Pro · Elite — com trial automático e sistema de referral |
@@ -57,14 +57,17 @@ Aplicação web de controle financeiro pessoal com agente de IA, suporte a PWA, 
 │  ├─ /api/goals         → goals.js                                │
 │  ├─ /api/reports       → reports.js                              │
 │  ├─ /api/agent         → agent.js ──────────────► Groq API       │
+│  │                        (chat, voz/Whisper, previsão, relatório)│
 │  ├─ /api/notifications → notifications.js                        │
 │  ├─ /api/payments      → payments.js ───────────► Mercado Pago   │
-│  ├─ /api/monitor       → monitor.js                              │
+│  ├─ /api/monitor       → monitor.js (protegido)                  │
+│  ├─ /api/admin         → admin.js (seed de staging, bloqueado    │
+│  │                        em produção — protegido)               │
 │  ├─ /health + /ping    → health check (cache 30s)                │
 │  └─ /* (SPA catch-all) → serve frontend/dist                     │
 │                                                                   │
 │  Services                                                         │
-│  ├─ emailService.js  → Nodemailer + Gmail SMTP                   │
+│  ├─ emailService.js  → Resend (e-mails transacionais)            │
 │  ├─ pdfService.js    → PDFKit (geração em memória)               │
 │  └─ pushService.js   → web-push (VAPID)                          │
 │                                                                   │
@@ -81,7 +84,7 @@ Aplicação web de controle financeiro pessoal com agente de IA, suporte a PWA, 
 
 **Build de produção:** Multi-stage Docker. Stage 1 compila o React (`npm run build`). Stage 2 copia o `dist/` para `backend/public/` e serve via Express. Um único container serve frontend + API.
 
-**Deploy:** `gcloud run deploy finance-app --source .` (ou `npm run deploy` na raiz). Migrations são aplicadas automaticamente na inicialização do container com retry e advisory lock para concorrência segura.
+**Deploy:** 100% automatizado via GitHub Actions no merge em `main` (ver seção [CI/CD](#cicd--github-actions)) — build da imagem, push, deploy no Cloud Run, health check e rollback automático em falha. Migrations são aplicadas automaticamente na inicialização do container com retry e advisory lock para concorrência segura.
 
 ---
 
@@ -95,16 +98,26 @@ finance-app/
 ├── package.json            # Scripts de conveniência do monorepo
 ├── .env.example            # Template de variáveis de ambiente (copie para .env)
 │
+├── scripts/
+│   └── legacy/             # Scripts de deploy manual anteriores à automação (referência)
+│
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml          # CI: testes em todo push/PR (Jest + Vitest + Playwright)
-│       ├── deploy.yml      # CD: deploy automatizado para Cloud Run no merge em main
-│       ├── keepalive.yml   # Cron diário (09h Brasília): mantém Supabase free acordado
-│       └── staging.yml     # Validação de upgrades major (branches upgrade/*)
+│       ├── ci.yml                    # CI: testes em todo push/PR (Jest + Vitest + Playwright)
+│       ├── deploy.yml                # CD: deploy automatizado para Cloud Run no merge em main
+│       ├── deploy-staging.yml        # CD: deploy automatizado para staging no merge em develop
+│       ├── build-android.yml         # Build manual do AAB assinado (TWA) para a Play Store
+│       ├── dependabot-automerge.yml  # Auto-aprova e mescla PRs de patch do Dependabot
+│       ├── keepalive.yml             # Cron diário (09h Brasília): mantém Supabase free acordado
+│       └── staging.yml               # Validação de upgrades major (branches upgrade/*)
 │
 ├── backend/
 │   ├── src/
 │   │   ├── server.js           # Entry point: Express, middlewares, health check, graceful shutdown
+│   │   │
+│   │   ├── domain/, application/, infrastructure/, interfaces/
+│   │   │                          # Migração gradual para Layered Architecture (domínio por domínio).
+│   │   │                          # Goals já migrado — referência do padrão. Ver ARCHITECTURE.md.
 │   │   │
 │   │   ├── routes/
 │   │   │   ├── auth.js             # /api/auth/* — login, registro, JWT, perfil, planos, referral
@@ -114,10 +127,11 @@ finance-app/
 │   │   │   ├── budget.js           # /api/budget/* — contas fixas, salário, limites por categoria
 │   │   │   ├── goals.js            # /api/goals/* — metas financeiras
 │   │   │   ├── reports.js          # /api/reports/* — fechamento mensal (PDF + e-mail)
-│   │   │   ├── agent.js            # /api/agent/* — chat IA, predict, relatório IA (Groq)
+│   │   │   ├── agent.js            # /api/agent/* — chat IA (cria/edita/exclui transação), voz (Whisper), predict, relatório
 │   │   │   ├── notifications.js    # /api/notifications/* — assinaturas Web Push (VAPID)
 │   │   │   ├── payments.js         # /api/payments/* — checkout Mercado Pago, webhook, histórico
-│   │   │   └── monitor.js          # /api/monitor/* — stats de login e usuários (protegido)
+│   │   │   ├── monitor.js          # /api/monitor/* — stats de login e usuários (protegido)
+│   │   │   └── admin.js            # /api/admin/* — seed de dados de staging (bloqueado em produção)
 │   │   │
 │   │   ├── middleware/
 │   │   │   ├── auth.js             # Verifica JWT (cookie ou header Authorization)
@@ -135,7 +149,7 @@ finance-app/
 │   │   ├── schema.prisma           # Modelos: User, Transaction, Budget, Goal, InstallmentPlan...
 │   │   └── migrations/             # 20+ migrations SQL com histórico completo
 │   │
-│   └── __tests__/                  # 204 testes Jest (mocks via jest-mock-extended)
+│   └── __tests__/                  # 260 testes Jest (mocks via jest-mock-extended)
 │
 └── frontend/
     ├── src/
@@ -161,7 +175,7 @@ finance-app/
     │   │
     │   ├── components/
     │   │   ├── features/
-    │   │   │   ├── AgentChat.jsx           # Chat flutuante com agente IA
+    │   │   │   ├── AgentChat.jsx           # Chat flutuante com agente IA (texto ou voz via MediaRecorder)
     │   │   │   ├── TransactionForm.jsx     # Formulário de nova transação
     │   │   │   ├── AutoLaunchPrompt.jsx    # Banner de lançamento de contas fixas
     │   │   │   ├── PlanExpiryBanner.jsx    # Banner de trial/expiração de plano
@@ -193,22 +207,22 @@ finance-app/
     ├── public/                 # Assets estáticos (ícones, manifest.json, sw.js)
     ├── index.html
     ├── vite.config.js
-    └── __tests__/              # 141 testes Vitest + 91 testes E2E Playwright
+    └── __tests__/              # 146 testes Vitest + 91 testes E2E Playwright
 ```
 
 ---
 
 ## CI/CD — GitHub Actions
 
-O projeto tem 4 workflows automatizados:
+O projeto tem 7 workflows automatizados:
 
 ### CI — Testes e Qualidade (`ci.yml`)
 Dispara em todo push (exceto `main`) e em PRs. Bloqueia o merge se qualquer job falhar.
 
 ```
-Backend · Jest (204)  ─┐
-Frontend · Vitest (141)─┼─→  E2E · Playwright (91)
-Build · Vite (prod)   ─┘
+Backend · Jest (260)   ─┐
+Frontend · Vitest (146) ─┼─→  E2E · Playwright (91)
+Build · Vite (prod)    ─┘
 ```
 
 ### CD — Deploy para Cloud Run (`deploy.yml`)
@@ -222,11 +236,20 @@ Testes → Schema → Migration → Deploy → Health Check → Smoke Tests
 
 Modos manuais disponíveis: `deploy`, `rollback`, `deploy-skip-e2e` (emergência).
 
+### CD — Deploy para Staging (`deploy-staging.yml`)
+Dispara no merge em `develop`. Mesmo fluxo do deploy de produção (testes → migration → deploy → health check), no ambiente de homologação (`finance-app-staging`), incluindo o seed de dados de teste via `/api/admin/seed-staging`.
+
+### Build Android (`build-android.yml`)
+Disparo manual. Gera o AAB assinado (TWA) para upload na Play Store.
+
+### Auto-merge do Dependabot (`dependabot-automerge.yml`)
+Aprova e mescla automaticamente PRs de atualização de patch (`semver-patch`) abertas pelo Dependabot, desde que a CI passe.
+
 ### Keep-Alive (`keepalive.yml`)
 Cron diário às 09h (Brasília). Pinga o `/health` para evitar que o Supabase free entre em modo de pausa após 7 dias sem acesso.
 
 ### Staging — Major Upgrades (`staging.yml`)
-Sobe PostgreSQL real dentro do CI e roda os 201 testes backend contra banco de verdade. Dispara apenas em branches `upgrade/prisma-*`, `upgrade/express-*`.
+Sobe PostgreSQL real dentro do CI e roda a suíte completa do backend contra banco de verdade. Dispara apenas em branches `upgrade/prisma-*`, `upgrade/express-*`, `upgrade/major-*`.
 
 ---
 
@@ -273,7 +296,7 @@ npm run db:generate  # Regenera o Prisma Client (após alterar schema.prisma)
 **5. Testes:**
 ```bash
 cd backend  && npm test           # Jest — 201 testes unitários (sem banco)
-cd frontend && npm run test:run   # Vitest — 141 testes de componentes
+cd frontend && npm run test:run   # Vitest — 146 testes de componentes
 npm run test:e2e                  # Playwright — 91 testes E2E (Chromium)
 ```
 
@@ -283,17 +306,14 @@ npm run test:e2e                  # Playwright — 91 testes E2E (Chromium)
 
 A produção roda no **Google Cloud Run** (região `southamerica-east1`). O deploy compila o frontend dentro do Docker e sobe um único container com Express servindo tudo.
 
-```bash
-npm run deploy
+**Não há deploy manual** — todo deploy é automatizado via GitHub Actions (`deploy.yml`, ver seção [CI/CD](#cicd--github-actions)):
 
-# Equivalente manual:
-gcloud run deploy finance-app \
-  --source . \
-  --region southamerica-east1 \
-  --quiet
+```
+push/merge em main → testes → build da imagem Docker → push pro registry
+                    → gcloud run deploy --image ... → health check → rollback se falhar
 ```
 
-> **Importante:** Sempre rode o deploy a partir da raiz do projeto. O `Dockerfile` raiz faz o build multi-stage. O `backend/Dockerfile` é apenas para o docker-compose local.
+Um fallback manual (`gcloud run deploy` com build via Cloud Build) existe só como referência histórica em `scripts/legacy/` — não é o caminho recomendado nem testado contra o setup atual.
 
 As migrations pendentes são aplicadas na inicialização do container com retry automático (4 tentativas, backoff exponencial) e advisory lock do PostgreSQL para serializar execuções concorrentes.
 
@@ -407,9 +427,12 @@ Todas as rotas ficam sob `/api/`. Rotas protegidas exigem cookie `token` (JWT).
 ### Agente IA — `/api/agent`
 | Método | Rota | Auth | Descrição |
 |--------|------|:----:|-----------|
-| POST | `/chat` | ✓ | Chat com assistente financeiro (Groq) |
+| POST | `/chat` | ✓ | Chat com assistente financeiro (Groq) — cria, edita e exclui transações via tool-calling |
+| POST | `/transcribe` | ✓ | Transcreve áudio (Whisper/Groq) para registro por voz — plano Elite |
 | POST | `/predict` | ✓ | Previsão de encerramento do mês |
 | POST | `/monthly-report` | ✓ | Relatório textual do mês gerado por IA |
+
+`/chat` expõe ferramentas de IA (`get_transactions`, `get_summary`, `create_transaction`, `update_transaction`, `delete_transaction`) com as mesmas travas de autorização das rotas manuais — e um limite extra de 1 exclusão por mensagem, mesmo se o modelo pedir mais de uma na mesma resposta.
 
 ### Notificações — `/api/notifications`
 | Método | Rota | Auth | Descrição |
@@ -430,6 +453,11 @@ Todas as rotas ficam sob `/api/`. Rotas protegidas exigem cookie `token` (JWT).
 |--------|------|:----:|-----------|
 | GET | `/login-stats` | `x-monitor-secret` | Estatísticas de login (tentativas, falhas) |
 | GET | `/user-stats` | `x-monitor-secret` | Estatísticas de usuários e planos |
+
+### Admin — `/api/admin`
+| Método | Rota | Auth | Descrição |
+|--------|------|:----:|-----------|
+| POST | `/seed-staging` | `x-seed-secret` | Popula dados de teste em staging — bloqueado em produção por `K_SERVICE`, independente do secret estar configurado |
 
 ### Health Check (sem auth)
 | Método | Rota | Descrição |
@@ -502,12 +530,13 @@ AccountUnlockToken
 - **bcrypt** (rounds=12) + DUMMY_HASH para prevenir timing attack no login
 - **2FA** via TOTP (RFC 6238) com códigos de backup hasheados
 - **Rate limiting** por IP/userId: login 10/15min, agente 40/hora, geral 200/15min, pagamentos 10/15min
-- **Helmet** (CSP, HSTS, X-Frame-Options, etc.) + `Permissions-Policy`
+- **Helmet** (CSP, HSTS, X-Frame-Options, etc.) + `Permissions-Policy` (microfone liberado só para o próprio site — `microphone=(self)`, nunca `()`; ver armadilha documentada em `ARCHITECTURE.md`)
 - **`Cache-Control: no-store`** em todas as rotas `/api/`
 - **UUID validation** em todos os parâmetros de rota
 - **CORS** restrito a origins configuradas em produção
 - **SSRF protection** no endpoint de Web Push (whitelist de hosts)
-- **`crypto.timingSafeEqual`** para comparação de segredos (UPGRADE_SECRET, MONITOR_SECRET)
+- **`crypto.timingSafeEqual`** para comparação de segredos (UPGRADE_SECRET, MONITOR_SECRET, STAGING_SEED_SECRET)
+- **Envio de e-mail com falha honesta** — erro da Resend é propagado (nunca silenciado); rotas como `/forgot-password` retornam erro real em vez de fingir sucesso quando o e-mail não sai
 - **`X-Request-Id`** em todas as respostas para correlação de logs
 - **LoginAudit** — log de todas as tentativas de autenticação (email, IP, userAgent, sucesso)
 - **Anti-brute-force** — conta bloqueada após 10 tentativas falhas; link de desbloqueio por e-mail (SHA-256, uso único, 1h)
