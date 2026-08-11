@@ -63,8 +63,13 @@ jobs:
         working-directory: nancy-twa
         run: |
           chmod +x gradlew
+          # Caminho ABSOLUTO — um caminho relativo aqui é resolvido pelo AGP
+          # relativo ao diretório do daemon do Gradle (~/.gradle/daemon/...),
+          # não ao projeto nem à working-directory deste step. Já confirmado
+          # em produção: "../nancy-twa/android.keystore" e "../android.keystore"
+          # (ambos relativos) falharam por esse motivo.
           ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=../android.keystore \
+            -Pandroid.injected.signing.store.file="$GITHUB_WORKSPACE/nancy-twa/android.keystore" \
             -Pandroid.injected.signing.store.password=${{ secrets.ANDROID_STORE_PASSWORD }} \
             -Pandroid.injected.signing.key.alias=${{ secrets.ANDROID_KEY_ALIAS }} \
             -Pandroid.injected.signing.key.password=${{ secrets.ANDROID_KEY_PASSWORD }}
