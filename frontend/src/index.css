@@ -2220,6 +2220,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   .dsb-topbar   { display: none; }
   .dsb-mobile-nav { display: flex; }
 
+  /* .dsb-sidebar some aqui (900px), mas o reset de margin-left do .pwnav só
+     existia no breakpoint de 768px — entre 769px e 900px (faixa comum de
+     tablets) sobrava um vão vazio à esquerda do tamanho do sidebar oculto. */
+  .pwnav        { margin-left: 0; }
+
   .pwnav        { height: auto; min-height: 100dvh; overflow-y: visible; display: block; }
   .dsb-content  { padding: 16px 16px 80px; width: 100%; flex: none; display: block; }
   .dsb-hero-row { grid-template-columns: 1fr 1fr; }
