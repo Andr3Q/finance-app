@@ -186,7 +186,13 @@ select.input, select.inp {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff73' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; padding-right: 40px;
 }
-select.input option, select.inp option { background: var(--bg-card); color: var(--t1); }
+/* Popup nativo de <option> não compõe sobre o fundo da página — --bg-card é
+   quase transparente (rgba(255,255,255,.04)), pensado pra ficar por cima do
+   fundo escuro da página, não como cor sólida própria. Nesse popup isso vira
+   efetivamente branco com texto branco (invisível), sobrando só a opção com
+   hover/foco (destaque nativo do navegador, ignora o CSS da página). Usa
+   --bg-secondary (cor sólida) em vez de --bg-card (translúcida). */
+select.input option, select.inp option { background: var(--bg-secondary); color: var(--t1); }
 
 /* Remove setas dos inputs numéricos */
 input[type=number]::-webkit-outer-spin-button,
