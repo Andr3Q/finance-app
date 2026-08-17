@@ -58,6 +58,15 @@ export default function AgentChat() {
   const streamRef        = useRef(null)
   const maxDurationTimer = useRef(null)
   const navigate         = useNavigate()
+
+  // Permite abrir o chat de fora (ex: menu rápido do "+" na barra de
+  // navegação, que fica num componente irmão — Navbar/AgentChat são montados
+  // separadamente em App.jsx, sem estado compartilhado hoje).
+  useEffect(() => {
+    const openChat = () => setOpen(true)
+    window.addEventListener('nancy:open-agent-chat', openChat)
+    return () => window.removeEventListener('nancy:open-agent-chat', openChat)
+  }, [])
   const user             = useUser()
   const isElite          = user.plan === 'elite'
 

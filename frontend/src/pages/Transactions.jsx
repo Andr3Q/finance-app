@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation, useNavigate as useRouterNavigate } from 'react-router-dom'
 import { transactionsAPI, installmentsAPI } from '../services/api.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
@@ -36,6 +37,8 @@ const txCacheKey = (m, y) => `transactions:list:${y}-${m}`
 
 export default function Transactions() {
   const user = useUser()
+  const location = useLocation()
+  const routerNavigate = useRouterNavigate() // nome próprio: "navigate" já é a função de trocar de mês nesta tela
   const [transactions,  setTransactions]  = useState([])
   const [installments,  setInstallments]  = useState([])
   const [loading,       setLoading]       = useState(true)
@@ -137,6 +140,19 @@ export default function Transactions() {
   }
 
   useEffect(() => { fetchInstallments() }, [])
+
+  // Vem do menu rápido do "+" na barra de navegação ("Compra Parcelada") —
+  // já abre a seção de parcelamentos expandida com o formulário visível.
+  // Limpa o state da navegação depois, pra não reabrir sozinho ao voltar
+  // pra essa tela depois (ex: botão voltar do navegador).
+  useEffect(() => {
+    if (location.state?.openInstallmentForm) {
+      setParcOpen(true)
+      setShowParcForm(true)
+      routerNavigate(location.pathname, { replace: true, state: {} })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state])
 
   useEffect(() => {
     setLoading(true)
