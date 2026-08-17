@@ -52,8 +52,37 @@
     <!-- Runtime config injetado pelo backend (PostHog key, etc.) -->
     <!-- Executado sincronamente antes do module script para garantir disponibilidade -->
     <script src="/app-config.js"></script>
+
+    <!-- Splash de abertura — puro HTML/CSS, sem depender do bundle React (que
+         ainda não carregou nesse ponto). Removido por main.jsx depois que o
+         app monta. Estilo inline pra aparecer instantaneamente, sem esperar
+         o CSS do Vite carregar. -->
+    <style>
+      #app-splash {
+        position: fixed; inset: 0; background: #000; z-index: 99999;
+        display: flex; align-items: center; justify-content: center;
+        transition: opacity .4s ease, visibility .4s ease;
+      }
+      #app-splash.splash-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+      .splash-word {
+        display: flex; font-family: 'Sora', sans-serif; font-weight: 800;
+        font-size: 42px; color: #4ae2ac; letter-spacing: 1px;
+      }
+      .splash-word span {
+        opacity: 0; transform: translateY(14px);
+        animation: splashLetterIn .5s cubic-bezier(.2,.8,.2,1) forwards;
+        animation-delay: calc(var(--i) * 80ms);
+      }
+      @keyframes splashLetterIn { to { opacity: 1; transform: translateY(0); } }
+    </style>
   </head>
   <body>
+    <div id="app-splash" aria-hidden="true">
+      <div class="splash-word">
+        <span style="--i:0">N</span><span style="--i:1">a</span><span style="--i:2">n</span><span style="--i:3">c</span><span style="--i:4">y</span>
+      </div>
+    </div>
+
     <!-- O React injeta todo o app dentro desta div -->
     <div id="root"></div>
     <!-- Entry point do React (Vite usa isso para compilar o bundle) -->
