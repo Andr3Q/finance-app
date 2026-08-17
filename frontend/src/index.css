@@ -2005,34 +2005,44 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .dsb-mn-fab:active  { transform: scale(.92); }
 .dsb-mn-fab.active  { transform: rotate(45deg); }
 
-/* ── Menu rápido (sheet) ── */
+/* ── Menu rápido — bolhas flutuantes sobre fundo escurecido (estilo Mobills):
+   sem trocar de tela, só escurece o conteúdo atual e mostra os atalhos por
+   cima, com animação suave e escalonada. ── */
 .dsb-qm-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,.5);
-  z-index: 200; animation: fadeIn .15s ease;
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  z-index: 200; animation: fadeIn .2s ease;
 }
-.dsb-qm-sheet {
-  position: fixed; left: 12px; right: 12px;
-  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
-  background: #111; border: 1px solid rgba(255,255,255,.08);
-  border-radius: 20px; padding: 10px; z-index: 201;
-  box-shadow: 0 -8px 32px rgba(0,0,0,.4);
-  animation: dsbQmIn .18s ease;
+.dsb-qm-grid {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+  z-index: 201; display: grid;
+  grid-template-columns: repeat(2, 84px); gap: 22px 28px;
+  justify-items: center;
 }
-@keyframes dsbQmIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-.dsb-qm-item {
-  width: 100%; display: flex; align-items: center; gap: 14px;
-  padding: 13px 12px; background: none; border: none; cursor: pointer;
-  border-radius: 14px; font-family: 'Sora', sans-serif;
-  color: #fff; font-size: 14px; font-weight: 600;
-  -webkit-tap-highlight-color: transparent;
+.dsb-qm-bubble {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  background: none; border: none; cursor: pointer; padding: 0;
+  font-family: 'Sora', sans-serif; -webkit-tap-highlight-color: transparent;
+  animation: dsbQmBubbleIn .28s cubic-bezier(.34,1.56,.64,1) both;
+  animation-delay: var(--qm-delay, 0ms);
 }
-.dsb-qm-item:active { background: rgba(255,255,255,.06); }
-.dsb-qm-ico {
-  width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0;
+.dsb-qm-bubble:last-child:nth-child(odd) { grid-column: 1 / -1; }
+@keyframes dsbQmBubbleIn {
+  from { opacity: 0; transform: scale(.4) translateY(16px); }
+  to   { opacity: 1; transform: scale(1)  translateY(0); }
+}
+.dsb-qm-circle {
+  width: 60px; height: 60px; border-radius: 50%; background: var(--qm-bg, #4ae2ac);
   display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,.06);
+  color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  transition: transform .15s ease;
 }
-.dsb-qm-lbl { text-align: left; }
+.dsb-qm-bubble:active .dsb-qm-circle { transform: scale(.9); }
+.dsb-qm-lbl {
+  color: #fff; font-size: 12px; font-weight: 700; text-align: center;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6); max-width: 90px;
+}
 
 /* ── Dashboard content area ── */
 .dsb-content { width: 100%; padding: 28px 32px 32px; flex: 1; display: flex; flex-direction: column; }
@@ -6033,10 +6043,9 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   border-top-color: rgba(0,0,0,.08);
 }
 [data-theme="light"] .dsb-mn-fab { border-color: #f0f2f5; }
-[data-theme="light"] .dsb-qm-sheet { background: #fff; border-color: rgba(0,0,0,.08); }
-[data-theme="light"] .dsb-qm-item { color: #0d0d0d; }
-[data-theme="light"] .dsb-qm-item:active { background: rgba(0,0,0,.05); }
-[data-theme="light"] .dsb-qm-ico { background: rgba(0,0,0,.05); }
+/* Menu rápido flutua sobre um fundo escurecido (rgba(0,0,0,.6)) em qualquer
+   tema — bolhas coloridas + texto branco continuam legíveis sem precisar de
+   variação por tema claro/escuro. */
 [data-theme="light"] .dsb-mn-lbl   { color: rgba(0,0,0,.45); }
 [data-theme="light"] .dsb-mn-ico   { color: rgba(0,0,0,.45); }
 [data-theme="light"] .dsb-mn-item.active .dsb-mn-lbl { color: var(--c); }

@@ -141,15 +141,15 @@ export default function Navbar() {
   useEffect(() => { setShowQuickMenu(false) }, [location.pathname])
 
   const quickMenuActions = [
-    { key: 'income',      label: 'Nova Receita',    Icon: ArrowUpIcon,   color: '#4ae2ac',
+    { key: 'income',      label: 'Receita',          Icon: ArrowUpIcon,   bg: '#2fbf71',
       onSelect: () => navigate('/dashboard', { state: { openTxForm: 'income' } }) },
-    { key: 'expense',     label: 'Nova Despesa',    Icon: ArrowDownIcon, color: '#ff6b6b',
-      onSelect: () => navigate('/dashboard', { state: { openTxForm: 'expense' } }) },
-    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,     color: '#4ae2ac',
+    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,      bg: '#00b4d8',
       onSelect: () => navigate('/transactions', { state: { openInstallmentForm: true } }) },
-    { key: 'voice',       label: 'Falar com IA',    Icon: MicIcon,       color: '#4ae2ac',
+    { key: 'voice',       label: 'Falar com IA',     Icon: MicIcon,       bg: '#8b5cf6',
       onSelect: () => window.dispatchEvent(new Event('nancy:open-agent-chat')) },
-    { key: 'goals',       label: 'Metas',           Icon: TargetIcon,    color: '#4ae2ac',
+    { key: 'expense',     label: 'Despesa',          Icon: ArrowDownIcon, bg: '#ff6b6b',
+      onSelect: () => navigate('/dashboard', { state: { openTxForm: 'expense' } }) },
+    { key: 'goals',       label: 'Metas',            Icon: TargetIcon,    bg: '#4c8bf5',
       onSelect: () => navigate('/goals') },
   ]
 
@@ -368,18 +368,20 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* ── Menu rápido do "+" central (mobile) ── */}
+      {/* ── Menu rápido do "+" central (mobile) — bolhas flutuantes sobre um
+          fundo escurecido, sem trocar de tela, estilo Mobills ── */}
       {showQuickMenu && (
         <>
           <div className="dsb-qm-backdrop" onClick={() => setShowQuickMenu(false)} />
-          <div className="dsb-qm-sheet">
-            {quickMenuActions.map(({ key, label, Icon, color, onSelect }) => (
+          <div className="dsb-qm-grid">
+            {quickMenuActions.map(({ key, label, Icon, bg }, i) => (
               <button
                 key={key}
-                className="dsb-qm-item"
-                onClick={() => handleQuickAction({ onSelect })}
+                className="dsb-qm-bubble"
+                style={{ '--qm-delay': `${i * 30}ms`, '--qm-bg': bg }}
+                onClick={() => handleQuickAction(quickMenuActions[i])}
               >
-                <div className="dsb-qm-ico" style={{ color }}><Icon /></div>
+                <div className="dsb-qm-circle"><Icon /></div>
                 <span className="dsb-qm-lbl">{label}</span>
               </button>
             ))}
