@@ -140,16 +140,19 @@ export default function Navbar() {
   // /goals) — evita ele ficar aberto por cima de uma tela diferente.
   useEffect(() => { setShowQuickMenu(false) }, [location.pathname])
 
+  // Círculo sempre escuro (identidade do Nancy) — só o ícone muda de cor.
+  // Verde/vermelho seguem o mesmo padrão já usado em receita/despesa no
+  // resto do app; as demais ações usam o verde-menta da marca.
   const quickMenuActions = [
-    { key: 'income',      label: 'Receita',          Icon: ArrowUpIcon,   bg: '#2fbf71',
+    { key: 'income',      label: 'Receita',          Icon: ArrowUpIcon,   iconColor: '#4ae2ac',
       onSelect: () => navigate('/dashboard', { state: { openTxForm: 'income' } }) },
-    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,      bg: '#00b4d8',
+    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,      iconColor: '#4ae2ac',
       onSelect: () => navigate('/transactions', { state: { openInstallmentForm: true } }) },
-    { key: 'voice',       label: 'Falar com IA',     Icon: MicIcon,       bg: '#8b5cf6',
+    { key: 'voice',       label: 'Falar com IA',     Icon: MicIcon,       iconColor: '#4ae2ac',
       onSelect: () => window.dispatchEvent(new Event('nancy:open-agent-chat')) },
-    { key: 'expense',     label: 'Despesa',          Icon: ArrowDownIcon, bg: '#ff6b6b',
+    { key: 'expense',     label: 'Despesa',          Icon: ArrowDownIcon, iconColor: '#ff6b6b',
       onSelect: () => navigate('/dashboard', { state: { openTxForm: 'expense' } }) },
-    { key: 'goals',       label: 'Metas',            Icon: TargetIcon,    bg: '#4c8bf5',
+    { key: 'goals',       label: 'Metas',            Icon: TargetIcon,    iconColor: '#4ae2ac',
       onSelect: () => navigate('/goals') },
   ]
 
@@ -374,11 +377,11 @@ export default function Navbar() {
         <>
           <div className="dsb-qm-backdrop" onClick={() => setShowQuickMenu(false)} />
           <div className="dsb-qm-grid">
-            {quickMenuActions.map(({ key, label, Icon, bg }, i) => (
+            {quickMenuActions.map(({ key, label, Icon, iconColor }, i) => (
               <button
                 key={key}
                 className="dsb-qm-bubble"
-                style={{ '--qm-delay': `${i * 30}ms`, '--qm-bg': bg }}
+                style={{ '--qm-delay': `${i * 30}ms`, '--qm-icon': iconColor }}
                 onClick={() => handleQuickAction(quickMenuActions[i])}
               >
                 <div className="dsb-qm-circle"><Icon /></div>

@@ -2015,13 +2015,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .dsb-qm-grid {
   position: fixed; left: 50%; transform: translateX(-50%);
-  bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(108px + env(safe-area-inset-bottom, 0px)); /* mais perto do "+" */
   z-index: 201; display: grid;
-  grid-template-columns: repeat(2, 84px); gap: 22px 28px;
+  grid-template-columns: repeat(2, 80px); gap: 16px 26px;
   justify-items: center;
 }
 .dsb-qm-bubble {
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
   background: none; border: none; cursor: pointer; padding: 0;
   font-family: 'Sora', sans-serif; -webkit-tap-highlight-color: transparent;
   animation: dsbQmBubbleIn .28s cubic-bezier(.34,1.56,.64,1) both;
@@ -2032,10 +2032,13 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   from { opacity: 0; transform: scale(.4) translateY(16px); }
   to   { opacity: 1; transform: scale(1)  translateY(0); }
 }
+/* Círculo sempre escuro (identidade Nancy: preto + verde-menta) — só o
+   ícone muda de cor (--qm-icon), em vez de um círculo colorido por ação. */
 .dsb-qm-circle {
-  width: 60px; height: 60px; border-radius: 50%; background: var(--qm-bg, #4ae2ac);
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #161616; border: 1px solid rgba(255,255,255,.08);
   display: flex; align-items: center; justify-content: center;
-  color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.35);
+  color: var(--qm-icon, #4ae2ac); box-shadow: 0 6px 18px rgba(0,0,0,.4);
   transition: transform .15s ease;
 }
 .dsb-qm-bubble:active .dsb-qm-circle { transform: scale(.9); }
