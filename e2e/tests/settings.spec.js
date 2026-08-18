@@ -5,7 +5,9 @@ const { injectSession, FREE_USER, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Configurações — E2E
-// Estrutura: uma única página sem tabs — seções empilhadas.
+// Estrutura: hub "/settings" com 3 abas (Gerenciar/Acompanhar/Sobre),
+// cada item navega pra uma subtela própria (/settings/seguranca,
+// /settings/pagamentos, /settings/fechamento, etc).
 // ChangePasswordCard: botão toggle "Alterar senha", depois os campos
 // ─────────────────────────────────────────────────────────────────
 
@@ -57,8 +59,8 @@ test.describe('Configurações — Salário', () => {
 test.describe('Configurações — Alterar senha', () => {
   test.beforeEach(async ({ page }) => {
     await setupSettings(page)
-    await page.goto('/settings')
-    // Rola até a seção de segurança e clica no toggle "Alterar senha"
+    await page.goto('/settings/seguranca')
+    // Clica no toggle "Alterar senha" pra revelar os campos do formulário
     await page.getByRole('button', { name: /^alterar senha$/i }).click()
   })
 
@@ -119,26 +121,26 @@ test.describe('Configurações — Alterar senha', () => {
 test.describe('Configurações — Cancelar plano', () => {
   test('card "Cancelar plano Pro" visível para usuário Pro pago', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
-    await page.goto('/settings')
+    await page.goto('/settings/pagamentos')
     await expect(page.getByText(/cancelar plano pro/i)).toBeVisible()
   })
 
   test('card "Cancelar plano" NÃO aparece para usuário Free', async ({ page }) => {
     await setupSettings(page, FREE_USER)
-    await page.goto('/settings')
+    await page.goto('/settings/pagamentos')
     await expect(page.getByText(/cancelar plano/i)).not.toBeVisible()
   })
 
   test('abre modal de confirmação ao clicar em "Cancelar plano"', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
-    await page.goto('/settings')
+    await page.goto('/settings/pagamentos')
     await page.getByRole('button', { name: /cancelar plano/i }).click()
     await expect(page.getByText(/confirmar cancelamento/i)).toBeVisible()
   })
 
   test('fecha modal ao clicar em "Voltar"', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
-    await page.goto('/settings')
+    await page.goto('/settings/pagamentos')
     await page.getByRole('button', { name: /cancelar plano/i }).click()
     await page.getByRole('button', { name: /voltar/i }).click()
     await expect(page.getByText(/confirmar cancelamento/i)).not.toBeVisible()
@@ -151,7 +153,7 @@ test.describe('Configurações — Cancelar plano', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: 'Plano cancelado.' }) })
     })
 
-    await page.goto('/settings')
+    await page.goto('/settings/pagamentos')
     await page.getByRole('button', { name: /cancelar plano/i }).click()
     await page.getByPlaceholder('Sua senha atual').fill('minhasenha')
     await page.getByRole('button', { name: /sim, cancelar/i }).click()
@@ -163,13 +165,13 @@ test.describe('Configurações — Cancelar plano', () => {
 test.describe('Configurações — Fechar mês', () => {
   test('card "Fechar o mês" visível para Pro', async ({ page }) => {
     await setupSettings(page)
-    await page.goto('/settings')
+    await page.goto('/settings/fechamento')
     await expect(page.getByText(/fechar o mês/i)).toBeVisible()
   })
 
   test('mostra lock "Recurso Pro" para Free', async ({ page }) => {
     await setupSettings(page, FREE_USER)
-    await page.goto('/settings')
+    await page.goto('/settings/fechamento')
     await expect(page.getByText(/fechar o mês/i)).toBeVisible()
     await expect(page.getByText(/recurso pro/i).first()).toBeVisible()
   })
@@ -185,7 +187,7 @@ test.describe('Configurações — Fechar mês', () => {
     })
 
     await page.addInitScript(() => { window.confirm = () => true })
-    await page.goto('/settings')
+    await page.goto('/settings/fechamento')
     await page.getByRole('button', { name: /fechar mês e enviar relatório/i }).click()
 
     await expect(page.getByText(/mês fechado|relatório enviado/i)).toBeVisible()
@@ -201,14 +203,14 @@ test.describe('Configurações — Histórico de pagamentos', () => {
         body: JSON.stringify([{ paymentId: 'pay_abc123456', plan: 'pro', period: 'monthly', processedAt: new Date('2026-03-15').toISOString() }]),
       })
     })
-    await page.goto('/settings')
+    await page.goto('/settings/pagamentos')
     await expect(page.getByText(/histórico de pagamentos/i)).toBeVisible()
     await expect(page.getByText(/plano pro — mensal/i)).toBeVisible()
   })
 
   test('não exibe card para Free sem pagamentos', async ({ page }) => {
     await setupSettings(page, FREE_USER)
-    await page.goto('/settings')
+    await page.goto('/settings/pagamentos')
     await expect(page.getByText(/histórico de pagamentos/i)).not.toBeVisible()
   })
 })
