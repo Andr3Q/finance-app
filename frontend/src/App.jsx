@@ -9,6 +9,7 @@ import { setInstallPrompt, markInstalled, clearInstalled } from './services/inst
 import { authAPI } from './services/api.js'
 import { saveUser } from './hooks/useUser.js'
 import { analytics } from './services/analytics.js'
+import { SPLASH_MIN_MS } from './splashConfig.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazy(() => import('./pages/Landing.jsx'))
@@ -51,8 +52,20 @@ function PrivateRoute({ children }) {
 }
 
 function HomeRoute() {
+  const [skipLandingReady, setSkipLandingReady] = useState(false)
+
+  useEffect(() => {
+    if (isLoggedIn() || !hasAccountOnThisDevice()) return
+    // Só navega pro /login (que monta o campo de senha) depois que a splash
+    // de abertura sai de cena — senão o campo entra no DOM ainda com a splash
+    // em cima, e o navegador dispara o preenchimento automático de senha por
+    // cima da animação.
+    const t = setTimeout(() => setSkipLandingReady(true), SPLASH_MIN_MS)
+    return () => clearTimeout(t)
+  }, [])
+
   if (isLoggedIn()) return <Navigate to="/dashboard" replace />
-  if (hasAccountOnThisDevice()) return <Navigate to="/login" replace />
+  if (hasAccountOnThisDevice()) return skipLandingReady ? <Navigate to="/login" replace /> : null
   return <Landing />
 }
 

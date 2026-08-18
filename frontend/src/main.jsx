@@ -5,6 +5,7 @@ import App      from './App.jsx'
 import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 import { initAnalytics } from './services/analytics.js'
 import { hasConsent } from './components/features/CookieBanner.jsx'
+import { SPLASH_MIN_MS } from './splashConfig.js'
 import './index.css'
 
 // ── Sentry — rastreamento de erros JavaScript no browser ────────────
@@ -42,9 +43,8 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // + nome) termine de rodar antes de sumir, mesmo em conexões muito rápidas.
 const splash = document.getElementById('app-splash')
 if (splash) {
-  const MIN_SPLASH_MS = 2000
   setTimeout(() => {
     splash.classList.add('splash-hide')
     setTimeout(() => splash.remove(), 450) // espera a transição de opacidade (.4s) terminar
-  }, MIN_SPLASH_MS)
+  }, SPLASH_MIN_MS)
 }
