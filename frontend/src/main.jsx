@@ -42,7 +42,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // + nome) termine de rodar antes de sumir, mesmo em conexões muito rápidas.
 const splash = document.getElementById('app-splash')
 if (splash) {
-  const MIN_SPLASH_MS = 1300
+  const MIN_SPLASH_MS = 2000
   setTimeout(() => {
     splash.classList.add('splash-hide')
     setTimeout(() => splash.remove(), 450) // espera a transição de opacidade (.4s) terminar

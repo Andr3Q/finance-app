@@ -73,15 +73,15 @@
       .splash-glow {
         position: absolute; width: 100px; height: 100px; border-radius: 50%;
         background: #4ae2ac; filter: blur(30px);
-        opacity: 0; animation: splashGlow 2.4s ease-in-out .4s infinite;
+        opacity: 0; animation: splashGlow 3s ease-in-out .65s infinite;
       }
       .splash-bars { position: relative; display: flex; align-items: flex-end; gap: 8px; height: 54px; }
       .splash-bars span {
         width: 13px; border-radius: 4px; background: #4ae2ac;
         opacity: 0; transform: scaleY(0); transform-origin: bottom;
-        animation: splashBarIn .5s cubic-bezier(.34,1.56,.64,1) forwards,
-                   splashBarFade .2s linear forwards;
-        animation-delay: calc(var(--i) * 140ms + 120ms);
+        animation: splashBarIn .8s cubic-bezier(.34,1.56,.64,1) forwards,
+                   splashBarFade .3s linear forwards;
+        animation-delay: calc(var(--i) * 220ms + 200ms);
       }
       .splash-bars span:nth-child(1) { height: 22px; }
       .splash-bars span:nth-child(2) { height: 38px; }
@@ -90,7 +90,7 @@
         margin-top: 22px; font-family: 'Sora', sans-serif; font-weight: 800;
         font-size: 42px; color: #4ae2ac; letter-spacing: -.5px;
         opacity: 0; transform: translateY(16px);
-        animation: splashWordIn .65s cubic-bezier(.2,.8,.2,1) .55s forwards;
+        animation: splashWordIn 1s cubic-bezier(.2,.8,.2,1) .9s forwards;
       }
       @keyframes splashBarIn { to { transform: scaleY(1); } }
       @keyframes splashBarFade { to { opacity: 1; } }
