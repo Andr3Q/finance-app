@@ -2695,6 +2695,23 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .cfg-badge.pro  { background: rgba(74,226,172,.12); color: var(--c); border: 1px solid rgba(74,226,172,.22); }
 .cfg-badge.free { background: rgba(255,255,255,.05); color: var(--t2); border: 1px solid rgba(255,255,255,.09); }
 
+/* Tab bar segmentada (Gerenciar/Acompanhar/Sobre) — clone do .lauth-segment */
+.cfg-seg {
+  display: flex;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px; padding: 4px; margin-bottom: 20px; gap: 2px;
+}
+.cfg-seg-btn {
+  flex: 1; padding: 10px 0; border-radius: 9px;
+  font-size: 13px; font-weight: 700; text-align: center;
+  cursor: pointer; border: 1px solid transparent;
+  background: transparent; color: var(--t3);
+  font-family: var(--fd); transition: all .2s;
+}
+.cfg-seg-btn.active {
+  background: rgba(74,226,172,.12); border-color: rgba(74,226,172,.25); color: var(--c);
+}
+
 /* Section title */
 .cfg-sec-title {
   font-size: 11px;
@@ -6173,6 +6190,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .cfg-page    { display: flex; }
 [data-theme="light"] .cfg-card    { background: #ffffff; border-color: rgba(0,0,0,.13); }
 [data-theme="light"] .cfg-card:hover { border-color: rgba(74,226,172,.4); }
+[data-theme="light"] .cfg-seg     { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.08); }
 [data-theme="light"] .cfg-hero {
   background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 40%, #dcfce7 75%, #d1fae5 100%);
   border-color: rgba(74,226,172,.22);

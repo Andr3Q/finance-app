@@ -22,6 +22,14 @@ const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
 const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
+const SettingsProfile       = lazy(() => import('./pages/SettingsProfile.jsx'))
+const SettingsSecurity      = lazy(() => import('./pages/SettingsSecurity.jsx'))
+const SettingsNotifications = lazy(() => import('./pages/SettingsNotifications.jsx'))
+const SettingsMonthlyClose  = lazy(() => import('./pages/SettingsMonthlyClose.jsx'))
+const SettingsReferral      = lazy(() => import('./pages/SettingsReferral.jsx'))
+const SettingsPayments      = lazy(() => import('./pages/SettingsPayments.jsx'))
+const SettingsData          = lazy(() => import('./pages/SettingsData.jsx'))
+const SettingsInstall       = lazy(() => import('./pages/SettingsInstall.jsx'))
 const Planos         = lazy(() => import('./pages/Planos.jsx'))
 const Calendar       = lazy(() => import('./pages/Calendar.jsx'))
 const Finance        = lazy(() => import('./pages/Finance.jsx'))
@@ -146,7 +154,15 @@ export default function App() {
             <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
             <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
             <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
-            <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/settings"                 element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/settings/perfil"           element={<PrivateRoute><SettingsProfile /></PrivateRoute>} />
+            <Route path="/settings/seguranca"        element={<PrivateRoute><SettingsSecurity /></PrivateRoute>} />
+            <Route path="/settings/notificacoes"     element={<PrivateRoute><SettingsNotifications /></PrivateRoute>} />
+            <Route path="/settings/fechamento"       element={<PrivateRoute><SettingsMonthlyClose /></PrivateRoute>} />
+            <Route path="/settings/indique"          element={<PrivateRoute><SettingsReferral /></PrivateRoute>} />
+            <Route path="/settings/pagamentos"       element={<PrivateRoute><SettingsPayments /></PrivateRoute>} />
+            <Route path="/settings/dados"            element={<PrivateRoute><SettingsData /></PrivateRoute>} />
+            <Route path="/settings/instalar"         element={<PrivateRoute><SettingsInstall /></PrivateRoute>} />
             <Route path="/financas"     element={<PrivateRoute><Finance /></PrivateRoute>} />
             <Route path="/calendar"     element={<PrivateRoute><Calendar /></PrivateRoute>} />
             <Route path="/planos"       element={<Planos />} />

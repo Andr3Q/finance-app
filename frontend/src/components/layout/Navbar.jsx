@@ -16,6 +16,14 @@ const ROUTE_TITLES = {
   '/settings':    'Configurações',
   '/planos':      'Planos',
   '/calendar':    'Calendário',
+  '/settings/perfil':       'Perfil',
+  '/settings/seguranca':    'Segurança',
+  '/settings/notificacoes': 'Notificações',
+  '/settings/fechamento':   'Balanço mensal',
+  '/settings/indique':      'Indique e Ganhe',
+  '/settings/pagamentos':   'Pagamentos',
+  '/settings/dados':        'Meus dados',
+  '/settings/instalar':     'Instalar app',
 }
 
 function greeting() {
@@ -106,7 +114,10 @@ export default function Navbar() {
 
   const initials  = user.name ? user.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase() : '?'
   const isPro     = user.plan === 'pro' || user.plan === 'elite'
-  const isActive  = (path) => location.pathname === path
+  // "/settings" fica ativo em qualquer subtela dele (ex: /settings/seguranca)
+  const isActive  = (path) => path === '/settings'
+    ? location.pathname.startsWith('/settings')
+    : location.pathname === path
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'
