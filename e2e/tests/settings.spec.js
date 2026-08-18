@@ -142,7 +142,8 @@ test.describe('Configurações — Cancelar plano', () => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
     await page.getByRole('button', { name: /cancelar plano/i }).click()
-    await page.getByRole('button', { name: /voltar/i }).click()
+    // exact:true evita colidir com o link "Voltar para Mais" da casca da subtela
+    await page.getByRole('button', { name: 'Voltar', exact: true }).click()
     await expect(page.getByText(/confirmar cancelamento/i)).not.toBeVisible()
   })
 
