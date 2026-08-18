@@ -32,6 +32,13 @@ function isLoggedIn() {
   try { return !!JSON.parse(sessionStorage.getItem('user') || 'null') } catch { return false }
 }
 
+// Setado por saveUser() (hooks/useUser.js) na primeira sessão válida e nunca
+// removido no logout — permite pular a landing pra quem já usou o app neste
+// navegador, mesmo sem sessão ativa agora.
+function hasAccountOnThisDevice() {
+  try { return localStorage.getItem('nancy_has_account') === '1' } catch { return false }
+}
+
 // Contexto compartilhado entre App (que faz /auth/me) e PrivateRoute (que bloqueia
 // a renderização de conteúdo protegido até a validação server-side terminar).
 const AuthValidContext = createContext(false)
@@ -44,7 +51,9 @@ function PrivateRoute({ children }) {
 }
 
 function HomeRoute() {
-  return isLoggedIn() ? <Navigate to="/dashboard" replace /> : <Landing />
+  if (isLoggedIn()) return <Navigate to="/dashboard" replace />
+  if (hasAccountOnThisDevice()) return <Navigate to="/login" replace />
+  return <Landing />
 }
 
 function PageLoader() {
