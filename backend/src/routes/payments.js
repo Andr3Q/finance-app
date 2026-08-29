@@ -156,15 +156,31 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
         await tx.processedPayment.create({
           data: { paymentId: String(dataId), userId, plan, period },
         })
-        // A-03: acumula dias restantes — renovação antecipada não perde dias já pagos
-        const cur  = await tx.user.findUnique({ where: { id: userId }, select: { planExpiresAt: true } })
-        const base = cur?.planExpiresAt && cur.planExpiresAt > new Date() ? cur.planExpiresAt : new Date()
-        const planExpiresAt = new Date(base.getTime() + daysToAdd * DAY_MS)
-        return tx.user.update({
-          where:  { id: userId },
-          data:   { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
-          select: { email: true, name: true, planExpiresAt: true },
-        })
+
+        // A-03: acumula dias restantes — renovação antecipada não perde dias já pagos.
+        // Lock otimista com retry: dois pagamentos DIFERENTES do mesmo usuário quase
+        // simultâneos (ex: upgrade seguido de renovação) podem ambos ler o mesmo
+        // planExpiresAt "base" — sem isso, o segundo UPDATE sobrescreve o primeiro
+        // (lost update) e um dos pagamentos não credita dias, mesmo já pago. A
+        // condição no where (planExpiresAt = valor lido) faz o Postgres barrar a
+        // escrita se outra transação já mudou a linha — tenta de novo com o valor
+        // fresco em vez de simplesmente falhar, porque o pagamento tem que ser
+        // creditado de qualquer forma.
+        const MAX_RETRIES = 5
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          const cur  = await tx.user.findUnique({ where: { id: userId }, select: { planExpiresAt: true } })
+          const base = cur?.planExpiresAt && cur.planExpiresAt > new Date() ? cur.planExpiresAt : new Date()
+          const planExpiresAt = new Date(base.getTime() + daysToAdd * DAY_MS)
+
+          const claim = await tx.user.updateMany({
+            where: { id: userId, planExpiresAt: cur?.planExpiresAt ?? null },
+            data:  { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
+          })
+          if (claim.count === 1) {
+            return tx.user.findUnique({ where: { id: userId }, select: { email: true, name: true, planExpiresAt: true } })
+          }
+        }
+        throw new Error(`[payments] falha ao ativar plano após ${MAX_RETRIES} tentativas concorrentes (userId ${userId})`)
       })
     } catch (txErr) {
       if (txErr.code === 'P2002') {

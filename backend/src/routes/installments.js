@@ -90,25 +90,47 @@ router.patch('/:id/pay', async (req, res) => {
     const nextPaid = plan.paidInstallments + 1
     const { month, year } = nowBrasilia()
 
-    // Cria transação e atualiza plano atomicamente — se um falhar, nada persiste
-    const { updatedPlan, transaction } = await prisma.$transaction(async (db) => {
-      const transaction = await db.transaction.create({
-        data: {
-          description: `${plan.name} (parcela ${nextPaid}/${plan.totalInstallments})`,
-          amount:      plan.amount,
-          type:        'expense',
-          category:    'shopping',
-          month,
-          year,
-          userId:      req.userId,
-        },
-      })
-      const updatedPlan = await db.installmentPlan.update({
-        where: { id: plan.id },
-        data:  { paidInstallments: nextPaid, lastTransactionId: transaction.id },
-      })
-      return { updatedPlan, transaction }
-    })
+    let updatedPlan, transaction
+    try {
+      ;({ updatedPlan, transaction } = await prisma.$transaction(async (db) => {
+        // Claim atômico: só avança se paidInstallments continuar igual ao valor
+        // lido acima (lock otimista). Duas requisições concorrentes (duplo
+        // clique, retry de rede) partem do mesmo paidInstallments — só a
+        // primeira a commitar aqui ganha a corrida; a segunda recebe count:0
+        // e aborta ANTES de criar a transação de despesa, evitando duplicata.
+        const claim = await db.installmentPlan.updateMany({
+          where: { id: plan.id, userId: req.userId, paidInstallments: plan.paidInstallments },
+          data:  { paidInstallments: { increment: 1 } },
+        })
+        if (claim.count === 0) {
+          const err = new Error('Parcela já paga por outra requisição.')
+          err.code = 'CONCURRENT_PAY'
+          throw err
+        }
+
+        const transaction = await db.transaction.create({
+          data: {
+            description: `${plan.name} (parcela ${nextPaid}/${plan.totalInstallments})`,
+            amount:      plan.amount,
+            type:        'expense',
+            category:    'shopping',
+            month,
+            year,
+            userId:      req.userId,
+          },
+        })
+        const updatedPlan = await db.installmentPlan.update({
+          where: { id: plan.id },
+          data:  { lastTransactionId: transaction.id },
+        })
+        return { updatedPlan, transaction }
+      }))
+    } catch (err) {
+      if (err.code === 'CONCURRENT_PAY') {
+        return res.status(409).json({ error: 'Essa parcela já foi paga em outra requisição. Atualize a página.' })
+      }
+      throw err
+    }
 
     res.json({ plan: normalizePlan(updatedPlan), transaction: { ...transaction, amount: Number(transaction.amount) } })
   } catch (err) {

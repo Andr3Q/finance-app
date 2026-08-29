@@ -213,8 +213,12 @@ describe('POST /api/payments/webhook', () => {
       fn({
         processedPayment: { create: jest.fn().mockResolvedValue({}) },
         user: {
-          findUnique: jest.fn().mockResolvedValue({ planExpiresAt: null }),
-          update: jest.fn().mockResolvedValue(userResult),
+          // 1ª chamada: leitura do planExpiresAt "base" antes do claim.
+          // 2ª chamada: leitura final (email/nome) depois do claim ganhar a corrida.
+          findUnique: jest.fn()
+            .mockResolvedValueOnce({ planExpiresAt: null })
+            .mockResolvedValueOnce(userResult),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
       })
     )
@@ -258,9 +262,9 @@ describe('POST /api/payments/webhook', () => {
         processedPayment: { create: jest.fn().mockResolvedValue({}) },
         user: {
           findUnique: jest.fn().mockResolvedValue({ planExpiresAt: null }),
-          update: jest.fn().mockImplementation(({ data }) => {
+          updateMany: jest.fn().mockImplementation(({ data }) => {
             capturedData = data
-            return Promise.resolve({ email: 'u@t.com', name: 'U', planExpiresAt: data.planExpiresAt })
+            return Promise.resolve({ count: 1 })
           }),
         },
       })
@@ -284,9 +288,9 @@ describe('POST /api/payments/webhook', () => {
         processedPayment: { create: jest.fn().mockResolvedValue({}) },
         user: {
           findUnique: jest.fn().mockResolvedValue({ planExpiresAt: null }),
-          update: jest.fn().mockImplementation(({ data }) => {
+          updateMany: jest.fn().mockImplementation(({ data }) => {
             capturedData = data
-            return Promise.resolve({ email: 'u@t.com', name: 'U', planExpiresAt: data.planExpiresAt })
+            return Promise.resolve({ count: 1 })
           }),
         },
       })
@@ -298,6 +302,40 @@ describe('POST /api/payments/webhook', () => {
     const diff = Math.abs(capturedData.planExpiresAt - new Date(Date.now() + 366 * 24 * 3600 * 1000))
     expect(diff).toBeLessThan(5000)
     expect(capturedData.plan).toBe('elite')
+  })
+
+  // Regressão: dois pagamentos concorrentes do mesmo usuário (upgrade seguido de
+  // renovação quase simultânea) não podem fazer um "sumir" — o segundo precisa
+  // recomputar a partir do valor fresco (pós-commit do primeiro) e tentar de novo,
+  // em vez de sobrescrever com um valor calculado a partir de uma leitura obsoleta.
+  test('retry do lock otimista credita corretamente quando a 1ª tentativa perde a corrida', async () => {
+    mockPaymentGet()
+    const freshExpiry = new Date(Date.now() + 5 * 24 * 3600 * 1000) // valor pós-commit do outro pagamento concorrente
+    const finalUser   = { email: 'user@test.com', name: 'Test User', planExpiresAt: new Date(Date.now() + 36 * 24 * 3600 * 1000) }
+    let updateManyCalls = 0
+
+    prisma.$transaction.mockImplementation(async (fn) =>
+      fn({
+        processedPayment: { create: jest.fn().mockResolvedValue({}) },
+        user: {
+          findUnique: jest.fn()
+            .mockResolvedValueOnce({ planExpiresAt: null })        // 1ª leitura — base que vai perder a corrida
+            .mockResolvedValueOnce({ planExpiresAt: freshExpiry }) // 2ª leitura (retry) — valor fresco
+            .mockResolvedValueOnce(finalUser),                     // leitura final pro e-mail
+          updateMany: jest.fn().mockImplementation(() => {
+            updateManyCalls++
+            return Promise.resolve({ count: updateManyCalls === 1 ? 0 : 1 })
+          }),
+        },
+      })
+    )
+
+    const res = await signedWebhookPost()
+    await flushAsync()
+
+    expect(res.status).toBe(200)
+    expect(updateManyCalls).toBe(2) // 1ª tentativa (count:0) + retry que ganhou (count:1) — pagamento não foi perdido
+    expect(sendPlanActivationEmail).toHaveBeenCalledWith(finalUser.email, finalUser.name, 'pro', finalUser.planExpiresAt)
   })
 
   test('ignora quando payment.status != approved', async () => {
@@ -351,7 +389,7 @@ describe('POST /api/payments/webhook', () => {
     prisma.$transaction.mockImplementation(async (fn) =>
       fn({
         processedPayment: { create: jest.fn().mockRejectedValue(dup) },
-        user: { update: jest.fn() },
+        user: { findUnique: jest.fn(), updateMany: jest.fn() },
       })
     )
 
