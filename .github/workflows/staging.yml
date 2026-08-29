@@ -81,7 +81,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Instalar dependências
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Prisma generate
         run: npx prisma generate
@@ -139,9 +139,9 @@ jobs:
 
       - name: Instalar deps (raiz + frontend + backend)
         run: |
-          npm ci
-          npm ci --prefix frontend
-          npm ci --prefix backend
+          npm ci --include=dev
+          npm ci --include=dev --prefix frontend
+          npm ci --include=dev --prefix backend
 
       - name: Prisma migrate + seed
         working-directory: backend
@@ -225,7 +225,7 @@ jobs:
           node-version: '22'
 
       - name: Instalar dependências backend
-        run: npm ci
+        run: npm ci --include=dev
         working-directory: backend
 
       - name: Prisma migrate + seed
