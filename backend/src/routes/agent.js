@@ -187,16 +187,20 @@ async function runTool(name, args, userId, effectivePlan) {
       prisma.budget.findMany({ where: { userId } }),
       prisma.user.findUnique({ where: { id: userId }, select: { salary: true, plan: true } }),
     ])
-    const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-    const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-    const fixedTotal    = budgets.reduce((s, b) => s + b.amount, 0)
-    const salary        = user?.salary || 0
+    // Number(...) é obrigatório aqui: salary/amount são Prisma.Decimal, cujo
+    // valueOf()/toJSON() retorna string de propósito (evita conversão implícita
+    // perigosa) — sem isso, "+" concatena texto em vez de somar (ex: salário
+    // "23000" + totalIncome 0 vira "230000", dado 10x errado indo pra IA).
+    const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+    const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    const fixedTotal    = budgets.reduce((s, b) => s + Number(b.amount), 0)
+    const salary        = Number(user?.salary || 0)
     return {
       month, year,
       salary, totalIncome, totalExpenses, fixedTotal,
       balance: salary + totalIncome - fixedTotal - totalExpenses,
       transactionCount: txs.length, plan: user?.plan,
-      budgets: budgets.map(b => ({ name: b.name, amount: b.amount })),
+      budgets: budgets.map(b => ({ name: b.name, amount: Number(b.amount) })),
     }
   }
 
@@ -561,7 +565,7 @@ router.post('/predict', async (req, res) => {
 
     const totalExpenses  = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
     const totalIncome    = txs.filter(t => t.type === 'income').reduce((s, t)  => s + Number(t.amount), 0)
-    const salary         = user?.salary || 0
+    const salary         = Number(user?.salary || 0)
     const totalAvailable = salary + totalIncome
     const pct            = totalAvailable > 0 ? Math.round(totalExpenses / totalAvailable * 100) : 0
 
@@ -619,7 +623,7 @@ router.post('/monthly-report', async (req, res) => {
 
     const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
     const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t)  => s + Number(t.amount), 0)
-    const salary        = user?.salary || 0
+    const salary        = Number(user?.salary || 0)
     const fixedCosts    = budgets.reduce((s, b) => s + Number(b.amount), 0)
     const balance       = salary + totalIncome - fixedCosts - totalExpenses
 

@@ -134,9 +134,14 @@ export default function AgentChat() {
     } catch (err) {
       const status = err.response?.status
       const serverMsg = err.response?.data?.error
+      const limitReached = err.response?.data?.limitReached
       const errMsg =
         status === 429 ? 'Muitas mensagens seguidas. Aguarde alguns segundos.' :
         status === 503 ? 'Agente IA não configurado.' :
+        // 403 com limitReached é o gate de plano (agent.js requirePlan), não sessão
+        // expirada — o interceptor global (api.js) já sabe dessa distinção e não
+        // desloga o usuário nesse caso; a mensagem local precisa concordar.
+        limitReached ? (serverMsg || 'Recurso exclusivo do plano Elite.') :
         status === 401 || status === 403 ? 'Sessão expirada. Faça login novamente.' :
         !err.response ? 'Sem conexão com o servidor.' :
         serverMsg || 'Erro ao processar mensagem.'
