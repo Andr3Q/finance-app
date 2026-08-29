@@ -39,6 +39,10 @@ env:
   DATABASE_URL:        postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
   JWT_SECRET:          ${{ secrets.STAGING_JWT_SECRET }}
   STAGING_SEED_SECRET: ${{ secrets.STAGING_SEED_SECRET }}
+  # Só precisa existir (não-vazio) pra /api/monitor não devolver 503 antes do
+  # smoke test chegar a checar autenticação — este ambiente é local/efêmero,
+  # nunca exposto, então não precisa do secret real do Secret Manager do GCP.
+  MONITOR_SECRET:      staging-validation-ci-only
   NODE_ENV:            production
   PORT:                3099
 
