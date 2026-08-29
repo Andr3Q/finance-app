@@ -36,10 +36,11 @@ permissions:
   contents: read
 
 env:
-  DATABASE_URL:  postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
-  JWT_SECRET:    ${{ secrets.STAGING_JWT_SECRET }}
-  NODE_ENV:      production
-  PORT:          3099
+  DATABASE_URL:        postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
+  JWT_SECRET:          ${{ secrets.STAGING_JWT_SECRET }}
+  STAGING_SEED_SECRET: ${{ secrets.STAGING_SEED_SECRET }}
+  NODE_ENV:            production
+  PORT:                3099
 
 jobs:
 
