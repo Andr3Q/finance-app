@@ -4,6 +4,7 @@ const express = require('express')
 const crypto  = require('crypto')
 const router  = express.Router()
 const path    = require('path')
+const { reportError } = require('../lib/sentry')
 
 // Nome do serviço de produção no Cloud Run (deploy.yml: `SERVICE: finance-app`).
 // NODE_ENV não serve pra distinguir prod de staging aqui — o staging também
@@ -45,7 +46,7 @@ router.post('/seed-staging', async (req, res) => {
     require(seedPath)
     res.json({ ok: true, message: 'Seed iniciado em background.' })
   } catch (err) {
-    console.error('[admin] seed-staging error:', err.message)
+    reportError(err, { tag: '[admin] seed-staging error' })
     res.status(500).json({ error: 'Erro ao executar seed.' })
   }
 })

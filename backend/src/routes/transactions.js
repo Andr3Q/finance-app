@@ -20,6 +20,7 @@ const { dashboardLimiter } = require('../middleware/rateLimiter')
 
 const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES } = require('../utils/constants')
 const { nowBrasilia } = require('../utils/helpers')
+const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
 
@@ -78,7 +79,7 @@ router.get('/summary', dashboardLimiter, async (req, res) => {
       year
     })
   } catch (error) {
-    console.error('Erro no summary:', error)
+    reportError(error, { tag: 'Erro no summary' })
     res.status(500).json({ error: 'Erro ao calcular resumo.' })
   }
 })
@@ -120,7 +121,7 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
       budgets: budgets.map(b => ({ ...b, amount: Number(b.amount) })),
     })
   } catch (err) {
-    console.error('Erro no dashboard:', err)
+    reportError(err, { tag: 'Erro no dashboard' })
     res.status(500).json({ error: 'Erro ao carregar dashboard.' })
   }
 })
@@ -165,7 +166,7 @@ router.get('/monthly-history', dashboardLimiter, async (req, res) => {
 
     res.json(Object.values(map))
   } catch (err) {
-    console.error('Erro no histórico mensal:', err)
+    reportError(err, { tag: 'Erro no histórico mensal' })
     res.status(500).json({ error: 'Erro ao carregar histórico.' })
   }
 })
@@ -212,7 +213,7 @@ router.get('/subscriptions', dashboardLimiter, async (req, res) => {
 
     res.json(subscriptions)
   } catch (err) {
-    console.error('Erro nas assinaturas:', err)
+    reportError(err, { tag: 'Erro nas assinaturas' })
     res.status(500).json({ error: 'Erro ao detectar assinaturas.' })
   }
 })
@@ -406,12 +407,12 @@ router.post('/', dashboardLimiter, async (req, res) => {
             }
           }
         }
-      } catch (e) { console.error('Push error:', e.message) }
+      } catch (e) { reportError(e, { tag: 'Push error' }) }
     })
 
     res.status(201).json(normalizeTx(transaction))
   } catch (error) {
-    console.error('Erro ao criar transação:', error)
+    reportError(error, { tag: 'Erro ao criar transação' })
     res.status(500).json({ error: 'Erro ao registrar transação.' })
   }
 })
@@ -469,7 +470,7 @@ router.put('/:id', dashboardLimiter, async (req, res) => {
     const updated = await prisma.transaction.findUnique({ where: { id } })
     res.json(normalizeTx(updated))
   } catch (error) {
-    console.error('Erro ao atualizar transação:', error)
+    reportError(error, { tag: 'Erro ao atualizar transação' })
     res.status(500).json({ error: 'Erro ao atualizar transação.' })
   }
 })
@@ -486,7 +487,7 @@ router.delete('/:id', dashboardLimiter, async (req, res) => {
     if (result.count === 0) return res.status(404).json({ error: 'Transação não encontrada.' })
     res.json({ message: 'Transação removida com sucesso.' })
   } catch (error) {
-    console.error('Erro ao remover transação:', error)
+    reportError(error, { tag: 'Erro ao remover transação' })
     res.status(500).json({ error: 'Erro ao remover transação.' })
   }
 })
@@ -569,7 +570,7 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
       alreadyLaunched: false
     })
   } catch (error) {
-    console.error('Erro no auto-launch:', error)
+    reportError(error, { tag: 'Erro no auto-launch' })
     res.status(500).json({ error: 'Erro ao lançar contas fixas.' })
   }
 })
@@ -697,7 +698,7 @@ router.post('/import', dashboardLimiter, upload.single('file'), async (req, res)
     })
 
   } catch (error) {
-    console.error('Erro na importação:', error)
+    reportError(error, { tag: 'Erro na importação' })
     res.status(500).json({ error: 'Erro ao importar extrato.' })
   }
 })

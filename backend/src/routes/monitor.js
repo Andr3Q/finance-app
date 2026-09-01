@@ -6,6 +6,7 @@
 const express = require('express')
 const crypto  = require('crypto')
 const prisma  = require('../lib/prisma')
+const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
 
@@ -94,7 +95,7 @@ router.get('/login-stats', async (req, res) => {
       byHour,
     })
   } catch (err) {
-    console.error('[monitor] login-stats error:', err.message)
+    reportError(err, { tag: '[monitor] login-stats error' })
     res.status(500).json({ error: 'Erro interno.' })
   }
 })
@@ -128,7 +129,7 @@ router.get('/user-stats', async (req, res) => {
       },
     })
   } catch (err) {
-    console.error('[monitor] user-stats error:', err.message)
+    reportError(err, { tag: '[monitor] user-stats error' })
     res.status(500).json({ error: 'Erro interno.' })
   }
 })

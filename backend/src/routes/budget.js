@@ -17,6 +17,7 @@ const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 
 const { UUID_REGEX, MAX_AMOUNT, VALID_CATEGORIES } = require('../utils/constants')
+const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
 
@@ -183,7 +184,7 @@ router.put('/:id', async (req, res) => {
     res.json(normalizeBudget(budget))
   } catch (err) {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Conta fixa não encontrada.' })
-    console.error('Erro ao atualizar conta fixa:', err)
+    reportError(err, { tag: 'Erro ao atualizar conta fixa' })
     res.status(500).json({ error: 'Erro ao atualizar conta fixa.' })
   }
 })
@@ -198,7 +199,7 @@ router.delete('/:id', async (req, res) => {
     if (result.count === 0) return res.status(404).json({ error: 'Conta fixa não encontrada.' })
     res.json({ message: 'Conta fixa removida.' })
   } catch (error) {
-    console.error('Erro ao remover conta fixa:', error)
+    reportError(error, { tag: 'Erro ao remover conta fixa' })
     res.status(500).json({ error: 'Erro ao remover conta fixa.' })
   }
 })

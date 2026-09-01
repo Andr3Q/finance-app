@@ -5,6 +5,7 @@ const authMiddleware = require('../middleware/auth')
 
 const { UUID_REGEX } = require('../utils/constants')
 const { nowBrasilia } = require('../utils/helpers')
+const { reportError } = require('../lib/sentry')
 
 router.use(authMiddleware)
 
@@ -19,7 +20,7 @@ router.get('/', async (req, res) => {
     })
     res.json(plans.map(normalizePlan))
   } catch (err) {
-    console.error('Erro ao listar parcelamentos:', err)
+    reportError(err, { tag: 'Erro ao listar parcelamentos' })
     res.status(500).json({ error: 'Erro ao carregar parcelamentos.' })
   }
 })
@@ -70,7 +71,7 @@ router.post('/', async (req, res) => {
     })
     res.status(201).json(normalizePlan(plan))
   } catch (err) {
-    console.error('Erro ao criar parcelamento:', err)
+    reportError(err, { tag: 'Erro ao criar parcelamento' })
     res.status(500).json({ error: 'Erro ao criar parcelamento.' })
   }
 })
@@ -134,7 +135,7 @@ router.patch('/:id/pay', async (req, res) => {
 
     res.json({ plan: normalizePlan(updatedPlan), transaction: { ...transaction, amount: Number(transaction.amount) } })
   } catch (err) {
-    console.error('Erro ao pagar parcela:', err)
+    reportError(err, { tag: 'Erro ao pagar parcela' })
     res.status(500).json({ error: 'Erro ao registrar pagamento.' })
   }
 })
@@ -185,7 +186,7 @@ router.patch('/:id/unpay', async (req, res) => {
     const [updated] = await prisma.$transaction(ops)
     res.json(normalizePlan(updated))
   } catch (err) {
-    console.error('Erro ao desfazer parcela:', err)
+    reportError(err, { tag: 'Erro ao desfazer parcela' })
     res.status(500).json({ error: 'Erro ao desfazer parcela.' })
   }
 })
@@ -200,7 +201,7 @@ router.delete('/:id', async (req, res) => {
     if (result.count === 0) return res.status(404).json({ error: 'Parcelamento não encontrado.' })
     res.json({ message: 'Parcelamento removido.' })
   } catch (err) {
-    console.error('Erro ao remover parcelamento:', err)
+    reportError(err, { tag: 'Erro ao remover parcelamento' })
     res.status(500).json({ error: 'Erro ao remover parcelamento.' })
   }
 })

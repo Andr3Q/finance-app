@@ -15,18 +15,9 @@ if (!process.env.DATABASE_URL) {
 }
 
 // ── Sentry — inicializar antes de qualquer require de rota ──────────
-// Require CONDICIONAL: @sentry/node v10 usa OpenTelemetry que patcha o
-// sistema de módulos no load-time. Só carregamos quando SENTRY_DSN está
-// definido — isso evita interferência com Jest (que nunca define SENTRY_DSN).
-let Sentry = null
-if (process.env.SENTRY_DSN) {
-  Sentry = require('@sentry/node')
-  Sentry.init({
-    dsn:              process.env.SENTRY_DSN,
-    environment:      process.env.NODE_ENV ?? 'production',
-    tracesSampleRate: 0.1, // 10% das requisições (quota free: 10k/mês)
-  })
-}
+// (comentário completo do motivo em lib/sentry.js — precisa rodar aqui em
+// cima, antes de express/rotas, pra instrumentação automática funcionar)
+const { Sentry } = require('./lib/sentry')
 
 // ── Validação de variáveis obrigatórias na inicialização ─
 const REQUIRED_ENV = ['JWT_SECRET', 'DATABASE_URL']

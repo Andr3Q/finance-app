@@ -16,6 +16,7 @@ const { sendMonthlyReport }  = require('../services/emailService')
 const { generateMonthlyPDF } = require('../services/pdfService')
 const { reportLimiter }      = require('../middleware/rateLimiter')
 const { nowBrasilia }        = require('../utils/helpers')
+const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
 
@@ -90,7 +91,7 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
       summary
     })
   } catch (error) {
-    console.error('Erro no fechamento mensal:', error)
+    reportError(error, { tag: 'Erro no fechamento mensal' })
     res.status(500).json({ error: 'Erro ao fechar o mês. Tente novamente.' })
   }
 })

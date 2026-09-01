@@ -7,6 +7,7 @@ const QRCode     = require('qrcode')
 const prisma     = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { twoFALimiter } = require('../middleware/rateLimiter')
+const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
 
@@ -121,7 +122,7 @@ router.post('/setup', authMiddleware, twoFALimiter, async (req, res) => {
     const qrDataUrl = await QRCode.toDataURL(secret.otpauth_url)
     res.json({ qrCode: qrDataUrl, manualKey: secret.base32 })
   } catch (err) {
-    console.error('[2fa] setup:', err.message)
+    reportError(err, { tag: '[2fa] setup' })
     res.status(500).json({ error: 'Erro ao configurar 2FA.' })
   }
 })
@@ -170,7 +171,7 @@ router.post('/verify-setup', authMiddleware, twoFALimiter, async (req, res) => {
 
     res.json({ ok: true, backupCodes: plainCodes })
   } catch (err) {
-    console.error('[2fa] verify-setup:', err.message)
+    reportError(err, { tag: '[2fa] verify-setup' })
     res.status(500).json({ error: 'Erro ao ativar 2FA.' })
   }
 })
@@ -204,7 +205,7 @@ router.post('/disable', authMiddleware, twoFALimiter, async (req, res) => {
 
     res.json({ ok: true })
   } catch (err) {
-    console.error('[2fa] disable:', err.message)
+    reportError(err, { tag: '[2fa] disable' })
     res.status(500).json({ error: 'Erro ao desativar 2FA.' })
   }
 })
@@ -260,7 +261,7 @@ router.post('/verify-login', twoFALimiter, async (req, res) => {
     const { twoFactorSecret: _s, tokenVersion: _tv, lastUsedTotpToken: _lt, lastUsedTotpAt: _la, ...userOut } = user
     res.json({ user: userOut })
   } catch (err) {
-    console.error('[2fa] verify-login:', err.message)
+    reportError(err, { tag: '[2fa] verify-login' })
     res.status(500).json({ error: 'Erro ao validar código.' })
   }
 })
@@ -323,7 +324,7 @@ router.post('/use-backup-code', twoFALimiter, async (req, res) => {
     const { tokenVersion: _tv, ...userOut } = user
     res.json({ user: userOut })
   } catch (err) {
-    console.error('[2fa] use-backup-code:', err.message)
+    reportError(err, { tag: '[2fa] use-backup-code' })
     res.status(500).json({ error: 'Erro ao usar código de recuperação.' })
   }
 })
@@ -337,7 +338,7 @@ router.get('/backup-codes-count', authMiddleware, async (req, res) => {
     })
     res.json({ count })
   } catch (err) {
-    console.error('[2fa] backup-codes-count:', err.message)
+    reportError(err, { tag: '[2fa] backup-codes-count' })
     res.status(500).json({ error: 'Erro ao buscar códigos.' })
   }
 })
@@ -376,7 +377,7 @@ router.post('/regenerate-backup-codes', authMiddleware, twoFALimiter, async (req
 
     res.json({ backupCodes: plainCodes })
   } catch (err) {
-    console.error('[2fa] regenerate-backup-codes:', err.message)
+    reportError(err, { tag: '[2fa] regenerate-backup-codes' })
     res.status(500).json({ error: 'Erro ao regenerar códigos.' })
   }
 })

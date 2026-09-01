@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/auth')
 const { UUID_REGEX } = require('../utils/constants')
 const { sendPlanActivationEmail } = require('../services/emailService')
 const { paymentLimiter, webhookLimiter } = require('../middleware/rateLimiter')
+const { reportError } = require('../lib/sentry')
 
 const router  = express.Router()
 const APP_URL = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
@@ -94,7 +95,7 @@ router.post('/create-preference', authMiddleware, paymentLimiter, async (req, re
 
     res.json({ checkoutUrl: response.init_point })
   } catch (err) {
-    console.error('[payments] create-preference:', err.message)
+    reportError(err, { tag: '[payments] create-preference', userId: req.userId })
     res.status(500).json({ error: 'Erro ao criar preferência de pagamento.' })
   }
 })
@@ -195,7 +196,7 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
 
     console.log(`[payments] ${plan} ativado para ${userId} até ${activatedUser.planExpiresAt.toISOString().slice(0, 10)}`)
   } catch (err) {
-    console.error('[payments] webhook:', err.message)
+    reportError(err, { tag: '[payments] webhook' })
   }
 })
 

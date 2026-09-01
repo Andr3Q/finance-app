@@ -9,6 +9,7 @@ const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
+const { reportError } = require('../lib/sentry')
 
 // Mesmo fallback usado em server.js/emailService.js/payments.js — sem ele,
 // os links de verify-email/reset-password/unlock-account viravam caminhos
@@ -147,7 +148,7 @@ router.post('/register', registerLimiter, async (req, res) => {
       user: { id: user.id, name: user.name, email: user.email, salary: Number(user.salary || 0), reportEmail: user.reportEmail, plan: user.plan, isOnTrial: true, trialEndsAt: trialEndsAt.toISOString(), referralCode }
     })
   } catch (error) {
-    console.error('[auth] register:', error.message)
+    reportError(error, { tag: '[auth] register' })
     res.status(500).json({ error: 'Erro ao criar usuário.' })
   }
 })
@@ -260,7 +261,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       user: { id: user.id, name: user.name, email: user.email, salary: Number(user.salary || 0), reportEmail: user.reportEmail, plan: user.plan, referralCode: user.referralCode || null }
     })
   } catch (error) {
-    console.error('[auth] login:', error.message)
+    reportError(error, { tag: '[auth] login' })
     res.status(500).json({ error: 'Erro ao fazer login.' })
   }
 })
@@ -486,7 +487,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 
     res.json({ message: 'Se este e-mail existir, você receberá o link em breve.' })
   } catch (error) {
-    console.error('[auth] forgot-password:', error.message)
+    reportError(error, { tag: '[auth] forgot-password' })
     res.status(500).json({ error: 'Erro ao processar solicitação.' })
   }
 })
@@ -525,7 +526,7 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
 
     res.json({ message: 'Senha redefinida com sucesso! Faça login com a nova senha.' })
   } catch (error) {
-    console.error('[auth] reset-password:', error.message)
+    reportError(error, { tag: '[auth] reset-password' })
     res.status(500).json({ error: 'Erro ao redefinir senha.' })
   }
 })
@@ -588,7 +589,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
     })
     res.json({ user: { ...user, salary: Number(user.salary || 0) } })
   } catch (error) {
-    console.error('[auth] profile:', error.message)
+    reportError(error, { tag: '[auth] profile' })
     res.status(500).json({ error: 'Erro ao atualizar perfil.' })
   }
 })
@@ -625,7 +626,7 @@ router.delete('/account', authMiddleware, async (req, res) => {
     res.clearCookie('token', { httpOnly: true, secure: isProd, sameSite: 'strict', path: '/' })
     res.json({ message: 'Conta excluída com sucesso. Seus dados foram removidos permanentemente.' })
   } catch (error) {
-    console.error('[auth] delete-account:', error.message)
+    reportError(error, { tag: '[auth] delete-account' })
     res.status(500).json({ error: 'Erro ao excluir conta.' })
   }
 })
@@ -704,7 +705,7 @@ router.put('/password', authMiddleware, async (req, res) => {
 
     res.json({ ok: true })
   } catch (err) {
-    console.error('[auth] password:', err.message)
+    reportError(err, { tag: '[auth] password' })
     res.status(500).json({ error: 'Erro ao alterar senha.' })
   }
 })
@@ -745,7 +746,7 @@ router.post('/verify-email', async (req, res) => {
 
     res.json({ ok: true })
   } catch (err) {
-    console.error('[auth] verify-email:', err.message)
+    reportError(err, { tag: '[auth] verify-email' })
     res.status(500).json({ error: 'Erro ao verificar e-mail.' })
   }
 })
@@ -774,7 +775,7 @@ router.post('/unlock-account', async (req, res) => {
 
     res.json({ ok: true })
   } catch (err) {
-    console.error('[auth] unlock-account:', err.message)
+    reportError(err, { tag: '[auth] unlock-account' })
     res.status(500).json({ error: 'Erro ao desbloquear conta.' })
   }
 })
@@ -803,7 +804,7 @@ router.post('/resend-verification', authMiddleware, verifyEmailLimiter, async (r
 
     res.json({ ok: true })
   } catch (err) {
-    console.error('[auth] resend-verification:', err.message)
+    reportError(err, { tag: '[auth] resend-verification' })
     res.status(500).json({ error: 'Erro ao reenviar verificação.' })
   }
 })
@@ -842,7 +843,7 @@ router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
     res.setHeader('Pragma', 'no-cache')
     res.json(exportData)
   } catch (err) {
-    console.error('[auth] export-data:', err.message)
+    reportError(err, { tag: '[auth] export-data' })
     res.status(500).json({ error: 'Erro ao exportar dados.' })
   }
 })

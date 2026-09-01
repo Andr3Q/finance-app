@@ -2,6 +2,7 @@ const express = require('express')
 const router  = express.Router()
 const prisma  = require('../lib/prisma')
 const auth    = require('../middleware/auth')
+const { reportError } = require('../lib/sentry')
 
 router.use(auth)
 
@@ -55,7 +56,7 @@ router.post('/subscribe', async (req, res) => {
     })
     res.json({ ok: true })
   } catch (err) {
-    console.error('Erro ao salvar assinatura push:', err)
+    reportError(err, { tag: 'Erro ao salvar assinatura push' })
     res.status(500).json({ error: 'Erro ao salvar assinatura.' })
   }
 })

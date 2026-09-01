@@ -7,6 +7,7 @@ const authMiddleware = require('../middleware/auth')
 const { transcribeLimiter } = require('../middleware/rateLimiter')
 const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS, UUID_REGEX, MAX_AMOUNT } = require('../utils/constants')
 const { nowBrasilia } = require('../utils/helpers')
+const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
 router.use(authMiddleware)
@@ -333,7 +334,7 @@ function sanitizeHistory(history) {
 }
 
 function handleGroqError(err, res) {
-  console.error('[AGENT]', err.status || '', err.message)
+  reportError(err, { tag: '[AGENT]', groqStatus: err.status })
   if (err.status === 429 || err.status === 529) {
     return res.status(429).json({ error: 'Serviço de IA sobrecarregado. Aguarde alguns segundos e tente novamente.' })
   }
@@ -500,7 +501,7 @@ router.post('/chat', async (req, res) => {
         msg.tool_calls.map(async (call) => {
           let args
           try { args = JSON.parse(call.function.arguments || '{}') } catch (e) {
-            console.error(`[AGENT] parse args ${call.function.name}:`, e.message)
+            reportError(e, { tag: '[AGENT] parse args', tool: call.function.name })
             args = {}
           }
 
@@ -516,7 +517,7 @@ router.post('/chat', async (req, res) => {
           try {
             result = await runTool(call.function.name, args, req.userId, req.userPlan)
           } catch (toolErr) {
-            console.error(`[AGENT] tool ${call.function.name}:`, toolErr.message)
+            reportError(toolErr, { tag: '[AGENT] tool', tool: call.function.name, userId: req.userId })
             result = { error: 'Erro ao buscar dados. Tente novamente.' }
           }
           return { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 8000) }
