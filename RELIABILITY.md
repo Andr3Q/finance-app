@@ -73,11 +73,15 @@ O threshold de **3 falhas consecutivas** antes de `degraded` (`server.js:288`) �
 
 `deploy.yml` — só publica se, em sequência: testes (Jest + Vitest + E2E) passarem, schema Prisma estiver sincronizado com as migrations, o deploy no Cloud Run suceder, o health check pós-deploy responder 200 (3 tentativas), e os 6 smoke tests passarem. Qualquer falha depois do deploy aciona **rollback automático** pra revisão anterior. Não há meta graduada (cobertura de teste mínima, orçamento de performance) — é um gate binário, mas é o SLO mais rigoroso que o projeto de fato aplica.
 
-### Uptime histórico — ainda sem número (próximo passo)
+### Uptime histórico — coleta iniciada, meta numérica ainda pendente
 
-Não existe hoje nenhuma série histórica de disponibilidade — o health check é ponto-a-ponto, sem persistência. Decisão tomada em 2026-09-01: configurar um monitor externo gratuito (UptimeRobot ou equivalente) apontando pro `/health` de produção e homologação, em vez de expandir o Prometheus/Grafana local (esse stack já existe nesta máquina, mas monitora só o host local — alcançar o Cloud Run, que escala a zero, exigiria infra nova sempre ligada, o oposto do que a sessão de hoje corrigiu no custo do GCP).
+Até 2026-09-01 não existia nenhuma série histórica de disponibilidade — o health check era ponto-a-ponto, sem persistência. Decisão: configurar um monitor externo gratuito (UptimeRobot) apontando pro `/health`, em vez de expandir o Prometheus/Grafana local (esse stack já existe nesta máquina, mas monitora só o host local — alcançar o Cloud Run, que escala a zero, exigiria infra nova sempre ligada, o oposto do que esta mesma sessão corrigiu no custo do GCP).
 
-Depois de ~2-4 semanas de dado acumulado, definir aqui um SLO numérico real (ex: "99.5% de uptime mensal"), baseado no que os dados mostram — não em um chute.
+**Feito em 2026-09-01**: dois monitores HTTP criados no UptimeRobot (plano free, checagem a cada 5 min, alerta por e-mail), um pra cada ambiente:
+- Homologação — `https://finance-app-staging-vzcnezphtq-rj.a.run.app/health`
+- Produção — `https://myfinancepro.com.br/health`
+
+**Pendente**: esperar ~2-4 semanas de dado acumulado e então definir aqui um SLO numérico real (ex: "99.5% de uptime mensal"), baseado no que os dados mostram — não em um chute. Revisitar esta seção a partir de ~2026-09-29.
 
 **Nota:** existe um serviço externo já configurado, "finance-monitor" (Vercel, fora deste repositório), referenciado em `.env.example:70-74`, que aparentemente já faz ping no `/health`. O webhook que ele citava (`POST /api/monitor-alert`) não existe neste código — vale confirmar se esse serviço segue ativo antes de decidir se o UptimeRobot substitui ou roda em paralelo com ele.
 
