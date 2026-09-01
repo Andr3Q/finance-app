@@ -1,6 +1,6 @@
 # Confiabilidade do Nancy — SLI, SLO e SLA
 
-> **Status:** SLI e SLO em vigor (informal → formalizado aqui). SLA ainda **não implementado** — aguardando dado histórico de uptime.
+> **Status:** SLI em vigor. SLO documentado, coleta de uptime em andamento. SLA: **rascunho pronto** (soft, sem reembolso), aguardando ~2-4 semanas de dado real pra preencher o número antes de publicar em `TermsOfUse.jsx`.
 > **Data:** 2026-09-01 | **Origem:** auditoria de código pós-incidente (bugs de IA relatados por beta testers)
 
 ---
@@ -89,16 +89,27 @@ Até 2026-09-01 não existia nenhuma série histórica de disponibilidade — o 
 
 ## SLA — Acordo de Nível de Serviço
 
-**Status: não implementado.** O único texto relacionado a disponibilidade no produto é uma cláusula de isenção de responsabilidade, não um compromisso:
+**Status: rascunho pronto, aguardando o número.** Hoje (`TermsOfUse.jsx:110-115`) o único texto relacionado a disponibilidade é uma cláusula de isenção de responsabilidade, não um compromisso:
 
 > "Buscamos manter o serviço disponível 24/7, mas não garantimos disponibilidade ininterrupta. Manutenções programadas serão comunicadas com antecedência. Não nos responsabilizamos por perdas decorrentes de indisponibilidade temporária."
-> — `frontend/src/pages/TermsOfUse.jsx:110-115`, seção "7. Disponibilidade do serviço"
 
-**Por quê ainda não**: um SLA promete um número. Prometer um número sem dado histórico real é chute — e chute errado em compromisso público com usuário pagante é pior que não ter SLA nenhum.
+**Decisões já tomadas (2026-09-01)**:
+- **Tipo: soft** — meta pública, com compromisso de transparência em caso de incidente, **sem** crédito/reembolso contratual. Risco jurídico/financeiro baixo, adequado ao estágio atual (Nancy ainda em teste fechado, sem histórico de uptime consolidado). Reavaliar pra "hard" (com reembolso) só depois de ter base de clientes pagantes estável e vários meses de dado consistente.
+- **Por que o número ainda não está preenchido**: um SLA promete um número. Prometer sem dado histórico real é chute — e chute errado em compromisso público é pior que não ter SLA nenhum. A coleta via UptimeRobot (seção anterior) começou em 2026-09-01; revisitar esta seção a partir de **~2026-09-29** pra substituir o placeholder pelo número real.
 
-**Plano**: assim que a coleta de uptime (seção anterior) acumular 1-3 meses de dado real, decidir:
-1. Que número de disponibilidade é sustentável prometer de verdade, baseado no que os dados já mostraram.
-2. Se o SLA é **soft** (meta pública, sem remédio contratual) ou **hard** (com crédito/reembolso se não cumprido) — decisão de negócio sobre apetite a risco, não técnica.
-3. Só então atualizar `TermsOfUse.jsx:110-115`, substituindo a isenção de responsabilidade atual por um compromisso de verdade.
+**Rascunho do texto** — substitui a seção 7 de `TermsOfUse.jsx` quando o `[XX,X]` for preenchido com o número real. Mantém o tom direto já usado no resto do documento (parágrafos curtos, sem juridiquês):
+
+> ### 7. Disponibilidade do serviço
+>
+> Nosso compromisso é manter o Nancy disponível **[XX,X]% do tempo, medido mensalmente**. Essa meta é acompanhada de forma automática e contínua, verificando o serviço a cada 5 minutos.
+>
+> Não entram no cálculo:
+> - Manutenções programadas, sempre comunicadas com pelo menos 24h de antecedência
+> - Indisponibilidade causada por provedores terceiros fora do nosso controle (ex: Google Cloud, Cloudflare, ou o banco de dados)
+> - Situações de força maior
+>
+> Se tivermos um incidente que afete essa meta, publicamos um comunicado explicando o que aconteceu e o que estamos fazendo a respeito. Este é um compromisso de transparência — não gera direito a reembolso ou crédito.
+
+**Antes de publicar** (quando o número estiver definido): confirmar se a meta vale igual pra todos os planos ou só Pro/Elite — o rascunho acima assume que vale pra todo mundo, por simplicidade, já que não tem remédio financeiro associado (é só transparência). Ajustar se fizer mais sentido diferenciar.
 
 Nenhuma ação de código pendente aqui — só aguardar dado.
