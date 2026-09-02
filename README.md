@@ -339,6 +339,7 @@ As migrations pendentes são aplicadas na inicialização do container com retry
 | `UPGRADE_SECRET` | Não | Segredo para ativar plano Pro manualmente |
 | `MONITOR_SECRET` | Não | Header de autenticação do `/api/monitor` |
 | `MONITOR_COOLDOWN_MINUTES` | Não | Intervalo mínimo entre alertas push (padrão: 15) |
+| `CRON_SECRET` | Não | Header de autenticação do `/api/cron` (varredura diária de lembretes) |
 | `SENTRY_DSN` | Não | DSN do Sentry para monitoramento de erros (backend) |
 | `VITE_SENTRY_DSN` | Não | DSN do Sentry para monitoramento de erros (frontend) |
 | `POSTHOG_KEY` | Não | Chave do PostHog para analytics de frontend |
@@ -535,7 +536,7 @@ AccountUnlockToken
 - **UUID validation** em todos os parâmetros de rota
 - **CORS** restrito a origins configuradas em produção
 - **SSRF protection** no endpoint de Web Push (whitelist de hosts)
-- **`crypto.timingSafeEqual`** para comparação de segredos (UPGRADE_SECRET, MONITOR_SECRET, STAGING_SEED_SECRET)
+- **`crypto.timingSafeEqual`** para comparação de segredos (UPGRADE_SECRET, MONITOR_SECRET, CRON_SECRET, STAGING_SEED_SECRET)
 - **Envio de e-mail com falha honesta** — erro da Resend é propagado (nunca silenciado); rotas como `/forgot-password` retornam erro real em vez de fingir sucesso quando o e-mail não sai
 - **`X-Request-Id`** em todas as respostas para correlação de logs
 - **LoginAudit** — log de todas as tentativas de autenticação (email, IP, userAgent, sucesso)

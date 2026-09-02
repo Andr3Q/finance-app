@@ -1,0 +1,44 @@
+name: Lembretes de Vencimento — Trial e Renovação
+
+on:
+  schedule:
+    - cron: '0 13 * * *'   # todo dia às 13h UTC (10h Brasília) — 1h depois do keepalive
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente alvo'
+        type: choice
+        default: production
+        options: [production, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Disparar varredura de lembretes
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TARGET_ENV: ${{ inputs.environment || 'production' }}
+        run: |
+          if [ "$TARGET_ENV" = "staging" ]; then
+            URL="https://finance-app-staging-vzcnezphtq-rj.a.run.app/api/cron/plan-reminders"
+          else
+            URL="https://finance-app-1042158013294.southamerica-east1.run.app/api/cron/plan-reminders"
+          fi
+
+          RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 60 \
+            -X POST "$URL" \
+            -H "x-cron-secret: $CRON_SECRET")
+
+          echo "HTTP status: $RESPONSE"
+          cat /tmp/response.json
+          echo
+
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Falha na varredura de lembretes: status $RESPONSE"
+            exit 1
+          fi

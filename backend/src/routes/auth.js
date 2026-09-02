@@ -4,11 +4,13 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail } = require('../services/emailService')
+const { sendResetEmail, sendWelcomeEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
+const { computeEffectivePlan } = require('../utils/helpers')
+const { remindUserIfDue } = require('../jobs/planReminders')
 const { reportError } = require('../lib/sentry')
 
 // Mesmo fallback usado em server.js/emailService.js/payments.js — sem ele,
@@ -281,54 +283,35 @@ router.get('/me', authMiddleware, async (req, res) => {
       where: { createdAt: { lt: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) } }
     }).catch(() => {})
 
+    // Mesma regra de expiração usada pelo authMiddleware para calcular req.userPlan —
+    // aqui, além de gatear, persiste o rebaixamento no banco (é o único lugar que faz isso).
+    const { planExpired, trialExpired } = computeEffectivePlan(user, now)
+
     // Rebaixa para free se o plano pago expirou
-    let planJustExpired = false
-    if (user.plan !== 'free' && user.planExpiresAt && user.planExpiresAt < now && !user.trialEndsAt) {
-      planJustExpired = true
+    if (planExpired) {
       user = await prisma.user.update({
         where:  { id: req.userId },
         data:   { plan: 'free', planExpiresAt: null },
         select: ME_SELECT,
       })
+      sendPlanExpiredEmail(user.email, user.name, 'paid').catch(() => {})
     }
-    if (planJustExpired) sendPlanExpiredEmail(user.email, user.name, 'paid').catch(() => {})
 
     // Rebaixa para free se o trial expirou (sem plano pago ativo)
-    let trialJustExpired = false
-    if (user.trialEndsAt && user.trialEndsAt < now && (!user.planExpiresAt || user.planExpiresAt < now)) {
-      trialJustExpired = true
+    if (trialExpired) {
       user = await prisma.user.update({
         where:  { id: req.userId },
         data:   { plan: 'free', trialEndsAt: null },
         select: ME_SELECT,
       })
-    }
-    if (trialJustExpired) sendPlanExpiredEmail(user.email, user.name, 'trial').catch(() => {})
-
-    // Lembrete de trial expirando: dispara aos 3 dias restantes (apenas uma vez)
-    if (user.trialEndsAt && user.trialEndsAt > now && !user.trialReminderSent) {
-      const daysLeft = Math.ceil((user.trialEndsAt - now) / (1000 * 60 * 60 * 24))
-      if (daysLeft <= 3) {
-        prisma.user.update({ where: { id: req.userId }, data: { trialReminderSent: true } }).catch(() => {})
-        sendTrialExpiryEmail(user.email, user.name, daysLeft).catch(() => {})
-        const urgencyMsg = daysLeft <= 1 ? 'Seu trial expira hoje!' : `Seu trial expira em ${daysLeft} dias.`
-        sendPushToUser(req.userId, {
-          title: '⏰ Trial Pro expirando',
-          body:  `${urgencyMsg} Assine para manter todos os recursos.`,
-          url:   '/planos',
-        }).catch(() => {})
-      }
+      sendPlanExpiredEmail(user.email, user.name, 'trial').catch(() => {})
     }
 
-    // Lembrete de renovação lazy: 30 dias antes para planos anuais, 7 dias para mensais
-    if (user.plan !== 'free' && user.planExpiresAt && !user.trialEndsAt && !user.renewalReminderSent) {
-      const daysLeft        = Math.ceil((user.planExpiresAt - now) / (1000 * 60 * 60 * 24))
-      const reminderThreshold = user.planPeriod === 'annual' ? 30 : 7
-      if (daysLeft > 0 && daysLeft <= reminderThreshold) {
-        prisma.user.update({ where: { id: req.userId }, data: { renewalReminderSent: true } }).catch(() => {})
-        sendRenewalReminderEmail(user.email, user.name, user.plan, daysLeft).catch(() => {})
-      }
-    }
+    // Lembrete de vencimento (trial ou renovação de plano pago) — mesma lógica
+    // usada pela varredura diária (backend/src/jobs/planReminders.js), que cobre
+    // quem não abre o app; isto aqui é só o atalho pra quem já está com o app
+    // aberto agora. Não bloqueia a resposta do /me.
+    remindUserIfDue(user, now).catch(err => reportError(err, { tag: '[auth/me] remindUserIfDue', userId: req.userId }))
 
     // Digest semanal lazy: dispara na primeira visita após 7+ dias do último envio
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
@@ -437,7 +420,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     if (userOut.plan !== 'free' && planExpiresAt) {
       userOut.planExpiresAt = planExpiresAt.toISOString()
     }
-    if (trialJustExpired) userOut.trialJustExpired = true
+    if (trialExpired) userOut.trialJustExpired = true
     res.json(userOut)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar usuário.' })

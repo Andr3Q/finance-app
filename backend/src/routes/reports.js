@@ -41,12 +41,9 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
-    const now          = new Date()
-    const trialExpired = user.trialEndsAt && user.trialEndsAt < now && !user.planExpiresAt
-    const planExpired  = user.planExpiresAt && user.planExpiresAt < now
-    const effectivePlan = (trialExpired || planExpired) ? 'free' : user.plan
-
-    if (effectivePlan === 'free') {
+    // req.userPlan já vem calculado (e testado) pelo authMiddleware — evita recalcular
+    // a mesma regra de expiração de plano/trial aqui com uma fórmula divergente (C-01).
+    if (req.userPlan === 'free') {
       return res.status(403).json({
         error: 'O relatório mensal em PDF é exclusivo do plano Pro.',
         limitReached: true,

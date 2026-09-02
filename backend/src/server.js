@@ -47,6 +47,7 @@ const paymentRoutes       = require('./routes/payments')
 const twoFactorRoutes     = require('./routes/twoFactor')
 const monitorRoutes       = require('./routes/monitor')
 const adminRoutes         = require('./routes/admin')
+const cronRoutes          = require('./routes/cron')
 const errorHandler        = require('./interfaces/http/middlewares/errorHandler')
 
 // ── Logger estruturado (pino) ───────────────────────────
@@ -228,6 +229,7 @@ app.use('/api/installments', installmentRoutes)
 app.use('/api/payments',     paymentRoutes)
 app.use('/api/monitor',     monitorRoutes)
 app.use('/api/admin',       adminRoutes)
+app.use('/api/cron',        cronRoutes)
 
 // ── Health endpoints (antes do SPA catch-all) ───────────
 // Cliente DEDICADO ao health check — completamente separado do pool principal.

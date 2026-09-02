@@ -36,18 +36,12 @@ function requireGroq(res) {
 // Verifica se o plano do usuário atende ao mínimo exigido.
 // Retorna true se OK, false + resposta 403 se insuficiente.
 // Usa limitReached:true para o interceptor do frontend não fazer logout.
-async function requirePlan(req, res, minimum) {
+// req.userPlan já vem calculado (e testado) pelo authMiddleware — evita uma query
+// extra + recalcular a mesma regra de expiração de plano/trial aqui, com risco de
+// fórmula divergente (foi assim que o bug C-01 aconteceu).
+function requirePlan(req, res, minimum) {
   const RANKS = { free: 0, pro: 1, elite: 2 }
-  const user  = await prisma.user.findUnique({
-    where:  { id: req.userId },
-    select: { plan: true, planExpiresAt: true, trialEndsAt: true },
-  })
-  const now          = new Date()
-  // Trial expirado: plan='pro', planExpiresAt=null, trialEndsAt=<passado>
-  const trialExpired = user?.trialEndsAt && user.trialEndsAt < now && !user.planExpiresAt
-  const expired      = (user?.planExpiresAt && user.planExpiresAt < now) || trialExpired
-  const plan         = expired ? 'free' : (user?.plan || 'free')
-  if ((RANKS[plan] ?? 0) < (RANKS[minimum] ?? 0)) {
+  if ((RANKS[req.userPlan] ?? 0) < (RANKS[minimum] ?? 0)) {
     res.status(403).json({
       error:        `Esta funcionalidade requer o plano ${minimum === 'elite' ? 'Elite' : 'Pro'}.`,
       limitReached: true,
