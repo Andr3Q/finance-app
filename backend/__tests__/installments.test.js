@@ -263,7 +263,10 @@ describe('PATCH /api/installments/:id/pay', () => {
     prisma.$transaction.mockImplementation(async (fn) =>
       fn({
         transaction:     { create: jest.fn().mockResolvedValue(createdTx) },
-        installmentPlan: { update: jest.fn().mockResolvedValue(updatedPlan) },
+        installmentPlan: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          update:     jest.fn().mockResolvedValue(updatedPlan),
+        },
       })
     )
 
@@ -275,6 +278,34 @@ describe('PATCH /api/installments/:id/pay', () => {
     expect(res.body.plan.paidInstallments).toBe(3)
     expect(res.body.transaction.type).toBe('expense')
     expect(res.body.transaction.category).toBe('shopping')
+  })
+
+  // Regressão: duas requisições concorrentes (duplo clique, retry de rede) não
+  // podem ambas criar uma transação de despesa pra mesma parcela — o claim
+  // atômico (updateMany condicional) precisa barrar a segunda ANTES da criação.
+  test('409 quando a parcela já foi paga por uma requisição concorrente (claim falha)', async () => {
+    const plan = mockPlan({ paidInstallments: 2, totalInstallments: 12 })
+    const createTx = jest.fn()
+
+    prisma.installmentPlan.findFirst.mockResolvedValue(plan)
+    prisma.$transaction.mockImplementation(async (fn) =>
+      fn({
+        transaction:     { create: createTx },
+        installmentPlan: {
+          updateMany: jest.fn().mockResolvedValue({ count: 0 }), // outra requisição já ganhou a corrida
+          update:     jest.fn(),
+        },
+      })
+    )
+
+    const res = await request(app)
+      .patch(`/api/installments/${PLAN_ID}/pay`)
+      .set('Authorization', `Bearer ${makeToken()}`)
+
+    expect(res.status).toBe(409)
+    expect(res.body.error).toMatch(/já foi paga/i)
+    // A garantia central da correção: nenhuma transação de despesa duplicada é criada
+    expect(createTx).not.toHaveBeenCalled()
   })
 
   test('descrição da transação segue o formato "Nome (parcela N/Total)"', async () => {
@@ -292,7 +323,10 @@ describe('PATCH /api/installments/:id/pay', () => {
             return Promise.resolve(createdTx)
           }),
         },
-        installmentPlan: { update: jest.fn().mockResolvedValue(updatedPlan) },
+        installmentPlan: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          update:     jest.fn().mockResolvedValue(updatedPlan),
+        },
       })
     )
 
@@ -311,7 +345,10 @@ describe('PATCH /api/installments/:id/pay', () => {
     prisma.$transaction.mockImplementation(async (fn) =>
       fn({
         transaction:     { create: jest.fn().mockRejectedValue(new Error('DB error')) },
-        installmentPlan: { update: jest.fn() },
+        installmentPlan: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          update:     jest.fn(),
+        },
       })
     )
 

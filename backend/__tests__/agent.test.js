@@ -1,6 +1,7 @@
 'use strict'
 const request = require('supertest')
 const jwt     = require('jsonwebtoken')
+const { Prisma } = require('@prisma/client')
 
 process.env.GROQ_API_KEY = 'test-groq-key'
 
@@ -187,6 +188,57 @@ describe('Ferramenta update_transaction (via /api/agent/chat)', () => {
   })
 })
 
+// ══════════════════════════════════════════════════════════
+// Ferramenta get_summary — regressão do bug de saldo 10x maior
+// (soma de Prisma.Decimal sem Number() vira concatenação de string:
+// salário "23000" + totalIncome 0 = "230000")
+// ══════════════════════════════════════════════════════════
+describe('Ferramenta get_summary (via /api/agent/chat)', () => {
+  test('saldo não fica 10x maior com salário Decimal redondo e sem receita extra no mês', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', salary: new Prisma.Decimal('23000.00') }))
+    prisma.transaction.findMany.mockResolvedValue([]) // sem transações => totalIncome/totalExpenses ficam 0 puro
+    prisma.budget.findMany.mockResolvedValue([])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_summary', {}))
+      .mockResolvedValueOnce(simpleReply('Seu saldo é R$ 23.000,00.'))
+
+    await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Quanto eu tenho no meu saldo?' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(toolResult.salary).toBe(23000)
+    expect(toolResult.balance).toBe(23000)
+  })
+
+  test('soma corretamente valores Decimal de receitas, despesas e contas fixas', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', salary: new Prisma.Decimal('5000.00') }))
+    prisma.transaction.findMany.mockResolvedValue([
+      { type: 'income',  amount: new Prisma.Decimal('1500.50') },
+      { type: 'expense', amount: new Prisma.Decimal('320.25') },
+      { type: 'expense', amount: new Prisma.Decimal('80.00') },
+    ])
+    prisma.budget.findMany.mockResolvedValue([
+      { name: 'Aluguel', amount: new Prisma.Decimal('1200.00') },
+    ])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_summary', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Qual meu saldo?' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(toolResult.totalIncome).toBe(1500.5)
+    expect(toolResult.totalExpenses).toBeCloseTo(400.25, 2)
+    expect(toolResult.fixedTotal).toBe(1200)
+    expect(toolResult.balance).toBeCloseTo(5000 + 1500.5 - 1200 - 400.25, 2)
+  })
+})
+
 describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {
   test('exclui a transação e confirma na resposta', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
@@ -344,6 +396,21 @@ describe('POST /api/agent/predict — gate de plano', () => {
     expect(res.body.prediction).toBeNull()
     expect(mockCreate).not.toHaveBeenCalled()
   })
+
+  test('não quebra e calcula o disponível corretamente com salário Decimal redondo (regressão do bug de 10x)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro', salary: new Prisma.Decimal('23000.00') }))
+    prisma.transaction.findMany.mockResolvedValue([
+      { type: 'expense', amount: new Prisma.Decimal('500.00'), category: 'food' },
+    ])
+    mockCreate.mockResolvedValueOnce(simpleReply('Você deve fechar o mês no azul.'))
+
+    const res = await request(app).post('/api/agent/predict').set(authHeader())
+
+    expect(res.status).toBe(200)
+    const promptSent = mockCreate.mock.calls[0][0].messages[1].content
+    expect(promptSent).toContain('Disponível: R$ 23000.00')
+    expect(promptSent).not.toContain('230000.00')
+  })
 })
 
 // ══════════════════════════════════════════════════════════
@@ -357,6 +424,23 @@ describe('POST /api/agent/monthly-report — gate de plano', () => {
 
     expect(res.status).toBe(403)
     expect(res.body.requiredPlan).toBe('elite')
+  })
+
+  test('saldo do relatório não fica 10x maior com salário Decimal redondo (regressão do bug de 10x)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', salary: new Prisma.Decimal('23000.00') }))
+    prisma.transaction.findMany.mockResolvedValue([
+      { type: 'expense', amount: new Prisma.Decimal('1200.00'), category: 'food', description: 'Mercado' },
+    ])
+    prisma.budget.findMany.mockResolvedValue([])
+    mockCreate.mockResolvedValueOnce(simpleReply('Relatório gerado.'))
+
+    const res = await request(app).post('/api/agent/monthly-report').set(authHeader()).send({})
+
+    expect(res.status).toBe(200)
+    const promptSent = mockCreate.mock.calls[0][0].messages[1].content
+    expect(promptSent).toContain('Salário R$23000.00')
+    expect(promptSent).toContain('Saldo R$21800.00')
+    expect(promptSent).not.toContain('230000.00')
   })
 })
 

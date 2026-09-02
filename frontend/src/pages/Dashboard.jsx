@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI, agentAPI, goalsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useTheme } from '../hooks/useTheme.js'
@@ -17,6 +17,7 @@ import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notificat
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const location = useLocation()
   const user = useUser()
   const { theme, toggle: toggleTheme } = useTheme()
 
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const [budgets,      setBudgets]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [showForm,     setShowForm]     = useState(false)
+  const [quickAddType, setQuickAddType] = useState(null) // 'income' | 'expense' | null
   const [toast,        setToast]        = useState(null)
   const [txFilter,     setTxFilter]     = useState('all')
   const [activeMetric, setActiveMetric] = useState('saldo')
@@ -79,6 +81,20 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Abre o formulário já no tipo certo quando vem do menu rápido do "+" na
+  // barra de navegação (navigate('/dashboard', { state: { openTxForm } })).
+  // Limpa o state da navegação depois de consumir, pra não reabrir sozinho
+  // se o usuário voltar pra essa tela depois (ex: botão voltar do navegador).
+  useEffect(() => {
+    const type = location.state?.openTxForm
+    if (type === 'income' || type === 'expense') {
+      setQuickAddType(type)
+      setShowForm(true)
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state])
 
   useEffect(() => {
     const handler = () => fetchData(true)
@@ -832,16 +848,16 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <button className="fab" onClick={() => setShowForm(true)} aria-label="Nova transação">
-        <svg viewBox="0 0 20 20" fill="currentColor" width="22" height="22">
-          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
-        </svg>
-      </button>
+      {/* "+" flutuante isolado removido — a mesma ação agora vive no botão
+          central da barra de navegação (menu rápido: Receita/Despesa/
+          Parcelamento/IA/Metas), evitando dois "+" com comportamentos
+          diferentes na mesma tela. */}
 
       {showForm && (
         <TransactionForm
-          onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); fetchData(true) }}
+          initialData={quickAddType ? { type: quickAddType } : undefined}
+          onClose={() => { setShowForm(false); setQuickAddType(null) }}
+          onSuccess={() => { setShowForm(false); setQuickAddType(null); fetchData(true) }}
         />
       )}
 

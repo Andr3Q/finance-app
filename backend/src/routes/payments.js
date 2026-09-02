@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/auth')
 const { UUID_REGEX } = require('../utils/constants')
 const { sendPlanActivationEmail } = require('../services/emailService')
 const { paymentLimiter, webhookLimiter } = require('../middleware/rateLimiter')
+const { reportError } = require('../lib/sentry')
 
 const router  = express.Router()
 const APP_URL = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
@@ -94,7 +95,7 @@ router.post('/create-preference', authMiddleware, paymentLimiter, async (req, re
 
     res.json({ checkoutUrl: response.init_point })
   } catch (err) {
-    console.error('[payments] create-preference:', err.message)
+    reportError(err, { tag: '[payments] create-preference', userId: req.userId })
     res.status(500).json({ error: 'Erro ao criar preferência de pagamento.' })
   }
 })
@@ -156,15 +157,31 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
         await tx.processedPayment.create({
           data: { paymentId: String(dataId), userId, plan, period },
         })
-        // A-03: acumula dias restantes — renovação antecipada não perde dias já pagos
-        const cur  = await tx.user.findUnique({ where: { id: userId }, select: { planExpiresAt: true } })
-        const base = cur?.planExpiresAt && cur.planExpiresAt > new Date() ? cur.planExpiresAt : new Date()
-        const planExpiresAt = new Date(base.getTime() + daysToAdd * DAY_MS)
-        return tx.user.update({
-          where:  { id: userId },
-          data:   { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
-          select: { email: true, name: true, planExpiresAt: true },
-        })
+
+        // A-03: acumula dias restantes — renovação antecipada não perde dias já pagos.
+        // Lock otimista com retry: dois pagamentos DIFERENTES do mesmo usuário quase
+        // simultâneos (ex: upgrade seguido de renovação) podem ambos ler o mesmo
+        // planExpiresAt "base" — sem isso, o segundo UPDATE sobrescreve o primeiro
+        // (lost update) e um dos pagamentos não credita dias, mesmo já pago. A
+        // condição no where (planExpiresAt = valor lido) faz o Postgres barrar a
+        // escrita se outra transação já mudou a linha — tenta de novo com o valor
+        // fresco em vez de simplesmente falhar, porque o pagamento tem que ser
+        // creditado de qualquer forma.
+        const MAX_RETRIES = 5
+        for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+          const cur  = await tx.user.findUnique({ where: { id: userId }, select: { planExpiresAt: true } })
+          const base = cur?.planExpiresAt && cur.planExpiresAt > new Date() ? cur.planExpiresAt : new Date()
+          const planExpiresAt = new Date(base.getTime() + daysToAdd * DAY_MS)
+
+          const claim = await tx.user.updateMany({
+            where: { id: userId, planExpiresAt: cur?.planExpiresAt ?? null },
+            data:  { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
+          })
+          if (claim.count === 1) {
+            return tx.user.findUnique({ where: { id: userId }, select: { email: true, name: true, planExpiresAt: true } })
+          }
+        }
+        throw new Error(`[payments] falha ao ativar plano após ${MAX_RETRIES} tentativas concorrentes (userId ${userId})`)
       })
     } catch (txErr) {
       if (txErr.code === 'P2002') {
@@ -179,7 +196,7 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
 
     console.log(`[payments] ${plan} ativado para ${userId} até ${activatedUser.planExpiresAt.toISOString().slice(0, 10)}`)
   } catch (err) {
-    console.error('[payments] webhook:', err.message)
+    reportError(err, { tag: '[payments] webhook' })
   }
 })
 

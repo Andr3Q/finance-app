@@ -16,6 +16,9 @@ function readUser() {
 
 export function saveUser(data) {
   try { sessionStorage.setItem('user', JSON.stringify(toStoredUser(data))) } catch {}
+  // Sobrevive ao fechar a aba e ao logout — marca que este navegador já teve
+  // uma conta Nancy, pra HomeRoute pular a landing e cair direto no login.
+  try { localStorage.setItem('nancy_has_account', '1') } catch {}
   window.dispatchEvent(new CustomEvent('user-updated', { detail: data }))
 }
 

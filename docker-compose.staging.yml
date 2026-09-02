@@ -64,6 +64,7 @@ services:
       MP_ACCESS_TOKEN:   ""
       GROQ_API_KEY:      ""
       MONITOR_SECRET:    ""
+      CRON_SECRET:       ""
     ports:
       - "3099:3099"
     volumes:

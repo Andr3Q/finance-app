@@ -1993,6 +1993,60 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .dsb-mn-lbl { font-size: 9px; font-weight: 600; color: rgba(255,255,255,.25); }
 .dsb-mn-item.active .dsb-mn-lbl { color: #4ae2ac; }
 
+/* ── "+" central da barra mobile (menu rápido) ── */
+.dsb-mn-fab {
+  flex: 0 0 auto; width: 56px; height: 56px; border-radius: 50%;
+  margin-top: -28px; /* levanta acima da linha da barra, estilo Mobills */
+  background: #4ae2ac; color: #000; border: 4px solid #000;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 4px 20px rgba(74,226,172,.35);
+  transition: var(--tr); -webkit-tap-highlight-color: transparent;
+}
+.dsb-mn-fab:active  { transform: scale(.92); }
+.dsb-mn-fab.active  { transform: rotate(45deg); }
+
+/* ── Menu rápido — bolhas flutuantes sobre fundo escurecido (estilo Mobills):
+   sem trocar de tela, só escurece o conteúdo atual e mostra os atalhos por
+   cima, com animação suave e escalonada. ── */
+.dsb-qm-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  z-index: 200; animation: fadeIn .2s ease;
+}
+.dsb-qm-grid {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(108px + env(safe-area-inset-bottom, 0px)); /* mais perto do "+" */
+  z-index: 201; display: grid;
+  grid-template-columns: repeat(2, 80px); gap: 16px 26px;
+  justify-items: center;
+}
+.dsb-qm-bubble {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  background: none; border: none; cursor: pointer; padding: 0;
+  font-family: 'Sora', sans-serif; -webkit-tap-highlight-color: transparent;
+  animation: dsbQmBubbleIn .28s cubic-bezier(.34,1.56,.64,1) both;
+  animation-delay: var(--qm-delay, 0ms);
+}
+.dsb-qm-bubble:last-child:nth-child(odd) { grid-column: 1 / -1; }
+@keyframes dsbQmBubbleIn {
+  from { opacity: 0; transform: scale(.4) translateY(16px); }
+  to   { opacity: 1; transform: scale(1)  translateY(0); }
+}
+/* Círculo sempre escuro (identidade Nancy: preto + verde-menta) — só o
+   ícone muda de cor (--qm-icon), em vez de um círculo colorido por ação. */
+.dsb-qm-circle {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #161616; border: 1px solid rgba(255,255,255,.08);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--qm-icon, #4ae2ac); box-shadow: 0 6px 18px rgba(0,0,0,.4);
+  transition: transform .15s ease;
+}
+.dsb-qm-bubble:active .dsb-qm-circle { transform: scale(.9); }
+.dsb-qm-lbl {
+  color: #fff; font-size: 12px; font-weight: 700; text-align: center;
+  text-shadow: 0 1px 4px rgba(0,0,0,.6); max-width: 90px;
+}
+
 /* ── Dashboard content area ── */
 .dsb-content { width: 100%; padding: 28px 32px 32px; flex: 1; display: flex; flex-direction: column; }
 
@@ -2640,6 +2694,23 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 .cfg-badge.pro  { background: rgba(74,226,172,.12); color: var(--c); border: 1px solid rgba(74,226,172,.22); }
 .cfg-badge.free { background: rgba(255,255,255,.05); color: var(--t2); border: 1px solid rgba(255,255,255,.09); }
+
+/* Tab bar segmentada (Gerenciar/Acompanhar/Sobre) — clone do .lauth-segment */
+.cfg-seg {
+  display: flex;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px; padding: 4px; margin-bottom: 20px; gap: 2px;
+}
+.cfg-seg-btn {
+  flex: 1; padding: 10px 0; border-radius: 9px;
+  font-size: 13px; font-weight: 700; text-align: center;
+  cursor: pointer; border: 1px solid transparent;
+  background: transparent; color: var(--t3);
+  font-family: var(--fd); transition: all .2s;
+}
+.cfg-seg-btn.active {
+  background: rgba(74,226,172,.12); border-color: rgba(74,226,172,.25); color: var(--c);
+}
 
 /* Section title */
 .cfg-sec-title {
@@ -5991,6 +6062,10 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   background: rgba(240,242,245,.97);
   border-top-color: rgba(0,0,0,.08);
 }
+[data-theme="light"] .dsb-mn-fab { border-color: #f0f2f5; }
+/* Menu rápido flutua sobre um fundo escurecido (rgba(0,0,0,.6)) em qualquer
+   tema — bolhas coloridas + texto branco continuam legíveis sem precisar de
+   variação por tema claro/escuro. */
 [data-theme="light"] .dsb-mn-lbl   { color: rgba(0,0,0,.45); }
 [data-theme="light"] .dsb-mn-ico   { color: rgba(0,0,0,.45); }
 [data-theme="light"] .dsb-mn-item.active .dsb-mn-lbl { color: var(--c); }
@@ -6115,6 +6190,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .cfg-page    { display: flex; }
 [data-theme="light"] .cfg-card    { background: #ffffff; border-color: rgba(0,0,0,.13); }
 [data-theme="light"] .cfg-card:hover { border-color: rgba(74,226,172,.4); }
+[data-theme="light"] .cfg-seg     { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.08); }
 [data-theme="light"] .cfg-hero {
   background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 40%, #dcfce7 75%, #d1fae5 100%);
   border-color: rgba(74,226,172,.22);

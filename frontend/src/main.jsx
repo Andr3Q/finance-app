@@ -5,6 +5,7 @@ import App      from './App.jsx'
 import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 import { initAnalytics } from './services/analytics.js'
 import { hasConsent } from './components/features/CookieBanner.jsx'
+import { SPLASH_MIN_MS } from './splashConfig.js'
 import './index.css'
 
 // ── Sentry — rastreamento de erros JavaScript no browser ────────────
@@ -36,3 +37,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </Sentry.ErrorBoundary>
   </React.StrictMode>
 )
+
+// Remove o splash de abertura (definido em index.html, puro HTML/CSS) depois
+// que o app monta. Duração mínima garante que a sequência de entrada (barras
+// + nome) termine de rodar antes de sumir, mesmo em conexões muito rápidas.
+const splash = document.getElementById('app-splash')
+if (splash) {
+  setTimeout(() => {
+    splash.classList.add('splash-hide')
+    setTimeout(() => splash.remove(), 450) // espera a transição de opacidade (.4s) terminar
+  }, SPLASH_MIN_MS)
+}

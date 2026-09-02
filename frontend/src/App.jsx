@@ -9,6 +9,7 @@ import { setInstallPrompt, markInstalled, clearInstalled } from './services/inst
 import { authAPI } from './services/api.js'
 import { saveUser } from './hooks/useUser.js'
 import { analytics } from './services/analytics.js'
+import { SPLASH_MIN_MS } from './splashConfig.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazy(() => import('./pages/Landing.jsx'))
@@ -21,6 +22,14 @@ const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
 const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
+const SettingsProfile       = lazy(() => import('./pages/SettingsProfile.jsx'))
+const SettingsSecurity      = lazy(() => import('./pages/SettingsSecurity.jsx'))
+const SettingsNotifications = lazy(() => import('./pages/SettingsNotifications.jsx'))
+const SettingsMonthlyClose  = lazy(() => import('./pages/SettingsMonthlyClose.jsx'))
+const SettingsReferral      = lazy(() => import('./pages/SettingsReferral.jsx'))
+const SettingsPayments      = lazy(() => import('./pages/SettingsPayments.jsx'))
+const SettingsData          = lazy(() => import('./pages/SettingsData.jsx'))
+const SettingsInstall       = lazy(() => import('./pages/SettingsInstall.jsx'))
 const Planos         = lazy(() => import('./pages/Planos.jsx'))
 const Calendar       = lazy(() => import('./pages/Calendar.jsx'))
 const Finance        = lazy(() => import('./pages/Finance.jsx'))
@@ -30,6 +39,13 @@ const NotFound       = lazy(() => import('./pages/NotFound.jsx'))
 
 function isLoggedIn() {
   try { return !!JSON.parse(sessionStorage.getItem('user') || 'null') } catch { return false }
+}
+
+// Setado por saveUser() (hooks/useUser.js) na primeira sessão válida e nunca
+// removido no logout — permite pular a landing pra quem já usou o app neste
+// navegador, mesmo sem sessão ativa agora.
+function hasAccountOnThisDevice() {
+  try { return localStorage.getItem('nancy_has_account') === '1' } catch { return false }
 }
 
 // Contexto compartilhado entre App (que faz /auth/me) e PrivateRoute (que bloqueia
@@ -44,7 +60,21 @@ function PrivateRoute({ children }) {
 }
 
 function HomeRoute() {
-  return isLoggedIn() ? <Navigate to="/dashboard" replace /> : <Landing />
+  const [skipLandingReady, setSkipLandingReady] = useState(false)
+
+  useEffect(() => {
+    if (isLoggedIn() || !hasAccountOnThisDevice()) return
+    // Só navega pro /login (que monta o campo de senha) depois que a splash
+    // de abertura sai de cena — senão o campo entra no DOM ainda com a splash
+    // em cima, e o navegador dispara o preenchimento automático de senha por
+    // cima da animação.
+    const t = setTimeout(() => setSkipLandingReady(true), SPLASH_MIN_MS)
+    return () => clearTimeout(t)
+  }, [])
+
+  if (isLoggedIn()) return <Navigate to="/dashboard" replace />
+  if (hasAccountOnThisDevice()) return skipLandingReady ? <Navigate to="/login" replace /> : null
+  return <Landing />
 }
 
 function PageLoader() {
@@ -124,7 +154,15 @@ export default function App() {
             <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
             <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
             <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
-            <Route path="/settings"     element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/settings"                 element={<PrivateRoute><Settings /></PrivateRoute>} />
+            <Route path="/settings/perfil"           element={<PrivateRoute><SettingsProfile /></PrivateRoute>} />
+            <Route path="/settings/seguranca"        element={<PrivateRoute><SettingsSecurity /></PrivateRoute>} />
+            <Route path="/settings/notificacoes"     element={<PrivateRoute><SettingsNotifications /></PrivateRoute>} />
+            <Route path="/settings/fechamento"       element={<PrivateRoute><SettingsMonthlyClose /></PrivateRoute>} />
+            <Route path="/settings/indique"          element={<PrivateRoute><SettingsReferral /></PrivateRoute>} />
+            <Route path="/settings/pagamentos"       element={<PrivateRoute><SettingsPayments /></PrivateRoute>} />
+            <Route path="/settings/dados"            element={<PrivateRoute><SettingsData /></PrivateRoute>} />
+            <Route path="/settings/instalar"         element={<PrivateRoute><SettingsInstall /></PrivateRoute>} />
             <Route path="/financas"     element={<PrivateRoute><Finance /></PrivateRoute>} />
             <Route path="/calendar"     element={<PrivateRoute><Calendar /></PrivateRoute>} />
             <Route path="/planos"       element={<Planos />} />

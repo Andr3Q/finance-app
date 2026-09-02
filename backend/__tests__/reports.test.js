@@ -18,8 +18,10 @@ jest.mock('../src/services/pdfService', () => ({
   generateMonthlyPDF: jest.fn().mockResolvedValue(Buffer.from('fake-pdf')),
 }))
 
-// Fixa nowBrasilia em maio/2026 para todos os testes
+// Fixa nowBrasilia em maio/2026 para todos os testes — mantém computeEffectivePlan
+// real, pois o authMiddleware depende dela pra calcular req.userPlan
 jest.mock('../src/utils/helpers', () => ({
+  ...jest.requireActual('../src/utils/helpers'),
   nowBrasilia: () => ({ month: 5, year: 2026 }),
 }))
 

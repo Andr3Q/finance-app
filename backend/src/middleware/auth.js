@@ -1,5 +1,6 @@
 const jwt    = require('jsonwebtoken')
 const prisma = require('../lib/prisma')
+const { computeEffectivePlan } = require('../utils/helpers')
 
 async function authMiddleware(req, res, next) {
   const token = (req.headers['authorization']?.split(' ')[1]) || req.cookies?.token
@@ -30,10 +31,7 @@ async function authMiddleware(req, res, next) {
   }
 
   // Plano efetivo considerando expiração — evita que planos expirados aceitem writes (C-01)
-  const now          = new Date()
-  const planExpired  = user.plan !== 'free' && user.planExpiresAt && user.planExpiresAt < now && !user.trialEndsAt
-  const trialExpired = user.trialEndsAt && user.trialEndsAt < now && (!user.planExpiresAt || user.planExpiresAt < now)
-  req.userPlan = (planExpired || trialExpired) ? 'free' : user.plan
+  req.userPlan = computeEffectivePlan(user).effectivePlan
 
   req.userId = decoded.userId
   next()

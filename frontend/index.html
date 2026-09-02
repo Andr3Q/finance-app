@@ -52,8 +52,68 @@
     <!-- Runtime config injetado pelo backend (PostHog key, etc.) -->
     <!-- Executado sincronamente antes do module script para garantir disponibilidade -->
     <script src="/app-config.js"></script>
+
+    <!-- Splash de abertura — puro HTML/CSS, sem depender do bundle React (que
+         ainda não carregou nesse ponto). Removido por main.jsx depois que o
+         app monta. Estilo inline pra aparecer instantaneamente, sem esperar
+         o CSS do Vite carregar.
+         Sequência: barras sobem em cascata → nome "Nancy" surge por baixo →
+         glow verde atrás das barras respira em loop até o app montar. -->
+    <style>
+      #app-splash {
+        position: fixed; inset: 0; background: #000; z-index: 99999;
+        display: flex; align-items: center; justify-content: center;
+        transition: opacity .4s ease, visibility .4s ease;
+      }
+      #app-splash.splash-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+      .splash-mark {
+        display: flex; flex-direction: column; align-items: center;
+      }
+      .splash-icon { position: relative; width: 100px; height: 64px; display: flex; align-items: center; justify-content: center; }
+      .splash-glow {
+        position: absolute; width: 100px; height: 100px; border-radius: 50%;
+        background: #4ae2ac; filter: blur(30px);
+        opacity: 0; animation: splashGlow 3s ease-in-out .65s infinite;
+      }
+      .splash-bars { position: relative; display: flex; align-items: flex-end; gap: 8px; height: 54px; }
+      .splash-bars span {
+        width: 13px; border-radius: 4px; background: #4ae2ac;
+        opacity: 0; transform: scaleY(0); transform-origin: bottom;
+        animation: splashBarIn .8s cubic-bezier(.34,1.56,.64,1) forwards,
+                   splashBarFade .3s linear forwards;
+        animation-delay: calc(var(--i) * 220ms + 200ms);
+      }
+      .splash-bars span:nth-child(1) { height: 22px; }
+      .splash-bars span:nth-child(2) { height: 38px; }
+      .splash-bars span:nth-child(3) { height: 54px; }
+      .splash-word {
+        margin-top: 22px; font-family: 'Sora', sans-serif; font-weight: 800;
+        font-size: 42px; color: #4ae2ac; letter-spacing: -.5px;
+        opacity: 0; transform: translateY(16px);
+        animation: splashWordIn 1s cubic-bezier(.2,.8,.2,1) .9s forwards;
+      }
+      @keyframes splashBarIn { to { transform: scaleY(1); } }
+      @keyframes splashBarFade { to { opacity: 1; } }
+      @keyframes splashWordIn { to { opacity: 1; transform: translateY(0); } }
+      @keyframes splashGlow {
+        0%, 100% { opacity: .16; transform: scale(1); }
+        50%      { opacity: .23; transform: scale(1.05); }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash" aria-hidden="true">
+      <div class="splash-mark">
+        <div class="splash-icon">
+          <div class="splash-glow"></div>
+          <div class="splash-bars">
+            <span style="--i:0"></span><span style="--i:1"></span><span style="--i:2"></span>
+          </div>
+        </div>
+        <div class="splash-word">Nancy</div>
+      </div>
+    </div>
+
     <!-- O React injeta todo o app dentro desta div -->
     <div id="root"></div>
     <!-- Entry point do React (Vite usa isso para compilar o bundle) -->

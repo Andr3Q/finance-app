@@ -36,10 +36,15 @@ permissions:
   contents: read
 
 env:
-  DATABASE_URL:  postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
-  JWT_SECRET:    ${{ secrets.STAGING_JWT_SECRET }}
-  NODE_ENV:      production
-  PORT:          3099
+  DATABASE_URL:        postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
+  JWT_SECRET:          ${{ secrets.STAGING_JWT_SECRET }}
+  STAGING_SEED_SECRET: ${{ secrets.STAGING_SEED_SECRET }}
+  # Só precisa existir (não-vazio) pra /api/monitor não devolver 503 antes do
+  # smoke test chegar a checar autenticação — este ambiente é local/efêmero,
+  # nunca exposto, então não precisa do secret real do Secret Manager do GCP.
+  MONITOR_SECRET:      staging-validation-ci-only
+  NODE_ENV:            production
+  PORT:                3099
 
 jobs:
 
@@ -80,7 +85,7 @@ jobs:
           cache-dependency-path: backend/package-lock.json
 
       - name: Instalar dependências
-        run: npm ci
+        run: npm ci --include=dev
 
       - name: Prisma generate
         run: npx prisma generate
@@ -138,9 +143,9 @@ jobs:
 
       - name: Instalar deps (raiz + frontend + backend)
         run: |
-          npm ci
-          npm ci --prefix frontend
-          npm ci --prefix backend
+          npm ci --include=dev
+          npm ci --include=dev --prefix frontend
+          npm ci --include=dev --prefix backend
 
       - name: Prisma migrate + seed
         working-directory: backend
@@ -224,7 +229,7 @@ jobs:
           node-version: '22'
 
       - name: Instalar dependências backend
-        run: npm ci
+        run: npm ci --include=dev
         working-directory: backend
 
       - name: Prisma migrate + seed

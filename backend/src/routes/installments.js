@@ -5,6 +5,7 @@ const authMiddleware = require('../middleware/auth')
 
 const { UUID_REGEX } = require('../utils/constants')
 const { nowBrasilia } = require('../utils/helpers')
+const { reportError } = require('../lib/sentry')
 
 router.use(authMiddleware)
 
@@ -19,7 +20,7 @@ router.get('/', async (req, res) => {
     })
     res.json(plans.map(normalizePlan))
   } catch (err) {
-    console.error('Erro ao listar parcelamentos:', err)
+    reportError(err, { tag: 'Erro ao listar parcelamentos' })
     res.status(500).json({ error: 'Erro ao carregar parcelamentos.' })
   }
 })
@@ -70,7 +71,7 @@ router.post('/', async (req, res) => {
     })
     res.status(201).json(normalizePlan(plan))
   } catch (err) {
-    console.error('Erro ao criar parcelamento:', err)
+    reportError(err, { tag: 'Erro ao criar parcelamento' })
     res.status(500).json({ error: 'Erro ao criar parcelamento.' })
   }
 })
@@ -90,29 +91,51 @@ router.patch('/:id/pay', async (req, res) => {
     const nextPaid = plan.paidInstallments + 1
     const { month, year } = nowBrasilia()
 
-    // Cria transação e atualiza plano atomicamente — se um falhar, nada persiste
-    const { updatedPlan, transaction } = await prisma.$transaction(async (db) => {
-      const transaction = await db.transaction.create({
-        data: {
-          description: `${plan.name} (parcela ${nextPaid}/${plan.totalInstallments})`,
-          amount:      plan.amount,
-          type:        'expense',
-          category:    'shopping',
-          month,
-          year,
-          userId:      req.userId,
-        },
-      })
-      const updatedPlan = await db.installmentPlan.update({
-        where: { id: plan.id },
-        data:  { paidInstallments: nextPaid, lastTransactionId: transaction.id },
-      })
-      return { updatedPlan, transaction }
-    })
+    let updatedPlan, transaction
+    try {
+      ;({ updatedPlan, transaction } = await prisma.$transaction(async (db) => {
+        // Claim atômico: só avança se paidInstallments continuar igual ao valor
+        // lido acima (lock otimista). Duas requisições concorrentes (duplo
+        // clique, retry de rede) partem do mesmo paidInstallments — só a
+        // primeira a commitar aqui ganha a corrida; a segunda recebe count:0
+        // e aborta ANTES de criar a transação de despesa, evitando duplicata.
+        const claim = await db.installmentPlan.updateMany({
+          where: { id: plan.id, userId: req.userId, paidInstallments: plan.paidInstallments },
+          data:  { paidInstallments: { increment: 1 } },
+        })
+        if (claim.count === 0) {
+          const err = new Error('Parcela já paga por outra requisição.')
+          err.code = 'CONCURRENT_PAY'
+          throw err
+        }
+
+        const transaction = await db.transaction.create({
+          data: {
+            description: `${plan.name} (parcela ${nextPaid}/${plan.totalInstallments})`,
+            amount:      plan.amount,
+            type:        'expense',
+            category:    'shopping',
+            month,
+            year,
+            userId:      req.userId,
+          },
+        })
+        const updatedPlan = await db.installmentPlan.update({
+          where: { id: plan.id },
+          data:  { lastTransactionId: transaction.id },
+        })
+        return { updatedPlan, transaction }
+      }))
+    } catch (err) {
+      if (err.code === 'CONCURRENT_PAY') {
+        return res.status(409).json({ error: 'Essa parcela já foi paga em outra requisição. Atualize a página.' })
+      }
+      throw err
+    }
 
     res.json({ plan: normalizePlan(updatedPlan), transaction: { ...transaction, amount: Number(transaction.amount) } })
   } catch (err) {
-    console.error('Erro ao pagar parcela:', err)
+    reportError(err, { tag: 'Erro ao pagar parcela' })
     res.status(500).json({ error: 'Erro ao registrar pagamento.' })
   }
 })
@@ -163,7 +186,7 @@ router.patch('/:id/unpay', async (req, res) => {
     const [updated] = await prisma.$transaction(ops)
     res.json(normalizePlan(updated))
   } catch (err) {
-    console.error('Erro ao desfazer parcela:', err)
+    reportError(err, { tag: 'Erro ao desfazer parcela' })
     res.status(500).json({ error: 'Erro ao desfazer parcela.' })
   }
 })
@@ -178,7 +201,7 @@ router.delete('/:id', async (req, res) => {
     if (result.count === 0) return res.status(404).json({ error: 'Parcelamento não encontrado.' })
     res.json({ message: 'Parcelamento removido.' })
   } catch (err) {
-    console.error('Erro ao remover parcelamento:', err)
+    reportError(err, { tag: 'Erro ao remover parcelamento' })
     res.status(500).json({ error: 'Erro ao remover parcelamento.' })
   }
 })

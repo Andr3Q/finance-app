@@ -3,37 +3,37 @@ import { useNavigate } from 'react-router-dom'
 import { nextPlanLabel } from '../config/planLimits.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import { authAPI } from '../services/api.js'
-import UpgradeModal from '../components/ui/UpgradeModal.jsx'
 import { useUser } from '../hooks/useUser.js'
-import SettingsHero        from '../components/features/settings/SettingsHero.jsx'
-import ProfileCard         from '../components/features/settings/ProfileCard.jsx'
-import NotificationsCard   from '../components/features/settings/NotificationsCard.jsx'
-import MonthlyCloseCard    from '../components/features/settings/MonthlyCloseCard.jsx'
-import InstallCard         from '../components/features/settings/InstallCard.jsx'
-import ReferralCard        from '../components/features/settings/ReferralCard.jsx'
-import TwoFactorCard        from '../components/features/settings/TwoFactorCard.jsx'
-import ChangePasswordCard   from '../components/features/settings/ChangePasswordCard.jsx'
-import CancelPlanCard       from '../components/features/settings/CancelPlanCard.jsx'
-import PaymentHistoryCard   from '../components/features/settings/PaymentHistoryCard.jsx'
-import EmailVerifyCard      from '../components/features/settings/EmailVerifyCard.jsx'
+import { isInstalled } from '../services/installPrompt.js'
+import SettingsHero from '../components/features/settings/SettingsHero.jsx'
+import SettingsMenuRow from '../components/features/settings/SettingsMenuRow.jsx'
+
+function UserIcon()     { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> }
+function WalletIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5"/><path d="M16 12h5v4h-5a2 2 0 010-4z"/></svg> }
+function TargetIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> }
+function LockIcon()     { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg> }
+function BellIcon()     { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg> }
+function CalIcon()      { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> }
+function ScaleIcon()    { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="3" x2="12" y2="21"/><path d="M5 7l-3 6a3 3 0 006 0z"/><path d="M19 7l-3 6a3 3 0 006 0z"/><path d="M5 7h14"/></svg> }
+function BoltIcon()     { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> }
+function ShareIcon()    { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg> }
+function ReceiptIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 3h16v18l-3-2-3 2-3-2-3 2-3-2-1 2z"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/></svg> }
+function ShieldIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> }
+function DownloadIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> }
+function FolderIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg> }
+function LogoutIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> }
+
+const TABS = [
+  { key: 'gerenciar',  label: 'Gerenciar' },
+  { key: 'acompanhar', label: 'Acompanhar' },
+  { key: 'sobre',      label: 'Sobre' },
+]
 
 export default function Settings() {
   const navigate = useNavigate()
-  const user  = useUser()
+  const user = useUser()
   const isPro = user.plan === 'pro' || user.plan === 'elite'
-
-  const [msg,           setMsg]          = useState('')
-  const [msgType,       setMsgType]      = useState('success')
-  const [upgradeModal,  setUpgradeModal] = useState(null)
-  const [deleteModal,   setDeleteModal]  = useState(false)
-  const [deletePass,    setDeletePass]   = useState('')
-  const [deleteErr,     setDeleteErr]    = useState('')
-  const [deleteLoading, setDeleteLoading] = useState(false)
-
-  const showMsg = (text, type = 'success') => {
-    setMsg(text); setMsgType(type)
-    setTimeout(() => setMsg(''), 4000)
-  }
+  const [activeTab, setActiveTab] = useState('gerenciar')
 
   const handleLogout = async () => {
     try { await authAPI.logout() } catch { /* ignora erros de rede */ }
@@ -42,29 +42,9 @@ export default function Settings() {
     navigate('/login')
   }
 
-  const handleDeleteAccount = async () => {
-    if (!deletePass) { setDeleteErr('Digite sua senha para confirmar.'); return }
-    setDeleteLoading(true); setDeleteErr('')
-    try {
-      await authAPI.deleteAccount(deletePass)
-      sessionStorage.removeItem('user')
-      sessionStorage.removeItem('token')
-      navigate('/login')
-    } catch (err) {
-      setDeleteErr(err.response?.data?.error || 'Erro ao excluir conta.')
-      setDeleteLoading(false)
-    }
-  }
-
   return (
     <>
       <Navbar />
-
-      {msg && (
-        <div className={`toast ${msgType === 'error' ? 'terr' : 'tok'}`} style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9001, whiteSpace: 'nowrap' }}>
-          {msg}
-        </div>
-      )}
 
       <div className="pwnav fade-in">
         <div className="dsb-content">
@@ -72,29 +52,6 @@ export default function Settings() {
 
             <SettingsHero user={user} isPro={isPro} />
 
-            {/* Aviso de Finanças — sempre visível */}
-            <div
-              className="cfg-card"
-              style={{ borderLeft: '3px solid #4ae2ac', cursor: 'pointer' }}
-              onClick={() => navigate('/financas')}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => e.key === 'Enter' && navigate('/financas')}
-            >
-              <div className="cfg-card-body" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r=".5" fill="#4ae2ac"/>
-                </svg>
-                <span style={{ fontSize: 13, color: 'var(--t2)', flex: 1 }}>
-                  Salário e contas fixas foram movidos para a página <strong style={{ color: 'var(--t1)' }}>Finanças</strong>.
-                </span>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
-                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                </svg>
-              </div>
-            </div>
-
-            {/* Card de planos — só mobile */}
             {nextPlanLabel(user.plan) && (
               <div className="cfg-plan-card-mobile">
                 <div
@@ -120,190 +77,53 @@ export default function Settings() {
               </div>
             )}
 
-            <div className="cfg-sec-title r2">Perfil</div>
-            <EmailVerifyCard onMessage={showMsg} />
-            <ProfileCard user={user} />
-
-            <div className="cfg-sec-title r7">Preferências</div>
-            <NotificationsCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
-
-            <MonthlyCloseCard   user={user} isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
-
-            <div className="cfg-sec-title r4">Indique e Ganhe</div>
-            <ReferralCard />
-
-            <InstallCard />
-
-            <div className="cfg-sec-title r10">Segurança</div>
-            <ChangePasswordCard onMessage={showMsg} />
-            <TwoFactorCard isPro={isPro} onMessage={showMsg} onUpgrade={setUpgradeModal} />
-
-            <div className="cfg-sec-title r10">Conta</div>
-            <CancelPlanCard onMessage={showMsg} />
-            <PaymentHistoryCard />
-
-            {/* Sair — só aparece no mobile (desktop tem o botão na sidebar) */}
-            <div className="cfg-card r10 cfg-mobile-only">
-              <button className="cfg-btn-danger cfg-logout-btn" onClick={handleLogout}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-                Sair da conta
-              </button>
-            </div>
-
-            {/* Exportar dados — LGPD Art. 15 */}
-            <div className="cfg-card">
-              <div className="cfg-card-head">
-                <div className="cfg-ch-ico">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div className="cfg-ch-title">Exportar meus dados</div>
-                  <div className="cfg-ch-sub">Baixe um arquivo JSON com todos os seus dados (LGPD Art. 15).</div>
-                </div>
+            <div className="cfg-seg">
+              {TABS.map(t => (
                 <button
-                  className="cfg-btn-secondary"
-                  style={{ flexShrink: 0, fontSize: 12, padding: '8px 14px' }}
-                  onClick={async () => {
-                    try {
-                      const res = await authAPI.exportData()
-                      const url = URL.createObjectURL(res.data)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = `nancy-dados-${new Date().toISOString().slice(0,10)}.json`
-                      a.click()
-                      URL.revokeObjectURL(url)
-                    } catch {
-                      showMsg('Erro ao exportar dados.', 'error')
-                    }
-                  }}
+                  key={t.key}
+                  className={`cfg-seg-btn ${activeTab === t.key ? 'active' : ''}`}
+                  onClick={() => setActiveTab(t.key)}
                 >
-                  Exportar
+                  {t.label}
                 </button>
-              </div>
+              ))}
             </div>
 
-            {/* Excluir conta — aparece em todos os dispositivos */}
-            <div className="cfg-card">
-              <button
-                className="cfg-btn-danger cfg-logout-btn"
-                onClick={() => { setDeleteModal(true); setDeletePass(''); setDeleteErr('') }}
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                </svg>
-                Excluir minha conta
-              </button>
-            </div>
+            {activeTab === 'gerenciar' && (
+              <>
+                <SettingsMenuRow icon={<UserIcon />} title="Perfil" subtitle="Nome, e-mail, verificação" onClick={() => navigate('/settings/perfil')} />
+                <SettingsMenuRow icon={<WalletIcon />} title="Finanças" subtitle="Salário e contas fixas" onClick={() => navigate('/financas')} />
+                <SettingsMenuRow icon={<TargetIcon />} title="Metas" subtitle="Objetivos financeiros" onClick={() => navigate('/goals')} />
+                <SettingsMenuRow icon={<LockIcon />} title="Segurança" subtitle="Senha e autenticação em duas etapas" onClick={() => navigate('/settings/seguranca')} />
+                <SettingsMenuRow icon={<BellIcon />} title="Notificações" subtitle="Alertas e lembretes" onClick={() => navigate('/settings/notificacoes')} />
+              </>
+            )}
+
+            {activeTab === 'acompanhar' && (
+              <>
+                <SettingsMenuRow icon={<CalIcon />} title="Calendário" subtitle="Vencimentos e lançamentos" onClick={() => navigate('/calendar')} />
+                <SettingsMenuRow icon={<ScaleIcon />} title="Balanço mensal" subtitle="Fechar o mês e gerar relatório" onClick={() => navigate('/settings/fechamento')} />
+              </>
+            )}
+
+            {activeTab === 'sobre' && (
+              <>
+                <SettingsMenuRow icon={<BoltIcon />} title="Planos" subtitle="Assinatura e recursos Pro/Elite" onClick={() => navigate('/planos')} />
+                <SettingsMenuRow icon={<ShareIcon />} title="Indique e Ganhe" subtitle="Convide amigos, ganhe dias de Pro" onClick={() => navigate('/settings/indique')} />
+                <SettingsMenuRow icon={<ReceiptIcon />} title="Pagamentos" subtitle="Histórico e cancelamento" onClick={() => navigate('/settings/pagamentos')} />
+                <SettingsMenuRow icon={<ShieldIcon />} title="Termos de Uso" onClick={() => navigate('/termos')} />
+                <SettingsMenuRow icon={<ShieldIcon />} title="Política de Privacidade" onClick={() => navigate('/privacidade')} />
+                <SettingsMenuRow icon={<FolderIcon />} title="Meus dados" subtitle="Exportar ou excluir sua conta" onClick={() => navigate('/settings/dados')} />
+                {!isInstalled() && (
+                  <SettingsMenuRow icon={<DownloadIcon />} title="Instalar app" subtitle="Acesso rápido pela tela inicial" onClick={() => navigate('/settings/instalar')} />
+                )}
+                <SettingsMenuRow icon={<LogoutIcon />} title="Sair da conta" onClick={handleLogout} danger chevron={false} />
+              </>
+            )}
 
           </div>
         </div>
       </div>
-
-      {upgradeModal && (
-        <UpgradeModal reason={upgradeModal} onClose={() => setUpgradeModal(null)} />
-      )}
-
-      {deleteModal && (
-        <div className="modal-overlay" style={{ zIndex:9000 }}>
-          <div className="modal del-modal" style={{ maxWidth:420, padding:0, overflow:'hidden', border:'1px solid rgba(239,68,68,.2)' }}>
-
-            <div className="del-modal-bar" />
-
-            <div className="del-modal-inner">
-              {/* Cabeçalho */}
-              <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:20 }}>
-                <div style={{ width:44, height:44, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                    <path d="M10 11v6"/><path d="M14 11v6"/>
-                    <path d="M9 6V4h6v2"/>
-                  </svg>
-                </div>
-                <div style={{ paddingTop:2 }}>
-                  <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:4 }}>Excluir conta permanentemente</div>
-                  <div style={{ fontSize:12, color:'#ef4444', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="#ef4444"><circle cx="12" cy="12" r="10"/></svg>
-                    Esta ação não pode ser desfeita
-                  </div>
-                </div>
-              </div>
-
-              {/* Lista do que será excluído */}
-              <div className="del-modal-list" style={{ background:'rgba(239,68,68,.05)', border:'1px solid rgba(239,68,68,.12)', borderRadius:10, padding:'12px 14px', marginBottom:20 }}>
-                <div className="del-modal-label" style={{ fontSize:11, fontWeight:700, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>O que será excluído:</div>
-                {[
-                  'Todas as transações e histórico',
-                  'Metas e progresso acumulado',
-                  'Contas fixas e orçamentos',
-                  'Configurações e dados da conta',
-                  'Plano cancelado — sem reembolso',
-                ].map(item => (
-                  <div key={item} className="del-modal-item" style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, fontSize:13, color:'var(--t2)' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                    {item}
-                  </div>
-                ))}
-              </div>
-
-              {/* Campo de senha */}
-              <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:12, fontWeight:600, color:'var(--t2)', display:'block', marginBottom:7 }}>
-                  Confirme sua senha para continuar
-                </label>
-                <input
-                  type="password"
-                  placeholder="Digite sua senha atual"
-                  value={deletePass}
-                  onChange={e => { setDeletePass(e.target.value); setDeleteErr('') }}
-                  onKeyDown={e => e.key === 'Enter' && handleDeleteAccount()}
-                  style={{ width:'100%', boxSizing:'border-box', padding:'11px 14px', background:'var(--bg)', border:`1px solid ${deleteErr ? '#ef4444' : 'var(--bd)'}`, borderRadius:9, color:'var(--t1)', fontSize:14, outline:'none', transition:'border-color .15s' }}
-                  autoFocus
-                />
-                {deleteErr && (
-                  <div style={{ fontSize:12, color:'#ef4444', marginTop:6, display:'flex', alignItems:'center', gap:5 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    {deleteErr}
-                  </div>
-                )}
-              </div>
-
-              {/* Botões */}
-              <div className="del-modal-btns">
-                <button
-                  onClick={() => setDeleteModal(false)}
-                  style={{ border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={deleteLoading || !deletePass}
-                  style={{ border:'none', background: (!deletePass || deleteLoading) ? 'rgba(239,68,68,.35)' : '#ef4444', color:'#fff', cursor: (deleteLoading || !deletePass) ? 'not-allowed' : 'pointer', transition:'background .15s', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
-                >
-                  {deleteLoading ? (
-                    <><span style={{ width:13, height:13, border:'2px solid rgba(255,255,255,.35)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Excluindo…</>
-                  ) : (
-                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Excluir conta</>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   )
 }

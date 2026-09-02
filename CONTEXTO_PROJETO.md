@@ -184,9 +184,10 @@ Desde 07/08, `main` exige 1 aprovação de PR antes de mergear (`enforce_admins:
 - **Projeto GCP:** `financaspro-2024` — NÃO alterar este ID
 - **Região:** `southamerica-east1` (São Paulo)
 - **Serviço Cloud Run:** `finance-app-1042158013294.southamerica-east1.run.app`
-- **Secrets no GCP Secret Manager:** `DATABASE_URL`, `MONITOR_SECRET`
+- **Secrets no GCP Secret Manager:** `DATABASE_URL`, `MONITOR_SECRET`, `CRON_SECRET`
 - **DATABASE_URL:** aponta para Supabase em `db.xatcxuzcxncouhreopnf.supabase.co`
 - O endpoint `/api/monitor/*` é protegido pelo `MONITOR_SECRET`
+- O endpoint `/api/cron/*` é protegido pelo `CRON_SECRET` — disparado 1x/dia pelo GitHub Actions (`plan-reminders.yml`) pra varrer lembretes de vencimento de trial/plano
 
 ---
 

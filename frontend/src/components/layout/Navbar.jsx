@@ -16,6 +16,14 @@ const ROUTE_TITLES = {
   '/settings':    'Configurações',
   '/planos':      'Planos',
   '/calendar':    'Calendário',
+  '/settings/perfil':       'Perfil',
+  '/settings/seguranca':    'Segurança',
+  '/settings/notificacoes': 'Notificações',
+  '/settings/fechamento':   'Balanço mensal',
+  '/settings/indique':      'Indique e Ganhe',
+  '/settings/pagamentos':   'Pagamentos',
+  '/settings/dados':        'Meus dados',
+  '/settings/instalar':     'Instalar app',
 }
 
 function greeting() {
@@ -35,6 +43,10 @@ function WalletIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" f
 function CalIcon()    { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> }
 function InstIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> }
 function LogoutIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> }
+function PlusIcon()   { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> }
+function ArrowUpIcon()   { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> }
+function ArrowDownIcon() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg> }
+function MicIcon()    { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg> }
 
 
 export default function Navbar() {
@@ -102,7 +114,10 @@ export default function Navbar() {
 
   const initials  = user.name ? user.name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase() : '?'
   const isPro     = user.plan === 'pro' || user.plan === 'elite'
-  const isActive  = (path) => location.pathname === path
+  // "/settings" fica ativo em qualquer subtela dele (ex: /settings/seguranca)
+  const isActive  = (path) => path === '/settings'
+    ? location.pathname.startsWith('/settings')
+    : location.pathname === path
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'
@@ -116,6 +131,46 @@ export default function Navbar() {
     { path: '/financas',     label: 'Finanças',      Icon: WalletIcon },
     { path: '/settings',     label: 'Configurações', Icon: GearIcon   },
   ]
+
+  // Barra inferior mobile: só 4 links (sem Metas — vai pro menu rápido do "+"
+  // central) + "Configurações" renomeado pra "Mais". Sidebar desktop continua
+  // com os 5 itens originais (navLinks acima) — não tem o mesmo problema de
+  // espaço que motivou essa reorganização no mobile.
+  const mobileNavLinksLeft  = [
+    { path: '/dashboard',    label: 'Dashboard',  Icon: HomeIcon },
+    { path: '/transactions', label: 'Transações', Icon: TxIcon   },
+  ]
+  const mobileNavLinksRight = [
+    { path: '/financas', label: 'Finanças', Icon: WalletIcon },
+    { path: '/settings', label: 'Mais',      Icon: GearIcon   },
+  ]
+
+  const [showQuickMenu, setShowQuickMenu] = useState(false)
+
+  // Fecha o menu rápido ao trocar de página (ex: depois de navegar pra
+  // /goals) — evita ele ficar aberto por cima de uma tela diferente.
+  useEffect(() => { setShowQuickMenu(false) }, [location.pathname])
+
+  // Círculo sempre escuro (identidade do Nancy) — só o ícone muda de cor.
+  // Verde/vermelho seguem o mesmo padrão já usado em receita/despesa no
+  // resto do app; as demais ações usam o verde-menta da marca.
+  const quickMenuActions = [
+    { key: 'income',      label: 'Receita',          Icon: ArrowUpIcon,   iconColor: '#4ae2ac',
+      onSelect: () => navigate('/dashboard', { state: { openTxForm: 'income' } }) },
+    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,      iconColor: '#4ae2ac',
+      onSelect: () => navigate('/transactions', { state: { openInstallmentForm: true } }) },
+    { key: 'voice',       label: 'Falar com IA',     Icon: MicIcon,       iconColor: '#4ae2ac',
+      onSelect: () => window.dispatchEvent(new Event('nancy:open-agent-chat')) },
+    { key: 'expense',     label: 'Despesa',          Icon: ArrowDownIcon, iconColor: '#ff6b6b',
+      onSelect: () => navigate('/dashboard', { state: { openTxForm: 'expense' } }) },
+    { key: 'goals',       label: 'Metas',            Icon: TargetIcon,    iconColor: '#4ae2ac',
+      onSelect: () => navigate('/goals') },
+  ]
+
+  const handleQuickAction = (action) => {
+    setShowQuickMenu(false)
+    action.onSelect()
+  }
 
   return (
     <>
@@ -327,9 +382,52 @@ export default function Navbar() {
         </div>
       </header>
 
+      {/* ── Menu rápido do "+" central (mobile) — bolhas flutuantes sobre um
+          fundo escurecido, sem trocar de tela, estilo Mobills ── */}
+      {showQuickMenu && (
+        <>
+          <div className="dsb-qm-backdrop" onClick={() => setShowQuickMenu(false)} />
+          <div className="dsb-qm-grid">
+            {quickMenuActions.map(({ key, label, Icon, iconColor }, i) => (
+              <button
+                key={key}
+                className="dsb-qm-bubble"
+                style={{ '--qm-delay': `${i * 30}ms`, '--qm-icon': iconColor }}
+                onClick={() => handleQuickAction(quickMenuActions[i])}
+              >
+                <div className="dsb-qm-circle"><Icon /></div>
+                <span className="dsb-qm-lbl">{label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* ── Mobile bottom nav ── */}
       <nav className="dsb-mobile-nav">
-        {navLinks.map(({ path, label, Icon }) => {
+        {mobileNavLinksLeft.map(({ path, label, Icon }) => {
+          const active = isActive(path)
+          return (
+            <button
+              key={path}
+              className={`dsb-mn-item${active ? ' active' : ''}`}
+              onClick={() => navigate(path)}
+            >
+              <div className={`dsb-mn-ico${active ? ' active' : ''}`}><Icon /></div>
+              <span className="dsb-mn-lbl">{label}</span>
+            </button>
+          )
+        })}
+
+        <button
+          className={`dsb-mn-fab${showQuickMenu ? ' active' : ''}`}
+          onClick={() => setShowQuickMenu(v => !v)}
+          aria-label="Ações rápidas"
+        >
+          <PlusIcon />
+        </button>
+
+        {mobileNavLinksRight.map(({ path, label, Icon }) => {
           const active = isActive(path)
           return (
             <button

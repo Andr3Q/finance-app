@@ -190,8 +190,30 @@ jobs:
             --concurrency 80 \
             --allow-unauthenticated \
             --set-env-vars "NODE_ENV=production,EMAIL_FROM=staging@myfinancepro.com.br" \
-            --set-secrets "DATABASE_URL=STAGING_DATABASE_URL:latest,JWT_SECRET=STAGING_JWT_SECRET:latest,GROQ_API_KEY=GROQ_API_KEY:latest,VAPID_PUBLIC_KEY=STAGING_VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=STAGING_VAPID_PRIVATE_KEY:latest,ALLOWED_ORIGINS=STAGING_ALLOWED_ORIGINS:latest,RESEND_API_KEY=RESEND_API_KEY:latest,STAGING_SEED_SECRET=STAGING_SEED_SECRET:latest" \
+            --set-secrets "DATABASE_URL=STAGING_DATABASE_URL:latest,JWT_SECRET=STAGING_JWT_SECRET:latest,GROQ_API_KEY=GROQ_API_KEY:latest,VAPID_PUBLIC_KEY=STAGING_VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=STAGING_VAPID_PRIVATE_KEY:latest,ALLOWED_ORIGINS=STAGING_ALLOWED_ORIGINS:latest,RESEND_API_KEY=RESEND_API_KEY:latest,STAGING_SEED_SECRET=STAGING_SEED_SECRET:latest,CRON_SECRET=CRON_SECRET:latest" \
             --quiet
+
+          # Cada deploy cria uma revisão nova e nunca apaga as antigas — que por sua
+          # vez seguram a referência da imagem Docker antiga, fazendo a limpeza de
+          # imagens abaixo falhar silenciosamente (Google recusa apagar uma imagem
+          # ainda referenciada). Isso vinha deixando o Artifact Registry acumular
+          # imagens de meses, sem nunca ser limpo de verdade. Apaga as revisões
+          # antigas primeiro (mantém a atual + 1 de backup) pra destravar a limpeza.
+          echo "🧹 Removendo revisões antigas do Cloud Run (mantém a atual + 1 de backup)..."
+          OLD_REVISIONS=$(gcloud run revisions list \
+            --service "$SERVICE" \
+            --region "$REGION" \
+            --format="get(metadata.name)" --sort-by="~metadata.creationTimestamp" | tail -n +3 || true)
+          if [[ -n "$OLD_REVISIONS" ]]; then
+            echo "$OLD_REVISIONS" | while read revision; do
+              gcloud run revisions delete "$revision" \
+                --region "$REGION" \
+                --quiet 2>/dev/null || true
+            done
+            echo "✅ Revisões antigas removidas."
+          else
+            echo "✅ Nenhuma revisão antiga para remover."
+          fi
 
           echo "🧹 Removendo imagens antigas do staging (mantém as 5 mais recentes)..."
           OLD_IMAGES=$(gcloud container images list-tags "gcr.io/${PROJECT}/${SERVICE}" \

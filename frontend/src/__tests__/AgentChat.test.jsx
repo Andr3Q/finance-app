@@ -217,3 +217,63 @@ describe('AgentChat — fluxo de gravação e transcrição', () => {
     await waitFor(() => expect(agentAPI.transcribe).toHaveBeenCalledTimes(1))
   })
 })
+
+describe('AgentChat — envio de mensagem de texto', () => {
+  function sendText(text) {
+    const input = screen.getByPlaceholderText('Pergunte algo sobre suas finanças…')
+    fireEvent.change(input, { target: { value: text } })
+    fireEvent.click(screen.getByLabelText('Enviar'))
+  }
+
+  it('envia a mensagem e renderiza a resposta da IA', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Seu saldo é R$ 1.000,00.' } })
+    setup()
+
+    sendText('Qual meu saldo?')
+
+    await waitFor(() => {
+      expect(screen.getByText('Seu saldo é R$ 1.000,00.')).toBeInTheDocument()
+    })
+    expect(agentAPI.chat).toHaveBeenCalledWith('Qual meu saldo?', [])
+  })
+
+  // Regressão: um 403 de plano insuficiente (limitReached:true, de requirePlan()
+  // no backend) não é sessão expirada — antes desse fix, QUALQUER 401/403 virava
+  // "Sessão expirada. Faça login novamente." mesmo quando a causa real era o
+  // trial/plano Elite ter expirado, mascarando o problema real do usuário.
+  it('403 de plano insuficiente (limitReached) mostra mensagem de plano, não "sessão expirada"', async () => {
+    agentAPI.chat.mockRejectedValue({
+      response: { status: 403, data: { error: 'Esta funcionalidade requer o plano Elite.', limitReached: true } },
+    })
+    setup()
+
+    sendText('Qual meu saldo?')
+
+    await waitFor(() => {
+      expect(screen.getByText('Esta funcionalidade requer o plano Elite.')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Sessão expirada/)).not.toBeInTheDocument()
+  })
+
+  it('401/403 real (sem limitReached) continua mostrando "sessão expirada"', async () => {
+    agentAPI.chat.mockRejectedValue({ response: { status: 401, data: { error: 'Token inválido ou expirado. Faça login novamente.' } } })
+    setup()
+
+    sendText('Qual meu saldo?')
+
+    await waitFor(() => {
+      expect(screen.getByText(/Sessão expirada\. Faça login novamente\./)).toBeInTheDocument()
+    })
+  })
+
+  it('429 mostra mensagem de limite de mensagens, sem tocar no gate de plano', async () => {
+    agentAPI.chat.mockRejectedValue({ response: { status: 429 } })
+    setup()
+
+    sendText('Qual meu saldo?')
+
+    await waitFor(() => {
+      expect(screen.getByText(/Muitas mensagens seguidas/)).toBeInTheDocument()
+    })
+  })
+})

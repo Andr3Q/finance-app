@@ -7,6 +7,7 @@ const authMiddleware = require('../middleware/auth')
 const { transcribeLimiter } = require('../middleware/rateLimiter')
 const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS, UUID_REGEX, MAX_AMOUNT } = require('../utils/constants')
 const { nowBrasilia } = require('../utils/helpers')
+const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
 router.use(authMiddleware)
@@ -35,18 +36,12 @@ function requireGroq(res) {
 // Verifica se o plano do usuário atende ao mínimo exigido.
 // Retorna true se OK, false + resposta 403 se insuficiente.
 // Usa limitReached:true para o interceptor do frontend não fazer logout.
-async function requirePlan(req, res, minimum) {
+// req.userPlan já vem calculado (e testado) pelo authMiddleware — evita uma query
+// extra + recalcular a mesma regra de expiração de plano/trial aqui, com risco de
+// fórmula divergente (foi assim que o bug C-01 aconteceu).
+function requirePlan(req, res, minimum) {
   const RANKS = { free: 0, pro: 1, elite: 2 }
-  const user  = await prisma.user.findUnique({
-    where:  { id: req.userId },
-    select: { plan: true, planExpiresAt: true, trialEndsAt: true },
-  })
-  const now          = new Date()
-  // Trial expirado: plan='pro', planExpiresAt=null, trialEndsAt=<passado>
-  const trialExpired = user?.trialEndsAt && user.trialEndsAt < now && !user.planExpiresAt
-  const expired      = (user?.planExpiresAt && user.planExpiresAt < now) || trialExpired
-  const plan         = expired ? 'free' : (user?.plan || 'free')
-  if ((RANKS[plan] ?? 0) < (RANKS[minimum] ?? 0)) {
+  if ((RANKS[req.userPlan] ?? 0) < (RANKS[minimum] ?? 0)) {
     res.status(403).json({
       error:        `Esta funcionalidade requer o plano ${minimum === 'elite' ? 'Elite' : 'Pro'}.`,
       limitReached: true,
@@ -187,16 +182,20 @@ async function runTool(name, args, userId, effectivePlan) {
       prisma.budget.findMany({ where: { userId } }),
       prisma.user.findUnique({ where: { id: userId }, select: { salary: true, plan: true } }),
     ])
-    const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-    const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-    const fixedTotal    = budgets.reduce((s, b) => s + b.amount, 0)
-    const salary        = user?.salary || 0
+    // Number(...) é obrigatório aqui: salary/amount são Prisma.Decimal, cujo
+    // valueOf()/toJSON() retorna string de propósito (evita conversão implícita
+    // perigosa) — sem isso, "+" concatena texto em vez de somar (ex: salário
+    // "23000" + totalIncome 0 vira "230000", dado 10x errado indo pra IA).
+    const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
+    const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    const fixedTotal    = budgets.reduce((s, b) => s + Number(b.amount), 0)
+    const salary        = Number(user?.salary || 0)
     return {
       month, year,
       salary, totalIncome, totalExpenses, fixedTotal,
       balance: salary + totalIncome - fixedTotal - totalExpenses,
       transactionCount: txs.length, plan: user?.plan,
-      budgets: budgets.map(b => ({ name: b.name, amount: b.amount })),
+      budgets: budgets.map(b => ({ name: b.name, amount: Number(b.amount) })),
     }
   }
 
@@ -329,7 +328,7 @@ function sanitizeHistory(history) {
 }
 
 function handleGroqError(err, res) {
-  console.error('[AGENT]', err.status || '', err.message)
+  reportError(err, { tag: '[AGENT]', groqStatus: err.status })
   if (err.status === 429 || err.status === 529) {
     return res.status(429).json({ error: 'Serviço de IA sobrecarregado. Aguarde alguns segundos e tente novamente.' })
   }
@@ -496,7 +495,7 @@ router.post('/chat', async (req, res) => {
         msg.tool_calls.map(async (call) => {
           let args
           try { args = JSON.parse(call.function.arguments || '{}') } catch (e) {
-            console.error(`[AGENT] parse args ${call.function.name}:`, e.message)
+            reportError(e, { tag: '[AGENT] parse args', tool: call.function.name })
             args = {}
           }
 
@@ -512,7 +511,7 @@ router.post('/chat', async (req, res) => {
           try {
             result = await runTool(call.function.name, args, req.userId, req.userPlan)
           } catch (toolErr) {
-            console.error(`[AGENT] tool ${call.function.name}:`, toolErr.message)
+            reportError(toolErr, { tag: '[AGENT] tool', tool: call.function.name, userId: req.userId })
             result = { error: 'Erro ao buscar dados. Tente novamente.' }
           }
           return { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 8000) }
@@ -561,7 +560,7 @@ router.post('/predict', async (req, res) => {
 
     const totalExpenses  = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
     const totalIncome    = txs.filter(t => t.type === 'income').reduce((s, t)  => s + Number(t.amount), 0)
-    const salary         = user?.salary || 0
+    const salary         = Number(user?.salary || 0)
     const totalAvailable = salary + totalIncome
     const pct            = totalAvailable > 0 ? Math.round(totalExpenses / totalAvailable * 100) : 0
 
@@ -619,7 +618,7 @@ router.post('/monthly-report', async (req, res) => {
 
     const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
     const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t)  => s + Number(t.amount), 0)
-    const salary        = user?.salary || 0
+    const salary        = Number(user?.salary || 0)
     const fixedCosts    = budgets.reduce((s, b) => s + Number(b.amount), 0)
     const balance       = salary + totalIncome - fixedCosts - totalExpenses
 
