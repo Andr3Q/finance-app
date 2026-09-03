@@ -208,12 +208,18 @@ describe('POST /api/reports/monthly-close', () => {
     expect(res.body.error).toMatch(/fechar o mês/i)
   })
 
-  test('500 quando sendMonthlyReport falha', async () => {
+  test('sendMonthlyReport falha: mês fecha (transações arquivadas) mesmo sem o e-mail sair', async () => {
     sendMonthlyReport.mockRejectedValueOnce(new Error('SMTP error'))
     const res = await request(app)
       .post(ENDPOINT)
       .set('Authorization', `Bearer ${makeToken()}`)
-    expect(res.status).toBe(500)
+    expect(res.status).toBe(200)
+    expect(res.body.emailSent).toBe(false)
+    expect(res.body.sentTo).toBeNull()
+    expect(res.body.message).toMatch(/não foi possível enviar/i)
+    expect(prisma.transaction.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { archived: true } })
+    )
   })
 
   test('resposta inclui month, year e message com e-mail', async () => {

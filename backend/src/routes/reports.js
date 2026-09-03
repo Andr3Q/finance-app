@@ -70,9 +70,17 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
     // Gera PDF
     const pdfBuffer = await generateMonthlyPDF(user, month, year, summary, transactions)
 
-    // Envia e-mail
+    // Envia e-mail — não pode bloquear o fechamento do mês: uma queda do
+    // Resend não pode impedir o arquivamento das transações abaixo, que é
+    // o efeito que realmente importa em "fechar o mês".
     const reportTo = user.reportEmail || user.email
-    await sendMonthlyReport(reportTo, user.name, month, year, summary, pdfBuffer)
+    let emailSent = true
+    try {
+      await sendMonthlyReport(reportTo, user.name, month, year, summary, pdfBuffer)
+    } catch (err) {
+      emailSent = false
+      reportError(err, { tag: '[reports] monthly-close sendMonthlyReport' })
+    }
 
     // Arquiva as transações do mês (marca como fechadas)
     await prisma.transaction.updateMany({
@@ -81,8 +89,11 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
     })
 
     res.json({
-      message:    `Mês fechado com sucesso! Relatório enviado para ${reportTo}`,
-      sentTo:     reportTo,
+      message: emailSent
+        ? `Mês fechado com sucesso! Relatório enviado para ${reportTo}`
+        : 'Mês fechado com sucesso! Não foi possível enviar o relatório por e-mail agora — tente novamente mais tarde.',
+      sentTo:    emailSent ? reportTo : null,
+      emailSent,
       month,
       year,
       summary

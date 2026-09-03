@@ -466,7 +466,9 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 
     const resetLink = `${APP_URL}/reset-password?token=${rawToken}`
 
-    await sendResetEmail(user.email, user.name, resetLink)
+    // O token já foi salvo acima — uma falha do Resend aqui não pode derrubar
+    // o fluxo (nem revelar, via 500 vs 200, se o e-mail existe ou não).
+    sendResetEmail(user.email, user.name, resetLink).catch(err => reportError(err, { tag: '[auth] forgot-password sendResetEmail' }))
 
     res.json({ message: 'Se este e-mail existir, você receberá o link em breve.' })
   } catch (error) {
