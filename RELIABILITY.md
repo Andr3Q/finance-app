@@ -1,7 +1,7 @@
-# Confiabilidade do Nancy — SLI, SLO e SLA
+# Confiabilidade do Nancy — SLI, SLO, SLA e engenharia de resiliência
 
-> **Status:** SLI em vigor. SLO documentado, coleta de uptime em andamento. SLA: **rascunho pronto** (soft, sem reembolso), aguardando ~2-4 semanas de dado real pra preencher o número antes de publicar em `TermsOfUse.jsx`.
-> **Data:** 2026-09-01 | **Origem:** auditoria de código pós-incidente (bugs de IA relatados por beta testers)
+> **Status:** SLI em vigor. SLO documentado, coleta de uptime em andamento. SLA: **rascunho pronto** (soft, sem reembolso), aguardando ~2-4 semanas de dado real pra preencher o número antes de publicar em `TermsOfUse.jsx`. **Durabilidade dos dados: risco aceito, não mitigado** (sem backup do banco — ver seção dedicada).
+> **Data:** 2026-09-01 (SLI/SLO/SLA) · 2026-09-03 (isolamento multi-tenant, resiliência a dependências externas, durabilidade) | **Origem:** auditoria de código pós-incidente (bugs de IA relatados por beta testers) + auditoria de arquitetura de ponta a ponta
 
 ---
 
@@ -113,3 +113,28 @@ Até 2026-09-01 não existia nenhuma série histórica de disponibilidade — o 
 **Antes de publicar** (quando o número estiver definido): confirmar se a meta vale igual pra todos os planos ou só Pro/Elite — o rascunho acima assume que vale pra todo mundo, por simplicidade, já que não tem remédio financeiro associado (é só transparência). Ajustar se fizer mais sentido diferenciar.
 
 Nenhuma ação de código pendente aqui — só aguardar dado.
+
+---
+
+## Durabilidade dos dados — risco aceito, não mitigado
+
+**Status: sem backup do banco. Decisão explícita de não implementar agora (2026-09-03).**
+
+Diferente de disponibilidade (SLI/SLO/SLA acima, que trata de "o serviço está no ar?"), durabilidade trata de "se algo destruir os dados, dá pra recuperar?" — e hoje a resposta é **não**.
+
+**Estado real, confirmado por auditoria de código (2026-09-03)**:
+- Nenhuma rotina de backup automatizado do Postgres existe no repositório — nem `pg_dump` agendado, nem qualquer script de snapshot.
+- O Supabase do Nancy está no **plano free** (`CONTEXTO_PROJETO.md`), que não inclui point-in-time recovery (PITR) nem backup diário automático — recursos exclusivos de planos pagos.
+- Não existe runbook de "o que fazer se o banco corromper ou alguém rodar um DELETE errado em produção". O único rollback documentado (`deploy.yml`) reverte a **aplicação** pra revisão anterior do Cloud Run — não mexe em dado nenhum, porque não tem o que reverter.
+- `GET /api/auth/export-data` (LGPD Art. 15) exporta os dados de **um** usuário, sob pedido dele — não é backup do sistema. `/api/admin/seed-staging` **apaga** dados de homologação pra recriar um fixture de teste — é o oposto de recuperação.
+
+**Cenário de risco concreto**: um bug no código, um comando manual errado, ou uma falha do próprio Supabase que corrompa ou apague dados de clientes pagantes hoje não tem nenhum caminho de recuperação — os dados estariam perdidos permanentemente.
+
+**Decisão (2026-09-03)**: não implementar nenhuma das opções abaixo agora — o custo recorrente do upgrade de tier não se justifica no estágio atual (poucos clientes pagantes, sem histórico de incidente de dados). Revisitar quando a base de clientes crescer o suficiente pra justificar o custo, ou antes, se houver qualquer sinal de risco elevado (ex: React a um quase-incidente).
+
+**Opções avaliadas, prontas pra quando for retomado**:
+1. **`pg_dump` agendado via GitHub Actions** — mesmo padrão gratuito já usado em `keepalive.yml`/`plan-reminders.yml`: cron diário faz dump do banco e sobe pra um bucket privado no GCS. Custo quase zero (centavos de storage), mas o pipeline de backup **e** de restore precisam ser construídos e mantidos pelo time — e um backup nunca testado não é um backup de verdade, então isso inclui testar a restauração pelo menos uma vez.
+2. **Upgrade Supabase Pro** (~$25/mês) — inclui backup diário automático + PITR de 7 dias, mantido pelo próprio provedor. Mais confiável (testado por eles, não por nós), mas é custo recorrente novo.
+3. Os dois juntos, pra redundância — descartado por ora pelo mesmo motivo de custo.
+
+Nenhuma ação de código pendente aqui — decisão de custo/risco, não de engenharia. Revisitar junto com o número do SLA (~2026-09-29 é o próximo ponto natural de revisão de confiabilidade já agendado).
