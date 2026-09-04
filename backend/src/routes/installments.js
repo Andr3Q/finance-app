@@ -121,7 +121,7 @@ router.patch('/:id/pay', async (req, res) => {
           },
         })
         const updatedPlan = await db.installmentPlan.update({
-          where: { id: plan.id },
+          where: { id: plan.id, userId: req.userId },
           data:  { lastTransactionId: transaction.id },
         })
         return { updatedPlan, transaction }
@@ -170,7 +170,7 @@ router.patch('/:id/unpay', async (req, res) => {
 
     const ops = [
       prisma.installmentPlan.update({
-        where: { id: plan.id },
+        where: { id: plan.id, userId: req.userId },
         data:  { paidInstallments: plan.paidInstallments - 1, lastTransactionId: null },
       }),
     ]

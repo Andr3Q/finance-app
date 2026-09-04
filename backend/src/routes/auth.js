@@ -389,7 +389,7 @@ router.get('/me', authMiddleware, async (req, res) => {
             url:   '/settings',
           })
           await prisma.budget.update({
-            where: { id: b.id },
+            where: { id: b.id, userId: req.userId },
             data:  { endDateNotifSent: true },
           })
         }
@@ -754,7 +754,7 @@ router.post('/unlock-account', async (req, res) => {
     }
 
     await prisma.$transaction([
-      prisma.accountUnlockToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+      prisma.accountUnlockToken.update({ where: { id: record.id, userId: record.userId }, data: { usedAt: new Date() } }),
       prisma.user.update({ where: { id: record.userId }, data: { failedLoginCount: 0, accountLockedAt: null } }),
     ])
 

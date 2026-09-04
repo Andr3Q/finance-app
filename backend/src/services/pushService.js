@@ -28,7 +28,7 @@ async function sendPushToUser(userId, payload) {
         JSON.stringify(payload)
       ).catch(async err => {
         if (err.statusCode === 410 || err.statusCode === 404) {
-          await prisma.pushSubscription.deleteMany({ where: { endpoint: sub.endpoint } })
+          await prisma.pushSubscription.deleteMany({ where: { endpoint: sub.endpoint, userId: sub.userId } })
         }
       })
     )
