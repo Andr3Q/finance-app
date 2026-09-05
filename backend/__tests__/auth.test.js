@@ -481,7 +481,7 @@ describe('POST /api/auth/forgot-password', () => {
   // então esta rota respondia 200 "enviado" mesmo o e-mail nunca tendo saído.
   // Agora que emailService.js propaga o erro, a rota precisa refletir a falha
   // real em vez de mentir sucesso pro usuário.
-  test('falha real no envio (Resend rejeitou): retorna 500, não finge sucesso', async () => {
+  test('falha real no envio (Resend rejeitou): não derruba o fluxo nem revela a falha (proteção contra email enumeration)', async () => {
     const emailService = require('../src/services/emailService')
     prisma.user.findUnique.mockResolvedValue(mockUser())
     prisma.user.update.mockResolvedValue({})
@@ -491,7 +491,10 @@ describe('POST /api/auth/forgot-password', () => {
       .post('/api/auth/forgot-password')
       .send({ email: 'test@example.com' })
 
-    expect(res.status).toBe(500)
+    // O token já foi salvo antes do envio — uma queda do Resend não pode
+    // quebrar o fluxo nem, via 500 vs 200, revelar se o e-mail existe ou não.
+    expect(res.status).toBe(200)
+    expect(res.body.message).toBe('Se este e-mail existir, você receberá o link em breve.')
   })
 })
 

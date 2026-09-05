@@ -54,12 +54,17 @@ const AuthValidContext = createContext(false)
 
 function PrivateRoute({ children }) {
   const isValidating = useContext(AuthValidContext)
-  if (!isLoggedIn()) return <Navigate to="/login" replace />
+  // Enquanto valida contra o servidor, espera — sessionStorage vazio não
+  // significa "deslogado" (pode só ter fechado o app; o cookie httpOnly não
+  // dá pra ler daqui, só o /auth/me sabe se ainda é válido). Só decide
+  // redirecionar depois que a validação terminar de um jeito ou de outro.
   if (isValidating)  return <PageLoader />
+  if (!isLoggedIn()) return <Navigate to="/login" replace />
   return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /></>
 }
 
 function HomeRoute() {
+  const isValidating = useContext(AuthValidContext)
   const [skipLandingReady, setSkipLandingReady] = useState(false)
 
   useEffect(() => {
@@ -71,6 +76,12 @@ function HomeRoute() {
     const t = setTimeout(() => setSkipLandingReady(true), SPLASH_MIN_MS)
     return () => clearTimeout(t)
   }, [])
+
+  // Dispositivo já teve conta (localStorage sobrevive fechar o app) e a
+  // validação com o servidor ainda não terminou — espera antes de decidir
+  // entre dashboard/login, senão manda pro /login mesmo com cookie válido
+  // (era exatamente o bug: fechar e reabrir pedia login de novo à toa).
+  if (isValidating && hasAccountOnThisDevice()) return null
 
   if (isLoggedIn()) return <Navigate to="/dashboard" replace />
   if (hasAccountOnThisDevice()) return skipLandingReady ? <Navigate to="/login" replace /> : null
@@ -86,15 +97,20 @@ function PageLoader() {
 }
 
 export default function App() {
-  // isValidating: true enquanto /auth/me não respondeu — PrivateRoute bloqueia
-  // renderização de conteúdo protegido nesse período para evitar flash de dados
-  // antes de o servidor confirmar que o cookie JWT ainda é válido.
-  const [isValidating, setIsValidating] = useState(isLoggedIn)
+  // isValidating: true enquanto /auth/me não respondeu — PrivateRoute/HomeRoute
+  // bloqueiam a decisão de rota nesse período para evitar tanto o flash de
+  // dados quanto o bug oposto: mandar pro /login só porque o sessionStorage
+  // (apagado ao fechar o app) está vazio, mesmo com o cookie httpOnly ainda
+  // válido — que é o que esse app já teve fechado/reaberto perdia sessão.
+  const [isValidating, setIsValidating] = useState(() => isLoggedIn() || hasAccountOnThisDevice())
 
   useEffect(() => {
-    // Valida sessão contra o servidor uma vez na inicialização
-    // Se o cookie JWT expirou mas sessionStorage ainda tem dados, limpa e redireciona
-    if (!isLoggedIn()) return
+    // Valida sessão contra o servidor uma vez na inicialização — tenta sempre
+    // que há QUALQUER chance de cookie válido (sessionStorage tem cache, OU
+    // este dispositivo já teve conta antes, mesmo com sessionStorage vazio
+    // por ter fechado o app). Só pula de vez pra quem nunca logou aqui —
+    // nesse caso não existe cookie possível, sem requisição à toa.
+    if (!isLoggedIn() && !hasAccountOnThisDevice()) return
     authAPI.me()
       .then(res => {
         if (res.data) {

@@ -21,8 +21,12 @@ const MODEL_QUALITY = 'openai/gpt-oss-120b'
 // ── Singleton do cliente Groq ────────────────────────────
 // Criado uma única vez ao carregar o módulo (não a cada requisição).
 // timeout: 30s — evita requests penduradas indefinidamente.
+// maxRetries: 0 — o groq-sdk já tenta de novo sozinho por padrão (2x); como
+// o withRetry() abaixo também tenta de novo com sua própria lógica (429 vs
+// 529/503), deixar os dois ligados multiplicava até 9 tentativas HTTP reais
+// numa única chamada lógica. Só o withRetry() do app decide retry agora.
 const groq = process.env.GROQ_API_KEY
-  ? new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 30_000 })
+  ? new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 30_000, maxRetries: 0 })
   : null
 
 function requireGroq(res) {
@@ -52,13 +56,61 @@ function requirePlan(req, res, minimum) {
   return true
 }
 
+// ── Circuit breaker ──────────────────────────────────────
+// Sem isso, cada request nova tenta o Groq do zero mesmo se ele já falhou
+// nas últimas N tentativas — cada uma delas paga o custo cheio de
+// timeout+retry contra um serviço que já sabemos que está fora. Depois de
+// CIRCUIT_FAILURE_THRESHOLD falhas seguidas, recusa rápido por
+// CIRCUIT_OPEN_MS, sem nem tentar chamar o Groq.
+// Estado em memória — reseta em cold start do Cloud Run (min-instances: 0);
+// aceitável, pior caso é 1 tentativa extra logo após reiniciar, não é uma
+// questão de correção.
+const CIRCUIT_FAILURE_THRESHOLD = 5
+const CIRCUIT_OPEN_MS = 30_000
+let circuitFailures  = 0
+let circuitOpenedAt  = null
+
+function circuitIsOpen() {
+  if (circuitOpenedAt === null) return false
+  if (Date.now() - circuitOpenedAt > CIRCUIT_OPEN_MS) {
+    // Meia-abertura: deixa a próxima chamada passar pra testar se o Groq voltou.
+    circuitOpenedAt = null
+    circuitFailures  = 0
+    return false
+  }
+  return true
+}
+
+// ── Timeout de resposta maior que o global (30s, definido em server.js) ──
+// /chat, /predict e /monthly-report chamam o Groq (que já tem seu próprio
+// timeout de 30s por tentativa) — sem esse ajuste, o timeout global do
+// Express corta a conexão com 503 antes do Groq responder, mesmo quando a
+// resposta terminaria com sucesso segundos depois. /chat pode encadear até
+// MAX_TOOL_ITERATIONS chamadas sequenciais ao Groq, por isso ganha uma
+// janela maior que as outras duas (que fazem só 1 chamada).
+function withResponseTimeout(ms) {
+  return (req, res, next) => {
+    res.setTimeout(ms, () => {
+      if (!res.headersSent) res.status(503).json({ error: 'Tempo de resposta esgotado.' })
+    })
+    next()
+  }
+}
+
 // ── Retry para erros transitórios ───────────────────────
 // 429 = rate limit, 529 = Groq overloaded, 503 = servidor indisponível.
 // Backoff crescente: 1s, 2s, 4s. 429 espera o dobro (2s, 4s, 8s).
 async function withRetry(fn, retries = 2) {
+  if (circuitIsOpen()) {
+    const err = new Error('Circuito aberto — Groq com falhas consecutivas recentes.')
+    err.circuitOpen = true
+    throw err
+  }
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      return await fn()
+      const result = await fn()
+      circuitFailures = 0
+      return result
     } catch (err) {
       const isRateLimit   = err.status === 429
       const isOverloaded  = err.status === 529 || err.status === 503
@@ -68,6 +120,10 @@ async function withRetry(fn, retries = 2) {
         const jitter = Math.floor(Math.random() * 500)
         await new Promise(r => setTimeout(r, base * Math.pow(2, attempt) + jitter))
         continue
+      }
+      circuitFailures++
+      if (circuitFailures >= CIRCUIT_FAILURE_THRESHOLD && circuitOpenedAt === null) {
+        circuitOpenedAt = Date.now()
       }
       throw err
     }
@@ -328,6 +384,11 @@ function sanitizeHistory(history) {
 }
 
 function handleGroqError(err, res) {
+  // Circuito aberto: falha já foi reportada quando abriu — não reporta de novo
+  // a cada request recusado rápido, isso só faria o Sentry ecoar a mesma queda.
+  if (err.circuitOpen) {
+    return res.status(503).json({ error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.' })
+  }
   reportError(err, { tag: '[AGENT]', groqStatus: err.status })
   if (err.status === 429 || err.status === 529) {
     return res.status(429).json({ error: 'Serviço de IA sobrecarregado. Aguarde alguns segundos e tente novamente.' })
@@ -446,7 +507,7 @@ router.post('/transcribe',
 )
 
 // ── POST /api/agent/chat ────────────────────────────────
-router.post('/chat', async (req, res) => {
+router.post('/chat', withResponseTimeout(90_000), async (req, res) => {
   if (!requireGroq(res)) return
   if (!await requirePlan(req, res, 'elite')) return
 
@@ -541,7 +602,7 @@ router.post('/chat', async (req, res) => {
 
 // ── POST /api/agent/predict ─────────────────────────────
 // Usa modelo rápido (8B) — apenas 1 frase curta, velocidade > qualidade.
-router.post('/predict', async (req, res) => {
+router.post('/predict', withResponseTimeout(60_000), async (req, res) => {
   if (!requireGroq(res)) return
   if (!await requirePlan(req, res, 'pro')) return
   try {
@@ -594,7 +655,7 @@ Escreva UMA frase curta e direta prevendo como o usuário vai terminar o mês fi
 })
 
 // ── POST /api/agent/monthly-report ─────────────────────
-router.post('/monthly-report', async (req, res) => {
+router.post('/monthly-report', withResponseTimeout(60_000), async (req, res) => {
   if (!requireGroq(res)) return
   if (!await requirePlan(req, res, 'elite')) return
   try {

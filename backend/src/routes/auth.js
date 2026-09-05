@@ -389,7 +389,7 @@ router.get('/me', authMiddleware, async (req, res) => {
             url:   '/settings',
           })
           await prisma.budget.update({
-            where: { id: b.id },
+            where: { id: b.id, userId: req.userId },
             data:  { endDateNotifSent: true },
           })
         }
@@ -466,7 +466,9 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 
     const resetLink = `${APP_URL}/reset-password?token=${rawToken}`
 
-    await sendResetEmail(user.email, user.name, resetLink)
+    // O token já foi salvo acima — uma falha do Resend aqui não pode derrubar
+    // o fluxo (nem revelar, via 500 vs 200, se o e-mail existe ou não).
+    sendResetEmail(user.email, user.name, resetLink).catch(err => reportError(err, { tag: '[auth] forgot-password sendResetEmail' }))
 
     res.json({ message: 'Se este e-mail existir, você receberá o link em breve.' })
   } catch (error) {
@@ -752,7 +754,7 @@ router.post('/unlock-account', async (req, res) => {
     }
 
     await prisma.$transaction([
-      prisma.accountUnlockToken.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+      prisma.accountUnlockToken.update({ where: { id: record.id, userId: record.userId }, data: { usedAt: new Date() } }),
       prisma.user.update({ where: { id: record.userId }, data: { failedLoginCount: 0, accountLockedAt: null } }),
     ])
 

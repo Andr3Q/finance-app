@@ -383,6 +383,35 @@ describe('POST /api/payments/webhook', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 
+  test('Payment.get() falha 1x (transitória) e recupera na tentativa seguinte — pagamento processado mesmo assim', async () => {
+    const mockGet = jest.fn()
+      .mockRejectedValueOnce(new Error('ECONNRESET'))
+      .mockResolvedValueOnce(VALID_PAYMENT)
+    Payment.mockImplementation(() => ({ get: mockGet }))
+    mockTransaction()
+
+    await signedWebhookPost()
+    // Backoff do withMpRetry é 1s antes da 2ª tentativa — espera passar disso.
+    await new Promise(r => setTimeout(r, 1500))
+
+    expect(mockGet).toHaveBeenCalledTimes(2)
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1)
+  }, 10000)
+
+  test('Payment.get() falha em todas as tentativas — não processa, mas não derruba o processo (sem retry infinito)', async () => {
+    const mockGet = jest.fn().mockRejectedValue(new Error('MP fora do ar'))
+    Payment.mockImplementation(() => ({ get: mockGet }))
+    mockTransaction()
+
+    const res = await signedWebhookPost()
+    // Backoff do withMpRetry: 1s + 2s entre as 3 tentativas.
+    await new Promise(r => setTimeout(r, 3500))
+
+    expect(res.status).toBe(200) // já respondeu 200 ao MP antes de processar
+    expect(mockGet).toHaveBeenCalledTimes(3) // 1 tentativa + 2 retries, não mais
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  }, 10000)
+
   test('trata webhook duplicado (P2002) silenciosamente — não envia email', async () => {
     mockPaymentGet()
     const dup = Object.assign(new Error('Unique constraint violated'), { code: 'P2002' })

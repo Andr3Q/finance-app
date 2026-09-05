@@ -51,12 +51,43 @@ const TITLES = {
 
 function getMpClient() {
   if (!process.env.MP_ACCESS_TOKEN) return null
-  return new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN })
+  // timeout: 6s por tentativa — o SDK tenta de novo sozinho até 3x com backoff
+  // (não configurável via API pública), então o default de 10s por tentativa
+  // dava um pior caso de ~36s, MAIOR que o timeout global de 30s do server.js.
+  // Com 6s, o pior caso (~21s) fica dentro da margem mesmo sem contar o
+  // override de resposta que /create-preference também ganhou, abaixo.
+  return new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN, options: { timeout: 6000 } })
+}
+
+// Retry curto e isolado só pra Payment.get() no webhook — é a chamada que, se
+// falhar DEPOIS do 200 já enviado ao MP (que por isso nunca reenvia), deixa
+// o pagamento sem nenhuma tentativa automática de recuperação: hoje só cai
+// no Sentry. Não substitui uma reconciliação completa (fora de escopo por
+// ora), mas reduz bastante a janela de perda por falha transitória de rede.
+async function withMpRetry(fn, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)))
+        continue
+      }
+      throw err
+    }
+  }
 }
 
 // ── POST /api/payments/create-preference ───────────────
 // Cria preferência MP e retorna a URL de checkout.
-router.post('/create-preference', authMiddleware, paymentLimiter, async (req, res) => {
+// Timeout de resposta maior que o global (30s, server.js) — margem extra
+// pro pior caso de retry do SDK do MP (~21s com o timeout de 6s acima).
+router.post('/create-preference', authMiddleware, paymentLimiter, (req, res, next) => {
+  res.setTimeout(40_000, () => {
+    if (!res.headersSent) res.status(503).json({ error: 'Tempo de resposta esgotado.' })
+  })
+  next()
+}, async (req, res) => {
   const client = getMpClient()
   if (!client) return res.status(503).json({ error: 'Pagamentos não configurados.' })
 
@@ -125,7 +156,7 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
 
     if (type !== 'payment' || !dataId) return
 
-    const payment = await new Payment(client).get({ id: dataId })
+    const payment = await withMpRetry(() => new Payment(client).get({ id: dataId }))
     if (payment.status !== 'approved')       return
     if (!payment.external_reference)         return
 

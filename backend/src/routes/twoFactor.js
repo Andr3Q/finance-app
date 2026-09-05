@@ -308,7 +308,7 @@ router.post('/use-backup-code', twoFALimiter, async (req, res) => {
     // concorrentes não permitam usar o mesmo código duas vezes.
     const user = await prisma.$transaction(async (tx) => {
       const updated = await tx.twoFactorBackupCode.updateMany({
-        where: { id: backupEntry.id, usedAt: null },
+        where: { id: backupEntry.id, userId: backupEntry.userId, usedAt: null },
         data:  { usedAt: new Date() },
       })
       if (updated.count === 0) return null // race: outro request chegou primeiro

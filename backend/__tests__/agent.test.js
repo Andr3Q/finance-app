@@ -555,3 +555,39 @@ describe('POST /api/agent/transcribe', () => {
     expect(res.status).toBe(401)
   })
 })
+
+// ══════════════════════════════════════════════════════════
+// Circuit breaker do Groq — TEM que ficar por último no arquivo: o estado
+// (circuitFailures/circuitOpenedAt) é módulo-level, compartilhado entre
+// TODAS as rotas de IA, e este teste deliberadamente deixa o circuito
+// aberto no final (testes depois deste veriam 503 mesmo com Groq saudável).
+// ══════════════════════════════════════════════════════════
+describe('Circuit breaker do Groq', () => {
+  test('abre depois de falhas consecutivas e recusa rápido sem chamar o Groq de novo', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+
+    // 1 chamada bem-sucedida primeiro — zera qualquer falha acumulada por
+    // outro teste do arquivo (o teste de 529 do /transcribe, acima, já soma 1),
+    // deixando o teste independente da ordem/histórico dos demais.
+    mockCreate.mockResolvedValueOnce(simpleReply('oi'))
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'oi' })
+
+    // Erro NÃO retryable (500 genérico) — falha na 1ª tentativa de cada
+    // request, sem esperar o backoff do withRetry (que só reage a 429/529/503).
+    mockCreate.mockRejectedValue(Object.assign(new Error('erro genérico'), { status: 500 }))
+
+    for (let i = 0; i < 5; i++) {
+      const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: `falha ${i}` })
+      expect(res.status).toBe(500)
+    }
+
+    const callsBeforeCircuitOpen = mockCreate.mock.calls.length
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'circuito deveria estar aberto agora' })
+
+    expect(res.status).toBe(503)
+    expect(res.body.error).toMatch(/temporariamente indisponível/i)
+    // Circuito aberto: essa 6ª requisição nem chegou a chamar o Groq de novo.
+    expect(mockCreate.mock.calls.length).toBe(callsBeforeCircuitOpen)
+  })
+})
