@@ -128,7 +128,20 @@ export default function App() {
         if (status === 401 || status === 403) {
           sessionStorage.removeItem('user')
           sessionStorage.removeItem('token')
-          window.location.href = '/login'
+          // Sem isso, o próximo boot (inclusive o reload logo abaixo) ainda
+          // vê hasAccountOnThisDevice() === true, chama /auth/me de novo,
+          // recebe 401 de novo, recarrega de novo — loop infinito de reload
+          // (foi exatamente o bug real por trás da "tela preta que não sai
+          // do lugar": confirmado gerando 60+ chamadas a /auth/me em poucos
+          // segundos numa reprodução real). Sessão confirmada inválida pelo
+          // servidor = não faz mais sentido tratar este dispositivo como
+          // "já teve conta" pra fins de pular a validação na próxima vez.
+          localStorage.removeItem('nancy_has_account')
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+            return
+          }
+          setIsValidating(false)
           return
         }
         // 429: rate limited — retry silently after 20s sem derrubar o app
