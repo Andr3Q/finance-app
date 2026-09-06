@@ -58,6 +58,29 @@ describe('App — validação de sessão na inicialização (bug: pedia login ao
     await renderAppAt('/dashboard')
     await waitFor(() => expect(authAPI.me).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(sessionStorage.getItem('user')).toBeNull())
+    // Regressão real encontrada em produção: sem isso, o dispositivo continua
+    // marcado como "já teve conta" pra sempre, e todo reload subsequente
+    // repete /auth/me → 401 → reload → ad infinitum (confirmado gerando 60+
+    // chamadas a /auth/me em segundos numa reprodução real com Playwright).
+    expect(localStorage.getItem('nancy_has_account')).toBeNull()
+  })
+
+  test('sessão inválida (401) confirmada não deixa rastro pra repetir /auth/me num boot seguinte — quebra o loop de reload', async () => {
+    localStorage.setItem('nancy_has_account', '1')
+    authAPI.me.mockRejectedValue({ response: { status: 401 } })
+
+    const first = await renderAppAt('/login') // já "recarregou" pro /login
+    await waitFor(() => expect(authAPI.me).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(localStorage.getItem('nancy_has_account')).toBeNull())
+    first.unmount()
+
+    // Simula o próximo boot (equivalente a um novo carregamento de página)
+    // com o estado de storage que sobrou do anterior — se a flag não tivesse
+    // sido limpa, isso chamaria /auth/me de novo e reiniciaria o loop.
+    vi.clearAllMocks()
+    await renderAppAt('/login')
+    await waitFor(() => expect(screen.getByText('TELA_LOGIN')).toBeInTheDocument())
+    expect(authAPI.me).not.toHaveBeenCalled()
   })
 
   test('visitante novo (sem conta neste dispositivo) → /auth/me nem é chamado, landing renderiza direto', async () => {
