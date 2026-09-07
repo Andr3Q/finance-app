@@ -18,8 +18,12 @@ export default function ProfileCard({ user }) {
     const fullName = [firstName, lastName].filter(Boolean).join(' ')
     try {
       await authAPI.updateProfile({ name: fullName, email: profileEmail })
-      const stored = JSON.parse(sessionStorage.getItem('user') || '{}')
-      saveUser({ ...stored, name: fullName, email: profileEmail })
+      // Usa o `user` vivo (prop), não uma cópia do sessionStorage — este nunca
+      // guarda campos sensíveis (salary/reportEmail, ver useUser.js), então
+      // reconstruir a partir dele apagava esses campos do estado global toda
+      // vez que o Perfil era salvo (podia levar a sobrescrever o salário real
+      // com 0 se o usuário salvasse de novo em Finanças sem perceber o sumiço).
+      saveUser({ ...user, name: fullName, email: profileEmail })
       setProfileMsg('Perfil atualizado!')
       setTimeout(() => setProfileMsg(''), 3000)
     } catch (err) {

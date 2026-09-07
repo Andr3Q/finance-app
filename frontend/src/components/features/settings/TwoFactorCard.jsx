@@ -108,8 +108,11 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
     setLoading(true); setErr('')
     try {
       const res = await authAPI.twoFAVerifySetup(code)
-      const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
-      saveUser({ ...cur, twoFactorEnabled: true })
+      // Usa o `user` vivo do hook, não uma cópia do sessionStorage — este
+      // nunca guarda campos sensíveis (salary/reportEmail), então reconstruir
+      // a partir dele apagava esses campos do estado global a cada troca de
+      // 2FA (ver mesmo fix em ProfileCard.jsx).
+      saveUser({ ...user, twoFactorEnabled: true })
       setModal(null)
       setCodesCount(res.data.backupCodes?.length || 10)
       setBackupCodes(res.data.backupCodes || null)
@@ -127,8 +130,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
     setLoading(true); setErr('')
     try {
       await authAPI.twoFADisable(password)
-      const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
-      saveUser({ ...cur, twoFactorEnabled: false })
+      saveUser({ ...user, twoFactorEnabled: false })
       setModal(null)
       setPassword('')
       setCodesCount(null)
