@@ -25,9 +25,9 @@ vi.mock('../services/analytics.js', () => ({
 
 import { authAPI } from '../services/api.js'
 
-function setup(props = {}) {
+function setup(props = {}, initialEntries = ['/login']) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <Login {...props} />
     </MemoryRouter>
   )
@@ -73,6 +73,17 @@ describe('Login — modo entrar', () => {
     await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
     expect(sessionStorage.getItem('token')).toBeNull()
+  })
+
+  it('após login, volta para a rota protegida original (state.from) em vez do /dashboard genérico', async () => {
+    authAPI.login.mockResolvedValue({
+      data: { user: { id: '1', plan: 'free' } },
+    })
+    setup({}, [{ pathname: '/login', state: { from: { pathname: '/settings/pagamentos', search: '?plano=pro' } } }])
+    await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
+    await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
+    await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/settings/pagamentos?plano=pro'))
   })
 
   it('exibe erro do servidor quando login falha', async () => {

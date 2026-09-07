@@ -13,7 +13,13 @@ function isChunkError(error) {
   )
 }
 
-let _reloaded = false
+// Chave em sessionStorage, não variável de módulo — uma variável de módulo
+// (`let _reloaded = false`) volta a `false` a cada reload, porque o módulo
+// inteiro é reexecutado do zero; ela não protege contra o MESMO erro se
+// repetindo a cada reload (loop automático, sem interação do usuário, se um
+// deploy sair com um chunk persistentemente quebrado). sessionStorage
+// sobrevive ao reload — só reseta quando a aba fecha de verdade.
+const RELOADED_KEY = 'errorboundary_chunk_reloaded'
 
 export default class ErrorBoundary extends Component {
   state = { error: null }
@@ -27,8 +33,10 @@ export default class ErrorBoundary extends Component {
       console.error('[ErrorBoundary]', error?.message, info?.componentStack?.split('\n')[1])
     }
     // Chunk stale após deploy novo → recarrega uma vez automaticamente
-    if (isChunkError(error) && !_reloaded) {
-      _reloaded = true
+    let alreadyReloaded = true
+    try { alreadyReloaded = sessionStorage.getItem(RELOADED_KEY) === '1' } catch { /* storage bloqueado */ }
+    if (isChunkError(error) && !alreadyReloaded) {
+      try { sessionStorage.setItem(RELOADED_KEY, '1') } catch { /* storage bloqueado */ }
       window.location.reload()
     }
   }

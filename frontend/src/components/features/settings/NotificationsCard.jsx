@@ -87,8 +87,9 @@ export default function NotificationsCard({ isPro, onMessage, onUpgrade }) {
     setter(newValue)
     try {
       await authAPI.updateNotifPrefs({ [key]: newValue })
-      const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
-      saveUser({ ...cur, [key]: newValue })
+      // Usa o `user` vivo do hook, não uma cópia do sessionStorage — ver
+      // mesmo fix em ProfileCard.jsx (apagava salary/reportEmail do estado global).
+      saveUser({ ...user, [key]: newValue })
     } catch {
       setter(!newValue) // reverte em caso de erro
       onMessage('Erro ao salvar preferência.', 'error')

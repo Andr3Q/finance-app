@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import CancelPlanCard from '../components/features/settings/CancelPlanCard.jsx'
+import { useUser } from '../hooks/useUser.js'
 
 vi.mock('../services/api.js', () => ({
   authAPI: { downgradeFree: vi.fn() },
@@ -125,6 +126,30 @@ describe('CancelPlanCard — cancelamento', () => {
     await waitFor(() => {
       expect(onMessage).toHaveBeenCalledWith(expect.stringMatching(/assinatura cancelada/i))
     })
+  })
+
+  it('regressão: cancelar o plano não apaga o salário do estado global (salary não vive no sessionStorage)', async () => {
+    authAPI.downgradeFree.mockResolvedValue({})
+    // salary é campo sensível — useUser.js deliberadamente não o persiste em
+    // sessionStorage (defesa contra XSS). Reconstruir o usuário a partir do
+    // sessionStorage em vez do estado vivo do hook apagava esse campo a cada
+    // ação de Configurações salva (2FA, notificações, perfil, cancelar plano).
+    function SalaryProbe() {
+      const user = useUser()
+      return <span data-testid="salary-probe">{String(user.salary)}</span>
+    }
+    setUser({ plan: 'pro', salary: 5000 })
+    render(<CancelPlanCard onMessage={vi.fn()} />)
+    render(<SalaryProbe />)
+
+    expect(screen.getByTestId('salary-probe').textContent).toBe('5000')
+
+    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fillPassword()
+    fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
+
+    await waitFor(() => expect(authAPI.downgradeFree).toHaveBeenCalled())
+    expect(screen.getByTestId('salary-probe').textContent).toBe('5000')
   })
 
   it('chama onMessage com erro quando downgradeFree falha', async () => {

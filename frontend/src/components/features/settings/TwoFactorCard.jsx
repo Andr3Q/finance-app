@@ -87,7 +87,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
   }, [enabled])
 
   const openSetup = async () => {
-    if (!isPro) { onUpgrade('2FA'); return }
+    if (!isPro) { onUpgrade('A autenticação de dois fatores é exclusiva do plano Pro.'); return }
     setLoading(true); setErr('')
     try {
       const res = await authAPI.twoFASetup()
@@ -108,8 +108,11 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
     setLoading(true); setErr('')
     try {
       const res = await authAPI.twoFAVerifySetup(code)
-      const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
-      saveUser({ ...cur, twoFactorEnabled: true })
+      // Usa o `user` vivo do hook, não uma cópia do sessionStorage — este
+      // nunca guarda campos sensíveis (salary/reportEmail), então reconstruir
+      // a partir dele apagava esses campos do estado global a cada troca de
+      // 2FA (ver mesmo fix em ProfileCard.jsx).
+      saveUser({ ...user, twoFactorEnabled: true })
       setModal(null)
       setCodesCount(res.data.backupCodes?.length || 10)
       setBackupCodes(res.data.backupCodes || null)
@@ -127,8 +130,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
     setLoading(true); setErr('')
     try {
       await authAPI.twoFADisable(password)
-      const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
-      saveUser({ ...cur, twoFactorEnabled: false })
+      saveUser({ ...user, twoFactorEnabled: false })
       setModal(null)
       setPassword('')
       setCodesCount(null)
@@ -200,7 +202,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
               </svg>
               2FA disponível nos planos Pro e Elite.
-              <button className="tfa-upgrade-link" onClick={() => onUpgrade('2FA')}>Fazer upgrade</button>
+              <button className="tfa-upgrade-link" onClick={() => onUpgrade('A autenticação de dois fatores é exclusiva do plano Pro.')}>Fazer upgrade</button>
             </div>
           )}
           {isPro && !enabled && (

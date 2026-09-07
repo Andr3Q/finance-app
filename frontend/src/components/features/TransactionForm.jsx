@@ -15,10 +15,21 @@ const CATEGORIES = [
   { value: 'other',     label: 'Outros'      },
 ]
 
-// Converte Date/ISO string → "YYYY-MM-DD" para input[type=date]
+// Converte Date/ISO string → "YYYY-MM-DD" para input[type=date], no fuso de
+// Brasília — igual ao nowBrasilia() do backend. .toISOString() usaria UTC,
+// que pode ser um dia à frente do dia real em Brasília (ex: 23h58 local já é
+// 02h58 UTC do dia seguinte) — ao reabrir pra editar, o campo de data vinha
+// errado, e salvar (mesmo só mudando outro campo) movia a transação de mês
+// silenciosamente, porque o backend recalcula month/year a partir dessa data.
 function toDateInput(val) {
-  if (!val) return new Date().toISOString().slice(0, 10)
-  try { return new Date(val).toISOString().slice(0, 10) } catch { return '' }
+  const d = val ? new Date(val) : new Date()
+  if (isNaN(d.getTime())) return ''
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(d)
+  const get = (type) => parts.find(p => p.type === type).value
+  return `${get('year')}-${get('month')}-${get('day')}`
 }
 
 export default function TransactionForm({ onClose, onSuccess, initialData, editingId }) {

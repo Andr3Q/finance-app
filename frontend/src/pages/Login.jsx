@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
 import { saveUser } from '../hooks/useUser.js'
@@ -57,6 +57,16 @@ function parseSalary(raw) {
 
 export default function Login({ isRegister = false }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  // PrivateRoute (App.jsx) manda pra cá com state.from quando o acesso
+  // direto a uma rota protegida exige login — sem isso, o usuário sempre
+  // caía no /dashboard genérico, perdendo a intenção original (ex: um link
+  // de cobrança apontando pra /settings/pagamentos). Só aceita rotas
+  // internas (começando com "/") — nunca uma URL externa vinda de state.
+  const fromPath = location.state?.from?.pathname
+  const redirectTo = (typeof fromPath === 'string' && fromPath.startsWith('/'))
+    ? `${fromPath}${location.state.from.search || ''}`
+    : '/dashboard'
   const refCode  = useRef(new URLSearchParams(window.location.search).get('ref') || '')
   const [mode,       setMode]       = useState(isRegister ? 'register' : 'login')
   const [loading,    setLoading]    = useState(false)
@@ -114,7 +124,11 @@ export default function Login({ isRegister = false }) {
         : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: form.salary.trim() ? parseSalary(form.salary) : 0, referralCode: refCode.current || undefined }
       const res = await fn(data)
       if (res.data.requires2FA) {
-        setTwoFA({ active: true, tempToken: res.data.tempToken, code: '' })
+        // Merge, não substitui — preserva useBackup/backupCode do estado
+        // inicial. Substituir o objeto inteiro deixava esses dois campos
+        // undefined, e o input de código de backup virava de "não controlado"
+        // pra "controlado" no primeiro keystroke (warning do React).
+        setTwoFA(t => ({ ...t, active: true, tempToken: res.data.tempToken, code: '' }))
         return
       }
       saveUser(res.data.user)
@@ -127,7 +141,7 @@ export default function Login({ isRegister = false }) {
         analytics.track('user_signed_up')
         analytics.track('trial_started', { plan: res.data.user.plan })
       }
-      navigate('/dashboard')
+      navigate(redirectTo)
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Ocorreu um erro. Tente novamente.')
     } finally {
@@ -144,7 +158,7 @@ export default function Login({ isRegister = false }) {
       saveUser(res.data.user)
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true })
-      navigate('/dashboard')
+      navigate(redirectTo)
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Código inválido.')
     } finally {
@@ -162,7 +176,7 @@ export default function Login({ isRegister = false }) {
       saveUser(res.data.user)
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true, backupCode: true })
-      navigate('/dashboard')
+      navigate(redirectTo)
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Código de recuperação inválido.')
     } finally {

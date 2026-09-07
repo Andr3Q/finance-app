@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { getInstallPrompt, clearInstallPrompt, isInstalled } from '../../services/installPrompt.js'
 
 const DISMISS_KEY  = 'install-banner-dismissed'
@@ -13,6 +14,7 @@ function detectPlatform() {
 }
 
 export default function InstallBanner() {
+  const { pathname } = useLocation()
   const [visible,         setVisible]         = useState(false)
   const [hiding,          setHiding]          = useState(false)
   const [installing,      setInstalling]      = useState(false)
@@ -69,7 +71,9 @@ export default function InstallBanner() {
     }
   }
 
-  if (!visible) return null
+  // Configurações → Instalar já oferece a mesma ação (InstallCard) — mostrar
+  // os dois ao mesmo tempo é redundante e confuso (dois botões "Instalar").
+  if (!visible || pathname === '/settings/instalar') return null
 
   const posDesktop = { position: 'fixed', bottom: 24, right: 84, width: 300, zIndex: 210 }
   const posMobile  = {

@@ -33,10 +33,11 @@ export default function CancelPlanCard({ onMessage }) {
     try {
       await authAPI.downgradeFree({ password: confirmPwd })
       analytics.track('plan_cancelled', { plan: user.plan })
-      const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
       // Mantém plan e planExpiresAt — o acesso continua até o fim do período pago.
-      // subscriptionCancelled sinaliza que a renovação foi cancelada.
-      saveUser({ ...cur, subscriptionCancelled: true, isOnTrial: false })
+      // subscriptionCancelled sinaliza que a renovação foi cancelada. Usa o
+      // `user` vivo do hook, não uma cópia do sessionStorage — ver mesmo fix
+      // em ProfileCard.jsx (apagava salary/reportEmail do estado global).
+      saveUser({ ...user, subscriptionCancelled: true, isOnTrial: false })
       closeModal()
       onMessage(
         expiryFormatted
