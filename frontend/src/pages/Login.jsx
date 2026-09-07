@@ -114,7 +114,11 @@ export default function Login({ isRegister = false }) {
         : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: form.salary.trim() ? parseSalary(form.salary) : 0, referralCode: refCode.current || undefined }
       const res = await fn(data)
       if (res.data.requires2FA) {
-        setTwoFA({ active: true, tempToken: res.data.tempToken, code: '' })
+        // Merge, não substitui — preserva useBackup/backupCode do estado
+        // inicial. Substituir o objeto inteiro deixava esses dois campos
+        // undefined, e o input de código de backup virava de "não controlado"
+        // pra "controlado" no primeiro keystroke (warning do React).
+        setTwoFA(t => ({ ...t, active: true, tempToken: res.data.tempToken, code: '' }))
         return
       }
       saveUser(res.data.user)

@@ -24,8 +24,9 @@ export default function OnboardingModal() {
     try { await authAPI.completeOnboarding() } catch {}
     analytics.track('onboarding_completed')
     sessionStorage.removeItem('just_registered')
-    const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
-    saveUser({ ...cur, onboardingComplete: true })
+    // Usa o `user` vivo do hook, não uma cópia do sessionStorage — ver mesmo
+    // fix em ProfileCard.jsx (apagava salary/reportEmail do estado global).
+    saveUser({ ...user, onboardingComplete: true })
   }
 
   const handleNext = async () => {
@@ -34,8 +35,7 @@ export default function OnboardingModal() {
       if (v > 0) {
         try {
           await budgetAPI.updateSalary(v)
-          const cur = JSON.parse(sessionStorage.getItem('user') || '{}')
-          saveUser({ ...cur, salary: v })
+          saveUser({ ...user, salary: v })
         } catch {}
       }
       setStep(2)
@@ -124,7 +124,7 @@ export default function OnboardingModal() {
                   type="text"
                   placeholder="Ex: Aluguel"
                   value={bName}
-                  onChange={e => setBName(e.target.value)}
+                  onChange={e => { setBName(e.target.value); setBudgetErr('') }}
                   maxLength={60}
                 />
               </div>
@@ -134,7 +134,7 @@ export default function OnboardingModal() {
                   type="number"
                   placeholder="1200"
                   value={bAmount}
-                  onChange={e => setBAmount(e.target.value)}
+                  onChange={e => { setBAmount(e.target.value); setBudgetErr('') }}
                   min="0.01"
                 />
               </div>
@@ -193,7 +193,16 @@ export default function OnboardingModal() {
         <div className="ob-actions">
           <button
             className="ob-skip"
-            onClick={step < 3 ? () => setStep(s => s + 1) : finish}
+            onClick={() => {
+              // No passo 1, "Pular" descartava o salário digitado sem avisar —
+              // fácil de clicar por engano com o botão "Próximo" logo ao lado.
+              if (step === 1 && parseFloat(salary) > 0 &&
+                  !window.confirm('Você digitou um salário mas não salvou. Pular mesmo assim?')) {
+                return
+              }
+              if (step < 3) setStep(s => s + 1)
+              else finish()
+            }}
             disabled={saving}
           >
             Pular

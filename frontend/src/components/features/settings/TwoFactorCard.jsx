@@ -87,7 +87,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
   }, [enabled])
 
   const openSetup = async () => {
-    if (!isPro) { onUpgrade('2FA'); return }
+    if (!isPro) { onUpgrade('A autenticação de dois fatores é exclusiva do plano Pro.'); return }
     setLoading(true); setErr('')
     try {
       const res = await authAPI.twoFASetup()
@@ -202,7 +202,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
               </svg>
               2FA disponível nos planos Pro e Elite.
-              <button className="tfa-upgrade-link" onClick={() => onUpgrade('2FA')}>Fazer upgrade</button>
+              <button className="tfa-upgrade-link" onClick={() => onUpgrade('A autenticação de dois fatores é exclusiva do plano Pro.')}>Fazer upgrade</button>
             </div>
           )}
           {isPro && !enabled && (
