@@ -19,6 +19,20 @@ const api = axios.create({
   withCredentials: true,
 })
 
+// Rotas onde 401 significa "credencial errada" (senha/código de verificação),
+// não "sessão expirada" — o backend reusa o mesmo status code pros dois
+// casos. Redirecionar pro login nessas rotas escondia a mensagem de erro real
+// (ex: "E-mail ou senha incorretos" nunca aparecia, a página só recarregava)
+// e podia até deslogar uma sessão válida por causa de um typo de senha ao
+// desativar 2FA em Configurações.
+const CREDENTIAL_CHECK_ROUTES = [
+  '/auth/login',
+  '/auth/2fa/verify-login',
+  '/auth/2fa/use-backup-code',
+  '/auth/2fa/disable',
+  '/auth/2fa/regenerate-backup-codes',
+]
+
 // Interceptor de resposta:
 // Se o backend retornar 401 ou 403 (cookie expirado),
 // limpa os dados locais e redireciona para o login
@@ -28,7 +42,8 @@ api.interceptors.response.use(
     if (!error.response) return Promise.reject(error) // rede/timeout
     const status = error.response.status
     const isAuthError = (status === 401) || (status === 403 && !error.response?.data?.limitReached)
-    if (isAuthError) {
+    const isCredentialCheck = CREDENTIAL_CHECK_ROUTES.some(route => error.config?.url?.includes(route))
+    if (isAuthError && !isCredentialCheck) {
       sessionStorage.removeItem('user')
       window.location.href = '/login'
     }

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, createContext, useContext } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
 import OnboardingModal from './components/features/OnboardingModal.jsx'
@@ -54,12 +54,16 @@ const AuthValidContext = createContext(false)
 
 function PrivateRoute({ children }) {
   const isValidating = useContext(AuthValidContext)
+  const location = useLocation()
   // Enquanto valida contra o servidor, espera — sessionStorage vazio não
   // significa "deslogado" (pode só ter fechado o app; o cookie httpOnly não
   // dá pra ler daqui, só o /auth/me sabe se ainda é válido). Só decide
   // redirecionar depois que a validação terminar de um jeito ou de outro.
   if (isValidating)  return <PageLoader />
-  if (!isLoggedIn()) return <Navigate to="/login" replace />
+  // Preserva a URL de destino (ex: link de cobrança apontando pra
+  // /settings/pagamentos) — sem isso, Login.jsx sempre mandava pro
+  // /dashboard genérico depois de autenticar, perdendo a intenção original.
+  if (!isLoggedIn()) return <Navigate to="/login" state={{ from: location }} replace />
   return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /></>
 }
 
