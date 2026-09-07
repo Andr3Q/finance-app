@@ -166,6 +166,16 @@ export default function Planos() {
     setLoading(key)
     // Abre janela imediatamente no clique — evita bloqueio de popup e dá resposta instantânea
     const win = window.open('about:blank', '_blank')
+    // Mesmo clique síncrono pode ser bloqueado (navegador/config de privacidade
+    // mais restritiva) — window.open então retorna null. Sem essa checagem,
+    // win.location.href abaixo lançava, o catch tentava win.close() em cima de
+    // null e lançava DE NOVO dali, escapando pro catch e nunca mostrando o
+    // toast de erro (silencioso pro usuário, só um erro no console).
+    if (!win) {
+      setLoading(null)
+      showToast('Não consegui abrir a janela de pagamento — seu navegador bloqueou o pop-up. Permita pop-ups para este site e tente novamente.', 'error')
+      return
+    }
     try {
       const { data } = await paymentsAPI.createPreference(plan, period)
       try {

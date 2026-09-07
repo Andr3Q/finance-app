@@ -23,6 +23,17 @@ vi.mock('../services/cache.js', () => ({
 vi.mock('../components/layout/Navbar.jsx', () => ({ default: () => null }))
 
 import { transactionsAPI, installmentsAPI } from '../services/api.js'
+import { invalidateCache } from '../services/cache.js'
+
+// Mesmo cálculo do fix em Transactions.jsx — usado nos testes pra descobrir
+// qual é o mês REAL atual (Brasília) sem depender de mockar a data do sistema.
+function currentBrasiliaMonthYear() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: 'numeric',
+  }).formatToParts(new Date())
+  const get = (type) => Number(parts.find(p => p.type === type).value)
+  return { month: get('month'), year: get('year') }
+}
 
 // ── Factories ────────────────────────────────────────────────────
 
@@ -204,6 +215,94 @@ describe('Transactions — pagar e desfazer parcela', () => {
     fireEvent.click(await screen.findByRole('button', { name: /desfazer/i }))
 
     expect(await screen.findByText(/parcela desfeita/i)).toBeInTheDocument()
+  })
+
+  // Regressão: /pay sempre cria a transação no mês REAL atual (nowBrasilia()
+  // no backend), não no mês que a tela está mostrando. Sem isso, pagar uma
+  // parcela enquanto o usuário navegou pra outro mês invalidava só o cache do
+  // mês visto (sem mudança nenhuma) e deixava o mês real com cache velho.
+  it('ao pagar parcela vendo um mês diferente do atual, invalida o cache do mês REAL também', async () => {
+    installmentsAPI.pay.mockResolvedValue({})
+    installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
+    transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
+
+    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    fireEvent.click(await screen.findByLabelText('Mês anterior')) // sai do mês atual
+
+    fireEvent.click(await screen.findByRole('button', { name: /pagar parcela/i }))
+
+    const { month, year } = currentBrasiliaMonthYear()
+    await waitFor(() => {
+      expect(invalidateCache).toHaveBeenCalledWith(`transactions:list:${year}-${month}`)
+    })
+  })
+
+  it('ao desfazer parcela vendo um mês diferente do atual, invalida o cache do mês REAL também', async () => {
+    installmentsAPI.unpay.mockResolvedValue({})
+    installmentsAPI.list.mockResolvedValue({ data: [mkPlan({ paidInstallments: 2 })] })
+    transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
+
+    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    fireEvent.click(await screen.findByLabelText('Mês anterior'))
+
+    fireEvent.click(await screen.findByRole('button', { name: /desfazer/i }))
+
+    const { month, year } = currentBrasiliaMonthYear()
+    await waitFor(() => {
+      expect(invalidateCache).toHaveBeenCalledWith(`transactions:list:${year}-${month}`)
+    })
+  })
+})
+
+// ── Navegação rápida entre meses (race condition) ──────────────────
+
+describe('Transactions — navegação rápida entre meses', () => {
+  // Regressão: sem guarda de sequência, a resposta da 1ª fetch (mês inicial,
+  // rede lenta) podia chegar DEPOIS da 2ª fetch (mês pra onde o usuário já
+  // navegou) e sobrescrever `transactions` com o array do mês errado — que o
+  // filtro de render (t.month === selMonth) então esconde por completo,
+  // fazendo o mês certo (já carregado corretamente) sumir da tela sozinho.
+  it('resposta lenta de uma fetch antiga não sobrescreve o mês pra onde o usuário já navegou', async () => {
+    installmentsAPI.list.mockResolvedValue({ data: [] })
+
+    const today     = new Date()
+    const prevDate   = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    const prevMonth  = prevDate.getMonth() + 1
+    const prevYear   = prevDate.getFullYear()
+
+    let resolveFirst
+    const firstPending = new Promise(res => { resolveFirst = res })
+
+    transactionsAPI.list
+      .mockImplementationOnce(() => firstPending) // 1ª fetch (mês inicial, no mount) fica pendurada
+      .mockResolvedValueOnce({
+        data: {
+          data: [{
+            id: 'tx-novo', description: 'Mês novo', amount: 200, type: 'expense',
+            category: 'food', month: prevMonth, year: prevYear, date: `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`,
+          }],
+        },
+      })
+
+    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    fireEvent.click(await screen.findByLabelText('Mês anterior')) // dispara a 2ª fetch, mês diferente da 1ª
+
+    await waitFor(() => expect(screen.getByText('Mês novo')).toBeInTheDocument())
+
+    // Só agora a 1ª fetch (mês antigo, já abandonado) finalmente resolve.
+    resolveFirst({
+      data: {
+        data: [{
+          id: 'tx-velho', description: 'Mês velho', amount: 100, type: 'expense',
+          category: 'food', month: today.getMonth() + 1, year: today.getFullYear(), date: today.toISOString().slice(0, 10),
+        }],
+      },
+    })
+    await new Promise(r => setTimeout(r, 0))
+
+    // Com a guarda de sequência, essa resposta atrasada é descartada — o mês
+    // certo continua exibido, não vira uma tela vazia.
+    expect(screen.getByText('Mês novo')).toBeInTheDocument()
   })
 })
 

@@ -1,13 +1,28 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
-import { saveUser } from '../hooks/useUser.js'
+import { saveUser, useUser } from '../hooks/useUser.js'
 
+// /verify-email é pública (o link pode ser aberto em qualquer navegador,
+// sem sessão ativa) — os botões abaixo não podem assumir que o usuário
+// está logado NESTE navegador só porque acabou de confirmar o e-mail.
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams()
   const navigate       = useNavigate()
+  const user            = useUser()
+  const isLoggedIn      = !!user.id
   const [status, setStatus] = useState('loading') // 'loading' | 'ok' | 'error'
   const [err, setErr]       = useState('')
+
+  // Se não estiver logado, PrivateRoute (App.jsx) mandaria pro /login de
+  // qualquer forma — melhor já mandar pra lá direto, com um rótulo honesto
+  // no botão, preservando a rota pretendida (state.from) pra voltar depois do login.
+  const goDashboard = () => isLoggedIn
+    ? navigate('/dashboard')
+    : navigate('/login', { state: { from: { pathname: '/dashboard' } } })
+  const goSettings = () => isLoggedIn
+    ? navigate('/settings')
+    : navigate('/login', { state: { from: { pathname: '/settings' } } })
 
   useEffect(() => {
     const token = searchParams.get('token')
@@ -45,10 +60,10 @@ export default function VerifyEmail() {
             <h2 style={{ color: 'var(--t1)', fontSize: 20, fontWeight: 700, marginBottom: 10 }}>E-mail confirmado!</h2>
             <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 28, lineHeight: 1.6 }}>Sua conta está totalmente ativada. Aproveite o Nancy!</p>
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={goDashboard}
               style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: 'none', background: '#4ae2ac', color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
             >
-              Ir para o Dashboard
+              {isLoggedIn ? 'Ir para o Dashboard' : 'Fazer login'}
             </button>
           </>
         )}
@@ -60,10 +75,10 @@ export default function VerifyEmail() {
             <h2 style={{ color: 'var(--t1)', fontSize: 20, fontWeight: 700, marginBottom: 10 }}>Link inválido</h2>
             <p style={{ color: 'var(--t2)', fontSize: 14, marginBottom: 28, lineHeight: 1.6 }}>{err}</p>
             <button
-              onClick={() => navigate('/settings')}
+              onClick={goSettings}
               style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: 'none', background: 'var(--cp)', color: '#000', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
             >
-              Reenviar verificação em Configurações
+              {isLoggedIn ? 'Reenviar verificação em Configurações' : 'Fazer login'}
             </button>
           </>
         )}
