@@ -35,6 +35,20 @@ function exportCSV(rows) {
 
 const txCacheKey = (m, y) => `transactions:list:${y}-${m}`
 
+// /installments/:id/pay e /unpay sempre criam ou removem a transação no mês
+// REAL atual (nowBrasilia() no backend), não no mês que o usuário está vendo
+// na tela (selMonth/selYear pode ser um mês diferente, navegado manualmente).
+// Sem isso, pagar/desfazer uma parcela enquanto o usuário navega outro mês
+// invalidava o cache do mês errado, deixando o mês real desatualizado até o
+// TTL de 30s expirar sozinho.
+function currentBrasiliaMonthYear() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo', year: 'numeric', month: 'numeric',
+  }).formatToParts(new Date())
+  const get = (type) => Number(parts.find(p => p.type === type).value)
+  return { month: get('month'), year: get('year') }
+}
+
 export default function Transactions() {
   const user = useUser()
   const location = useLocation()
@@ -59,6 +73,12 @@ export default function Transactions() {
   const carouselRef     = useRef(null)
   const carouselWrapRef = useRef(null)
   const fetchRef        = useRef(null)
+  // Navegar rápido entre meses dispara várias fetchTransactions em paralelo —
+  // sem isso, a resposta de um mês antigo podia chegar DEPOIS da resposta do
+  // mês atual (rede mais lenta, sem ordem garantida) e sobrescrever a tela com
+  // dado do mês errado. Só a fetch mais recente (maior seq) tem permissão de
+  // aplicar seu resultado.
+  const fetchSeq        = useRef(0)
   const today         = new Date()
   const [selDate,  setSelDate]  = useState(() => new Date())
   const [selDir,   setSelDir]   = useState('none')
@@ -116,19 +136,26 @@ export default function Transactions() {
   }
 
   const fetchTransactions = async (force = false) => {
-    const key = txCacheKey(selMonth, selYear)
+    const key   = txCacheKey(selMonth, selYear)
+    const mySeq = ++fetchSeq.current
     if (!force) {
       const cached = getCache(key)
       if (cached) { setTransactions(cached); setLoading(false); return }
     }
     try {
       const res = await transactionsAPI.list({ month: selMonth, year: selYear, limit: 200 })
+      // Uma navegação mais recente já assumiu o controle enquanto essa
+      // requisição estava no ar — descarta, senão sobrescreve o mês certo.
+      if (mySeq !== fetchSeq.current) return
       const raw  = res.data.data ?? res.data
       const data = Array.isArray(raw) ? raw : []
       setCache(key, data, 30_000)
       setTransactions(data)
-    } catch { showToast('Erro ao carregar transações.', false) }
-    finally { setLoading(false) }
+    } catch {
+      if (mySeq === fetchSeq.current) showToast('Erro ao carregar transações.', false)
+    } finally {
+      if (mySeq === fetchSeq.current) setLoading(false)
+    }
   }
   fetchRef.current = fetchTransactions
 
@@ -206,6 +233,8 @@ export default function Transactions() {
     try {
       await installmentsAPI.pay(id)
       fetchInstallments()
+      const { month: curMonth, year: curYear } = currentBrasiliaMonthYear()
+      invalidateCache(txCacheKey(curMonth, curYear))
       invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
       invalidateCache('dashboard')
@@ -223,6 +252,8 @@ export default function Transactions() {
     try {
       await installmentsAPI.unpay(id)
       fetchInstallments()
+      const { month: curMonth, year: curYear } = currentBrasiliaMonthYear()
+      invalidateCache(txCacheKey(curMonth, curYear))
       invalidateCache(txCacheKey(selMonth, selYear))
       fetchTransactions(true)
       invalidateCache('dashboard')

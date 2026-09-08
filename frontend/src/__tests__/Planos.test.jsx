@@ -132,6 +132,22 @@ describe('Planos — checkout', () => {
     expect(await screen.findByText(/erro ao iniciar pagamento/i)).toBeInTheDocument()
   })
 
+  // Regressão: navegador/config de privacidade pode bloquear até o
+  // window.open síncrono do clique, retornando null. Sem a checagem, o
+  // handler tentava win.location.href (lança), o catch tentava win.close()
+  // em cima de null (lança de novo), e o toast de erro nunca aparecia —
+  // silencioso pro usuário, só um erro no console.
+  it('pop-up bloqueado (window.open retorna null): mostra toast de erro, sem crash, sem chamar a API à toa', async () => {
+    setUser({ emailVerified: true })
+    vi.spyOn(window, 'open').mockReturnValue(null)
+
+    renderPlanos()
+    await userEvent.click(screen.getByRole('button', { name: /assinar pro/i }))
+
+    expect(await screen.findByText(/bloqueou o pop-up/i)).toBeInTheDocument()
+    expect(paymentsAPI.createPreference).not.toHaveBeenCalled()
+  })
+
   it('rejeita URL de checkout que não é do mercadopago.com.br', async () => {
     setUser({ emailVerified: true })
     paymentsAPI.createPreference.mockResolvedValue({

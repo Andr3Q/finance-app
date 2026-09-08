@@ -276,4 +276,37 @@ describe('AgentChat — envio de mensagem de texto', () => {
       expect(screen.getByText(/Muitas mensagens seguidas/)).toBeInTheDocument()
     })
   })
+
+  // Regressão: o chat pode criar/editar/excluir transação via tool-calling no
+  // backend — sem invalidar o cache, Dashboard/Transações continuavam
+  // mostrando dado velho até o usuário forçar um refresh manual.
+  it('dataChanged:true dispara budget-updated (Dashboard/Transações invalidam o cache)', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Registrei o gasto de R$ 50,00.', dataChanged: true } })
+    const onBudgetUpdated = vi.fn()
+    window.addEventListener('budget-updated', onBudgetUpdated)
+    setup()
+
+    sendText('Registrar gasto de 50 em alimentação')
+
+    await waitFor(() => {
+      expect(screen.getByText('Registrei o gasto de R$ 50,00.')).toBeInTheDocument()
+    })
+    expect(onBudgetUpdated).toHaveBeenCalledTimes(1)
+    window.removeEventListener('budget-updated', onBudgetUpdated)
+  })
+
+  it('dataChanged ausente (resposta só de leitura) não dispara budget-updated', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Seu saldo é R$ 1.000,00.' } })
+    const onBudgetUpdated = vi.fn()
+    window.addEventListener('budget-updated', onBudgetUpdated)
+    setup()
+
+    sendText('Qual meu saldo?')
+
+    await waitFor(() => {
+      expect(screen.getByText('Seu saldo é R$ 1.000,00.')).toBeInTheDocument()
+    })
+    expect(onBudgetUpdated).not.toHaveBeenCalled()
+    window.removeEventListener('budget-updated', onBudgetUpdated)
+  })
 })

@@ -132,6 +132,11 @@ async function withRetry(fn, retries = 2) {
 
 const MAX_TOOL_ITERATIONS = 5
 
+// Ferramentas que alteram dado real (vs. get_transactions/get_summary, que só
+// leem) — usado pra avisar o frontend que o cache de Dashboard/Transactions
+// ficou desatualizado depois de uma conversa no chat.
+const MUTATING_TOOLS = new Set(['create_transaction', 'update_transaction', 'delete_transaction'])
+
 const TOOLS = [
   {
     type: 'function',
@@ -544,7 +549,12 @@ router.post('/chat', withResponseTimeout(90_000), async (req, res) => {
     // linguagem natural no prompt de sistema (que o modelo pode simplesmente
     // não seguir). No máximo 1 delete_transaction bem-sucedido por mensagem do
     // usuário, contando em todas as iterações do loop de tool_calls abaixo.
-    let deleteCount = 0
+    let deleteCount  = 0
+    // Sinaliza pro frontend invalidar o cache de Dashboard/Transactions — só
+    // vira true se uma ferramenta que muda dado de fato teve sucesso (não
+    // basta o modelo ter tentado; ex: create_transaction pode voltar
+    // {error: 'Valor inválido.'} sem nunca chegar a escrever no banco).
+    let dataChanged = false
 
     while (msg.tool_calls?.length > 0 && iterations < MAX_TOOL_ITERATIONS) {
       iterations++
@@ -575,6 +585,7 @@ router.post('/chat', withResponseTimeout(90_000), async (req, res) => {
             reportError(toolErr, { tag: '[AGENT] tool', tool: call.function.name, userId: req.userId })
             result = { error: 'Erro ao buscar dados. Tente novamente.' }
           }
+          if (result?.success && MUTATING_TOOLS.has(call.function.name)) dataChanged = true
           return { role: 'tool', tool_call_id: call.id, content: JSON.stringify(result).slice(0, 8000) }
         })
       )
@@ -593,7 +604,7 @@ router.post('/chat', withResponseTimeout(90_000), async (req, res) => {
     }
 
     const reply = msg.content?.trim() || 'Não consegui gerar uma resposta. Tente novamente.'
-    res.json({ reply })
+    res.json({ reply, dataChanged })
   } catch (err) {
     handleGroqError(err, res)
   }

@@ -5,19 +5,28 @@ const LEVELS = [
   { label: 'Forte',       color: '#4ae2ac' },
 ]
 
+// O backend (PASSWORD_REGEX, backend/src/utils/constants.js) só exige
+// comprimento 8+, minúscula, maiúscula e número — caractere especial é só
+// bônus opcional, nunca exigido. A versão antiga somava os 5 critérios sem
+// distinguir QUAIS batiam, então uma senha faltando maiúscula mas com
+// caractere especial (ex: "abcdefg1!") pontuava igual a uma que realmente
+// atende o mínimo do backend (ex: "Password1") — e essa última, que o
+// servidor JÁ aceita, aparecia como "Média" em vez de "Forte", passando a
+// falsa impressão de que precisava de mais quando já seria aceita como está.
 function score(pwd) {
   if (!pwd) return 0
-  let s = 0
-  if (pwd.length >= 8)           s++
-  if (/[a-z]/.test(pwd))         s++
-  if (/[A-Z]/.test(pwd))         s++
-  if (/\d/.test(pwd))            s++
-  if (/[^a-zA-Z0-9]/.test(pwd)) s++
-  // clamp to 4 levels: 1-2 → 0, 3 → 1, 4 → 2, 5 → 3 (full PASSWORD_RE = level 2, +special = 3)
-  if (s <= 2) return 1
-  if (s === 3) return 2
-  if (s === 4) return 3
-  return 4
+  const hasLen     = pwd.length >= 8
+  const hasLower   = /[a-z]/.test(pwd)
+  const hasUpper   = /[A-Z]/.test(pwd)
+  const hasDigit   = /\d/.test(pwd)
+  const basicCount = [hasLen, hasLower, hasUpper, hasDigit].filter(Boolean).length
+
+  // Todos os 4 critérios exigidos pelo backend presentes = senha já seria
+  // aceita — "Forte", com ou sem o bônus de caractere especial.
+  if (basicCount === 4) return 4
+  if (basicCount === 3) return 3
+  if (basicCount === 2) return 2
+  return 1
 }
 
 export default function PasswordStrength({ password }) {

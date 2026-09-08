@@ -857,7 +857,15 @@ export default function Dashboard() {
         <TransactionForm
           initialData={quickAddType ? { type: quickAddType } : undefined}
           onClose={() => { setShowForm(false); setQuickAddType(null) }}
-          onSuccess={() => { setShowForm(false); setQuickAddType(null); fetchData(true) }}
+          onSuccess={() => {
+            setShowForm(false); setQuickAddType(null)
+            // Dispara o mesmo evento usado em todo outro ponto que muda dado
+            // (SalaryCard, CategoryLimitsCard, handlePay/handleUnpay) em vez de
+            // chamar fetchData(true) direto — o listener abaixo já faz isso, e
+            // sem o evento a página de Transações não sabia que precisava
+            // invalidar seu próprio cache (só via TTL de 30s ou refresh manual).
+            window.dispatchEvent(new CustomEvent('budget-updated'))
+          }}
         />
       )}
 

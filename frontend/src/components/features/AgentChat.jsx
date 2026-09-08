@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { agentAPI } from '../../services/api.js'
 import { useUser } from '../../hooks/useUser.js'
 import { analytics } from '../../services/analytics.js'
+import { invalidateCache } from '../../services/cache.js'
 
 const SUGGESTIONS = [
   'Quanto gastei esse mês?',
@@ -131,6 +132,13 @@ export default function AgentChat() {
         .map(m => ({ role: m.role, content: m.content }))
       const res = await agentAPI.chat(text, apiHistory)
       setHistory(h => [...h, { role: 'assistant', content: res.data.reply }])
+      // O chat pode criar/editar/excluir transação via tool-calling — sem isso,
+      // Dashboard/Transações continuavam mostrando dado velho até o usuário
+      // forçar um refresh manual (ex: trocar de mês e voltar).
+      if (res.data.dataChanged) {
+        invalidateCache('dashboard')
+        window.dispatchEvent(new CustomEvent('budget-updated'))
+      }
     } catch (err) {
       const status = err.response?.status
       const serverMsg = err.response?.data?.error

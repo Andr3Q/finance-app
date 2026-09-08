@@ -307,6 +307,94 @@ describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {
   })
 })
 
+// ══════════════════════════════════════════════════════════
+// dataChanged — o frontend usa essa flag pra saber se precisa invalidar o
+// cache de Dashboard/Transações depois de uma conversa no chat. Só deve vir
+// true quando uma ferramenta que MUDA dado (create/update/delete) de fato
+// teve sucesso — não basta o modelo ter tentado.
+// ══════════════════════════════════════════════════════════
+describe('dataChanged (via /api/agent/chat)', () => {
+  test('true quando create_transaction tem sucesso', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null) // mês não fechado
+    prisma.transaction.create.mockResolvedValue({ id: TX_ID })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 50, category: 'food' }))
+      .mockResolvedValueOnce(simpleReply('Registrei o gasto de R$ 50,00.'))
+
+    const res = await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Registrar gasto de 50 em alimentação' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.dataChanged).toBe(true)
+  })
+
+  test('false quando get_summary é a única ferramenta chamada (só leitura)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.budget.findMany.mockResolvedValue([])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_summary', {}))
+      .mockResolvedValueOnce(simpleReply('Seu saldo é R$ 5.000,00.'))
+
+    const res = await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Qual meu saldo?' })
+
+    expect(res.body.dataChanged).toBe(false)
+  })
+
+  test('false quando update_transaction falha (mês já fechado)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.updateMany.mockResolvedValue({ count: 0 })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('update_transaction', { id: TX_ID, amount: 300 }))
+      .mockResolvedValueOnce(simpleReply('Não consegui editar — mês já fechado.'))
+
+    const res = await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Muda essa transação' })
+
+    expect(res.body.dataChanged).toBe(false)
+  })
+
+  test('false quando nenhuma ferramenta é chamada (resposta direta)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValueOnce(simpleReply('Oi! Como posso ajudar?'))
+
+    const res = await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'oi' })
+
+    expect(res.body.dataChanged).toBe(false)
+  })
+
+  test('true quando delete_transaction tem sucesso mesmo com get_summary na mesma mensagem', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.deleteMany.mockResolvedValue({ count: 1 })
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.budget.findMany.mockResolvedValue([])
+    mockCreate
+      .mockResolvedValueOnce(multiToolCallReply([
+        { name: 'delete_transaction', args: { id: TX_ID } },
+        { name: 'get_summary', args: {} },
+      ]))
+      .mockResolvedValueOnce(simpleReply('Excluí a transação. Seu saldo agora é R$ 5.000,00.'))
+
+    const res = await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Exclui essa conta e me diz meu saldo' })
+
+    expect(res.body.dataChanged).toBe(true)
+  })
+})
+
 describe('Ferramenta create_transaction — plano efetivo (req.userPlan)', () => {
   // /chat exige Elite antes de qualquer tool rodar (requirePlan no topo da rota),
   // então create_transaction NUNCA é alcançado com plano Pro/Free ou com Elite
