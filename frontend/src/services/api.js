@@ -76,6 +76,8 @@ export const authAPI = {
   exportData:              ()                    => api.get('/auth/export-data', { responseType: 'blob' }),
   verifyEmail:             (token)               => api.post('/auth/verify-email', { token }),
   resendVerification:      ()                    => api.post('/auth/resend-verification'),
+  changeEmail:             (newEmail, password)  => api.post('/auth/change-email', { newEmail, password }),
+  confirmEmailChange:      (token)               => api.post('/auth/confirm-email-change', { token }),
   unlockAccount:           (token)               => api.post('/auth/unlock-account', { token }),
   updateNotifPrefs:        (prefs)               => api.put('/auth/notifications', prefs),
 }

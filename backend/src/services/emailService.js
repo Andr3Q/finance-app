@@ -416,6 +416,74 @@ async function sendVerificationEmail(toEmail, userName, verifyLink) {
   })
 }
 
+// Vai pro e-mail NOVO — precisa confirmar posse antes da troca ser aplicada.
+async function sendEmailChangeVerification(toEmail, userName, confirmLink) {
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
+      <div style="background:linear-gradient(135deg,#020d10,#061520);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(0,255,204,0.15);">
+        <h1 style="color:#00ffcc;margin:0;font-size:24px;">Nancy</h1>
+        <p style="color:#5a8a78;margin:8px 0 0;font-size:14px;">Confirme seu novo e-mail</p>
+      </div>
+      <div style="background:#fff;padding:28px;border-radius:12px;">
+        <p style="color:#333;font-size:15px;margin:0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 24px;">
+          Você pediu para trocar o e-mail de login da sua conta Nancy para este endereço. Clique no botão abaixo para confirmar — sem essa confirmação, a troca não é aplicada e seu e-mail atual continua sendo usado para entrar.
+        </p>
+        <div style="text-align:center;margin-bottom:24px;">
+          <a href="${confirmLink}" style="display:inline-block;background:linear-gradient(135deg,#00ffcc,#00a89a);color:#021a14;text-decoration:none;padding:14px 36px;border-radius:12px;font-weight:700;font-size:15px;">
+            Confirmar novo e-mail
+          </a>
+        </div>
+        <p style="color:#999;font-size:12px;line-height:1.5;margin:0;">
+          Este link expira em <strong>24 horas</strong>. Se você não pediu essa troca, ignore este e-mail — nada será alterado.
+        </p>
+      </div>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
+    </div>
+  `
+  await send({
+    from:    FROM,
+    to:      toEmail,
+    subject: 'Confirme seu novo e-mail — Nancy',
+    html,
+  })
+}
+
+// Vai pro e-mail ANTIGO — avisa que a troca aconteceu, caso não tenha sido o usuário.
+async function sendEmailChangeAlert(toEmail, userName, newEmail) {
+  const now = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' })
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
+      <div style="background:linear-gradient(135deg,#1a0005,#2d000e);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(239,68,68,0.3);">
+        <h1 style="color:#ef4444;margin:0;font-size:24px;">Nancy</h1>
+        <p style="color:#997a7a;margin:8px 0 0;font-size:14px;">✉️ E-mail de login alterado</p>
+      </div>
+      <div style="background:#fff;padding:28px;border-radius:12px;">
+        <p style="color:#333;font-size:15px;margin:0 0 12px;">Olá, <strong>${esc(userName)}</strong>!</p>
+        <p style="color:#555;font-size:14px;line-height:1.6;margin:0 0 20px;">
+          O e-mail de login da sua conta foi alterado para <strong>${esc(newEmail)}</strong> em <strong>${esc(now)}</strong> (horário de Brasília). A partir de agora, use o novo e-mail para entrar.
+        </p>
+        <div style="background:#fff5f5;border-radius:10px;padding:16px;margin-bottom:24px;border-left:3px solid #ef4444;">
+          <p style="margin:0;color:#333;font-size:13px;line-height:1.6;">
+            <strong>Não foi você?</strong> Como o e-mail de login mudou, "Esqueci minha senha" com este endereço antigo não vai mais funcionar. Responda este e-mail ou escreva pra
+            <a href="mailto:contato@nancy.com.br" style="color:#ef4444;font-weight:700;">contato@nancy.com.br</a>
+            imediatamente pra recuperarmos sua conta.
+          </p>
+        </div>
+      </div>
+      <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
+    </div>
+  `
+
+  await send({
+    from:    FROM,
+    to:      toEmail,
+    subject: '✉️ Seu e-mail de login foi alterado — Nancy',
+    html,
+  })
+}
+
 async function sendWeeklyDigest(toEmail, userName, weekData) {
   const appUrl = process.env.APP_URL || 'https://finance-app-1042158013294.southamerica-east1.run.app'
   const { totalExpenses, totalIncome, topCategory, transactionCount, balance } = weekData
@@ -581,4 +649,4 @@ async function sendAccountUnlockEmail(toEmail, userName, unlockLink) {
   })
 }
 
-module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail }
+module.exports = { sendMonthlyReport, sendResetEmail, sendRenewalReminderEmail, sendWelcomeEmail, sendTrialExpiryEmail, sendPlanActivationEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail, sendEmailChangeVerification, sendEmailChangeAlert }

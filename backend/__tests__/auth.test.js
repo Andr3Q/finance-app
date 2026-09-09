@@ -11,6 +11,7 @@ jest.mock('../src/services/emailService', () => {
     sendReferralRewardEmail: fn(), sendWeeklyDigest: fn(), sendPlanExpiredEmail: fn(),
     sendMonthlyReport: fn(), sendPlanActivationEmail: fn(), sendPasswordChangedAlert: fn(),
     sendNewIpLoginAlert: fn(), sendAccountUnlockEmail: fn(),
+    sendEmailChangeVerification: fn(), sendEmailChangeAlert: fn(),
   }
 })
 
@@ -565,5 +566,173 @@ describe('PUT /api/auth/profile', () => {
       .send({ name: 'A'.repeat(101) })
 
     expect(res.status).toBe(400)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// TROCA DE E-MAIL (login) — 2 passos: pedir (com senha) + confirmar (token
+// enviado pro e-mail NOVO). Regressão do bug onde PUT /profile recebia
+// `email` do frontend mas nunca aplicava (só lia name/reportEmail do body).
+// ══════════════════════════════════════════════════════════
+describe('POST /api/auth/change-email', () => {
+  test('senha correta e e-mail novo válido: marca pendingEmail e envia verificação pro e-mail NOVO', async () => {
+    const user = mockUser()
+    prisma.user.findUnique
+      .mockResolvedValueOnce(user)  // authMiddleware (checa tokenVersion)
+      .mockResolvedValueOnce(user)  // rota: busca o próprio usuário
+      .mockResolvedValueOnce(null)  // checagem de e-mail já em uso: livre
+    prisma.user.update.mockResolvedValue({ ...user, pendingEmail: 'novo@example.com' })
+
+    const res = await request(app)
+      .post('/api/auth/change-email')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+      .send({ newEmail: 'novo@example.com', password: 'Password123' })
+
+    expect(res.status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-123' },
+      data: expect.objectContaining({ pendingEmail: 'novo@example.com' }),
+    })
+    const emailService = require('../src/services/emailService')
+    expect(emailService.sendEmailChangeVerification).toHaveBeenCalledWith(
+      'novo@example.com', user.name, expect.stringContaining('/confirmar-troca-email?token=')
+    )
+    // O alerta de segurança é só no e-mail ANTIGO, na confirmação — não aqui.
+    expect(emailService.sendEmailChangeAlert).not.toHaveBeenCalled()
+  })
+
+  test('senha errada retorna 401 e não envia nada', async () => {
+    const user = mockUser()
+    prisma.user.findUnique.mockResolvedValue(user)
+
+    const res = await request(app)
+      .post('/api/auth/change-email')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+      .send({ newEmail: 'novo@example.com', password: 'WrongPassword1' })
+
+    expect(res.status).toBe(401)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  test('e-mail inválido retorna 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/change-email')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+      .send({ newEmail: 'não-é-email', password: 'Password123' })
+
+    expect(res.status).toBe(400)
+  })
+
+  test('mesmo e-mail atual retorna 400', async () => {
+    const user = mockUser({ email: 'test@example.com' })
+    prisma.user.findUnique.mockResolvedValue(user)
+
+    const res = await request(app)
+      .post('/api/auth/change-email')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+      .send({ newEmail: 'test@example.com', password: 'Password123' })
+
+    expect(res.status).toBe(400)
+  })
+
+  test('e-mail novo já usado por outra conta retorna 400', async () => {
+    const user = mockUser()
+    prisma.user.findUnique
+      .mockResolvedValueOnce(user)                       // authMiddleware
+      .mockResolvedValueOnce(user)                       // rota: busca o próprio usuário
+      .mockResolvedValueOnce({ id: 'outro-usuario' })     // e-mail já em uso
+
+    const res = await request(app)
+      .post('/api/auth/change-email')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+      .send({ newEmail: 'jatem@example.com', password: 'Password123' })
+
+    expect(res.status).toBe(400)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  test('sem autenticação retorna 401', async () => {
+    const res = await request(app)
+      .post('/api/auth/change-email')
+      .send({ newEmail: 'novo@example.com', password: 'Password123' })
+
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('POST /api/auth/confirm-email-change', () => {
+  test('token válido: aplica o e-mail novo, invalida sessões antigas e avisa o e-mail ANTIGO', async () => {
+    const crypto = require('crypto')
+    const token  = 'valid-email-change-token'
+    const hash   = crypto.createHash('sha256').update(token).digest('hex')
+    const user   = mockUser({
+      email:              'antigo@example.com',
+      pendingEmail:       'novo@example.com',
+      pendingEmailToken:  hash,
+      pendingEmailExpiry: new Date(Date.now() + 3600_000),
+    })
+    prisma.user.findFirst.mockResolvedValue(user)
+    prisma.user.update.mockResolvedValue({ ...user, email: 'novo@example.com' })
+
+    const res = await request(app)
+      .post('/api/auth/confirm-email-change')
+      .send({ token })
+
+    expect(res.status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: user.id },
+      data: expect.objectContaining({
+        email:              'novo@example.com',
+        emailVerified:      true,
+        pendingEmail:       null,
+        pendingEmailToken:  null,
+        pendingEmailExpiry: null,
+        tokenVersion:       { increment: 1 },
+      }),
+    })
+    const emailService = require('../src/services/emailService')
+    expect(emailService.sendEmailChangeAlert).toHaveBeenCalledWith('antigo@example.com', user.name, 'novo@example.com')
+  })
+
+  test('token inválido ou expirado retorna 400, sem aplicar nada', async () => {
+    prisma.user.findFirst.mockResolvedValue(null)
+
+    const res = await request(app)
+      .post('/api/auth/confirm-email-change')
+      .send({ token: 'token-que-nao-existe' })
+
+    expect(res.status).toBe(400)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  test('sem token no body retorna 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/confirm-email-change')
+      .send({})
+
+    expect(res.status).toBe(400)
+  })
+
+  // Regressão: dois usuários pedem o mesmo e-mail novo, um confirma primeiro —
+  // o segundo não pode virar um 500 cru, precisa de uma mensagem clara.
+  test('corrida rara (e-mail já usado por outra conta na confirmação) retorna 409, não 500', async () => {
+    const crypto = require('crypto')
+    const token  = 'valid-email-change-token'
+    const hash   = crypto.createHash('sha256').update(token).digest('hex')
+    const user   = mockUser({
+      pendingEmail:       'ja-tomado@example.com',
+      pendingEmailToken:  hash,
+      pendingEmailExpiry: new Date(Date.now() + 3600_000),
+    })
+    prisma.user.findFirst.mockResolvedValue(user)
+    const p2002 = new Error('Unique constraint failed')
+    p2002.code  = 'P2002'
+    prisma.user.update.mockRejectedValue(p2002)
+
+    const res = await request(app)
+      .post('/api/auth/confirm-email-change')
+      .send({ token })
+
+    expect(res.status).toBe(409)
   })
 })

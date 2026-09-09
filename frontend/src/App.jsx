@@ -17,6 +17,7 @@ const Login          = lazy(() => import('./pages/Login.jsx'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'))
 const ResetPassword  = lazy(() => import('./pages/ResetPassword.jsx'))
 const VerifyEmail    = lazy(() => import('./pages/VerifyEmail.jsx'))
+const ConfirmEmailChange = lazy(() => import('./pages/ConfirmEmailChange.jsx'))
 const UnlockAccount  = lazy(() => import('./pages/UnlockAccount.jsx'))
 const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
@@ -182,6 +183,7 @@ export default function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password"  element={<ResetPassword />} />
             <Route path="/verify-email"    element={<VerifyEmail />} />
+            <Route path="/confirmar-troca-email" element={<ConfirmEmailChange />} />
             <Route path="/unlock-account"  element={<UnlockAccount />} />
             <Route path="/dashboard"    element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />

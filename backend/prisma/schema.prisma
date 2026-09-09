@@ -47,6 +47,12 @@ model User {
   emailVerified        Boolean   @default(false)
   emailVerifyToken     String?
   emailVerifyExpiry    DateTime?
+  // Troca de e-mail de login: o e-mail novo só é aplicado (email = pendingEmail)
+  // depois que o link de confirmação (enviado pro endereço NOVO) é clicado —
+  // evita trocar pra um e-mail que a pessoa não tem acesso de verdade.
+  pendingEmail         String?
+  pendingEmailToken    String?
+  pendingEmailExpiry   DateTime?
   planPeriod           String?   @default("monthly")
   notifBudgetAlert     Boolean   @default(true)
   notifBudgetReminder  Boolean   @default(true)
@@ -69,6 +75,7 @@ model User {
 
   @@index([resetToken])        // busca de reset-password usa findFirst por hash — sem índice = full scan
   @@index([emailVerifyToken])  // busca de verify-email usa findFirst por hash — padrão idêntico ao resetToken
+  @@index([pendingEmailToken]) // busca de confirm-email-change usa findFirst por hash — mesmo padrão
 }
 
 // ── Tabela: transactions ────────────────────────────────
