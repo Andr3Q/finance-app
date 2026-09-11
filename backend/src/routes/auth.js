@@ -24,6 +24,25 @@ const APP_URL = process.env.APP_URL || 'https://myfinancepro.com.br'
 // quais e-mails estão cadastrados (email enumeration via response time).
 const DUMMY_HASH = bcrypt.hashSync('__timing_guard__', 12)
 
+// Campos do usuário que o frontend precisa pra decidir o que mostrar sem
+// esperar o próximo /auth/me (que só roda 1x no boot do app, não depois de
+// um login client-side) — onboarding pendente, e-mail não verificado, 2FA,
+// troca de e-mail pendente, banner de trial/plano expirando, etc. Usado
+// tanto por /me quanto por /login, pra nunca mais divergir os dois (foi
+// assim que o onboarding passou a aparecer à toa depois de um login normal:
+// /login não mandava onboardingComplete, só /me mandava).
+const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true, pendingEmail: true }
+
+// user já carregado (com ou sem `select`) → objeto raso só com os campos de
+// ME_SELECT, prontos pra ir na resposta. Number(salary) porque Prisma.Decimal
+// serializa como string por padrão.
+function pickMeFields(user) {
+  const out = {}
+  for (const key of Object.keys(ME_SELECT)) out[key] = user[key]
+  out.salary = Number(user.salary || 0)
+  return out
+}
+
 function setAuthCookie(res, token) {
   res.cookie('token', token, {
     httpOnly:  true,
@@ -259,9 +278,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
 
-    res.json({
-      user: { id: user.id, name: user.name, email: user.email, salary: Number(user.salary || 0), reportEmail: user.reportEmail, plan: user.plan, referralCode: user.referralCode || null }
-    })
+    res.json({ user: pickMeFields(user) })
   } catch (error) {
     reportError(error, { tag: '[auth] login' })
     res.status(500).json({ error: 'Erro ao fazer login.' })
@@ -271,8 +288,6 @@ router.post('/login', loginLimiter, async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true, pendingEmail: true }
-
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 

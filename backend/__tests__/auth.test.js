@@ -157,6 +157,28 @@ describe('POST /api/auth/login', () => {
     expect(res.headers['set-cookie'][0]).toMatch(/HttpOnly/i)
   })
 
+  // Regressão: a resposta de /login só mandava um subconjunto pequeno de
+  // campos (sem onboardingComplete, emailVerified, twoFactorEnabled,
+  // pendingEmail...) — componentes que decidem o que mostrar direto desse
+  // objeto (ex: OnboardingModal) só recebiam o valor certo depois do próximo
+  // boot completo do app (que chama /auth/me). Na prática, todo login normal
+  // mostrava o modal de onboarding à toa, mesmo pra quem já tinha completado
+  // há muito tempo. Resolvido reusando o mesmo ME_SELECT de /auth/me.
+  test('resposta do login inclui onboardingComplete e demais campos que a UI decide sem esperar /me', async () => {
+    const user = mockUser({ onboardingComplete: true, emailVerified: true, twoFactorEnabled: false, pendingEmail: null })
+    prisma.user.findUnique.mockResolvedValue(user)
+    prisma.loginAudit.create.mockResolvedValue({})
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@example.com', password: 'Password123' })
+
+    expect(res.body.user.onboardingComplete).toBe(true)
+    expect(res.body.user.emailVerified).toBe(true)
+    expect(res.body.user.twoFactorEnabled).toBe(false)
+    expect(res.body.user).toHaveProperty('pendingEmail', null)
+  })
+
   test('senha errada retorna 401 com mensagem genérica', async () => {
     const user = mockUser()
     prisma.user.findUnique.mockResolvedValue(user)
