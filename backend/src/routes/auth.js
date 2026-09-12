@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendWelcomeEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail } = require('../services/emailService')
+const { sendResetEmail, sendWelcomeEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail, sendEmailChangeVerification, sendEmailChangeAlert } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
 
@@ -23,6 +23,25 @@ const APP_URL = process.env.APP_URL || 'https://myfinancepro.com.br'
 // mesmo quando o e-mail não existe, prevenindo timing attack que revelaria
 // quais e-mails estão cadastrados (email enumeration via response time).
 const DUMMY_HASH = bcrypt.hashSync('__timing_guard__', 12)
+
+// Campos do usuário que o frontend precisa pra decidir o que mostrar sem
+// esperar o próximo /auth/me (que só roda 1x no boot do app, não depois de
+// um login client-side) — onboarding pendente, e-mail não verificado, 2FA,
+// troca de e-mail pendente, banner de trial/plano expirando, etc. Usado
+// tanto por /me quanto por /login, pra nunca mais divergir os dois (foi
+// assim que o onboarding passou a aparecer à toa depois de um login normal:
+// /login não mandava onboardingComplete, só /me mandava).
+const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true, pendingEmail: true }
+
+// user já carregado (com ou sem `select`) → objeto raso só com os campos de
+// ME_SELECT, prontos pra ir na resposta. Number(salary) porque Prisma.Decimal
+// serializa como string por padrão.
+function pickMeFields(user) {
+  const out = {}
+  for (const key of Object.keys(ME_SELECT)) out[key] = user[key]
+  out.salary = Number(user.salary || 0)
+  return out
+}
 
 function setAuthCookie(res, token) {
   res.cookie('token', token, {
@@ -259,9 +278,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
 
-    res.json({
-      user: { id: user.id, name: user.name, email: user.email, salary: Number(user.salary || 0), reportEmail: user.reportEmail, plan: user.plan, referralCode: user.referralCode || null }
-    })
+    res.json({ user: pickMeFields(user) })
   } catch (error) {
     reportError(error, { tag: '[auth] login' })
     res.status(500).json({ error: 'Erro ao fazer login.' })
@@ -271,8 +288,6 @@ router.post('/login', loginLimiter, async (req, res) => {
 // ── GET /auth/me ────────────────────────────────────────
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true }
-
     let user = await prisma.user.findUnique({ where: { id: req.userId }, select: ME_SELECT })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
@@ -576,6 +591,108 @@ router.put('/profile', authMiddleware, async (req, res) => {
   } catch (error) {
     reportError(error, { tag: '[auth] profile' })
     res.status(500).json({ error: 'Erro ao atualizar perfil.' })
+  }
+})
+
+// ── POST /auth/change-email ─────────────────────────────
+// Troca o e-mail de LOGIN (diferente de reportEmail, que /profile já cobre).
+// Não aplica na hora — só marca pendingEmail e manda um link de confirmação
+// pro endereço NOVO. A troca de fato só acontece em /confirm-email-change,
+// quando a posse do novo e-mail é comprovada (mesmo padrão do cadastro).
+router.post('/change-email', authMiddleware, verifyEmailLimiter, async (req, res) => {
+  try {
+    const { newEmail, password } = req.body
+    if (!newEmail || typeof newEmail !== 'string' || !EMAIL_REGEX.test(newEmail)) {
+      return res.status(400).json({ error: 'E-mail inválido.' })
+    }
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({ error: 'Senha obrigatória para confirmar a troca.' })
+    }
+
+    const normalizedEmail = newEmail.toLowerCase().trim()
+
+    const user = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { email: true, name: true, password: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    const match = await bcrypt.compare(password, user.password)
+    if (!match) return res.status(401).json({ error: 'Senha incorreta.' })
+
+    if (normalizedEmail === user.email) {
+      return res.status(400).json({ error: 'Esse já é o seu e-mail atual.' })
+    }
+
+    const taken = await prisma.user.findUnique({ where: { email: normalizedEmail }, select: { id: true } })
+    if (taken) return res.status(400).json({ error: 'Não foi possível usar esse e-mail.' })
+
+    const rawToken = crypto.randomBytes(32).toString('hex')
+    const hash     = crypto.createHash('sha256').update(rawToken).digest('hex')
+    const expiry   = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+    await prisma.user.update({
+      where: { id: req.userId },
+      data:  { pendingEmail: normalizedEmail, pendingEmailToken: hash, pendingEmailExpiry: expiry },
+    })
+
+    const confirmLink = `${APP_URL}/confirmar-troca-email?token=${rawToken}`
+    sendEmailChangeVerification(normalizedEmail, user.name, confirmLink).catch(() => {})
+
+    res.json({ ok: true })
+  } catch (err) {
+    reportError(err, { tag: '[auth] change-email' })
+    res.status(500).json({ error: 'Erro ao iniciar troca de e-mail.' })
+  }
+})
+
+// ── POST /auth/confirm-email-change ─────────────────────
+// Pública (mesmo motivo do /verify-email — o link pode ser aberto em
+// qualquer navegador, sem sessão ativa). Token no body, não na URL.
+router.post('/confirm-email-change', async (req, res) => {
+  try {
+    const { token } = req.body
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Token inválido.' })
+    }
+    const hash = crypto.createHash('sha256').update(token).digest('hex')
+    const user = await prisma.user.findFirst({
+      where: { pendingEmailToken: hash, pendingEmailExpiry: { gt: new Date() } },
+    })
+    if (!user) return res.status(400).json({ error: 'Link inválido ou expirado. Peça uma nova troca em Configurações.' })
+
+    // Alerta vai pro e-mail ANTIGO antes do save — se não foi o usuário, esse
+    // é o único aviso que ele recebe (mesma lógica do sendPasswordChangedAlert).
+    sendEmailChangeAlert(user.email, user.name, user.pendingEmail).catch(() => {})
+
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          email:              user.pendingEmail,
+          emailVerified:      true,
+          pendingEmail:       null,
+          pendingEmailToken:  null,
+          pendingEmailExpiry: null,
+          // Invalida sessões/JWTs ativos — mesmo padrão de /password e
+          // /reset-password. Força novo login já com o e-mail atualizado.
+          tokenVersion: { increment: 1 },
+        },
+      })
+    } catch (updateErr) {
+      // Corrida rara: dois usuários pediram o mesmo e-mail novo e o outro
+      // confirmou primeiro — a checagem em /change-email não trava isso
+      // (só olha no momento do pedido). Falha de forma clara em vez de 500 cru.
+      if (updateErr.code === 'P2002') {
+        return res.status(409).json({ error: 'Esse e-mail já foi usado por outra conta enquanto sua confirmação estava pendente. Peça uma nova troca em Configurações.' })
+      }
+      throw updateErr
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    reportError(err, { tag: '[auth] confirm-email-change' })
+    res.status(500).json({ error: 'Erro ao confirmar troca de e-mail.' })
   }
 })
 

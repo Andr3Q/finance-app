@@ -15,15 +15,18 @@ export default function OnboardingModal() {
   const [budgetErr,      setBudgetErr]      = useState('')
   const [gTitle,         setGTitle]         = useState('')
   const [gAmount,        setGAmount]        = useState('')
-  const [justRegistered] = useState(() => { try { return !!sessionStorage.getItem('just_registered') } catch { return false } })
 
-  if (!user.id || user.onboardingComplete || !justRegistered) return null
+  // Fonte de verdade é o servidor (onboardingComplete), não uma flag local —
+  // antes disso dependia de sessionStorage.just_registered, que some ao
+  // fechar o app/aba. Quem fechava o app no meio do onboarding (sem terminar)
+  // nunca mais via o modal de novo, mesmo com onboardingComplete ainda false
+  // no banco.
+  if (!user.id || user.onboardingComplete) return null
 
   const finish = async () => {
     setSaving(true)
     try { await authAPI.completeOnboarding() } catch {}
     analytics.track('onboarding_completed')
-    sessionStorage.removeItem('just_registered')
     // Usa o `user` vivo do hook, não uma cópia do sessionStorage — ver mesmo
     // fix em ProfileCard.jsx (apagava salary/reportEmail do estado global).
     saveUser({ ...user, onboardingComplete: true })
