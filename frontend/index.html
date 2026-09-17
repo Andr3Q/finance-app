@@ -54,93 +54,31 @@
     <!-- Executado sincronamente antes do module script para garantir disponibilidade -->
     <script src="/app-config.js"></script>
 
-    <!-- Splash de abertura — puro HTML/CSS, sem depender do bundle React (que
-         ainda não carregou nesse ponto). Removido por main.jsx depois que o
-         app monta. Estilo inline pra aparecer instantaneamente, sem esperar
-         o CSS do Vite carregar.
-         Sequência: tela preta → ícone gira e escala, letras de "nancy" surgem
-         desfocadas com um brilho passando por cima → foto (/splash-bg.jpg,
-         sem logo embutido) surge atrás com leve zoom-out e o logo sobe um
-         pouco → tudo aquieta até o app montar. -->
+    <!-- Splash de abertura — vídeo (/splash.mp4, 1600x900, 4,1s, sem áudio),
+         puro HTML/CSS, sem depender do bundle React (que ainda não carregou
+         nesse ponto). Removido por main.jsx depois que o app monta, ao fim do
+         vídeo (SPLASH_MIN_MS). O vídeo já termina em preto, então a transição
+         de opacidade da splash revela o app sem corte visível. -->
     <style>
       #app-splash {
-        position: fixed; inset: 0; z-index: 99999; background: #000; overflow: hidden;
+        position: fixed; inset: 0; z-index: 99999; background: #000;
         transition: opacity .4s ease, visibility .4s ease;
       }
       #app-splash.splash-hide { opacity: 0; visibility: hidden; pointer-events: none; }
-
-      .splash-photo {
-        position: absolute; inset: 0;
-        background: url('/splash-bg.jpg') center / cover no-repeat;
-        opacity: 0; transform: scale(1.12);
-        animation: splashPhotoIn .7s ease-out .9s forwards;
+      #app-splash video {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; display: block;
       }
-      .splash-lockup {
-        position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      }
-      .splash-mark {
-        position: relative; display: flex; align-items: center; overflow: hidden;
-        opacity: 0; transform: translateY(0) scale(.9);
-        animation: splashMarkIn 1.6s cubic-bezier(.2,.8,.2,1) forwards;
-      }
-      .splash-mark::after {
-        content: ''; position: absolute; top: -30%; bottom: -30%; left: 0; width: 24px;
-        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.55), rgba(255,255,255,0));
-        transform: skewX(-18deg) translateX(-40px);
-        opacity: 0; animation: splashSweep .8s ease-out .3s forwards; pointer-events: none;
-      }
-      .splash-icon {
-        height: 46px; width: auto; flex: none; margin-right: -2px;
-        transform: rotate(-40deg);
-        animation: splashIconRotate .8s cubic-bezier(.2,.8,.2,1) forwards;
-      }
-      .splash-letters { display: flex; align-items: center; height: 37px; }
-      .splash-letters img {
-        height: 37px; width: auto; display: block;
-        opacity: 0; filter: blur(6px);
-        animation: splashLetterIn .5s ease-out forwards;
-      }
-      .splash-letters img:nth-child(1) { animation-delay: .25s; }
-      .splash-letters img:nth-child(2) { animation-delay: .34s; }
-      .splash-letters img:nth-child(3) { animation-delay: .43s; }
-      .splash-letters img:nth-child(4) { animation-delay: .52s; }
-      .splash-letters img:nth-child(5) { animation-delay: .61s; }
-
-      @keyframes splashPhotoIn { to { opacity: 1; transform: scale(1); } }
-      @keyframes splashMarkIn {
-        0%    { opacity: 0; transform: translateY(0) scale(.9); }
-        37.5% { opacity: 1; transform: translateY(0) scale(1); }
-        56%   { transform: translateY(0) scale(1); }
-        100%  { transform: translateY(-8px) scale(1); }
-      }
-      @keyframes splashIconRotate { to { transform: rotate(0deg); } }
-      @keyframes splashLetterIn { to { opacity: 1; filter: blur(0); } }
-      @keyframes splashSweep {
-        0%   { opacity: 1; transform: skewX(-18deg) translateX(-40px); }
-        100% { opacity: 0; transform: skewX(-18deg) translateX(260px); }
-      }
-
-      @media (min-width: 768px) {
-        .splash-icon { height: 64px; }
-        .splash-letters, .splash-letters img { height: 51px; }
+      /* Celular em pé: cover cortaria metade do ícone do logo nas laterais.
+         Mostra o quadro inteiro, com barras pretas em cima e embaixo. */
+      @media (max-aspect-ratio: 3/5) {
+        #app-splash video { object-fit: contain; }
       }
     </style>
   </head>
   <body>
     <div id="app-splash" aria-hidden="true">
-      <div class="splash-photo"></div>
-      <div class="splash-lockup">
-        <div class="splash-mark">
-          <img class="splash-icon" src="/splash-icon.png" alt="" />
-          <div class="splash-letters">
-            <img src="/splash-letter-0.png" alt="n" />
-            <img src="/splash-letter-1.png" alt="a" />
-            <img src="/splash-letter-2.png" alt="n" />
-            <img src="/splash-letter-3.png" alt="c" />
-            <img src="/splash-letter-4.png" alt="y" />
-          </div>
-        </div>
-      </div>
+      <video src="/splash.mp4" autoplay muted playsinline preload="auto" disablepictureinpicture disableremoteplayback></video>
     </div>
 
     <!-- O React injeta todo o app dentro desta div -->
