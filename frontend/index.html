@@ -54,11 +54,13 @@
     <!-- Executado sincronamente antes do module script para garantir disponibilidade -->
     <script src="/app-config.js"></script>
 
-    <!-- Splash de abertura — vídeo (/splash.mp4, 1600x900, 4,1s, sem áudio),
-         puro HTML/CSS, sem depender do bundle React (que ainda não carregou
-         nesse ponto). Removido por main.jsx depois que o app monta, ao fim do
-         vídeo (SPLASH_MIN_MS). O vídeo já termina em preto, então a transição
-         de opacidade da splash revela o app sem corte visível. -->
+    <!-- Splash de abertura — vídeo sem áudio, 4,1s: /splash-vertical.mp4
+         (1080x1920) com a tela em pé, /splash.mp4 (1600x900) deitada; a escolha
+         é feita por /splash-init.js. Puro HTML/CSS, sem depender do bundle
+         React (que ainda não carregou nesse ponto). Removido por main.jsx
+         depois que o app monta, ao fim do vídeo (SPLASH_MIN_MS). O vídeo já
+         termina em preto, então a transição de opacidade revela o app sem
+         corte visível. -->
     <style>
       #app-splash {
         position: fixed; inset: 0; z-index: 99999; background: #000;
@@ -69,17 +71,13 @@
         position: absolute; inset: 0; width: 100%; height: 100%;
         object-fit: cover; display: block;
       }
-      /* Celular em pé: cover cortaria metade do ícone do logo nas laterais.
-         Mostra o quadro inteiro, com barras pretas em cima e embaixo. */
-      @media (max-aspect-ratio: 3/5) {
-        #app-splash video { object-fit: contain; }
-      }
     </style>
   </head>
   <body>
     <div id="app-splash" aria-hidden="true">
-      <video src="/splash.mp4" autoplay muted playsinline preload="auto" disablepictureinpicture disableremoteplayback></video>
+      <video id="app-splash-video" autoplay muted playsinline preload="auto" disablepictureinpicture disableremoteplayback></video>
     </div>
+    <script src="/splash-init.js"></script>
 
     <!-- O React injeta todo o app dentro desta div -->
     <div id="root"></div>
