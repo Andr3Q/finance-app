@@ -79,6 +79,10 @@ describe('POST /api/goals', () => {
     expect(res.status).toBe(201)
     expect(res.body).toHaveProperty('id')
     expect(res.body.title).toBe('Viagem')
+    // Prazo "YYYY-MM-DD" grava meia-noite de Brasília (senão a tela mostrava 30/12)
+    expect(prisma.goal.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ deadline: new Date('2027-12-31T03:00:00.000Z') }),
+    }))
   })
 
   test('cria meta sem campos opcionais', async () => {

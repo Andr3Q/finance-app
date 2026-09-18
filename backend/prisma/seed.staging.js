@@ -16,6 +16,7 @@
 
 const { PrismaClient } = require('@prisma/client')
 const bcrypt           = require('bcryptjs')
+const { nowBrasilia, parseDateInput } = require('../src/utils/helpers')
 
 const prisma = new PrismaClient()
 
@@ -55,35 +56,37 @@ async function main() {
       plan:            'free',
       emailVerified:   true,
       onboardingComplete: true,
-      autoLaunchMonth: new Date().getMonth() + 1,
-      autoLaunchYear:  new Date().getFullYear(),
+      autoLaunchMonth: nowBrasilia().month,
+      autoLaunchYear:  nowBrasilia().year,
     },
   })
   console.log('  ✓ Alice (free):', alice.id)
 
   // Transações de Alice
-  const now = new Date()
-  const month = now.getMonth() + 1
-  const year  = now.getFullYear()
+  // Mês/ano e datas no fuso de Brasília. O container roda em UTC: `new Date(year,
+  // month-1, dia)` aqui dava meia-noite UTC, que em Brasília ainda é o dia
+  // anterior — o "Salário" do dia 1º aparecia em 31 do mês passado.
+  const { month, year } = nowBrasilia()
+  const brt = (y, m, d) => parseDateInput(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`)
 
   await prisma.transaction.createMany({
     data: [
-      { userId: alice.id, description: 'Salário',          amount: 5000, type: 'income',  category: 'salary',   date: new Date(year, month-1, 5),  month, year, archived: false },
-      { userId: alice.id, description: 'Aluguel',           amount: 1200, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 10), month, year, archived: false },
-      { userId: alice.id, description: 'Plano de celular',  amount:   60, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 12), month, year, archived: false },
-      { userId: alice.id, description: 'Academia',          amount:   90, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 15), month, year, archived: false },
-      { userId: alice.id, description: 'Supermercado',      amount:  450, type: 'expense', category: 'food',     date: new Date(year, month-1, 12), month, year, archived: false },
-      { userId: alice.id, description: 'Freelance extra',   amount: 1500, type: 'income',  category: 'freelance',date: new Date(year, month-1, 15), month, year, archived: false },
-      { userId: alice.id, description: 'Conta de luz',      amount:  180, type: 'expense', category: 'utilities',date: new Date(year, month-1, 18), month, year, archived: false },
-      { userId: alice.id, description: 'Internet',          amount:  120, type: 'expense', category: 'utilities',date: new Date(year, month-1, 20), month, year, archived: false },
-      { userId: alice.id, description: 'Restaurante',       amount:   85, type: 'expense', category: 'food',     date: new Date(year, month-1, 22), month, year, archived: false },
+      { userId: alice.id, description: 'Salário',          amount: 5000, type: 'income',  category: 'salary',   date: brt(year, month, 5),  month, year, archived: false },
+      { userId: alice.id, description: 'Aluguel',           amount: 1200, type: 'expense', category: 'fixed',    date: brt(year, month, 10), month, year, archived: false },
+      { userId: alice.id, description: 'Plano de celular',  amount:   60, type: 'expense', category: 'fixed',    date: brt(year, month, 12), month, year, archived: false },
+      { userId: alice.id, description: 'Academia',          amount:   90, type: 'expense', category: 'fixed',    date: brt(year, month, 15), month, year, archived: false },
+      { userId: alice.id, description: 'Supermercado',      amount:  450, type: 'expense', category: 'food',     date: brt(year, month, 12), month, year, archived: false },
+      { userId: alice.id, description: 'Freelance extra',   amount: 1500, type: 'income',  category: 'freelance',date: brt(year, month, 15), month, year, archived: false },
+      { userId: alice.id, description: 'Conta de luz',      amount:  180, type: 'expense', category: 'utilities',date: brt(year, month, 18), month, year, archived: false },
+      { userId: alice.id, description: 'Internet',          amount:  120, type: 'expense', category: 'utilities',date: brt(year, month, 20), month, year, archived: false },
+      { userId: alice.id, description: 'Restaurante',       amount:   85, type: 'expense', category: 'food',     date: brt(year, month, 22), month, year, archived: false },
     ],
   })
 
   // Metas de Alice
   await prisma.goal.createMany({
     data: [
-      { userId: alice.id, title: 'Reserva de emergência', targetAmount: 15000, currentAmount: 3200, color: '#4ac46e', deadline: new Date(year+1, 11, 31) },
+      { userId: alice.id, title: 'Reserva de emergência', targetAmount: 15000, currentAmount: 3200, color: '#4ac46e', deadline: brt(year+1, 12, 31) },
       { userId: alice.id, title: 'Viagem ao exterior',     targetAmount:  8000, currentAmount:  500, color: '#007e8a' },
     ],
   })
@@ -119,15 +122,15 @@ async function main() {
 
   await prisma.transaction.createMany({
     data: [
-      { userId: bob.id, description: 'Salário empresa',  amount: 8500, type: 'income',  category: 'salary',   date: new Date(year, month-1, 1),  month, year, archived: false },
-      { userId: bob.id, description: 'Financiamento',    amount: 2100, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 5),  month, year, archived: false },
-      { userId: bob.id, description: 'Plano de saúde',   amount:  520, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 8),  month, year, archived: false },
-      { userId: bob.id, description: 'Netflix',          amount:   45, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 10), month, year, archived: false },
-      { userId: bob.id, description: 'Seguro do carro',  amount:  280, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 25), month, year, archived: false },
-      { userId: bob.id, description: 'Combustível',      amount:  350, type: 'expense', category: 'transport',date: new Date(year, month-1, 8),  month, year, archived: false },
-      { userId: bob.id, description: 'Bônus trimestral', amount: 2000, type: 'income',  category: 'bonus',    date: new Date(year, month-1,12),  month, year, archived: false },
-      { userId: bob.id, description: 'Supermercado',     amount:  680, type: 'expense', category: 'food',     date: new Date(year, month-1, 14), month, year, archived: false },
-      { userId: bob.id, description: 'Farmácia',         amount:   95, type: 'expense', category: 'health',   date: new Date(year, month-1, 17), month, year, archived: false },
+      { userId: bob.id, description: 'Salário empresa',  amount: 8500, type: 'income',  category: 'salary',   date: brt(year, month, 1),  month, year, archived: false },
+      { userId: bob.id, description: 'Financiamento',    amount: 2100, type: 'expense', category: 'fixed',    date: brt(year, month, 5),  month, year, archived: false },
+      { userId: bob.id, description: 'Plano de saúde',   amount:  520, type: 'expense', category: 'fixed',    date: brt(year, month, 8),  month, year, archived: false },
+      { userId: bob.id, description: 'Netflix',          amount:   45, type: 'expense', category: 'fixed',    date: brt(year, month, 10), month, year, archived: false },
+      { userId: bob.id, description: 'Seguro do carro',  amount:  280, type: 'expense', category: 'fixed',    date: brt(year, month, 25), month, year, archived: false },
+      { userId: bob.id, description: 'Combustível',      amount:  350, type: 'expense', category: 'transport',date: brt(year, month, 8),  month, year, archived: false },
+      { userId: bob.id, description: 'Bônus trimestral', amount: 2000, type: 'income',  category: 'bonus',    date: brt(year, month, 12),  month, year, archived: false },
+      { userId: bob.id, description: 'Supermercado',     amount:  680, type: 'expense', category: 'food',     date: brt(year, month, 14), month, year, archived: false },
+      { userId: bob.id, description: 'Farmácia',         amount:   95, type: 'expense', category: 'health',   date: brt(year, month, 17), month, year, archived: false },
     ],
   })
 
@@ -165,19 +168,19 @@ async function main() {
 
   await prisma.transaction.createMany({
     data: [
-      { userId: elite.id, description: 'Salário',           amount: 15000, type: 'income',  category: 'salary',   date: new Date(year, month-1, 5),  month, year, archived: false },
-      { userId: elite.id, description: 'Aluguel',            amount:  3500, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 5),  month, year, archived: false },
-      { userId: elite.id, description: 'Plano de saúde',     amount:   850, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 8),  month, year, archived: false },
-      { userId: elite.id, description: 'Internet fibra',     amount:   150, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 15), month, year, archived: false },
-      { userId: elite.id, description: 'Academia premium',   amount:   200, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 20), month, year, archived: false },
-      { userId: elite.id, description: 'Conta de luz',       amount:   380, type: 'expense', category: 'fixed',    date: new Date(year, month-1, 22), month, year, archived: false },
-      { userId: elite.id, description: 'Supermercado',       amount:   920, type: 'expense', category: 'food',     date: new Date(year, month-1, 10), month, year, archived: false },
-      { userId: elite.id, description: 'Restaurante sushi',  amount:   245, type: 'expense', category: 'food',     date: new Date(year, month-1, 14), month, year, archived: false },
-      { userId: elite.id, description: 'Combustível',        amount:   480, type: 'expense', category: 'transport',date: new Date(year, month-1, 12), month, year, archived: false },
-      { userId: elite.id, description: 'Uber',               amount:    95, type: 'expense', category: 'transport',date: new Date(year, month-1, 18), month, year, archived: false },
-      { userId: elite.id, description: 'Farmácia',           amount:   130, type: 'expense', category: 'health',   date: new Date(year, month-1, 16), month, year, archived: false },
-      { userId: elite.id, description: 'Roupa',              amount:   350, type: 'expense', category: 'shopping', date: new Date(year, month-1, 20), month, year, archived: false },
-      { userId: elite.id, description: 'Dividendos',         amount:  1800, type: 'income',  category: 'bonus',    date: new Date(year, month-1, 25), month, year, archived: false },
+      { userId: elite.id, description: 'Salário',           amount: 15000, type: 'income',  category: 'salary',   date: brt(year, month, 5),  month, year, archived: false },
+      { userId: elite.id, description: 'Aluguel',            amount:  3500, type: 'expense', category: 'fixed',    date: brt(year, month, 5),  month, year, archived: false },
+      { userId: elite.id, description: 'Plano de saúde',     amount:   850, type: 'expense', category: 'fixed',    date: brt(year, month, 8),  month, year, archived: false },
+      { userId: elite.id, description: 'Internet fibra',     amount:   150, type: 'expense', category: 'fixed',    date: brt(year, month, 15), month, year, archived: false },
+      { userId: elite.id, description: 'Academia premium',   amount:   200, type: 'expense', category: 'fixed',    date: brt(year, month, 20), month, year, archived: false },
+      { userId: elite.id, description: 'Conta de luz',       amount:   380, type: 'expense', category: 'fixed',    date: brt(year, month, 22), month, year, archived: false },
+      { userId: elite.id, description: 'Supermercado',       amount:   920, type: 'expense', category: 'food',     date: brt(year, month, 10), month, year, archived: false },
+      { userId: elite.id, description: 'Restaurante sushi',  amount:   245, type: 'expense', category: 'food',     date: brt(year, month, 14), month, year, archived: false },
+      { userId: elite.id, description: 'Combustível',        amount:   480, type: 'expense', category: 'transport',date: brt(year, month, 12), month, year, archived: false },
+      { userId: elite.id, description: 'Uber',               amount:    95, type: 'expense', category: 'transport',date: brt(year, month, 18), month, year, archived: false },
+      { userId: elite.id, description: 'Farmácia',           amount:   130, type: 'expense', category: 'health',   date: brt(year, month, 16), month, year, archived: false },
+      { userId: elite.id, description: 'Roupa',              amount:   350, type: 'expense', category: 'shopping', date: brt(year, month, 20), month, year, archived: false },
+      { userId: elite.id, description: 'Dividendos',         amount:  1800, type: 'income',  category: 'bonus',    date: brt(year, month, 25), month, year, archived: false },
     ],
   })
   console.log('  ✓ Transações de Admin criadas\n')

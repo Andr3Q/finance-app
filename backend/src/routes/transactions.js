@@ -19,7 +19,7 @@ const { sendPushToUser } = require('../services/pushService')
 const { dashboardLimiter } = require('../middleware/rateLimiter')
 
 const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES } = require('../utils/constants')
-const { nowBrasilia } = require('../utils/helpers')
+const { nowBrasilia, partsBrasilia, parseDateInput } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
@@ -449,11 +449,12 @@ router.put('/:id', dashboardLimiter, async (req, res) => {
     if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}(T[\d:.Z+-]*)?$/.test(date)) {
       return res.status(400).json({ error: 'Data inválida. Use o formato YYYY-MM-DD.' })
     }
-    const d = new Date(date)
-    if (isNaN(d.getTime())) return res.status(400).json({ error: 'Data inválida.' })
+    const d = parseDateInput(date)
+    if (!d) return res.status(400).json({ error: 'Data inválida.' })
+    const { month, year } = partsBrasilia(d)
     data.date  = d
-    data.month = d.getMonth() + 1
-    data.year  = d.getFullYear()
+    data.month = month
+    data.year  = year
   }
 
   if (Object.keys(data).length === 0) return res.status(400).json({ error: 'Nenhum campo para atualizar.' })

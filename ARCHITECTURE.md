@@ -194,6 +194,14 @@ async create(req, res, next) {
 > report. Protegido por teste em `backend/__tests__/security.test.js` — se for alterar esse header,
 > rode esse teste primeiro.
 
+> ⚠️ **Datas sem hora (`"YYYY-MM-DD"`) nunca passam por `new Date(str)` direto — use `parseDateInput()`
+> de `backend/src/utils/helpers.js`.** `new Date('2026-09-25')` é meia-noite **UTC**, que em Brasília
+> ainda é 21h do dia 24: toda a interface mostrava datas 1 dia atrasadas e uma transação do dia 1º sumia
+> do Calendário. `parseDateInput` grava meia-noite de Brasília (03:00Z); `partsBrasilia(date)` dá
+> dia/mês/ano no fuso certo (o servidor roda em UTC — nunca use `getMonth()`/`getDate()` do servidor
+> pra decidir o mês de um lançamento). A migration `20260918010000_fix_date_only_utc_midnight`
+> corrigiu as linhas antigas. Testes em `backend/__tests__/helpers.test.js`.
+
 ---
 
 ## Migração dos domínios legados
