@@ -9,16 +9,20 @@
 const PDFDocument = require('pdfkit')
 const { MONTHS: MONTH_NAMES } = require('../utils/constants')
 
+// As fontes padrão do PDFKit (Helvetica) não têm glyphs de emoji — cada
+// emoji virava um par de caracteres corrompidos no PDF (ex.: "💸" → "Ø=Ü¸").
+// Confirmado que o bug já existia antes do bump do pdfkit (0.15→0.20.2),
+// não é regressão. Texto simples em vez de emoji.
 const CATEGORY_LABELS = {
-  food:        '🍔 Alimentação',
-  shopping:    '🛍️ Shopping',
-  transport:   '🚗 Transporte',
-  health:      '💊 Saúde',
-  leisure:     '🎮 Lazer',
-  education:   '📚 Educação',
-  home:        '🏠 Casa',
-  income:      '💰 Entrada',
-  other:       '📦 Outros'
+  food:        'Alimentação',
+  shopping:    'Shopping',
+  transport:   'Transporte',
+  health:      'Saúde',
+  leisure:     'Lazer',
+  education:   'Educação',
+  home:        'Casa',
+  income:      'Entrada',
+  other:       'Outros'
 }
 
 /**
@@ -46,7 +50,7 @@ function generateMonthlyPDF(user, month, year, summary, transactions) {
     doc.rect(0, 0, doc.page.width, 120).fill('#1a1a3e')
 
     doc.fontSize(28).fillColor('#ffffff')
-       .text('Nancy 💸', 50, 35)
+       .text('Nancy', 50, 35)
 
     doc.fontSize(12).fillColor('#a0a0d0')
        .text(`Relatório Mensal — ${monthName} de ${year}`, 50, 75)
@@ -68,13 +72,13 @@ function generateMonthlyPDF(user, month, year, summary, transactions) {
     doc.fontSize(16).fillColor('#1a1a3e').text('Resumo do Mês', 50, 215)
 
     const rows = [
-      { label: '💰 Salário Mensal',  value: summary.salary,           color: '#00b871' },
+      { label: 'Salário Mensal',  value: summary.salary,           color: '#00b871' },
       // Contas Fixas só aparecem quando NÃO foram lançadas como transações (auto-launch).
       // Se foram, já estão em "Total de Gastos" — exibi-las separadamente seria dupla contagem.
-      ...(!summary.autoLaunched ? [{ label: '📋 Contas Fixas', value: -summary.totalFixedCosts, color: '#ff4757' }] : []),
-      { label: '💵 Entradas Extras', value: summary.totalIncome,      color: '#00b871' },
-      { label: '🛍️  Total de Gastos', value: -summary.totalExpenses,  color: '#ff4757' },
-      { label: '✅ Saldo Final',      value: summary.currentBalance,   color: summary.currentBalance >= 0 ? '#00b871' : '#ff4757' }
+      ...(!summary.autoLaunched ? [{ label: 'Contas Fixas', value: -summary.totalFixedCosts, color: '#ff4757' }] : []),
+      { label: 'Entradas Extras', value: summary.totalIncome,      color: '#00b871' },
+      { label: 'Total de Gastos', value: -summary.totalExpenses,  color: '#ff4757' },
+      { label: 'Saldo Final',     value: summary.currentBalance,   color: summary.currentBalance >= 0 ? '#00b871' : '#ff4757' }
     ]
 
     let rowY = 245
