@@ -73,7 +73,11 @@ export default function InstallBanner() {
 
   // Configurações → Instalar já oferece a mesma ação (InstallCard) — mostrar
   // os dois ao mesmo tempo é redundante e confuso (dois botões "Instalar").
-  if (!visible || pathname === '/settings/instalar') return null
+  // Nas telas de autenticação o banner (ancorado embaixo) fica por cima do
+  // campo de senha e do botão de entrar em viewports de celular, bloqueando
+  // o login por toque — QA de homologação, 2026-10-19.
+  const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']
+  if (!visible || pathname === '/settings/instalar' || AUTH_ROUTES.includes(pathname)) return null
 
   const posDesktop = { position: 'fixed', bottom: 24, right: 84, width: 300, zIndex: 210 }
   const posMobile  = {
