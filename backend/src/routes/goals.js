@@ -7,6 +7,7 @@ const router = express.Router()
 router.use(authMiddleware)
 
 const { UUID_REGEX, HEX_COLOR } = require('../utils/constants')
+const { parseDateInput } = require('../utils/helpers')
 
 const normalizeGoal = (g) => ({ ...g, targetAmount: Number(g.targetAmount), currentAmount: Number(g.currentAmount) })
 
@@ -44,10 +45,9 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Valor atual muito alto.' })
     if (color !== undefined && !HEX_COLOR.test(color))
       return res.status(400).json({ error: 'Cor inválida. Use formato #RRGGBB.' })
-    if (deadline !== undefined && deadline !== null && deadline !== '') {
-      if (isNaN(new Date(deadline).getTime()))
-        return res.status(400).json({ error: 'Data de prazo inválida.' })
-    }
+    const parsedDeadline = (deadline !== undefined && deadline !== null && deadline !== '') ? parseDateInput(deadline) : null
+    if (deadline !== undefined && deadline !== null && deadline !== '' && !parsedDeadline)
+      return res.status(400).json({ error: 'Data de prazo inválida.' })
 
     // Verificação de plano: Free = 1 meta, Pro = 4, Elite = ilimitado
     const userData = await prisma.user.findUnique({
@@ -76,7 +76,7 @@ router.post('/', async (req, res) => {
         targetAmount:  parsed,
         currentAmount: parsedCurrent,
         color:         HEX_COLOR.test(color) ? color : '#4ac46e',
-        deadline:      deadline ? new Date(deadline) : null,
+        deadline:      parsedDeadline,
         userId:        req.userId,
       },
     })
@@ -132,8 +132,8 @@ router.patch('/:id', async (req, res) => {
     if (deadline === null || deadline === '') {
       data.deadline = null
     } else {
-      const d = new Date(deadline)
-      if (isNaN(d.getTime())) return res.status(400).json({ error: 'Data de prazo inválida.' })
+      const d = parseDateInput(deadline)
+      if (!d) return res.status(400).json({ error: 'Data de prazo inválida.' })
       data.deadline = d
     }
   }

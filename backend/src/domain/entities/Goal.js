@@ -1,5 +1,6 @@
 'use strict'
 const { ValidationError } = require('../errors')
+const { parseDateInput } = require('../../utils/helpers')
 
 const MAX_AMOUNT = 999_999_999.99
 const MAX_TITLE  = 80
@@ -42,8 +43,8 @@ class Goal {
 
     let parsedDeadline = null
     if (deadline !== undefined && deadline !== null && deadline !== '') {
-      parsedDeadline = new Date(deadline)
-      if (isNaN(parsedDeadline.getTime()))
+      parsedDeadline = parseDateInput(deadline)
+      if (!parsedDeadline)
         throw new ValidationError('Data de prazo inválida.', 'deadline')
     }
 
@@ -98,8 +99,8 @@ class Goal {
       if (deadline === null || deadline === '') {
         payload.deadline = null
       } else {
-        const d = new Date(deadline)
-        if (isNaN(d.getTime())) throw new ValidationError('Data de prazo inválida.', 'deadline')
+        const d = parseDateInput(deadline)
+        if (!d) throw new ValidationError('Data de prazo inválida.', 'deadline')
         payload.deadline = d
       }
     }

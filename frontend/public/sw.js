@@ -53,6 +53,13 @@ self.addEventListener('notificationclick', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url)
 
+  // Requisição de terceiros (ex.: Google Fonts): deixa passar direto pro
+  // navegador. Sem isso, uma falha de rede caía no fallback abaixo e
+  // servia o app shell cacheado (HTML) como se fosse a resposta — por
+  // exemplo, um CSS de fonte "virava" HTML e o navegador rejeitava por
+  // MIME type errado.
+  if (url.origin !== self.location.origin) return
+
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return
 
   // Assets com hash (JS/CSS do Vite): cache-first — nunca mudam com o mesmo nome

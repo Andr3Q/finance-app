@@ -169,7 +169,21 @@ if (isProd) {
     })};`)
   })
 
-  app.use(express.static(publicPath, { maxAge: 0 }))
+  // Imagens/vídeos não têm hash no nome (diferente de /assets) — cache curto
+  // em vez de "immutable" pra uma troca de arquivo (ex: trocar o vídeo da
+  // splash) propagar em minutos, não ficar presa a um TTL longo. Ainda assim
+  // evita rebaixar 1,9-2,3MB de vídeo do Cloud Run a cada abertura do app
+  // (custo de egress + cada acesso pode acordar o container escalado a
+  // zero) — antes, esse express.static devolvia max-age=0 pra tudo.
+  const LONG_CACHE_EXT = /\.(?:png|jpe?g|svg|webp|ico|mp4|webm)$/i
+  app.use(express.static(publicPath, {
+    maxAge: 0,
+    setHeaders(res, filePath) {
+      if (LONG_CACHE_EXT.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate')
+      }
+    },
+  }))
 }
 
 // ── CORS restrito apenas para rotas de API ──────────────

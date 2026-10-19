@@ -6,7 +6,7 @@ const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { transcribeLimiter } = require('../middleware/rateLimiter')
 const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS, UUID_REGEX, MAX_AMOUNT } = require('../utils/constants')
-const { nowBrasilia } = require('../utils/helpers')
+const { nowBrasilia, partsBrasilia, parseDateInput } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
@@ -270,11 +270,12 @@ async function runTool(name, args, userId, effectivePlan) {
     let txMonth, txYear, date
     if (args.date) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(args.date)) return { error: 'Data inválida. Use YYYY-MM-DD.' }
-      const parsed = new Date(args.date)
-      if (isNaN(parsed.getTime())) return { error: 'Data inválida.' }
+      const parsed = parseDateInput(args.date)
+      if (!parsed) return { error: 'Data inválida.' }
       date    = parsed
-      txMonth = parsed.getUTCMonth() + 1
-      txYear  = parsed.getUTCFullYear()
+      const br = partsBrasilia(parsed)
+      txMonth = br.month
+      txYear  = br.year
     } else {
       date    = new Date()
       const br = nowBrasilia()

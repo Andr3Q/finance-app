@@ -224,6 +224,22 @@ describe('PUT /api/transactions/:id', () => {
       .send({ date: '2026-06-15' })
 
     expect(res.status).toBe(200)
+    // "YYYY-MM-DD" grava meia-noite de Brasília — não meia-noite UTC, que
+    // aparecia como 14/06 na tela (bug sistêmico das datas 1 dia antes).
+    expect(prisma.transaction.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ date: new Date('2026-06-15T03:00:00.000Z'), month: 6, year: 2026 }),
+    }))
+  })
+
+  test('rejeita data com dia inexistente → 400', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+
+    const res = await request(app)
+      .put(`/api/transactions/${TX_UUID}`)
+      .set(authHeader())
+      .send({ date: '2026-02-31' })
+
+    expect(res.status).toBe(400)
   })
 })
 

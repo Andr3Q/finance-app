@@ -17,6 +17,7 @@ const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 
 const { UUID_REGEX, MAX_AMOUNT, VALID_CATEGORIES } = require('../utils/constants')
+const { parseDateInput } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
@@ -64,10 +65,9 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Dia de vencimento deve ser entre 1 e 31.' })
       }
     }
-    if (endDate !== undefined && endDate !== null) {
-      if (isNaN(Date.parse(endDate))) {
-        return res.status(400).json({ error: 'Data de encerramento inválida.' })
-      }
+    const parsedEndDate = (endDate !== undefined && endDate !== null) ? parseDateInput(endDate) : null
+    if (endDate !== undefined && endDate !== null && !parsedEndDate) {
+      return res.status(400).json({ error: 'Data de encerramento inválida.' })
     }
 
     // Plano efetivo já calculado pelo authMiddleware (considera planExpiresAt/trialEndsAt) — C-01
@@ -92,7 +92,7 @@ router.post('/', async (req, res) => {
 
     const createData = { name: name.trim(), amount: parsedAmount, userId: req.userId }
     if (dueDay !== undefined && dueDay !== null) createData.dueDay = parseInt(dueDay, 10)
-    if (endDate !== undefined && endDate !== null) createData.endDate = new Date(endDate)
+    if (parsedEndDate) createData.endDate = parsedEndDate
 
     const budget = await prisma.budget.create({ data: createData })
     res.status(201).json(normalizeBudget(budget))
@@ -166,10 +166,11 @@ router.put('/:id', async (req, res) => {
       updateData.endDate = null
       updateData.endDateNotifSent = false  // resetar ao remover data
     } else {
-      if (isNaN(Date.parse(endDate))) {
+      const parsedEndDate = parseDateInput(endDate)
+      if (!parsedEndDate) {
         return res.status(400).json({ error: 'Data de encerramento inválida.' })
       }
-      updateData.endDate = new Date(endDate)
+      updateData.endDate = parsedEndDate
       updateData.endDateNotifSent = false  // resetar ao alterar data
     }
   }
