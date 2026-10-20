@@ -39,7 +39,7 @@ async function payBudget({ userId, budgetId, amount, dateStr, effectivePlan }) {
     return { ok: false, status: 409, error: `O mês ${month}/${year} já foi fechado e não aceita mais lançamentos retroativos.` }
   }
 
-  const alreadyPaid = await prisma.transaction.findFirst({ where: { budgetId, month, year } })
+  const alreadyPaid = await prisma.transaction.findFirst({ where: { userId, budgetId, month, year } })
   if (alreadyPaid) {
     return {
       ok: false, status: 409, alreadyPaid: true,

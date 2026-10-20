@@ -8729,10 +8729,15 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
    rgba(255,255,255,...) pensados pra contrastar com fundo escuro — no tema
    claro isso é quase branco sobre branco, campo "sem borda" (relatado por
    testador beta e reproduzido no modal de Nova Transação). */
+/* background-color (não `background` shorthand): o shorthand reseta
+   background-repeat/position/size pro valor inicial quando não especificados
+   — isso quebrava o ícone de seta do <select> (repetia 7x cobrindo o texto),
+   porque essa regra tem mais especificidade que a de background-repeat:
+   no-repeat original (achado em QA de homologação, 2026-10-20). */
 [data-theme="light"] .input,
-[data-theme="light"] .inp { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.14); }
+[data-theme="light"] .inp { background-color: rgba(0,0,0,.04); border-color: rgba(0,0,0,.14); }
 [data-theme="light"] .input:focus,
-[data-theme="light"] .inp:focus { background: rgba(0,0,0,.03); }
+[data-theme="light"] .inp:focus { background-color: rgba(0,0,0,.03); }
 [data-theme="light"] select.input,
 [data-theme="light"] select.inp {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230d0d0d73' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");

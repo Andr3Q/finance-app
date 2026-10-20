@@ -391,6 +391,20 @@ describe('POST /api/budget/:id/pay', () => {
     expect(prisma.transaction.create).not.toHaveBeenCalled()
   })
 
+  // Regressão real: o mock do Prisma não reproduz a blindagem multi-tenant
+  // de lib/prisma.js (que exige userId em todo where de modelo com dono) —
+  // essa query passou nos testes mockados mas quebrava com 500 de verdade
+  // em homologação, por faltar userId no where. Trava aqui o shape exato.
+  test('consulta de "já paga" e de "mês fechado" sempre incluem userId no where (blindagem multi-tenant)', async () => {
+    await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({})
+    for (const [args] of prisma.transaction.findFirst.mock.calls) {
+      expect(args.where).toHaveProperty('userId')
+    }
+  })
+
   test('mês já fechado retorna 409', async () => {
     prisma.transaction.findFirst
       .mockReset()
