@@ -6965,53 +6965,75 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   border-radius: 20px; padding: 2px 9px; white-space: nowrap;
 }
 
-/* ── AI insights box ── */
-.tx1-ai-box {
-  margin: 14px 0 6px;
-  padding: 14px 16px;
-  background: rgba(74,226,172,.04);
-  border: 1px solid rgba(74,226,172,.1);
-  border-left: 3px solid rgba(74,226,172,.35);
-  border-radius: 12px;
+/* ── Análise do mês (gastos variáveis) ── */
+/* Antes era uma caixa verde solta, grudada no fim da lista de transações
+   (dentro de .tx1-list-card) — virava quase um apêndice da última linha,
+   sem separação visual, e ficava invisível junto da rolagem da lista.
+   Agora é uma seção própria, mesma hierarquia visual de .comproms-section,
+   posicionada entre Compromissos e Gastos do dia a dia. */
+.tx1-insights-section {
+  background: rgba(255,255,255,.025);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 14px;
+  padding: 14px 16px 16px;
+  margin-bottom: 6px;
 }
-.tx1-ai-header {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+.tx1-insights-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; font-weight: 600; color: rgba(255,255,255,.6);
+  margin-bottom: 14px;
 }
-.tx1-ai-icon {
-  width: 22px; height: 22px; border-radius: 6px;
-  background: rgba(74,226,172,.12); color: #4ae2ac;
+.tx1-insights-header svg { color: #4ae2ac; flex-shrink: 0; }
+.tx1-insights-body { display: flex; flex-direction: column; gap: 16px; }
+
+.tx1-insights-highlight {
+  background: rgba(74,226,172,.05);
+  border: 1px solid rgba(74,226,172,.14);
+  border-radius: 10px;
+  padding: 11px 14px;
+}
+.tx1-insights-highlight-label {
+  display: block; margin-bottom: 8px;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: .05em; color: rgba(255,255,255,.3);
+}
+.tx1-insights-highlight-row { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.tx1-insights-highlight-ico {
+  width: 26px; height: 26px; border-radius: 7px;
+  background: rgba(74,226,172,.14); color: #4ae2ac;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.tx1-ai-header span {
-  font-size: 12px; font-weight: 600;
-  color: rgba(74,226,172,.75); letter-spacing: .02em;
+.tx1-insights-highlight-cat { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.75); }
+.tx1-insights-highlight-val { font-size: 15px; font-weight: 700; color: var(--t1); margin-left: auto; }
+.tx1-insights-highlight-pct {
+  font-size: 11px; font-weight: 600; color: #4ae2ac;
+  background: rgba(74,226,172,.12); border-radius: 20px; padding: 2px 8px; white-space: nowrap;
 }
-.tx1-ai-insights { display: flex; flex-direction: column; gap: 14px; }
-.tx1-ai-insight { display: flex; flex-direction: column; gap: 4px; }
-.tx1-ai-insight-label {
+
+.tx1-insights-cats { display: flex; flex-direction: column; gap: 9px; }
+.tx1-insights-cats-label {
   font-size: 10px; text-transform: uppercase;
-  letter-spacing: .05em; color: rgba(255,255,255,.22);
+  letter-spacing: .05em; color: rgba(255,255,255,.3);
 }
-.tx1-ai-insight-val { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.72); }
-.tx1-ai-cats { display: flex; flex-direction: column; gap: 7px; margin-top: 3px; }
-.tx1-ai-cat-bar { display: flex; align-items: center; gap: 10px; }
-.tx1-ai-cat-name {
-  font-size: 12px; color: rgba(255,255,255,.45);
-  width: 90px; flex-shrink: 0;
+.tx1-insights-cat-row { display: flex; align-items: center; gap: 9px; }
+.tx1-insights-cat-row svg { color: rgba(255,255,255,.4); flex-shrink: 0; }
+.tx1-insights-cat-name {
+  font-size: 12px; color: rgba(255,255,255,.55);
+  width: 86px; flex-shrink: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.tx1-ai-bar-wrap {
-  flex: 1; height: 4px; background: rgba(255,255,255,.06);
-  border-radius: 2px; overflow: hidden;
+.tx1-insights-bar-wrap {
+  flex: 1; height: 5px; background: rgba(255,255,255,.06);
+  border-radius: 3px; overflow: hidden;
 }
-.tx1-ai-bar-fill {
+.tx1-insights-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, rgba(74,226,172,.55) 0%, rgba(74,226,172,.25) 100%);
-  border-radius: 2px; transition: width .5s ease; min-width: 4px;
+  background: linear-gradient(90deg, #4ae2ac, rgba(74,226,172,.5));
+  border-radius: 3px; transition: width .5s ease; min-width: 4px;
 }
-.tx1-ai-cat-val {
-  font-size: 11px; color: rgba(255,255,255,.38);
-  font-variant-numeric: tabular-nums; flex-shrink: 0; width: 78px; text-align: right;
+.tx1-insights-cat-val {
+  font-size: 11.5px; font-weight: 600; color: rgba(255,255,255,.5);
+  font-variant-numeric: tabular-nums; flex-shrink: 0; width: 76px; text-align: right;
 }
 
 /* Light theme — Compromissos */
@@ -7028,10 +7050,16 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .tx1-section-sep::after { background: rgba(0,0,0,.07); }
 [data-theme="light"] .tx1-day-subtotal { color: rgba(180,30,30,.65); }
 [data-theme="light"] .tx1-day-cat-pill { color: rgba(0,0,0,.38); background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.07); }
-[data-theme="light"] .tx1-ai-box { background: rgba(74,226,172,.05); border-color: rgba(74,226,172,.18); }
-[data-theme="light"] .tx1-ai-insight-val { color: rgba(0,0,0,.68); }
-[data-theme="light"] .tx1-ai-cat-name { color: rgba(0,0,0,.48); }
-[data-theme="light"] .tx1-ai-cat-val { color: rgba(0,0,0,.38); }
+[data-theme="light"] .tx1-insights-section { background: rgba(0,0,0,.02); border-color: rgba(0,0,0,.08); }
+[data-theme="light"] .tx1-insights-header { color: rgba(0,0,0,.65); }
+[data-theme="light"] .tx1-insights-highlight { background: rgba(74,226,172,.06); border-color: rgba(74,226,172,.2); }
+[data-theme="light"] .tx1-insights-highlight-label { color: rgba(0,0,0,.35); }
+[data-theme="light"] .tx1-insights-highlight-cat { color: rgba(0,0,0,.7); }
+[data-theme="light"] .tx1-insights-cats-label { color: rgba(0,0,0,.35); }
+[data-theme="light"] .tx1-insights-cat-name { color: rgba(0,0,0,.5); }
+[data-theme="light"] .tx1-insights-cat-val { color: rgba(0,0,0,.45); }
+[data-theme="light"] .tx1-insights-cat-row svg { color: rgba(0,0,0,.35); }
+[data-theme="light"] .tx1-insights-bar-wrap { background: rgba(0,0,0,.06); }
 
 /* Mobile */
 @media (max-width: 600px) {
