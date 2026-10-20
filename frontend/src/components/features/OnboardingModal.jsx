@@ -6,7 +6,9 @@ import { analytics } from '../../services/analytics.js'
 export default function OnboardingModal() {
   const user = useUser()
 
-  const [step,           setStep]           = useState(1)
+  // Pula a pergunta de salário (passo 1) quando o usuário já informou no
+  // cadastro — perguntar de novo logo em seguida é redundante e confuso.
+  const [step,           setStep]           = useState(() => user.salary > 0 ? 2 : 1)
   const [saving,         setSaving]         = useState(false)
   const [salary,         setSalary]         = useState(() => user.salary > 0 ? String(user.salary) : '')
   const [bName,          setBName]          = useState('')
