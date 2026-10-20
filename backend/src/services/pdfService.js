@@ -73,9 +73,10 @@ function generateMonthlyPDF(user, month, year, summary, transactions) {
 
     const rows = [
       { label: 'Salário Mensal',  value: summary.salary,           color: '#00b871' },
-      // Contas Fixas só aparecem quando NÃO foram lançadas como transações (auto-launch).
-      // Se foram, já estão em "Total de Gastos" — exibi-las separadamente seria dupla contagem.
-      ...(!summary.autoLaunched ? [{ label: 'Contas Fixas', value: -summary.totalFixedCosts, color: '#ff4757' }] : []),
+      // Contas Fixas só aparece com o valor AINDA NÃO pago este mês — o que já
+      // foi pago (individualmente ou via "Lançar agora") já está em "Total de
+      // Gastos", mostrá-lo aqui de novo seria dupla contagem.
+      ...(summary.unpaidFixedCosts > 0 ? [{ label: 'Contas Fixas (pendentes)', value: -summary.unpaidFixedCosts, color: '#ff4757' }] : []),
       { label: 'Entradas Extras', value: summary.totalIncome,      color: '#00b871' },
       { label: 'Total de Gastos', value: -summary.totalExpenses,  color: '#ff4757' },
       { label: 'Saldo Final',     value: summary.currentBalance,   color: summary.currentBalance >= 0 ? '#00b871' : '#ff4757' }

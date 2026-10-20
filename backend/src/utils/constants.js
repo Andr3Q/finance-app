@@ -6,6 +6,9 @@ const EMAIL_REGEX    = /^[^\s@]{1,64}@[^\s@]{1,253}\.[^\s@]{2,}$/
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
 const MAX_AMOUNT     = 999_999_999.99
 
+// Limite de transações/mês por plano (sem entrada "elite" = sem limite)
+const TRANSACTION_PLAN_LIMITS = { free: 20, pro: 35 }
+
 const CATEGORY_LABELS = {
   food:       'Alimentação',
   shopping:   'Shopping',
@@ -33,6 +36,7 @@ module.exports = {
   EMAIL_REGEX,
   PASSWORD_REGEX,
   MAX_AMOUNT,
+  TRANSACTION_PLAN_LIMITS,
   CATEGORY_LABELS,
   VALID_CATEGORIES,
   MONTHS,

@@ -237,6 +237,116 @@ describe('Ferramenta get_summary (via /api/agent/chat)', () => {
     expect(toolResult.fixedTotal).toBe(1200)
     expect(toolResult.balance).toBeCloseTo(5000 + 1500.5 - 1200 - 400.25, 2)
   })
+
+  // Regressão: get_summary sempre descontava fixedTotal INTEIRO do saldo,
+  // mesmo quando uma conta fixa já tinha sido paga (já dentro de
+  // totalExpenses via a transação real) — descontava a mesma conta 2x.
+  test('não desconta 2x uma conta fixa já paga (transação com budgetId vinculado)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', salary: new Prisma.Decimal('5000.00') }))
+    prisma.transaction.findMany.mockResolvedValue([
+      { type: 'expense', amount: new Prisma.Decimal('89.00'), budgetId: 'bud-internet' },
+    ])
+    prisma.budget.findMany.mockResolvedValue([
+      { id: 'bud-internet', name: 'Internet', amount: new Prisma.Decimal('89.00') },
+      { id: 'bud-claro',    name: 'Claro',    amount: new Prisma.Decimal('49.00') },
+    ])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_summary', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Qual meu saldo?' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    // Internet já paga (não desconta de novo) — só Claro (49) continua pendente
+    expect(toolResult.unpaidFixedCosts).toBe(49)
+    expect(toolResult.balance).toBeCloseTo(5000 - 49 - 89, 2)
+  })
+})
+
+describe('Ferramenta pay_fixed_bill (via /api/agent/chat)', () => {
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst
+      .mockResolvedValueOnce(null)  // mês não fechado
+      .mockResolvedValueOnce(null) // ainda não paga
+    prisma.transaction.count.mockResolvedValue(0)
+  })
+
+  test('registra o pagamento vinculado à conta fixa pelo nome', async () => {
+    prisma.budget.findFirst.mockResolvedValue({ id: 'bud-internet', userId: 'user-123', name: 'Internet', amount: 89 })
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-1', amount: 89, budgetId: 'bud-internet' })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('pay_fixed_bill', { budgetName: 'Internet' }))
+      .mockResolvedValueOnce(simpleReply('Pago!'))
+
+    const res = await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Paga a conta de Internet' })
+
+    expect(res.status).toBe(200)
+    expect(prisma.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ budgetId: 'bud-internet', category: 'fixed' }),
+    }))
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(toolResult.success).toBe(true)
+  })
+
+  test('encontra a conta fixa ignorando maiúsculas/minúsculas', async () => {
+    prisma.budget.findFirst.mockResolvedValue({ id: 'bud-internet', userId: 'user-123', name: 'Internet', amount: 89 })
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-1', amount: 89, budgetId: 'bud-internet' })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('pay_fixed_bill', { budgetName: 'internet' }))
+      .mockResolvedValueOnce(simpleReply('Pago!'))
+
+    await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'paga a internet' })
+
+    expect(prisma.budget.findFirst).toHaveBeenCalledWith({
+      where: { userId: 'user-123', name: { equals: 'internet', mode: 'insensitive' } },
+    })
+  })
+
+  test('conta fixa inexistente retorna erro pra IA, sem criar transação', async () => {
+    prisma.budget.findFirst.mockResolvedValue(null)
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('pay_fixed_bill', { budgetName: 'Netflix' }))
+      .mockResolvedValueOnce(simpleReply('não achei'))
+
+    await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'paga a Netflix' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(toolResult.error).toMatch(/não encontrada/i)
+    expect(prisma.transaction.create).not.toHaveBeenCalled()
+  })
+
+  test('conta já paga este mês não duplica — IA recebe aviso, não erro genérico', async () => {
+    prisma.budget.findFirst.mockResolvedValue({ id: 'bud-internet', userId: 'user-123', name: 'Internet', amount: 89 })
+    prisma.transaction.findFirst
+      .mockReset()
+      .mockResolvedValueOnce(null)                                       // mês não fechado
+      .mockResolvedValueOnce({ amount: 89, date: new Date('2026-10-05') }) // já paga
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('pay_fixed_bill', { budgetName: 'Internet' }))
+      .mockResolvedValueOnce(simpleReply('já paga'))
+
+    await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'paga a internet de novo' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(toolResult.error).toMatch(/já foi paga/i)
+    expect(prisma.transaction.create).not.toHaveBeenCalled()
+  })
 })
 
 describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {

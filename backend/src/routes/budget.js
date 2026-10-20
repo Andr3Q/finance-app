@@ -9,6 +9,7 @@
 //   POST   /budget         → Adiciona nova conta fixa
 //   PUT    /budget/:id     → Atualiza uma conta fixa
 //   DELETE /budget/:id     → Remove uma conta fixa
+//   POST   /budget/:id/pay → Marca uma conta fixa como paga este mês
 //   PUT    /budget/salary  → Atualiza o salário mensal
 // ═══════════════════════════════════════════════════════
 
@@ -17,8 +18,9 @@ const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 
 const { UUID_REGEX, MAX_AMOUNT, VALID_CATEGORIES } = require('../utils/constants')
-const { parseDateInput } = require('../utils/helpers')
+const { parseDateInput, nowBrasilia } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
+const { payBudget } = require('../services/budgetPayment')
 
 const router = express.Router()
 
@@ -29,13 +31,28 @@ const normalizeLimit  = (l) => ({ ...l, amount: Number(l.amount) })
 router.use(authMiddleware)
 
 // ── GET /budget ─────────────────────────────────────────
+// Cada conta fixa vem com paidThisMonth — true quando já existe uma
+// transação vinculada (budgetId) neste mês/ano, ver services/budgetPayment.js.
 router.get('/', async (req, res) => {
   try {
-    const budgets = await prisma.budget.findMany({
-      where:   { userId: req.userId },
-      orderBy: { name: 'asc' }
-    })
-    res.json(budgets.map(normalizeBudget))
+    const { month, year } = nowBrasilia()
+    const [budgets, paidTxs] = await Promise.all([
+      prisma.budget.findMany({ where: { userId: req.userId }, orderBy: { name: 'asc' } }),
+      prisma.transaction.findMany({
+        where:  { userId: req.userId, month, year, budgetId: { not: null } },
+        select: { budgetId: true, amount: true, date: true },
+      }),
+    ])
+    const paidByBudgetId = new Map(paidTxs.map(t => [t.budgetId, t]))
+    res.json(budgets.map(b => {
+      const paid = paidByBudgetId.get(b.id)
+      return {
+        ...normalizeBudget(b),
+        paidThisMonth: !!paid,
+        paidAmount:    paid ? Number(paid.amount) : null,
+        paidDate:      paid ? paid.date : null,
+      }
+    }))
   } catch (error) {
     res.status(500).json({ error: 'Erro ao listar contas fixas.' })
   }
@@ -187,6 +204,46 @@ router.put('/:id', async (req, res) => {
     if (err.code === 'P2025') return res.status(404).json({ error: 'Conta fixa não encontrada.' })
     reportError(err, { tag: 'Erro ao atualizar conta fixa' })
     res.status(500).json({ error: 'Erro ao atualizar conta fixa.' })
+  }
+})
+
+// ── POST /budget/:id/pay ────────────────────────────────
+// Marca uma conta fixa como paga este mês, criando a transação vinculada
+// (budgetId). Mesma lógica usada pela ferramenta de IA pay_fixed_bill — ver
+// services/budgetPayment.js. auto-launch ("Lançar agora") pula contas que já
+// têm transação vinculada no mês, então esse caminho e o automático nunca
+// mais duplicam a mesma conta.
+router.post('/:id/pay', async (req, res) => {
+  const { id } = req.params
+  if (!UUID_REGEX.test(id)) return res.status(400).json({ error: 'ID inválido.' })
+
+  const { amount, date } = req.body
+  if (amount !== undefined && amount !== null) {
+    const parsed = parseFloat(amount)
+    if (!isFinite(parsed) || parsed <= 0) return res.status(400).json({ error: 'Valor deve ser maior que zero.' })
+  }
+
+  try {
+    const result = await payBudget({
+      userId:        req.userId,
+      budgetId:      id,
+      amount:        (amount !== undefined && amount !== null) ? parseFloat(amount) : null,
+      dateStr:       date ?? null,
+      effectivePlan: req.userPlan,
+    })
+    if (!result.ok) {
+      const body = { error: result.error }
+      if (result.limitReached) { body.limitReached = true; body.plan = result.plan }
+      if (result.alreadyPaid)  body.alreadyPaid = true
+      return res.status(result.status).json(body)
+    }
+    res.status(201).json({
+      message:     `${result.budget.name} marcada como paga.`,
+      transaction: { ...result.transaction, amount: Number(result.transaction.amount) },
+    })
+  } catch (error) {
+    reportError(error, { tag: 'Erro ao pagar conta fixa' })
+    res.status(500).json({ error: 'Erro ao registrar pagamento da conta fixa.' })
   }
 })
 

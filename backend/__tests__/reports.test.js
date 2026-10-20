@@ -125,6 +125,22 @@ describe('POST /api/reports/monthly-close', () => {
     expect(summary.currentBalance).toBe(3830)
   })
 
+  test('desconta só a conta fixa ainda não paga quando a outra já tem transação vinculada (budgetId)', async () => {
+    // b1 (1200) já paga (transação com budgetId: 'b1'); b2 (120) ainda pendente
+    // unpaidFixedCosts = 120 -> totalAvailable = 5000 + 500 - 120 = 5380
+    prisma.budget.findMany.mockResolvedValue([{ id: 'b1', amount: 1200 }, { id: 'b2', amount: 120 }])
+    prisma.transaction.findMany.mockResolvedValue([
+      ...mockTransactions,
+      { type: 'expense', amount: 1200, date: new Date('2026-05-05'), budgetId: 'b1' },
+    ])
+    const res = await request(app)
+      .post(ENDPOINT)
+      .set('Authorization', `Bearer ${makeToken()}`)
+    expect(res.status).toBe(200)
+    expect(res.body.summary.unpaidFixedCosts).toBe(120)
+    expect(res.body.summary.totalAvailable).toBe(5380)
+  })
+
   test('percentUsed calculado corretamente', async () => {
     // 350 / 4180 ≈ 8%
     const res = await request(app)

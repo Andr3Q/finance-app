@@ -18,8 +18,8 @@ const { parse }      = require('csv-parse/sync')
 const { sendPushToUser } = require('../services/pushService')
 const { dashboardLimiter } = require('../middleware/rateLimiter')
 
-const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES } = require('../utils/constants')
-const { nowBrasilia, partsBrasilia, parseDateInput } = require('../utils/helpers')
+const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES, TRANSACTION_PLAN_LIMITS } = require('../utils/constants')
+const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
@@ -55,13 +55,12 @@ router.get('/summary', dashboardLimiter, async (req, res) => {
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
-    // Se as contas já foram lançadas como transações este mês,
-    // não deduç os orçamentos novamente (evita dupla contagem)
-    const autoLaunched = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    // Só desconta de totalAvailable as contas fixas AINDA NÃO pagas este mês
+    // (sem transação com budgetId vinculado) — ver computeFixedCostsStatus.
+    const legacyAllLaunched = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const { unpaidFixedCosts, unpaidBudgetIds } = computeFixedCostsStatus({ budgets, transactions, legacyAllLaunched })
     const salary       = Number(user.salary)
-    const totalAvailable = autoLaunched
-      ? salary + totalIncome                    // fixas já estão em totalExpenses
-      : salary + totalIncome - totalFixedCosts  // subtrai manualmente se não lançadas
+    const totalAvailable = salary + totalIncome - unpaidFixedCosts
 
     const currentBalance = totalAvailable - totalExpenses
     const percentUsed    = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
@@ -70,11 +69,13 @@ router.get('/summary', dashboardLimiter, async (req, res) => {
       salary,
       totalIncome,
       totalFixedCosts,
+      unpaidFixedCosts,
+      unpaidBudgetIds,
       totalExpenses,
       totalAvailable,
       currentBalance,
       percentUsed,
-      autoLaunched,   // informa o frontend se o lançamento já foi feito
+      autoLaunched: unpaidFixedCosts === 0,   // informa o frontend se não há conta fixa pendente
       month,
       year
     })
@@ -106,16 +107,19 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
     const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
     const totalIncome     = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
     const totalFixedCosts = budgets.reduce((s, b) => s + Number(b.amount), 0)
-    const autoLaunched    = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const legacyAllLaunched = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const { unpaidFixedCosts, unpaidBudgetIds } = computeFixedCostsStatus({ budgets, transactions, legacyAllLaunched })
     const salary          = Number(user.salary)
-    const totalAvailable  = autoLaunched
-      ? salary + totalIncome
-      : salary + totalIncome - totalFixedCosts
+    const totalAvailable  = salary + totalIncome - unpaidFixedCosts
     const currentBalance  = totalAvailable - totalExpenses
     const percentUsed     = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
 
     res.json({
-      summary: { salary, totalIncome, totalFixedCosts, totalExpenses, totalAvailable, currentBalance, percentUsed, autoLaunched, month, year },
+      summary: {
+        salary, totalIncome, totalFixedCosts, unpaidFixedCosts, unpaidBudgetIds,
+        totalExpenses, totalAvailable, currentBalance, percentUsed,
+        autoLaunched: unpaidFixedCosts === 0, month, year,
+      },
       transactions: transactions.map(normalizeTx),
       limits: limits.map(l => ({ ...l, amount: Number(l.amount) })),
       budgets: budgets.map(b => ({ ...b, amount: Number(b.amount) })),
@@ -494,29 +498,39 @@ router.delete('/:id', dashboardLimiter, async (req, res) => {
 })
 
 // ── POST /transactions/auto-launch ─────────────────────
-// Lança todas as contas fixas como transações do mês atual.
-// Só executa uma vez por mês (controla pelo autoLaunchMonth/Year no User).
+// Lança as contas fixas AINDA PENDENTES como transações do mês atual —
+// "pendente" = sem nenhuma transação com budgetId vinculado neste mês/ano.
+// Isso inclui contas já pagas individualmente antes (botão "Marcar como
+// paga" ou chat de IA, ver services/budgetPayment.js) — essas são puladas,
+// nunca lançadas de novo. Antes disso, este endpoint lançava TODAS as contas
+// incondicionalmente na primeira chamada do mês (controlado só por uma flag
+// global autoLaunchMonth/Year no User), então uma conta paga individualmente
+// ANTES de clicar "Lançar agora" sempre duplicava — bug real relatado por
+// testadores beta e confirmado em QA.
 router.post('/auto-launch', dashboardLimiter, async (req, res) => {
   try {
     const { month, year } = nowBrasilia()
 
-    // Verificações prévias antes do claim atômico
-    const [userCheck, budgets] = await Promise.all([
-      prisma.user.findUnique({ where: { id: req.userId } }),
+    const [budgets, paidBudgetIds] = await Promise.all([
       prisma.budget.findMany({ where: { userId: req.userId } }),
+      prisma.transaction.findMany({
+        where:  { userId: req.userId, month, year, budgetId: { not: null } },
+        select: { budgetId: true },
+      }).then(rows => new Set(rows.map(r => r.budgetId))),
     ])
 
-    if (userCheck.autoLaunchMonth === month && userCheck.autoLaunchYear === year) {
-      return res.json({ message: 'Contas fixas já foram lançadas este mês.', alreadyLaunched: true })
-    }
     if (budgets.length === 0) {
       return res.status(400).json({ error: 'Nenhuma conta fixa cadastrada. Adicione em Configurações.' })
     }
 
-    // Verifica limite do plano Free antes de criar transações
-    let budgetsToLaunch = budgets
-    if (req.userPlan === 'free' || req.userPlan === 'pro') {
-      const planLimit  = req.userPlan === 'pro' ? 35 : 20
+    let budgetsToLaunch = budgets.filter(b => !paidBudgetIds.has(b.id))
+    if (budgetsToLaunch.length === 0) {
+      return res.json({ message: 'Todas as contas fixas já foram pagas este mês.', alreadyLaunched: true })
+    }
+
+    // Verifica limite de transações/mês do plano antes de criar
+    const planLimit = TRANSACTION_PLAN_LIMITS[req.userPlan]
+    if (planLimit) {
       const currentCount = await prisma.transaction.count({
         where: { userId: req.userId, month, year, archived: false }
       })
@@ -525,50 +539,35 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
         return res.status(403).json({
           error: `Limite de ${planLimit} transações por mês atingido. Não foi possível lançar as contas fixas.`,
           limitReached: true,
-          plan: userCheck.plan,
+          plan: req.userPlan,
         })
       }
-      if (budgets.length > remaining) budgetsToLaunch = budgets.slice(0, remaining)
+      if (budgetsToLaunch.length > remaining) budgetsToLaunch = budgetsToLaunch.slice(0, remaining)
     }
 
-    // Marca o mês e cria transações atomicamente — se dois requests chegarem ao mesmo
-    // tempo, apenas um consegue o update; o outro encontrará count=0 (alreadyLaunched).
-    // Ambas as operações estão na mesma transação de banco: se createMany falhar, o
-    // updateMany é revertido e o usuário pode tentar novamente.
-    let alreadyLaunched = false
-    await prisma.$transaction(async (db) => {
-      const claimed = await db.user.updateMany({
-        where: {
-          id: req.userId,
-          NOT: { autoLaunchMonth: month, autoLaunchYear: year },
-        },
-        data: { autoLaunchMonth: month, autoLaunchYear: year },
-      })
-
-      if (claimed.count === 0) { alreadyLaunched = true; return }
-
-      // createMany insere N contas em 1 round trip ao banco (vs N inserts individuais)
-      await db.transaction.createMany({
-        data: budgetsToLaunch.map(b => ({
-          description: b.name,
-          amount:      b.amount,
-          type:        'expense',
-          category:    'fixed',
-          month,
-          year,
-          userId:      req.userId
-        }))
-      })
+    // createMany insere N contas em 1 round trip ao banco (vs N inserts individuais).
+    // skipDuplicates é a rede de segurança contra corrida (2 requests simultâneos
+    // decidindo "essa conta ainda não foi paga" ao mesmo tempo) — a constraint única
+    // [budgetId, month, year] do schema barra a 2ª tentativa pra mesma conta, e
+    // skipDuplicates faz isso silenciosamente em vez de derrubar o lote inteiro.
+    const result = await prisma.transaction.createMany({
+      skipDuplicates: true,
+      data: budgetsToLaunch.map(b => ({
+        description: b.name,
+        amount:      b.amount,
+        type:        'expense',
+        category:    'fixed',
+        budgetId:    b.id,
+        month,
+        year,
+        userId:      req.userId,
+      })),
     })
 
-    if (alreadyLaunched) {
-      return res.json({ message: 'Contas fixas já foram lançadas este mês.', alreadyLaunched: true })
-    }
-
     res.json({
-      message:         `✅ ${budgetsToLaunch.length} contas fixas lançadas com sucesso!`,
-      count:           budgetsToLaunch.length,
-      alreadyLaunched: false
+      message:         `✅ ${result.count} ${result.count === 1 ? 'conta fixa lançada' : 'contas fixas lançadas'} com sucesso!`,
+      count:           result.count,
+      alreadyLaunched: false,
     })
   } catch (error) {
     reportError(error, { tag: 'Erro no auto-launch' })

@@ -55,6 +55,25 @@ describe('GET /api/budget', () => {
     const res = await request(app).get('/api/budget')
     expect(res.status).toBe(401)
   })
+
+  test('marca paidThisMonth=true só pra conta com transação vinculada (budgetId) este mês', async () => {
+    const budgetPaid   = mockBudget({ id: 'b1', name: 'Internet' })
+    const budgetUnpaid = mockBudget({ id: 'b2', name: 'Claro' })
+    prisma.budget.findMany.mockResolvedValue([budgetPaid, budgetUnpaid])
+    prisma.transaction.findMany.mockResolvedValue([
+      { budgetId: 'b1', amount: 89, date: new Date('2026-10-05') },
+    ])
+
+    const res = await request(app).get('/api/budget').set(authHeader())
+
+    expect(res.status).toBe(200)
+    const b1 = res.body.find(b => b.id === 'b1')
+    const b2 = res.body.find(b => b.id === 'b2')
+    expect(b1.paidThisMonth).toBe(true)
+    expect(b1.paidAmount).toBe(89)
+    expect(b2.paidThisMonth).toBe(false)
+    expect(b2.paidAmount).toBeNull()
+  })
 })
 
 // ══════════════════════════════════════════════════════════
@@ -302,6 +321,129 @@ describe('PUT /api/budget/:id', () => {
       .send({})
 
     expect(res.status).toBe(400)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// PAGAR CONTA FIXA (payBudget — compartilhado com pay_fixed_bill da IA)
+// ══════════════════════════════════════════════════════════
+describe('POST /api/budget/:id/pay', () => {
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.budget.findFirst.mockResolvedValue(mockBudget({ amount: 89 }))
+    // payBudget faz 2 findFirst em sequência: mês fechado (null = não fechado),
+    // depois já paga este mês (null = ainda não paga)
+    prisma.transaction.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+    prisma.transaction.count.mockResolvedValue(0)
+    prisma.transaction.create.mockResolvedValue({
+      id: 'tx-1', budgetId: VALID_UUID, amount: 89, type: 'expense', category: 'fixed',
+      description: 'Internet', month: 10, year: 2026, date: new Date(),
+    })
+  })
+
+  test('marca conta fixa como paga com o valor cadastrado', async () => {
+    const res = await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({})
+
+    expect(res.status).toBe(201)
+    expect(res.body.transaction.budgetId).toBe(VALID_UUID)
+    expect(prisma.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ budgetId: VALID_UUID, category: 'fixed', type: 'expense' }),
+    }))
+  })
+
+  test('aceita valor diferente do cadastrado (conta que variou no mês)', async () => {
+    const res = await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({ amount: 95.50 })
+
+    expect(res.status).toBe(201)
+    expect(prisma.transaction.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ amount: 95.50 }),
+    }))
+  })
+
+  test('conta fixa de outro usuário (ou inexistente) retorna 404', async () => {
+    prisma.budget.findFirst.mockResolvedValue(null)
+    const res = await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({})
+    expect(res.status).toBe(404)
+  })
+
+  test('conta já paga este mês retorna 409 sem criar transação duplicada', async () => {
+    prisma.transaction.findFirst
+      .mockReset()
+      .mockResolvedValueOnce(null)       // mês não fechado
+      .mockResolvedValueOnce({ amount: 89, date: new Date('2026-10-05') }) // já paga
+    const res = await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({})
+    expect(res.status).toBe(409)
+    expect(res.body.alreadyPaid).toBe(true)
+    expect(prisma.transaction.create).not.toHaveBeenCalled()
+  })
+
+  test('mês já fechado retorna 409', async () => {
+    prisma.transaction.findFirst
+      .mockReset()
+      .mockResolvedValueOnce({ id: 'tx-fechada' }) // mês fechado
+    const res = await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({})
+    expect(res.status).toBe(409)
+    expect(prisma.transaction.create).not.toHaveBeenCalled()
+  })
+
+  test('limite de transações do plano atingido retorna 403', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+    prisma.transaction.count.mockResolvedValue(20)
+    const res = await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({})
+    expect(res.status).toBe(403)
+    expect(res.body.limitReached).toBe(true)
+  })
+
+  test('valor zero ou negativo é rejeitado → 400', async () => {
+    const res = await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({ amount: 0 })
+    expect(res.status).toBe(400)
+  })
+
+  test('ID não-UUID retorna 400', async () => {
+    const res = await request(app)
+      .post('/api/budget/not-a-uuid/pay')
+      .set(authHeader())
+      .send({})
+    expect(res.status).toBe(400)
+  })
+
+  // Rede de segurança contra corrida: 2 requests passam pela checagem de
+  // "já paga" ao mesmo tempo (ambas veem null) — a constraint única do banco
+  // (P2002) barra a 2ª criação, e a API responde 409 em vez de 500.
+  test('corrida de 2 requests simultâneos: a 2ª bate na constraint única (P2002) e recebe 409, não 500', async () => {
+    const err = new Error('Unique constraint failed')
+    err.code = 'P2002'
+    prisma.transaction.create.mockRejectedValue(err)
+
+    const res = await request(app)
+      .post(`/api/budget/${VALID_UUID}/pay`)
+      .set(authHeader())
+      .send({})
+    expect(res.status).toBe(409)
+    expect(res.body.alreadyPaid).toBe(true)
   })
 })
 
