@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import Transactions from '../pages/Transactions.jsx'
 
 vi.mock('../services/api.js', () => ({
-  transactionsAPI:  { list: vi.fn(), remove: vi.fn(), importCSV: vi.fn() },
+  transactionsAPI:  { list: vi.fn(), remove: vi.fn(), importCSV: vi.fn(), monthlyRecap: vi.fn() },
   installmentsAPI:  {
     list:   vi.fn(),
     create: vi.fn(),
@@ -46,14 +46,18 @@ const mkPlan = (overrides = {}) => ({
   ...overrides,
 })
 
-function setup() {
+// A seção "Compras parceladas" abre pelo atalho "Parcelados" do cabeçalho do
+// Extrato (tela 10) — começa recolhida, então os testes abrem o atalho primeiro.
+async function renderOpen() {
+  const utils = render(<MemoryRouter><Transactions /></MemoryRouter>)
+  fireEvent.click(await screen.findByRole('button', { name: /^parcelados$/i }))
+  return utils
+}
+
+async function setup() {
   transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
   installmentsAPI.list.mockResolvedValue({ data: [] })
-  return render(
-    <MemoryRouter>
-      <Transactions />
-    </MemoryRouter>
-  )
+  return renderOpen()
 }
 
 beforeEach(() => {
@@ -64,12 +68,12 @@ beforeEach(() => {
 
 describe('Transactions — seção de parcelas', () => {
   it('exibe o cabeçalho "Compras parceladas"', async () => {
-    setup()
+    await setup()
     expect(await screen.findByText(/compras parceladas/i)).toBeInTheDocument()
   })
 
   it('exibe mensagem vazia quando não há planos', async () => {
-    setup()
+    await setup()
     expect(await screen.findByText(/nenhuma compra parcelada/i)).toBeInTheDocument()
   })
 
@@ -81,7 +85,7 @@ describe('Transactions — seção de parcelas', () => {
         mkPlan({ id: 'p2', name: 'TV', paidInstallments: 0 }),
       ],
     })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     expect(await screen.findByText('2')).toBeInTheDocument()
   })
 })
@@ -92,21 +96,21 @@ describe('Transactions — cards de parcela', () => {
   it('renderiza o nome do plano', async () => {
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     expect(await screen.findByText('iPhone 15')).toBeInTheDocument()
   })
 
   it('exibe "0/12 pagas" no card', async () => {
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     expect(await screen.findByText(/\/12 pagas/i)).toBeInTheDocument()
   })
 
   it('exibe botão "Pagar parcela 1/12" para plano com 0 parcelas pagas', async () => {
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     expect(await screen.findByRole('button', { name: /pagar parcela 1\/12/i })).toBeInTheDocument()
   })
 
@@ -115,7 +119,7 @@ describe('Transactions — cards de parcela', () => {
     installmentsAPI.list.mockResolvedValue({
       data: [mkPlan({ paidInstallments: 12 })],
     })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     expect(await screen.findByText(/✓ quitado/i)).toBeInTheDocument()
   })
 
@@ -124,7 +128,7 @@ describe('Transactions — cards de parcela', () => {
     installmentsAPI.list.mockResolvedValue({
       data: [mkPlan({ paidInstallments: 12 })],
     })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     await screen.findByText(/✓ quitado/i)
     expect(screen.queryByRole('button', { name: /pagar parcela/i })).not.toBeInTheDocument()
   })
@@ -134,14 +138,14 @@ describe('Transactions — cards de parcela', () => {
     installmentsAPI.list.mockResolvedValue({
       data: [mkPlan({ paidInstallments: 3 })],
     })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     expect(await screen.findByRole('button', { name: /desfazer/i })).toBeInTheDocument()
   })
 
   it('não exibe "Desfazer" quando paidInstallments é 0', async () => {
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan({ paidInstallments: 0 })] })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     await screen.findByRole('button', { name: /pagar parcela/i })
     expect(screen.queryByRole('button', { name: /desfazer/i })).not.toBeInTheDocument()
   })
@@ -155,7 +159,7 @@ describe('Transactions — pagar e desfazer parcela', () => {
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
 
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     const btn = await screen.findByRole('button', { name: /pagar parcela 1\/12/i })
     fireEvent.click(btn)
 
@@ -169,7 +173,7 @@ describe('Transactions — pagar e desfazer parcela', () => {
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
 
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /pagar parcela/i }))
 
     expect(await screen.findByText(/parcela registrada como transação/i)).toBeInTheDocument()
@@ -182,7 +186,7 @@ describe('Transactions — pagar e desfazer parcela', () => {
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
 
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /pagar parcela/i }))
 
     expect(await screen.findByText(/todas as parcelas já foram pagas/i)).toBeInTheDocument()
@@ -195,7 +199,7 @@ describe('Transactions — pagar e desfazer parcela', () => {
     })
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
 
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     const btn = await screen.findByRole('button', { name: /desfazer/i })
     fireEvent.click(btn)
 
@@ -211,7 +215,7 @@ describe('Transactions — pagar e desfazer parcela', () => {
     })
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
 
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /desfazer/i }))
 
     expect(await screen.findByText(/parcela desfeita/i)).toBeInTheDocument()
@@ -226,7 +230,7 @@ describe('Transactions — pagar e desfazer parcela', () => {
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan()] })
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
 
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByLabelText('Mês anterior')) // sai do mês atual
 
     fireEvent.click(await screen.findByRole('button', { name: /pagar parcela/i }))
@@ -242,7 +246,7 @@ describe('Transactions — pagar e desfazer parcela', () => {
     installmentsAPI.list.mockResolvedValue({ data: [mkPlan({ paidInstallments: 2 })] })
     transactionsAPI.list.mockResolvedValue({ data: { data: [] } })
 
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByLabelText('Mês anterior'))
 
     fireEvent.click(await screen.findByRole('button', { name: /desfazer/i }))
@@ -284,7 +288,7 @@ describe('Transactions — navegação rápida entre meses', () => {
         },
       })
 
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByLabelText('Mês anterior')) // dispara a 2ª fetch, mês diferente da 1ª
 
     await waitFor(() => expect(screen.getByText('Mês novo')).toBeInTheDocument())
@@ -316,7 +320,7 @@ describe('Transactions — remover parcelamento', () => {
   })
 
   it('chama installmentsAPI.remove com id correto', async () => {
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByTitle('Remover'))
     // Modal de confirmação abre — clicar "Sim, excluir" para confirmar
     fireEvent.click(await screen.findByRole('button', { name: /sim, excluir/i }))
@@ -326,14 +330,14 @@ describe('Transactions — remover parcelamento', () => {
   })
 
   it('mostra toast "Parcelamento removido." após remoção', async () => {
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByTitle('Remover'))
     fireEvent.click(await screen.findByRole('button', { name: /sim, excluir/i }))
     expect(await screen.findByText(/parcelamento removido/i)).toBeInTheDocument()
   })
 
   it('não remove quando usuário cancela o confirm', async () => {
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByTitle('Remover'))
     fireEvent.click(await screen.findByRole('button', { name: /cancelar/i }))
     expect(installmentsAPI.remove).not.toHaveBeenCalled()
@@ -350,27 +354,27 @@ describe('Transactions — criar novo parcelamento', () => {
   })
 
   it('exibe formulário ao clicar em "+ Nova parcela"', async () => {
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /\+ nova parcela/i }))
     expect(screen.getByPlaceholderText(/celular samsung/i)).toBeInTheDocument()
   })
 
   it('esconde formulário ao clicar em "Cancelar"', async () => {
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /\+ nova parcela/i }))
     fireEvent.click(screen.getByRole('button', { name: /cancelar/i }))
     expect(screen.queryByPlaceholderText(/celular samsung/i)).not.toBeInTheDocument()
   })
 
   it('não chama create se campos obrigatórios estão vazios', async () => {
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /\+ nova parcela/i }))
     fireEvent.submit(screen.getByPlaceholderText(/celular samsung/i).closest('form'))
     expect(installmentsAPI.create).not.toHaveBeenCalled()
   })
 
   it('chama installmentsAPI.create com dados corretos', async () => {
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /\+ nova parcela/i }))
 
     await userEvent.type(screen.getByPlaceholderText(/celular samsung/i), 'MacBook Pro')
@@ -392,7 +396,7 @@ describe('Transactions — criar novo parcelamento', () => {
   })
 
   it('mostra toast de sucesso após criar', async () => {
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /\+ nova parcela/i }))
 
     await userEvent.type(screen.getByPlaceholderText(/celular samsung/i), 'Notebook')
@@ -410,7 +414,7 @@ describe('Transactions — criar novo parcelamento', () => {
     installmentsAPI.create.mockRejectedValue({
       response: { data: { error: 'Nome deve ter entre 2 e 100 caracteres.' } },
     })
-    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    await renderOpen()
     fireEvent.click(await screen.findByRole('button', { name: /\+ nova parcela/i }))
 
     await userEvent.type(screen.getByPlaceholderText(/celular samsung/i), 'Notebook')

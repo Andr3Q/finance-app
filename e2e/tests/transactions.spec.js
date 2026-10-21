@@ -178,7 +178,7 @@ test.describe('Transações — Excluir transação', () => {
     await page.goto('/transactions')
     await page.getByText('Almoço').waitFor()
 
-    await page.locator('button.tx1-del[title="Remover"]').first().click()
+    await page.locator('button.ex-del[title="Remover"]').first().click()
 
     // Modal customizado substitui window.confirm
     await expect(page.getByText('Remover transação')).toBeVisible()

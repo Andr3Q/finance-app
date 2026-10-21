@@ -20,22 +20,29 @@ async function setupBase(page, installments = []) {
   return mock
 }
 
+// "Compras parceladas" abre pelo atalho "Parcelados" do cabeçalho do Extrato
+// (tela 10) — a seção começa recolhida, então todo teste abre o atalho primeiro.
+async function goToParcelados(page) {
+  await page.goto('/transactions')
+  await page.getByRole('button', { name: /^parcelados$/i }).click()
+}
+
 test.describe('Parcelamentos — Seção', () => {
   test('exibe cabeçalho "Compras parceladas"', async ({ page }) => {
     await setupBase(page)
-    await page.goto('/transactions')
+    await goToParcelados(page)
     await expect(page.getByText(/compras parceladas/i)).toBeVisible()
   })
 
   test('exibe mensagem vazia quando não há planos', async ({ page }) => {
     await setupBase(page)
-    await page.goto('/transactions')
+    await goToParcelados(page)
     await expect(page.getByText(/nenhuma compra parcelada/i)).toBeVisible()
   })
 
   test('exibe badge com quantidade de parcelamentos ativos', async ({ page }) => {
     await setupBase(page, [INSTALLMENT_ITEM, { ...INSTALLMENT_ITEM, id: 'inst-002', name: 'MacBook' }])
-    await page.goto('/transactions')
+    await goToParcelados(page)
     await expect(page.locator('.parc-badge')).toHaveText('2')
   })
 })
@@ -43,7 +50,7 @@ test.describe('Parcelamentos — Seção', () => {
 test.describe('Parcelamentos — Renderização de card', () => {
   test.beforeEach(async ({ page }) => {
     await setupBase(page, [INSTALLMENT_ITEM])
-    await page.goto('/transactions')
+    await goToParcelados(page)
     await page.getByText('iPhone 15').waitFor()
   })
 
@@ -72,7 +79,7 @@ test.describe('Parcelamentos — Card quitado', () => {
   test('exibe "✓ Quitado" e não mostra botão de pagar', async ({ page }) => {
     const done = { ...INSTALLMENT_ITEM, paidInstallments: 12 }
     await setupBase(page, [done])
-    await page.goto('/transactions')
+    await goToParcelados(page)
 
     await expect(page.getByText(/quitado/i)).toBeVisible()
     await expect(page.getByRole('button', { name: /pagar parcela/i })).not.toBeVisible()
@@ -114,7 +121,7 @@ test.describe('Parcelamentos — Pagar parcela', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ salary: 5000, totalExpenses: 0, currentBalance: 5000 }) })
     })
 
-    await page.goto('/transactions')
+    await goToParcelados(page)
     await page.getByText('iPhone 15').waitFor()
   })
 
@@ -155,7 +162,7 @@ test.describe('Parcelamentos — Desfazer parcela', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ salary: 5000, totalExpenses: 0, currentBalance: 5000 }) })
     })
 
-    await page.goto('/transactions')
+    await goToParcelados(page)
     await page.getByRole('button', { name: /desfazer/i }).click()
     await expect(page.getByText(/parcela desfeita/i)).toBeVisible()
   })
@@ -187,7 +194,7 @@ test.describe('Parcelamentos — Excluir', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ salary: 5000, totalExpenses: 0, currentBalance: 5000 }) })
     })
 
-    await page.goto('/transactions')
+    await goToParcelados(page)
     await page.getByText('iPhone 15').waitFor()
 
     await page.locator('[title="Remover"]').click()
@@ -223,7 +230,7 @@ test.describe('Parcelamentos — Criar novo plano', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ salary: 5000, totalExpenses: 0, currentBalance: 5000 }) })
     })
 
-    await page.goto('/transactions')
+    await goToParcelados(page)
   })
 
   test('clicar em "+ Nova parcela" exibe o formulário', async ({ page }) => {

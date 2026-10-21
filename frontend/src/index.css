@@ -5330,7 +5330,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .home-health-card {
   display: flex; align-items: center; gap: 14px;
-  background: var(--s1); border: 1px solid var(--bd); border-radius: 16px;
+  background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 16px;
   padding: 16px; margin-bottom: 16px;
 }
 .home-health-ring-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
@@ -5344,7 +5344,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .home-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
 .home-stat {
-  background: var(--s1); border: 1px solid var(--bd); border-radius: 14px;
+  background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 14px;
   padding: 12px; display: flex; flex-direction: column; gap: 6px;
 }
 .home-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -5362,7 +5362,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .home-recent-row {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 0; border-bottom: 1px solid var(--bd);
+  padding: 10px 0; border-bottom: 1px solid var(--bdbd);
 }
 .home-recent-row:last-child { border-bottom: none; }
 .home-recent-ico {
@@ -10758,4 +10758,134 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 
 @media (min-width: 700px) {
   .stories-page { max-width: 440px; margin: 0 auto; border-radius: 24px; top: 24px; bottom: 24px; height: calc(100% - 48px); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ex-* — Extrato (Nancy 2, tela 10). Substitui o visual tx1-* da página de
+   transações (deixado como está: parte do CSS antigo segue em uso, ex.: as
+   compras parceladas, que agora abrem pelo atalho "Parcelados"). Cabeçalho
+   sempre azul (marca); corpo segue o tema claro/escuro, como a tela 08.
+   ═══════════════════════════════════════════════════════ */
+.ex-page {
+  --ex-accent: #8FA8FF;   /* texto das pills/ações sobre o fundo escuro */
+  --ex-in:     #4AE2AC;   /* valores de entrada */
+  --ex-mono:   ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  padding-bottom: 32px;
+}
+[data-theme="light"] .ex-page { --ex-accent: #1546FF; --ex-in: #0B8A5C; }
+
+.ex-hero {
+  background: linear-gradient(165deg, #1546FF 0%, #1140E8 55%, #0D34C4 100%);
+  color: #fff; padding: 24px 20px 46px;
+}
+.ex-title { font-family: var(--fd); font-weight: 800; font-size: 26px; margin: 0 0 16px; letter-spacing: -.01em; }
+
+/* Atalhos (Contas do mês, Parcelados) com setas que rolam a fileira */
+.ex-chips-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.ex-chip-arrow {
+  width: 34px; height: 34px; border-radius: 50%; border: none; background: #fff; color: #1546FF;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.ex-chips { flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.ex-chips::-webkit-scrollbar { display: none; }
+.ex-chip {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 17px;
+  border: none; background: rgba(255,255,255,.18); color: #fff; font-family: inherit;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; flex-shrink: 0; cursor: pointer;
+}
+.ex-chip:hover { background: rgba(255,255,255,.26); }
+.ex-chip.on { background: #fff; color: #1546FF; }
+
+/* Cartão do resultado do mês — sempre branco, em cima do azul da marca */
+.ex-result {
+  background: #fff; color: #121A33; border-radius: 20px; padding: 16px 18px 18px;
+  box-shadow: 0 10px 30px rgba(6,24,110,.28);
+}
+.ex-result-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ex-result-label { font-size: 12.5px; color: #6B7694; }
+.ex-month-nav { display: flex; gap: 6px; flex-shrink: 0; }
+.ex-month-nav button {
+  width: 26px; height: 26px; border-radius: 50%; border: none; background: #EEF2FF; color: #1546FF;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.ex-month-nav button:disabled { opacity: .35; cursor: default; }
+.ex-result-val { font-family: var(--fd); font-weight: 800; font-size: 30px; line-height: 1.15; margin: 4px 0 14px; letter-spacing: -.01em; }
+.ex-result-val.pos { color: #0B7A52; }
+.ex-result-val.neg { color: #D92D3A; }
+.ex-result-sub { display: flex; gap: 28px; }
+.ex-result-sub > div { display: flex; flex-direction: column; gap: 3px; }
+.ex-result-sub-lbl { font-size: 11.5px; color: #6B7694; }
+.ex-mono { font-family: var(--ex-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13.5px; }
+.ex-mono.ex-in  { color: #0B7A52; }
+.ex-mono.ex-out { color: #1546FF; }
+
+.ex-body { background: var(--bg); border-radius: 26px 26px 0 0; margin-top: -26px; position: relative; padding: 20px; }
+
+.ex-search {
+  display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; margin-bottom: 14px;
+  background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 16px; color: var(--t3);
+}
+.ex-search-input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--t1); font-family: inherit; font-size: 14px; }
+.ex-search-input::placeholder { color: var(--t3); }
+.ex-search-clear { border: none; background: none; color: var(--t3); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 2px; }
+
+.ex-pills { display: flex; gap: 8px; margin-bottom: 16px; }
+.ex-pill {
+  height: 34px; padding: 0 16px; border-radius: 17px; border: 1px solid var(--bdbd); background: var(--bg-card);
+  color: var(--ex-accent); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.ex-pill.on { background: #1546FF; border-color: #1546FF; color: #fff; }
+
+/* Um cartão por dia: cabeçalho azul (dia + líquido do dia) e linhas brancas */
+.ex-day { background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 20px; overflow: hidden; margin-bottom: 14px; }
+.ex-day-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 16px;
+  background: #1546FF; color: #fff; font-family: var(--ex-mono); font-size: 11px; font-weight: 700; letter-spacing: .06em;
+}
+.ex-day-total { font-variant-numeric: tabular-nums; }
+.ex-row { display: flex; align-items: center; border-top: 1px solid var(--bdbd); }
+.ex-day-head + .ex-row { border-top: none; }
+.ex-row-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 13px 4px 13px 16px;
+  background: none; border: none; text-align: left; font-family: inherit; color: inherit; cursor: pointer;
+}
+.ex-row-main:hover { background: var(--bg-hover); }
+.ex-row-ico {
+  width: 42px; height: 42px; border-radius: 13px; background: #1546FF; color: #fff;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ex-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ex-row-name { font-size: 14.5px; font-weight: 700; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-row-cat { font-size: 12px; color: var(--t2); }
+.ex-row-val { font-family: var(--ex-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13.5px; flex-shrink: 0; }
+.ex-row-val.exp { color: var(--t1); }
+.ex-row-val.inc { color: var(--ex-in); }
+.ex-del {
+  width: 40px; align-self: stretch; border: none; background: none; color: var(--t3); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ex-del:hover { color: #ff4757; }
+
+.ex-empty { text-align: center; padding: 36px 16px; }
+.ex-empty-title { font-size: 14px; font-weight: 600; color: var(--t2); margin-bottom: 4px; }
+.ex-empty-sub { font-size: 12px; color: var(--t3); }
+
+.ex-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
+.ex-btn-ghost, .ex-btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 14px;
+  border-radius: 12px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.ex-btn-ghost { background: var(--bg-card); border: 1px solid var(--bdbd); color: var(--t2); }
+.ex-btn-ghost:disabled { opacity: .5; cursor: default; }
+.ex-btn-primary { background: #1546FF; border: none; color: #fff; }
+
+@media (max-width: 768px) {
+  .ex-actions { justify-content: stretch; }
+  .ex-actions .ex-btn-ghost { flex: 1; }
+  /* o "+" central da barra inferior é quem cria transações no celular */
+  .ex-btn-new { display: none; }
+}
+@media (min-width: 769px) {
+  .ex-page { max-width: 760px; margin: 0 auto; width: 100%; padding: 8px 24px 32px; }
+  .ex-hero { border-radius: 28px; padding-bottom: 54px; }
 }

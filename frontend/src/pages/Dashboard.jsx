@@ -450,7 +450,7 @@ export default function Dashboard() {
             <div className="home-health-card">
               <div className="home-health-ring-wrap">
                 <svg width="64" height="64" viewBox="0 0 64 64">
-                  <circle cx="32" cy="32" r={RING_R} fill="none" stroke="var(--bd)" strokeWidth="6" />
+                  <circle cx="32" cy="32" r={RING_R} fill="none" stroke="var(--bdbd)" strokeWidth="6" />
                   <circle
                     cx="32" cy="32" r={RING_R} fill="none"
                     stroke={scoreColor} strokeWidth="6" strokeLinecap="round"

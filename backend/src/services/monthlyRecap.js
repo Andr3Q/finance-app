@@ -143,6 +143,7 @@ function buildMonthlyRecap({ target, transactions, budgets, goals, salary }) {
     isBestOfYear,
     belowAverage: categoryBelowAverage(current, priorActive),
     topExpenses,
+    totalIncome:   current.totalIncome,
     totalExpenses: current.totalExpenses,
     fixedSharePct: current.totalExpenses > 0 ? Math.round((fixedAmount / current.totalExpenses) * 100) : 0,
     fixedPaid:  current.fixedPaid,

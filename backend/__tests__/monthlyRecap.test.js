@@ -61,6 +61,7 @@ describe('buildMonthlyRecap', () => {
   test('maiores gastos ordenados e fatia das contas fixas', () => {
     const r = recap()
     expect(r.topExpenses.map(e => e.category)).toEqual(['food', 'fixed'])
+    expect(r.totalIncome).toBe(1000)   // Entradas do Extrato (só lançamentos de entrada, sem o salário)
     expect(r.totalExpenses).toBe(2000)
     expect(r.fixedSharePct).toBe(50)
   })
