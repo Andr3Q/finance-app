@@ -34,7 +34,7 @@ const compression  = require('compression')
 const cookieParser = require('cookie-parser')
 const crypto       = require('crypto')
 
-const { apiLimiter, agentLimiter } = require('./middleware/rateLimiter')
+const { apiLimiter } = require('./middleware/rateLimiter')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -97,7 +97,11 @@ app.use(helmet({
       styleSrc:    ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       imgSrc:      ["'self'", 'data:', 'blob:'],
       fontSrc:     ["'self'", 'data:', 'https://fonts.gstatic.com'],
-      connectSrc:  ["'self'", 'https://api.groq.com', 'https://static.cloudflareinsights.com'],
+      // api.groq.com é chamado só pelo backend (SDK Node, nunca pelo navegador) —
+      // tê-lo aqui não tem função legítima e, num cenário de XSS futuro, seria o
+      // único destino de connect-src que aceita exfiltração autenticada com uma
+      // chave do próprio atacante (achado de auditoria de segurança, 2026-10-21).
+      connectSrc:  ["'self'", 'https://static.cloudflareinsights.com'],
       objectSrc:   ["'none'"],
       frameAncestors: ["'none'"],
       baseUri:     ["'self'"],
@@ -237,7 +241,11 @@ app.use('/api/transactions',  transactionRoutes)
 app.use('/api/budget',        budgetRoutes)
 app.use('/api/reports',       reportRoutes)
 app.use('/api/notifications', notificationRoutes)
-app.use('/api/agent',        agentLimiter, agentRoutes)
+// agentLimiter agora é montado dentro do próprio router (agent.js), depois
+// do authMiddleware — ver comentário lá. Montá-lo aqui rodava antes da
+// autenticação, e o limite de "40/hora por usuário" nunca existiu de fato
+// (sempre caía em req.ip). Achado de auditoria de segurança, 2026-10-21.
+app.use('/api/agent',        agentRoutes)
 app.use('/api/goals',        goalRoutes)
 app.use('/api/installments', installmentRoutes)
 app.use('/api/payments',     paymentRoutes)
