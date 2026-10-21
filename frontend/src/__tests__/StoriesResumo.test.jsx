@@ -11,9 +11,13 @@ vi.mock('react-router-dom', async (importActual) => {
 
 const mockRecap  = vi.fn()
 const mockCreate = vi.fn()
+const mockSubs   = vi.fn()
+const mockGoals  = vi.fn()
+const mockTip    = vi.fn()
 vi.mock('../services/api.js', () => ({
-  transactionsAPI: { monthlyRecap: (...a) => mockRecap(...a) },
-  goalsAPI:        { create: (...a) => mockCreate(...a) },
+  transactionsAPI: { monthlyRecap: (...a) => mockRecap(...a), subscriptions: (...a) => mockSubs(...a) },
+  goalsAPI:        { create: (...a) => mockCreate(...a), list: (...a) => mockGoals(...a) },
+  agentAPI:        { weeklyTip: (...a) => mockTip(...a) },
 }))
 
 const baseRecap = (over = {}) => ({
@@ -30,9 +34,11 @@ const baseRecap = (over = {}) => ({
   ...over,
 })
 
-function setup(offset = 0) {
+// Número = monthOffset do resumo do mês; objeto = state completo (ex.: { story: 'dicas' }).
+function setup(stateOrOffset = 0) {
+  const state = typeof stateOrOffset === 'number' ? { monthOffset: stateOrOffset } : stateOrOffset
   return render(
-    <MemoryRouter initialEntries={[{ pathname: '/resumo-stories', state: { monthOffset: offset } }]}>
+    <MemoryRouter initialEntries={[{ pathname: '/resumo-stories', state }]}>
       <StoriesResumo />
     </MemoryRouter>
   )
@@ -45,6 +51,7 @@ async function advance(times) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  localStorage.clear()
   mockRecap.mockResolvedValue({ data: baseRecap() })
 })
 
@@ -232,5 +239,238 @@ describe('StoriesResumo — estados e navegação', () => {
     await screen.findByText('Resumo do mês')
     await userEvent.click(screen.getByRole('button', { name: 'Pausar' }))
     expect(screen.getByRole('button', { name: 'Retomar' })).toBeInTheDocument()
+  })
+})
+
+describe('StoriesResumo — Dicas IA', () => {
+  const tipData = { tip: 'Planeje as refeições. Voltar à média poupa cerca de R$ 90 por mês.', label: 'Alimentação', pct: 18 }
+  const subsData = [
+    { description: 'Netflix', amount: 55.9 }, { description: 'Spotify', amount: 21.9 }, { description: 'Academia', amount: 41.2 },
+  ]
+
+  beforeEach(() => {
+    mockTip.mockResolvedValue({ data: tipData })
+    mockSubs.mockResolvedValue({ data: subsData })
+  })
+
+  it('slide 1 (verde): dica da semana com os números reais; header "Dicas da Nancy"', async () => {
+    setup({ story: 'dicas' })
+    expect(await screen.findByText('Dica da semana')).toBeInTheDocument()
+    expect(screen.getByText('Dicas da Nancy')).toBeInTheDocument()
+    expect(screen.getByText('Alimentação está 18% acima da média.')).toBeInTheDocument()
+    expect(screen.getByText(tipData.tip)).toBeInTheDocument()
+    expect(document.querySelector('.stories-page')).toHaveClass('stories-theme-green')
+    expect(document.querySelectorAll('.stories-progress-track')).toHaveLength(2)
+    expect(mockRecap).not.toHaveBeenCalled()
+    // assinaturas pedidas no modo estrito (sem contas fixas nem compras variáveis)
+    expect(mockSubs).toHaveBeenCalledWith({ strict: 1 })
+  })
+
+  it('slide 2 (azul): assinaturas somadas + botões, sem afirmar "não usada há N dias"', async () => {
+    setup({ story: 'dicas' })
+    await screen.findByText('Dica da semana')
+    await advance(1)
+    expect(screen.getByText('3 assinaturas somam R$ 119/mês.')).toBeInTheDocument()
+    expect(screen.getByText('A maior é Netflix (R$ 56/mês). Quer revisar?')).toBeInTheDocument()
+    expect(screen.queryByText(/usada/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Revisar com a Nancy' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Compartilhar resumo' })).toBeInTheDocument()
+    expect(document.querySelector('.stories-page')).toHaveClass('stories-theme-blue')
+  })
+
+  it('"Revisar com a Nancy" volta pro Início pedindo pra abrir o chat (o chat fica sob esta tela)', async () => {
+    setup({ story: 'dicas' })
+    await screen.findByText('Dica da semana')
+    await advance(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Revisar com a Nancy' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { state: { openChat: true } })
+  })
+
+  it('"Compartilhar resumo" usa o compartilhamento nativo com o texto do slide', async () => {
+    const share = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true })
+    try {
+      setup({ story: 'dicas' })
+      await screen.findByText('Dica da semana')
+      await advance(1)
+      await userEvent.click(screen.getByRole('button', { name: 'Compartilhar resumo' }))
+      expect(share).toHaveBeenCalledWith({
+        title: 'Uma dica da Nancy',
+        text: '3 assinaturas somam R$ 119/mês. — A maior é Netflix (R$ 56/mês). Quer revisar?',
+      })
+    } finally {
+      delete navigator.share
+    }
+  })
+
+  it('se a dica falhar, as assinaturas ainda aparecem (e vice-versa)', async () => {
+    mockTip.mockRejectedValue(new Error('IA fora'))
+    setup({ story: 'dicas' })
+    expect(await screen.findByText('3 assinaturas somam R$ 119/mês.')).toBeInTheDocument()
+    expect(document.querySelectorAll('.stories-progress-track')).toHaveLength(1)
+  })
+
+  it('sem base de comparação e sem assinaturas: mensagem vazia, sem segmentos', async () => {
+    mockTip.mockResolvedValue({ data: { tip: null } })
+    mockSubs.mockResolvedValue({ data: [] })
+    setup({ story: 'dicas' })
+    expect(await screen.findByText('Ainda sem dicas por aqui.')).toBeInTheDocument()
+    expect(document.querySelectorAll('.stories-progress-track')).toHaveLength(0)
+  })
+
+  it('as duas fontes falhando mostra erro', async () => {
+    mockTip.mockRejectedValue(new Error('x'))
+    mockSubs.mockRejectedValue(new Error('y'))
+    setup({ story: 'dicas' })
+    expect(await screen.findByText(/Não foi possível carregar o resumo/)).toBeInTheDocument()
+  })
+})
+
+describe('StoriesResumo — Suas metas', () => {
+  const day = 24 * 60 * 60 * 1000
+  const goal = (over = {}) => ({
+    title: 'Reserva de emergência', targetAmount: 29500, currentAmount: 17900,
+    createdAt: new Date(Date.now() - 100 * day).toISOString(), deadline: null, ...over,
+  })
+
+  it('mostra quanto falta da meta (% e R$) com a projeção do ritmo; 1 segmento, sem botões', async () => {
+    mockGoals.mockResolvedValue({ data: [goal()] })
+    setup({ story: 'metas' })
+    expect(await screen.findByText('Faltam 39%.')).toBeInTheDocument()
+    expect(screen.getByText('Suas metas')).toBeInTheDocument()
+    expect(screen.getByText('Reserva de emergência')).toBeInTheDocument()
+    expect(screen.getByText('R$ 11.600')).toBeInTheDocument()
+    expect(screen.getByText(/No ritmo atual, você chega lá/)).toBeInTheDocument()
+    expect(document.querySelectorAll('.stories-progress-track')).toHaveLength(1)
+    expect(document.querySelector('.stories-page')).toHaveClass('stories-theme-mix')
+    expect(screen.queryByRole('button', { name: 'Compartilhar resumo' })).not.toBeInTheDocument()
+    expect(mockRecap).not.toHaveBeenCalled()
+  })
+
+  it('usa a meta de maior valor entre as não concluídas', async () => {
+    mockGoals.mockResolvedValue({ data: [
+      goal({ title: 'Viagem', targetAmount: 5000, currentAmount: 100 }),
+      goal({ title: 'Carro (pronta)', targetAmount: 90000, currentAmount: 90000 }),
+      goal(),
+    ] })
+    setup({ story: 'metas' })
+    expect(await screen.findByText('Reserva de emergência')).toBeInTheDocument()
+    expect(screen.queryByText('Viagem')).not.toBeInTheDocument()
+  })
+
+  it('sem meta em andamento convida a criar uma', async () => {
+    mockGoals.mockResolvedValue({ data: [] })
+    setup({ story: 'metas' })
+    expect(await screen.findByText('Nenhuma meta em andamento.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Criar uma meta' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/goals')
+  })
+
+  it('falha ao listar as metas mostra erro', async () => {
+    mockGoals.mockRejectedValue(new Error('x'))
+    setup({ story: 'metas' })
+    expect(await screen.findByText(/Não foi possível carregar o resumo/)).toBeInTheDocument()
+  })
+})
+
+describe('StoriesResumo — estado de navegação', () => {
+  it('story desconhecido cai no resumo do mês', async () => {
+    setup({ story: 'qualquer-coisa' })
+    expect(await screen.findByText('Resumo do mês')).toBeInTheDocument()
+    expect(mockRecap).toHaveBeenCalledWith(0)
+  })
+})
+
+describe('StoriesResumo — marca a story como vista (anel apagado no Início)', () => {
+  const seenKeys = () => Object.keys(JSON.parse(localStorage.getItem('nancy:stories-seen') || '{}'))
+
+  it('resumo do mês atual e do anterior marcam cada um o seu mês', async () => {
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    const now = new Date()
+    const key = (off) => { const d = new Date(now.getFullYear(), now.getMonth() + off, 1); return `resumo:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
+    expect(seenKeys()).toEqual([key(0)])
+  })
+
+  it('mês anterior marca o mês anterior (não o atual)', async () => {
+    mockRecap.mockResolvedValue({ data: baseRecap({ month: 9 }) })
+    setup(-1)
+    await screen.findByText('Você guardou')
+    const d = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1)
+    expect(seenKeys()).toEqual([`resumo:${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`])
+  })
+
+  it('dicas e metas marcam as próprias chaves', async () => {
+    mockTip.mockResolvedValue({ data: { tip: 'x. y.', label: 'Alimentação', pct: 18 } })
+    mockSubs.mockResolvedValue({ data: [] })
+    const { unmount } = setup({ story: 'dicas' })
+    await screen.findByText('Dica da semana')
+    expect(seenKeys()).toEqual([expect.stringMatching(/^dicas:\d{4}-W\d{2}$/)])
+    unmount()
+
+    localStorage.clear()
+    mockGoals.mockResolvedValue({ data: [{ title: 'R', targetAmount: 1000, currentAmount: 100, createdAt: new Date().toISOString(), deadline: null }] })
+    setup({ story: 'metas' })
+    await screen.findByText(/Faltam/)
+    expect(seenKeys()).toEqual([expect.stringMatching(/^metas:\d{4}-\d{2}$/)])
+  })
+
+  it('story vazia ou com erro não conta como vista', async () => {
+    mockRecap.mockResolvedValue({ data: baseRecap({ hasData: false }) })
+    const { unmount } = setup(0)
+    await screen.findByText('Sem movimentações em outubro.')
+    expect(seenKeys()).toEqual([])
+    unmount()
+
+    mockRecap.mockRejectedValue(new Error('x'))
+    setup(0)
+    await screen.findByText(/Não foi possível carregar o resumo/)
+    expect(seenKeys()).toEqual([])
+  })
+})
+
+describe('StoriesResumo — ocultar valores (mesma preferência do Início)', () => {
+  it('com "ocultar valores" ligado, valores em reais viram R$ •••• e percentuais continuam visíveis', async () => {
+    localStorage.setItem('hide-balance', '1')
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    await advance(1)
+    expect(screen.getByText('Seu melhor mês do ano.')).toBeInTheDocument()
+    expect(screen.getByText('R$ ••••')).toBeInTheDocument()
+    expect(screen.queryByText('R$ 9.500,00')).not.toBeInTheDocument()
+    expect(screen.getByText(/32% a mais que setembro/)).toBeInTheDocument()
+  })
+
+  it('as barras de maiores gastos também ficam ocultas (mas os nomes das categorias não)', async () => {
+    localStorage.setItem('hide-balance', '1')
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    await advance(2)
+    expect(screen.getByText('Alimentação')).toBeInTheDocument()
+    expect(screen.queryByText(/5\.080/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('R$ ••••').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('texto compartilhado também sai sem os valores', async () => {
+    localStorage.setItem('hide-balance', '1')
+    const share = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true })
+    try {
+      mockSubs.mockResolvedValue({ data: [{ description: 'Netflix', amount: 55.9 }, { description: 'Spotify', amount: 21.9 }] })
+      mockTip.mockResolvedValue({ data: { tip: null } })
+      setup({ story: 'dicas' })
+      await screen.findByText(/assinaturas somam/)
+      await userEvent.click(screen.getByRole('button', { name: 'Compartilhar resumo' }))
+      expect(share.mock.calls[0][0].text).toBe('2 assinaturas somam R$ ••••/mês. — A maior é Netflix (R$ ••••/mês). Quer revisar?')
+    } finally {
+      delete navigator.share
+    }
+  })
+
+  it('com a preferência desligada (padrão) os valores aparecem normalmente', async () => {
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    await advance(1)
+    expect(screen.getByText('R$ 9.500,00')).toBeInTheDocument()
   })
 })

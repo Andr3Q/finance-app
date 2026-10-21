@@ -13,6 +13,7 @@ import SearchOverlay   from '../components/features/SearchOverlay.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt, fmtShort } from '../utils/format.js'
+import { readSeen, resumoKey, dicasKey, metasKey } from '../utils/storiesSeen.js'
 import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notifications.js'
 
 const IconEye = () => (
@@ -52,6 +53,10 @@ const IconSparkle = () => (
 export default function Dashboard() {
   const navigate = useNavigate()
   const location = useLocation()
+  // Stories já abertas neste aparelho (anel apagado no círculo). Lido na montagem:
+  // abrir uma story navega pra outra rota, então o Início remonta ao voltar.
+  const [seen] = useState(readSeen)
+  const seenCls = (key) => (seen[key] ? ' is-seen' : '')
   const user = useUser()
   const { theme, toggle: toggleTheme } = useTheme()
 
@@ -126,6 +131,13 @@ export default function Dashboard() {
     if (type === 'income' || type === 'expense') {
       setQuickAddType(type)
       setShowForm(true)
+      navigate(location.pathname, { replace: true, state: {} })
+    } else if (location.state?.openChat) {
+      // Vem do "Revisar com a Nancy" das stories (que ficam por cima do chat).
+      // O setTimeout adia o evento pra depois do commit: o AgentChat é irmão
+      // desta página e só registra o listener no efeito dele, que roda depois
+      // do nosso na montagem.
+      setTimeout(() => window.dispatchEvent(new Event('nancy:open-agent-chat')), 0)
       navigate(location.pathname, { replace: true, state: {} })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -411,27 +423,25 @@ export default function Dashboard() {
 
           <div className="home-body">
 
-            {/* Resumos em stories — "OUT" e "SET" abrem a tela 09 (Resumo em
-                stories, parametrizada pelo mês), que por ora só tem o slide
-                de abertura pra qualquer mês. Dicas IA e Metas ainda não têm
-                tela própria enviada, então continuam só visuais por
-                enquanto — todas as 4 têm o mesmo anel verde (sinaliza que
-                são tocáveis), confirmado por André. */}
+            {/* Resumos em stories — os 4 círculos abrem a tela 09 (mesma rota,
+                fluxo escolhido por state.story): mês atual e mês anterior
+                (resumo do mês), Dicas IA e Metas. Anel menta = story nova;
+                depois de aberta o anel apaga (print do design: "Outubro"). */}
             <h2 className="home-section-title">Resumos</h2>
             <div className="home-stories-row">
-              <button className="home-story home-story-blue" onClick={() => navigate('/resumo-stories', { state: { monthOffset: 0 } })}>
+              <button className={`home-story home-story-blue${seenCls(resumoKey(0))}`} onClick={() => navigate('/resumo-stories', { state: { monthOffset: 0 } })}>
                 <span>{MONTHS[now.getMonth()].slice(0, 3).toUpperCase()}</span>
                 <small>{MONTHS[now.getMonth()]}</small>
               </button>
-              <div className="home-story home-story-light">
+              <button className={`home-story home-story-light${seenCls(dicasKey())}`} onClick={() => navigate('/resumo-stories', { state: { story: 'dicas' } })}>
                 <span><IconSparkle /></span>
                 <small>Dicas IA</small>
-              </div>
-              <div className="home-story home-story-ring">
+              </button>
+              <button className={`home-story home-story-ring${seenCls(metasKey())}`} onClick={() => navigate('/resumo-stories', { state: { story: 'metas' } })}>
                 <span>{goalsAvgPct !== null ? `${goalsAvgPct}%` : '—'}</span>
                 <small>Metas</small>
-              </div>
-              <button className="home-story home-story-blue" onClick={() => navigate('/resumo-stories', { state: { monthOffset: -1 } })}>
+              </button>
+              <button className={`home-story home-story-navy${seenCls(resumoKey(-1))}`} onClick={() => navigate('/resumo-stories', { state: { monthOffset: -1 } })}>
                 <span>{MONTHS[prevMonthDate.getMonth()].slice(0, 3).toUpperCase()}</span>
                 <small>{MONTHS[prevMonthDate.getMonth()]}</small>
               </button>

@@ -836,6 +836,121 @@ describe('POST /api/agent/transcribe', () => {
 })
 
 // ══════════════════════════════════════════════════════════
+// GET /api/agent/weekly-tip — dica da semana do story Dicas IA
+// (cada teste usa um usuário próprio: o cache da frase é módulo-level)
+// ══════════════════════════════════════════════════════════
+describe('GET /api/agent/weekly-tip', () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const ago = (days) => new Date(Date.now() - days * DAY)
+  // Alimentação: 3 períodos de referência com 500 + últimos 30 dias com 590 → +18%
+  const foodAbove = () => [
+    { category: 'food', amount: 500, date: ago(40) },
+    { category: 'food', amount: 500, date: ago(70) },
+    { category: 'food', amount: 500, date: ago(100) },
+    { category: 'food', amount: 590, date: ago(3) },
+  ]
+  const as = (userId) => ({ Cookie: `token=${makeToken(userId)}` })
+  const adviceReply = (text) => ({ choices: [{ message: { content: text } }] })
+
+  test('exige autenticação', async () => {
+    const res = await request(app).get('/api/agent/weekly-tip')
+    expect(res.status).toBe(401)
+  })
+
+  test('plano free recebe o texto por regra, sem chamar a IA', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-free'))
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ category: 'food', label: 'Alimentação', pct: 18, excess: 90, source: 'rule' })
+    expect(res.body.tip).toBe('Voltar à sua média em alimentação poupa cerca de R$ 90 por mês.')
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  test('plano pro: frase da IA + a conta calculada no servidor', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+    mockCreate.mockResolvedValueOnce(adviceReply('Planeje as refeições da semana e leve marmita.'))
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-pro'))
+
+    expect(res.status).toBe(200)
+    expect(res.body.source).toBe('ai')
+    expect(res.body.tip).toBe('Planeje as refeições da semana e leve marmita. Voltar à média poupa cerca de R$ 90 por mês.')
+    const [body, options] = mockCreate.mock.calls[0]
+    expect(body.model).toBe('llama-3.1-8b-instant')
+    expect(body.messages[1].content).toContain('Alimentação')
+    // só a categoria vai pro modelo — nem as estatísticas nem texto do usuário
+    for (const n of ['18', '90', '590', '500']) expect(body.messages[1].content).not.toContain(n)
+    expect(options).toEqual({ timeout: 8000 })
+  })
+
+  test('resposta da IA com número inventado é rejeitada → texto por regra', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+    mockCreate.mockResolvedValueOnce(adviceReply('Cozinhar em casa economiza cerca de R$ 280 por mês.'))
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-invented'))
+
+    expect(res.status).toBe(200)
+    expect(res.body.source).toBe('rule')
+    expect(res.body.tip).not.toContain('280')
+    expect(res.body.tip).toContain('R$ 90')
+  })
+
+  test('falha da IA não derruba a dica: cai no texto por regra', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+    mockCreate.mockRejectedValueOnce(new Error('groq fora do ar'))
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-ai-down'))
+
+    expect(res.status).toBe(200)
+    expect(res.body.source).toBe('rule')
+  })
+
+  test('abrir de novo na mesma semana reaproveita a frase (uma única chamada paga)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+    mockCreate.mockResolvedValue(adviceReply('Defina um teto semanal para essa categoria.'))
+
+    const first  = await request(app).get('/api/agent/weekly-tip').set(as('tip-cache'))
+    const second = await request(app).get('/api/agent/weekly-tip').set(as('tip-cache'))
+
+    expect(first.body.tip).toBe(second.body.tip)
+    expect(second.body.source).toBe('ai')
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  test('sem base de comparação devolve tip null, sem chamar a IA', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue([{ category: 'food', amount: 900, date: ago(3) }])
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-nodata'))
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ tip: null })
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  test('consulta só despesas do próprio usuário nos últimos 120 dias', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+    prisma.transaction.findMany.mockResolvedValue([])
+
+    await request(app).get('/api/agent/weekly-tip').set(as('tip-scope'))
+
+    const { where } = prisma.transaction.findMany.mock.calls.at(-1)[0]
+    expect(where.userId).toBe('tip-scope')
+    expect(where.type).toBe('expense')
+    const days = (Date.now() - where.date.gte.getTime()) / DAY
+    expect(days).toBeGreaterThan(119.9)
+    expect(days).toBeLessThan(120.1)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
 // Circuit breaker do Groq — TEM que ficar por último no arquivo: o estado
 // (circuitFailures/circuitOpenedAt) é módulo-level, compartilhado entre
 // TODAS as rotas de IA, e este teste deliberadamente deixa o circuito

@@ -487,3 +487,102 @@ describe('GET /api/transactions/monthly-recap', () => {
     expect(prisma.goal.findMany.mock.calls.at(-1)[0].where.userId).toBe('user-123')
   })
 })
+
+// ══════════════════════════════════════════════════════════
+// ASSINATURAS (/subscriptions) — modo padrão e ?strict=1 (story Dicas IA)
+// ══════════════════════════════════════════════════════════
+describe('GET /api/transactions/subscriptions', () => {
+  const row = (description, amount, month, extra = {}) => ({
+    description, amount, category: 'leisure', month, year: 2026,
+    date: new Date(`2026-${String(month).padStart(2, '0')}-10T12:00:00Z`), budgetId: null, ...extra,
+  })
+  const get = (query = {}) => request(app).get('/api/transactions/subscriptions').query(query).set(authHeader())
+
+  // Elite por padrão: o modo strict é do plano Elite (ver teste de plano abaixo).
+  beforeEach(() => { prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' })) })
+
+  test('padrão: 2+ meses com a mesma descrição aparece, com a média dos valores (comportamento de sempre)', async () => {
+    prisma.transaction.findMany.mockResolvedValue([row('Netflix', 40, 9), row('Netflix', 50, 10), row('Avulso', 10, 10)])
+
+    const res = await get()
+
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveLength(1)
+    expect(res.body[0]).toMatchObject({ description: 'Netflix', amount: 45, months: 2, occurrences: 2 })
+    expect(prisma.transaction.findMany.mock.calls.at(-1)[0].where.archived).toBe(false)
+  })
+
+  test('strict: assinatura de valor estável, uma cobrança por mês', async () => {
+    prisma.transaction.findMany.mockResolvedValue([row('Spotify', 21.9, 8), row('Spotify', 21.9, 9), row('Spotify', 21.9, 10)])
+
+    const res = await get({ strict: '1' })
+
+    expect(res.body).toEqual([expect.objectContaining({ description: 'Spotify', amount: 21.9, months: 3 })])
+  })
+
+  test('strict: conta fixa (budgetId ou categoria fixed) não é assinatura', async () => {
+    prisma.transaction.findMany.mockResolvedValue([
+      row('Aluguel', 2000, 9, { budgetId: 'b1', category: 'fixed' }), row('Aluguel', 2000, 10, { budgetId: 'b1', category: 'fixed' }),
+      row('Internet', 120, 9, { category: 'fixed' }), row('Internet', 120, 10, { category: 'fixed' }),
+    ])
+
+    expect((await get({ strict: '1' })).body).toEqual([])
+    // sem strict, continua aparecendo — o comportamento antigo não muda
+    expect((await get()).body).toHaveLength(2)
+  })
+
+  test('strict: compra recorrente com valor variável ou várias vezes no mês não é assinatura', async () => {
+    prisma.transaction.findMany.mockResolvedValue([
+      row('Mercado', 80, 9), row('Mercado', 240, 10),                 // valor varia muito
+      row('Padaria', 10, 9), row('Padaria', 10, 9), row('Padaria', 10, 10), // 2 no mesmo mês
+    ])
+
+    expect((await get({ strict: '1' })).body).toEqual([])
+  })
+
+  test('strict: aceita variação de até 10% no valor', async () => {
+    prisma.transaction.findMany.mockResolvedValue([row('Academia', 100, 9), row('Academia', 105, 10)])
+
+    expect((await get({ strict: '1' })).body).toHaveLength(1)
+  })
+
+  test.each(['free', 'pro'])('strict: plano %s recebe lista vazia, sem consultar o banco (recurso Elite)', async (plan) => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan }))
+    prisma.transaction.findMany.mockResolvedValue([row('Netflix', 40, 9), row('Netflix', 40, 10)])
+
+    const res = await get({ strict: '1' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual([])
+    expect(prisma.transaction.findMany).not.toHaveBeenCalled()
+  })
+
+  test('plano Elite expirado (tratado como free) também não recebe o modo strict', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', planExpiresAt: new Date(Date.now() - 86400000) }))
+
+    const res = await get({ strict: '1' })
+
+    expect(res.body).toEqual([])
+    expect(prisma.transaction.findMany).not.toHaveBeenCalled()
+  })
+
+  test('sem strict o endpoint segue como sempre para qualquer plano (comportamento antigo intacto)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+    prisma.transaction.findMany.mockResolvedValue([row('Netflix', 40, 9), row('Netflix', 50, 10)])
+
+    const res = await get()
+
+    expect(res.body).toHaveLength(1)
+  })
+
+  test('strict: inclui meses já fechados (archived) e escopa pelo usuário', async () => {
+    prisma.transaction.findMany.mockResolvedValue([])
+
+    await get({ strict: '1' })
+
+    const { where } = prisma.transaction.findMany.mock.calls.at(-1)[0]
+    expect(where).not.toHaveProperty('archived')
+    expect(where.userId).toBe('user-123')
+    expect(where.type).toBe('expense')
+  })
+})

@@ -5282,26 +5282,51 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .home-section-head .home-section-title { margin-bottom: 0; }
 .home-section-link { background: none; border: none; color: var(--c); font-size: 12.5px; font-weight: 600; cursor: pointer; }
 
-.home-stories-row { display: flex; gap: 14px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px; }
+.home-stories-row {
+  display: flex; gap: 14px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px;
+  /* Anel das stories (design, tema claro): menta no topo → branco na base. No
+     tema escuro o design não existe — a base do anel some em vez de virar um
+     arco branco berrante sobre o fundo escuro. */
+  --story-ring: linear-gradient(180deg, #3EE29F 0%, rgba(62,226,159,0) 100%);
+  --story-ring-seen: linear-gradient(rgba(255,255,255,.06), rgba(255,255,255,.06));
+}
+[data-theme="light"] .home-stories-row {
+  --story-ring: linear-gradient(180deg, #3EE29F 0%, #fff 100%);
+  --story-ring-seen: linear-gradient(rgba(255,255,255,.33), rgba(255,255,255,.33));
+}
 .home-story {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  flex-shrink: 0; width: 56px; font-size: 10.5px; color: var(--t2); text-align: center;
-  /* Reset de <button> — o círculo do mês atual é clicável (abre a tela de
-     stories), os outros continuam <div> puros e ignoram isso de graça. */
-  background: none; border: none; padding: 0; font-family: inherit; cursor: default;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  flex-shrink: 0; width: 68px; font-size: 11px; color: var(--t2); text-align: center;
+  /* Reset de <button> — os 4 círculos são botões que abrem as stories. */
+  background: none; border: none; padding: 0; font-family: inherit; cursor: pointer;
 }
-button.home-story { cursor: pointer; }
+/* Círculo de 56px + espaço de 3px (cor do fundo) + anel de 3px = 68px. Um único
+   elemento com 3 camadas de fundo, de cima pra baixo: preenchimento (content-box),
+   espaço (padding-box) e anel (border-box) — sem pseudo-elementos nem z-index. */
 .home-story span {
-  width: 52px; height: 52px; border-radius: 50%;
+  box-sizing: border-box; width: 68px; height: 68px; border: 3px solid transparent; padding: 3px; border-radius: 50%;
+  background:
+    var(--story-fill) content-box,
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    var(--story-ring) border-box;
   display: flex; align-items: center; justify-content: center;
-  font-family: var(--fd); font-weight: 700; font-size: 12px; color: #fff;
+  font-family: var(--fd); font-weight: 800; font-size: 14px; color: #fff;
 }
-.home-story-blue span { background: linear-gradient(135deg, #1546FF, #0D34C4); }
-.home-story-ring span { background: linear-gradient(135deg, var(--c), #2bbf96); color: #04140d; }
-.home-story-dashed svg {
-  width: 52px; height: 52px; border-radius: 50%;
-  border: 1.5px dashed var(--bd); color: var(--t3); box-sizing: border-box;
-}
+.home-story small { font-weight: 600; line-height: 1.3; color: var(--t1); }
+/* Já visto: anel quase invisível e rótulo apagado (print do design: "Outubro"). */
+.home-story.is-seen span { background:
+    var(--story-fill) content-box,
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    var(--story-ring-seen) border-box; }
+.home-story.is-seen small { font-weight: 500; color: var(--t2); }
+
+/* Preenchimentos — medidos no print do design (degradês a 165°, como o resto do app). */
+.home-story-blue  { --story-fill: linear-gradient(165deg, #1E4FFC 0%, #2476E9 50%, #1ABD93 100%); }
+.home-story-navy  { --story-fill: linear-gradient(#122E9D, #122E9D); }
+.home-story-ring  { --story-fill: linear-gradient(165deg, #169E6C 0%, #18C080 50%, #37E09B 100%); }
+.home-story-ring span { color: #0E3C2E; }
+.home-story-light { --story-fill: linear-gradient(#fff, #fff); }
+.home-story-light span { color: #1C48FF; }
 
 .home-health-card {
   display: flex; align-items: center; gap: 14px;

@@ -186,6 +186,114 @@ test.describe('Dashboard — Resumos, saúde financeira e estatísticas', () => 
 })
 
 // ─────────────────────────────────────────────────────────────────
+// Stories — os 4 círculos de "Resumos" abrem a tela 09 (cada um um fluxo)
+// ─────────────────────────────────────────────────────────────────
+test.describe('Dashboard — Stories (círculos de resumo)', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
+
+  const json = (body) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  const mockRecap = {
+    month: 10, year: 2026, hasData: true, saved: 9500, savedDeltaPct: 32, prevMonth: 9, isBestOfYear: true,
+    belowAverage: { category: 'transport', label: 'Transporte', pct: 12 },
+    topExpenses: [{ category: 'fixed', label: 'Contas fixas', amount: 5080 }, { category: 'food', label: 'Alimentação', amount: 1165 }],
+    totalExpenses: 6245, fixedSharePct: 81, fixedPaid: 9, fixedTotal: 9, expensesDeltaPct: null,
+    score: 82, scorePrev: 76, scoreNext: null, nextStep: null, suggestedGoal: 10000,
+  }
+
+  async function mockStories(page) {
+    await page.route('**/api/transactions/monthly-recap**', r => r.fulfill(json(mockRecap)))
+    await page.route('**/api/agent/weekly-tip**', r => r.fulfill(json({
+      category: 'food', label: 'Alimentação', pct: 18, excess: 90, source: 'rule',
+      tip: 'Voltar à sua média em alimentação poupa cerca de R$ 90 por mês.',
+    })))
+    await page.route('**/api/transactions/subscriptions**', r => r.fulfill(json([
+      { description: 'Netflix', amount: 55.9 }, { description: 'Spotify', amount: 21.9 }, { description: 'Academia', amount: 41.2 },
+    ])))
+    await page.route('**/api/goals**', r => r.fulfill(json([
+      { id: 'g1', title: 'Reserva de emergência', targetAmount: 29500, currentAmount: 17900, createdAt: '2026-01-01T12:00:00Z', deadline: null },
+    ])))
+  }
+
+  test('círculo do mês atual abre o resumo completo (6 histórias)', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-blue').click()
+    await expect(page).toHaveURL(/\/resumo-stories$/)
+    await expect(page.getByText('Resumo de outubro')).toBeVisible()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(6)
+  })
+
+  test('círculo do mês anterior abre a versão curta (2 histórias)', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-navy').click()
+    await expect(page.getByText('Você guardou')).toBeVisible()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(2)
+  })
+
+  test('Dicas IA abre a dica da semana e as assinaturas', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-light').click()
+    await expect(page.getByText('Alimentação está 18% acima da média.')).toBeVisible()
+    await expect(page.getByText('Dicas da Nancy')).toBeVisible()
+    await page.getByRole('button', { name: 'Avançar' }).click()
+    await expect(page.getByText('3 assinaturas somam R$ 119/mês.')).toBeVisible()
+  })
+
+  test('"Revisar com a Nancy" volta pro Início e abre o chat (que fica sob as stories)', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-light').click()
+    await page.getByRole('button', { name: 'Avançar' }).click()
+    await page.getByRole('button', { name: 'Revisar com a Nancy' }).click()
+    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page.locator('.agent-panel')).toBeVisible()
+  })
+
+  test('Metas abre a meta mais relevante com quanto falta', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-ring').click()
+    await expect(page.getByText('Suas metas')).toBeVisible()
+    await expect(page.getByText('Faltam 39%.')).toBeVisible()
+    await expect(page.getByText('R$ 11.600')).toBeVisible()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(1)
+  })
+
+  test('story aberta apaga o anel do círculo (e só o dela)', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    // nenhuma aberta ainda: os 4 círculos com anel
+    await expect(page.locator('.home-story.is-seen')).toHaveCount(0)
+    await page.locator('button.home-story-blue').click()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(6)
+    await page.getByRole('button', { name: 'Fechar' }).click()
+    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page.locator('button.home-story-blue')).toHaveClass(/is-seen/)
+    await expect(page.locator('.home-story.is-seen')).toHaveCount(1)
+  })
+
+  test('story vazia ou com erro não conta como vista', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.route('**/api/goals**', r => r.fulfill(json([])))   // sem metas → story vazia
+    await page.locator('button.home-story-ring').click()
+    await expect(page.getByText('Nenhuma meta em andamento.')).toBeVisible()
+    await page.getByRole('button', { name: 'Fechar' }).click()
+    await expect(page.locator('.home-story.is-seen')).toHaveCount(0)
+  })
+
+  test('fechar volta pro Início', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-ring').click()
+    await page.getByRole('button', { name: 'Fechar' }).click()
+    await expect(page).toHaveURL(/\/dashboard$/)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
 // 4. ÚLTIMAS — lista de transações recentes
 // ─────────────────────────────────────────────────────────────────
 test.describe('Dashboard — Últimas transações', () => {

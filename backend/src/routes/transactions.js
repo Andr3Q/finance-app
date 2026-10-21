@@ -177,23 +177,40 @@ router.get('/monthly-history', dashboardLimiter, async (req, res) => {
 })
 
 // ── GET /transactions/subscriptions ────────────────────
-// Detecta gastos recorrentes nos últimos 3 meses
+// Detecta gastos recorrentes nos últimos 3 meses.
+//
+// ?strict=1 (story "Dicas IA", que afirma "N assinaturas somam R$ X/mês"; só
+// plano Elite, como o detector de assinaturas da página de planos):
+// devolve só o que se parece com assinatura de verdade — sem contas fixas
+// (aluguel, luz... pagas por budgetId ou category 'fixed'), no máximo UMA
+// cobrança por mês e valor estável (±10%). Sem isso, "Mercado" lançado todo
+// mês ou o aluguel virariam "assinatura". Nesse modo inclui também meses
+// já fechados (archived), senão quem usa o fechamento mensal nunca teria os
+// 2 meses necessários. Sem o parâmetro, o comportamento é o de sempre.
+const SUBSCRIPTION_MAX_VARIATION = 0.1
+
 router.get('/subscriptions', dashboardLimiter, async (req, res) => {
   try {
-    const now   = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+    const strict = req.query.strict === '1' || req.query.strict === 'true'
+    // A detecção automática de assinaturas é um recurso do plano Elite (página
+    // de planos) — a story "Dicas IA" a usa, então o modo strict respeita o
+    // mesmo plano, no servidor. Quem não é Elite recebe lista vazia (a story
+    // simplesmente não mostra o slide), sem erro nem modal de upgrade.
+    if (strict && req.userPlan !== 'elite') return res.json([])
+    const now    = new Date()
+    const start  = new Date(now.getFullYear(), now.getMonth() - 2, 1)
 
     const txs = await prisma.transaction.findMany({
       where: {
         userId:   req.userId,
         type:     'expense',
-        archived: false,
+        ...(strict ? {} : { archived: false }),
         OR: [
           { year: { gt: start.getFullYear() } },
           { year: start.getFullYear(), month: { gte: start.getMonth() + 1 } },
         ],
       },
-      select: { description: true, amount: true, category: true, month: true, year: true, date: true },
+      select: { description: true, amount: true, category: true, month: true, year: true, date: true, budgetId: true },
       orderBy: { date: 'desc' },
     })
 
@@ -201,15 +218,24 @@ router.get('/subscriptions', dashboardLimiter, async (req, res) => {
     const groups = {}
     txs.forEach(t => {
       const key = t.description.trim().toLowerCase()
-      if (!groups[key]) groups[key] = { description: t.description, category: t.category, amounts: [], months: new Set(), lastDate: t.date }
+      if (!groups[key]) groups[key] = { description: t.description, category: t.category, amounts: [], months: new Set(), perMonth: {}, fixedLinked: false, lastDate: t.date }
       groups[key].amounts.push(Number(t.amount))
       groups[key].months.add(`${t.year}-${t.month}`)
+      groups[key].perMonth[`${t.year}-${t.month}`] = (groups[key].perMonth[`${t.year}-${t.month}`] || 0) + 1
+      if (t.budgetId || t.category === 'fixed') groups[key].fixedLinked = true
       if (new Date(t.date) > new Date(groups[key].lastDate)) groups[key].lastDate = t.date
     })
 
-    // Filtra: mínimo 2 meses distintos
+    // Filtra: mínimo 2 meses distintos (e, no modo strict, o que parece assinatura)
+    const looksLikeSubscription = (g) => {
+      if (g.fixedLinked) return false
+      if (Object.values(g.perMonth).some(c => c > 1)) return false
+      const avg = g.amounts.reduce((s, a) => s + a, 0) / g.amounts.length
+      return avg > 0 && (Math.max(...g.amounts) - Math.min(...g.amounts)) / avg <= SUBSCRIPTION_MAX_VARIATION
+    }
     const subscriptions = Object.values(groups)
       .filter(g => g.months.size >= 2)
+      .filter(g => !strict || looksLikeSubscription(g))
       .map(g => {
         const avg = g.amounts.reduce((s, a) => s + a, 0) / g.amounts.length
         return { description: g.description, amount: Math.round(avg * 100) / 100, category: g.category, occurrences: g.amounts.length, months: g.months.size, lastDate: g.lastDate }

@@ -10,6 +10,7 @@ const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS, UUID_REGEX, MAX_AMOUNT, TRANS
 const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
 const { payBudget } = require('../services/budgetPayment')
 const { reportError } = require('../lib/sentry')
+const { HISTORY_DAYS, DAY_MS, computeWeeklyTipStats, composeTip, buildAdvicePrompt, sanitizeAdvice } = require('../services/weeklyTip')
 
 const router = express.Router()
 router.use(authMiddleware)
@@ -755,6 +756,65 @@ Escreva UMA frase curta e direta prevendo como o usuário vai terminar o mês fi
     res.json({ prediction: response.choices[0].message.content.trim() })
   } catch (err) {
     handleGroqError(err, res)
+  }
+})
+
+// ── GET /api/agent/weekly-tip ───────────────────────────
+// "Dica da semana" do story Dicas IA. Os números vêm de computeWeeklyTipStats
+// (determinístico, sobre as transações reais); a IA só escreve uma frase
+// prática sem números e só pra Pro/Elite — o plano gratuito recebe o texto por
+// regra, sem custo de tokens (por isso não usa requirePlan). Qualquer falha da
+// IA cai no texto por regra: a dica nunca fica sem texto por causa do Groq.
+//
+// Cache em memória por instância (usuário + semana + categoria): a frase não
+// tem números, então reaproveitar a da semana não deixa nada desatualizado, e
+// abrir o story várias vezes não vira várias chamadas pagas. Limitado a
+// WEEKLY_TIP_CACHE_MAX entradas (descarta a mais antiga). Reseta em cold
+// start, o que só custa uma chamada a mais.
+const WEEKLY_TIP_CACHE_MAX = 1000
+const weeklyTipCache = new Map()
+
+async function getWeeklyAdvice(userId, stats, now) {
+  const key = `${userId}:${Math.floor(now.getTime() / (7 * DAY_MS))}:${stats.category}`
+  if (weeklyTipCache.has(key)) return weeklyTipCache.get(key)
+  try {
+    const { system, user } = buildAdvicePrompt(stats)
+    const response = await withRetry(() => groq.chat.completions.create({
+      model:       MODEL_FAST,
+      messages:    [{ role: 'system', content: system }, { role: 'user', content: user }],
+      max_tokens:  80,
+      temperature: 0.7,
+    }, { timeout: 8_000 }), 0)
+    const advice = sanitizeAdvice(response.choices[0]?.message?.content)
+    if (advice) {
+      if (weeklyTipCache.size >= WEEKLY_TIP_CACHE_MAX) weeklyTipCache.delete(weeklyTipCache.keys().next().value)
+      weeklyTipCache.set(key, advice)
+    }
+    return advice
+  } catch (err) {
+    if (!err.circuitOpen) reportError(err, { tag: 'Erro na dica da semana (IA)' })
+    return null
+  }
+}
+
+router.get('/weekly-tip', withResponseTimeout(60_000), async (req, res) => {
+  try {
+    const now = new Date()
+    const expenses = await prisma.transaction.findMany({
+      where:  { userId: req.userId, type: 'expense', date: { gte: new Date(now.getTime() - HISTORY_DAYS * DAY_MS) } },
+      select: { category: true, amount: true, date: true },
+    })
+
+    const stats = computeWeeklyTipStats(expenses, now)
+    if (!stats) return res.json({ tip: null })
+
+    const useAI  = !!groq && (req.userPlan === 'pro' || req.userPlan === 'elite')
+    const advice = useAI ? await getWeeklyAdvice(req.userId, stats, now) : null
+
+    res.json({ ...stats, tip: composeTip(advice, stats), source: advice ? 'ai' : 'rule' })
+  } catch (err) {
+    reportError(err, { tag: 'Erro na dica da semana' })
+    res.status(500).json({ error: 'Erro ao gerar a dica.' })
   }
 })
 

@@ -101,7 +101,7 @@ export const transactionsAPI = {
   autoLaunch:     ()           => api.post('/transactions/auto-launch'),
   importCSV:      (formData)   => api.post('/transactions/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   monthlyHistory: (months = 6) => api.get('/transactions/monthly-history', { params: { months } }),
-  subscriptions:  ()           => api.get('/transactions/subscriptions'),
+  subscriptions:  (params)     => api.get('/transactions/subscriptions', { params }),
   monthlyRecap:   (offset = 0) => api.get('/transactions/monthly-recap', { params: { offset } }),
 }
 
@@ -136,6 +136,7 @@ export const notificationsAPI = {
 export const agentAPI = {
   chat:          (message, history) => api.post('/agent/chat', { message, history }),
   predict:       ()                 => api.post('/agent/predict', {}),
+  weeklyTip:     ()                 => api.get('/agent/weekly-tip'),
   monthlyReport: (month, year)      => api.post('/agent/monthly-report', { month, year }),
   transcribe:    (formData)         => api.post('/agent/transcribe', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 }
