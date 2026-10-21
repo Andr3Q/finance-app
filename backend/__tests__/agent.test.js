@@ -16,6 +16,17 @@ jest.mock('groq-sdk', () => {
   Groq.toFile = mockToFile
   return Groq
 })
+// Os áudios "fake" dos testes (Buffer.alloc repetindo um byte) não são um
+// arquivo de áudio de verdade, então o parseBuffer real sempre falharia
+// (cai no fail-open do try/catch) — mocka pra poder testar o caminho de
+// rejeição por duração de forma determinística. Default: duração curta
+// (comportamento "normal" nos testes que não mexem nisso de propósito).
+// src/lib/audioMetadata.js isola o import() dinâmico do music-metadata (pacote
+// ESM puro) — mocka o wrapper CJS normal em vez do pacote ESM em si (ver
+// comentário no próprio arquivo sobre por que import() dinâmico não é
+// mockável aqui do jeito que require() é).
+const mockGetAudioDuration = jest.fn().mockResolvedValue(5)
+jest.mock('../src/lib/audioMetadata', () => ({ getAudioDurationSeconds: (...args) => mockGetAudioDuration(...args) }))
 jest.mock('../src/lib/prisma', () => require('./__mocks__/prisma'))
 jest.mock('../src/services/emailService', () => {
   const fn = () => jest.fn().mockResolvedValue(true)
@@ -417,6 +428,39 @@ describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {
   })
 })
 
+// Regressão: achado de auditoria de segurança (2026-10-21) — só
+// delete_transaction tinha um teto técnico por mensagem; create_transaction,
+// update_transaction e pay_fixed_bill podiam ser chamadas sem limite na mesma
+// resposta do modelo (defesa em profundidade contra prompt injection via
+// dado que o próprio usuário cadastrou antes, ex: nome de conta fixa).
+describe('Teto de ações mutantes por mensagem (exceto delete, que tem teto próprio de 1)', () => {
+  test('4 create_transaction pedidas na mesma resposta: só as 3 primeiras executam', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-novo' })
+    mockCreate
+      .mockResolvedValueOnce(multiToolCallReply([
+        { name: 'create_transaction', args: { type: 'expense', amount: 10, category: 'food' } },
+        { name: 'create_transaction', args: { type: 'expense', amount: 20, category: 'food' } },
+        { name: 'create_transaction', args: { type: 'expense', amount: 30, category: 'food' } },
+        { name: 'create_transaction', args: { type: 'expense', amount: 40, category: 'food' } },
+      ]))
+      .mockResolvedValueOnce(simpleReply('Registrei 3, a 4ª precisa ser pedida de novo.'))
+
+    const res = await request(app)
+      .post('/api/agent/chat')
+      .set(authHeader())
+      .send({ message: 'Registra 4 gastos de 10, 20, 30 e 40 reais em alimentação' })
+
+    expect(res.status).toBe(200)
+    expect(prisma.transaction.create).toHaveBeenCalledTimes(3)
+
+    const toolMessages = mockCreate.mock.calls[1][0].messages.filter(m => m.role === 'tool')
+    expect(toolMessages).toHaveLength(4)
+    expect(toolMessages.slice(0, 3).every(m => JSON.parse(m.content).success)).toBe(true)
+    expect(JSON.parse(toolMessages[3].content).error).toMatch(/no máximo 3/i)
+  })
+})
+
 // ══════════════════════════════════════════════════════════
 // dataChanged — o frontend usa essa flag pra saber se precisa invalidar o
 // cache de Dashboard/Transações depois de uma conversa no chat. Só deve vir
@@ -649,6 +693,14 @@ describe('POST /api/agent/transcribe', () => {
   const attachAudio = (req, { field = 'audio', filename = 'voz.webm', contentType = 'audio/webm', bytes = 2000 } = {}) =>
     req.attach(field, Buffer.alloc(bytes, 1), { filename, contentType })
 
+  // clearMocks/restoreMocks (jest.config.js) zeram o mock entre testes — fixa
+  // um default de "duração curta" pra não afetar os testes que não mexem
+  // nisso de propósito (o áudio fake deles não é parseável de verdade de
+  // qualquer forma; isso só documenta o comportamento esperado).
+  beforeEach(() => {
+    mockGetAudioDuration.mockResolvedValue(5)
+  })
+
   test('plano free é bloqueado → 403 (mesmo gate do /chat)', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
 
@@ -706,6 +758,35 @@ describe('POST /api/agent/transcribe', () => {
     expect(res.status).toBe(400)
     expect(res.body.error).toMatch(/grande/i)
   }, 15000)
+
+  // Achado de auditoria de segurança (2026-10-21): o limite de bytes sozinho
+  // não limita duração de verdade (bitrate varia) — um áudio de ~33min cabia
+  // em 3MB com bitrate baixo. Checa a duração real do arquivo.
+  test('áudio com duração acima do limite retorna 400 (não 500)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockGetAudioDuration.mockResolvedValue(600) // 10 minutos
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader())
+    )
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/longo/i)
+    expect(mockTranscribe).not.toHaveBeenCalled()
+  })
+
+  test('falha ao ler metadados do áudio não bloqueia a transcrição (fail-open)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockGetAudioDuration.mockRejectedValue(new Error('formato não reconhecido'))
+    mockTranscribe.mockResolvedValueOnce({ text: 'Gastei 50 reais no mercado' })
+
+    const res = await attachAudio(
+      request(app).post('/api/agent/transcribe').set(authHeader())
+    )
+
+    expect(res.status).toBe(200)
+    expect(mockTranscribe).toHaveBeenCalled()
+  })
 
   test('transcrição bem-sucedida retorna o texto', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
