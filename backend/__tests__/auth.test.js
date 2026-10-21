@@ -63,6 +63,26 @@ describe('POST /api/auth/register', () => {
     expect(res.body.user).not.toHaveProperty('password')
   })
 
+  // Tela "Confirme seu e-mail" (Nancy 2): além do link de sempre, o cadastro
+  // agora também gera um código de 6 dígitos (caminho alternativo, mesmo evento).
+  test('gera código de verificação de 6 dígitos junto com o link e envia por e-mail', async () => {
+    prisma.user.findUnique.mockResolvedValue(null)
+    prisma.user.findFirst.mockResolvedValue(null)
+    prisma.user.create.mockResolvedValue(mockUser())
+
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Test User', email: 'test@example.com', password: 'Password123' })
+
+    const createArgs = prisma.user.create.mock.calls[0][0].data
+    expect(createArgs.emailVerifyCode).toMatch(/^[a-f0-9]{64}$/) // sha256 hex — nunca o código em texto puro
+    expect(createArgs.emailVerifyCodeExpiry).toBeInstanceOf(Date)
+
+    const emailService = require('../src/services/emailService')
+    const sentCode = emailService.sendVerificationEmail.mock.calls[0][3]
+    expect(sentCode).toMatch(/^\d{6}$/)
+  })
+
   test('rejeita email duplicado → 400', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser())
 
@@ -632,7 +652,13 @@ describe('POST /api/auth/verify-email', () => {
     expect(res.status).toBe(200)
     expect(prisma.user.updateMany).toHaveBeenCalledWith({
       where: { id: 'user-456', emailVerifyToken: HASH, emailVerifyExpiry: { gt: expect.any(Date) } },
-      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
+      // Limpa também o código de 6 dígitos (caminho alternativo pro mesmo
+      // evento) — sem isso ele continuaria válido/tentável após o e-mail já
+      // verificado pelo link.
+      data:  {
+        emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null,
+        emailVerifyCode: null, emailVerifyCodeExpiry: null, emailVerifyCodeAttempts: 0,
+      },
     })
     expect(sendReferralRewardEmail).not.toHaveBeenCalled()
   })
@@ -1004,5 +1030,216 @@ describe('POST /api/auth/confirm-email-change', () => {
       .send({ token })
 
     expect(res.status).toBe(409)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// VERIFICAÇÃO DE E-MAIL POR CÓDIGO (6 dígitos) — caminho alternativo ao
+// link acima pro mesmo evento. Cobertura do link já existe no describe
+// 'POST /api/auth/verify-email' (bloco de cima).
+// ══════════════════════════════════════════════════════════
+describe('POST /api/auth/verify-email-code', () => {
+  const authCookie = () => `token=${makeToken('user-123')}`
+
+  test('sem sessão → 401', async () => {
+    const res = await request(app).post('/api/auth/verify-email-code').send({ code: '123456' })
+    expect(res.status).toBe(401)
+  })
+
+  test('formato inválido (não são 6 dígitos) → 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '12345' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/inválido/i)
+  })
+
+  test('e-mail já verificado → 400', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ emailVerified: true }))
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/já verificado/i)
+  })
+
+  test('sem código ativo → 400 código expirado', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false, emailVerifyCode: null, emailVerifyCodeExpiry: null,
+    }))
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/expirado/i)
+  })
+
+  test('código expirado (expiry no passado) → 400', async () => {
+    const crypto = require('crypto')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: crypto.createHash('sha256').update('123456').digest('hex'),
+      emailVerifyCodeExpiry: new Date(Date.now() - 1000),
+      emailVerifyCodeAttempts: 0,
+    }))
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/expirado/i)
+  })
+
+  test('já atingiu o limite de tentativas → 429, sem nem comparar o código', async () => {
+    const crypto = require('crypto')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: crypto.createHash('sha256').update('123456').digest('hex'),
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      emailVerifyCodeAttempts: 5,
+    }))
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' }) // mesmo o código certo não passa — limite já estourado
+
+    expect(res.status).toBe(429)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  test('código incorreto (abaixo do limite) → 400 e incrementa tentativas', async () => {
+    const crypto = require('crypto')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: crypto.createHash('sha256').update('999999').digest('hex'),
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      emailVerifyCodeAttempts: 2,
+    }))
+    prisma.user.update.mockResolvedValue({ emailVerifyCodeAttempts: 3 })
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '111111' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/incorreto/i)
+    expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'user-123' },
+      data:  { emailVerifyCodeAttempts: { increment: 1 } },
+    }))
+  })
+
+  test('código incorreto que atinge o limite agora → 429 e invalida o código na hora', async () => {
+    const crypto = require('crypto')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: crypto.createHash('sha256').update('999999').digest('hex'),
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      emailVerifyCodeAttempts: 4,
+    }))
+    prisma.user.update.mockResolvedValue({ emailVerifyCodeAttempts: 5 })
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '111111' })
+
+    expect(res.status).toBe(429)
+    // 2 chamadas: a 1ª incrementa, a 2ª já invalida o código (não espera mais
+    // uma requisição pra barrar a próxima tentativa)
+    expect(prisma.user.update).toHaveBeenCalledTimes(2)
+    expect(prisma.user.update).toHaveBeenLastCalledWith({
+      where: { id: 'user-123' },
+      data:  { emailVerifyCode: null, emailVerifyCodeExpiry: null },
+    })
+  })
+
+  test('código correto → 200, verifica e limpa token/código/tentativas', async () => {
+    const crypto = require('crypto')
+    const hash   = crypto.createHash('sha256').update('123456').digest('hex')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false, referredBy: null,
+      emailVerifyCode: hash,
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      emailVerifyCodeAttempts: 1,
+    }))
+    prisma.user.updateMany.mockResolvedValue({ count: 1 })
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ ok: true })
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'user-123', emailVerifyCode: hash },
+      data:  {
+        emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null,
+        emailVerifyCode: null, emailVerifyCodeExpiry: null, emailVerifyCodeAttempts: 0,
+      },
+    })
+  })
+
+  test('código correto mas corrida (updateMany conta 0) → 400, não 200', async () => {
+    const crypto = require('crypto')
+    const hash   = crypto.createHash('sha256').update('123456').digest('hex')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: hash,
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      emailVerifyCodeAttempts: 0,
+    }))
+    prisma.user.updateMany.mockResolvedValue({ count: 0 })
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('POST /api/auth/resend-verification', () => {
+  test('sem sessão → 401', async () => {
+    const res = await request(app).post('/api/auth/resend-verification')
+    expect(res.status).toBe(401)
+  })
+
+  test('e-mail já verificado → 400', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ emailVerified: true }))
+    const res = await request(app)
+      .post('/api/auth/resend-verification')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/já verificado/i)
+  })
+
+  test('sucesso: regenera link e código juntos, zera tentativas', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ emailVerified: false }))
+
+    const res = await request(app)
+      .post('/api/auth/resend-verification')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+
+    expect(res.status).toBe(200)
+    const updateArgs = prisma.user.update.mock.calls[0][0]
+    expect(updateArgs.data.emailVerifyToken).toMatch(/^[a-f0-9]{64}$/)
+    expect(updateArgs.data.emailVerifyCode).toMatch(/^[a-f0-9]{64}$/)
+    expect(updateArgs.data.emailVerifyCodeAttempts).toBe(0)
+
+    const emailService = require('../src/services/emailService')
+    const call = emailService.sendVerificationEmail.mock.calls.at(-1)
+    expect(call[3]).toMatch(/^\d{6}$/) // código de 6 dígitos em texto puro só no e-mail
   })
 })

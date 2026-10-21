@@ -55,6 +55,13 @@ model User {
   emailVerified        Boolean   @default(false)
   emailVerifyToken     String?
   emailVerifyExpiry    DateTime?
+  // Verificação por código de 6 dígitos (tela "Confirme seu e-mail", Nancy 2) —
+  // caminho alternativo ao link acima, pro mesmo e-mail/evento. Expira rápido
+  // (15min, não 24h como o link) e conta tentativas erradas: 6 dígitos tem
+  // entropia baixa demais (1 em 1M) pra confiar só no rate limit por IP.
+  emailVerifyCode          String?
+  emailVerifyCodeExpiry    DateTime?
+  emailVerifyCodeAttempts  Int       @default(0)
   // Troca de e-mail de login: o e-mail novo só é aplicado (email = pendingEmail)
   // depois que o link de confirmação (enviado pro endereço NOVO) é clicado —
   // evita trocar pra um e-mail que a pessoa não tem acesso de verdade.

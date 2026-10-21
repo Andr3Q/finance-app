@@ -384,7 +384,7 @@ async function sendPlanExpiredEmail(toEmail, userName, wasTrialOrPaid) {
   })
 }
 
-async function sendVerificationEmail(toEmail, userName, verifyLink) {
+async function sendVerificationEmail(toEmail, userName, verifyLink, code) {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#f5f5f5;padding:20px;">
       <div style="background:linear-gradient(135deg,#020d10,#061520);padding:30px;border-radius:12px;text-align:center;margin-bottom:20px;border:1px solid rgba(0,255,204,0.15);">
@@ -401,9 +401,18 @@ async function sendVerificationEmail(toEmail, userName, verifyLink) {
             Confirmar meu e-mail
           </a>
         </div>
-        <p style="color:#999;font-size:12px;line-height:1.5;margin:0;">
+        <p style="color:#999;font-size:12px;line-height:1.5;margin:0 0 24px;">
           Este link expira em <strong>24 horas</strong>. Se não foi você, ignore este e-mail.
         </p>
+        ${code ? `
+        <div style="border-top:1px solid #eee;padding-top:20px;text-align:center;">
+          <p style="color:#555;font-size:13px;margin:0 0 10px;">Ou digite este código no app:</p>
+          <div style="display:inline-block;background:#f5f5f5;border-radius:10px;padding:12px 24px;font-size:26px;font-weight:700;letter-spacing:6px;color:#021a14;font-family:monospace;">
+            ${code}
+          </div>
+          <p style="color:#999;font-size:12px;margin:10px 0 0;">Esse código expira em <strong>15 minutos</strong>.</p>
+        </div>
+        ` : ''}
       </div>
       <p style="color:#bbb;font-size:11px;text-align:center;margin-top:16px;">Nancy — Seu controle financeiro pessoal</p>
     </div>

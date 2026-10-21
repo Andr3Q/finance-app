@@ -82,6 +82,7 @@ export const authAPI = {
   twoFARegenerateCodes:    (password)            => api.post('/auth/2fa/regenerate-backup-codes', { password }),
   exportData:              ()                    => api.get('/auth/export-data', { responseType: 'blob' }),
   verifyEmail:             (token)               => api.post('/auth/verify-email', { token }),
+  verifyEmailCode:         (code)                => api.post('/auth/verify-email-code', { code }),
   resendVerification:      ()                    => api.post('/auth/resend-verification'),
   changeEmail:             (newEmail, password)  => api.post('/auth/change-email', { newEmail, password }),
   confirmEmailChange:      (token)               => api.post('/auth/confirm-email-change', { token }),

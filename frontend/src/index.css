@@ -10580,6 +10580,23 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 }
 .auth-sent-title { font-family: var(--fd); font-weight: 800; font-size: 18px; color: #0d0d0d; margin: 0 0 10px; }
 .auth-sent-text { font-size: 13.5px; color: #6b7280; line-height: 1.6; margin: 0 0 22px; }
+.auth-sent-ico.err { background: rgba(229,72,77,.08); border-color: rgba(229,72,77,.2); color: #e5484d; }
+
+.auth-code-input { text-align: center; font-size: 24px; font-weight: 700; letter-spacing: .4em; font-family: monospace; padding-left: 10px; }
+
+.auth-loading { text-align: center; padding: 20px 0; }
+.auth-loading-spin {
+  width: 32px; height: 32px; margin: 0 auto 16px; border-radius: 50%;
+  border: 3px solid rgba(21,70,255,.15); border-top-color: #1546FF;
+  animation: lauth-spin .7s linear infinite;
+}
+.auth-loading-text { font-size: 13.5px; color: #6b7280; }
+
+.auth-resend-btn {
+  display: block; width: 100%; margin-top: 14px; text-align: center;
+  background: none; border: none; cursor: pointer; font-size: 12.5px;
+}
+.auth-resend-msg { text-align: center; font-size: 12.5px; color: #087A52; margin: -8px 0 14px; }
 
 @media (min-width: 700px) {
   .auth-card { max-width: 440px; }

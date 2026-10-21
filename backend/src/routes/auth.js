@@ -24,6 +24,12 @@ const APP_URL = process.env.APP_URL || 'https://myfinancepro.com.br'
 // quais e-mails estão cadastrados (email enumeration via response time).
 const DUMMY_HASH = bcrypt.hashSync('__timing_guard__', 12)
 
+// Verificação de e-mail por código (6 dígitos, 1 em 1M) tem entropia baixa
+// demais pra confiar só no rate limit por IP — invalida o código depois de
+// poucas tentativas erradas, forçando reenvio em vez de permitir brute-force
+// distribuído entre IPs diferentes.
+const MAX_EMAIL_CODE_ATTEMPTS = 5
+
 // Campos do usuário que o frontend precisa pra decidir o que mostrar sem
 // esperar o próximo /auth/me (que só roda 1x no boot do app, não depois de
 // um login client-side) — onboarding pendente, e-mail não verificado, 2FA,
@@ -177,6 +183,12 @@ router.post('/register', registerLimiter, async (req, res) => {
     const verifyToken  = crypto.randomBytes(32).toString('hex')
     const verifyHash   = crypto.createHash('sha256').update(verifyToken).digest('hex')
     const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    // Código de 6 dígitos — caminho alternativo ao link acima pro mesmo
+    // evento (tela "Confirme seu e-mail"). Expira em 15min, bem mais curto
+    // que o link, já que é pra digitar na hora, não guardar pra depois.
+    const verifyCode       = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
+    const verifyCodeHash   = crypto.createHash('sha256').update(verifyCode).digest('hex')
+    const verifyCodeExpiry = new Date(Date.now() + 15 * 60 * 1000)
     const user = await prisma.user.create({
       data: {
         name:               name.trim(),
@@ -191,6 +203,8 @@ router.post('/register', registerLimiter, async (req, res) => {
         emailVerified:      false,
         emailVerifyToken:   verifyHash,
         emailVerifyExpiry:  verifyExpiry,
+        emailVerifyCode:       verifyCodeHash,
+        emailVerifyCodeExpiry: verifyCodeExpiry,
       }
     })
 
@@ -198,7 +212,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     // Welcome + verification emails — fire-and-forget
     sendWelcomeEmail(user.email, user.name, trialEndsAt).catch(() => {})
-    sendVerificationEmail(user.email, user.name, verifyLink).catch(() => {})
+    sendVerificationEmail(user.email, user.name, verifyLink, verifyCode).catch(() => {})
 
     const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
@@ -883,7 +897,10 @@ router.post('/verify-email', verifyEmailLimiter, async (req, res) => {
     // abaixo) como se fossem 2 verificações legítimas.
     const claim = await prisma.user.updateMany({
       where: { id: user.id, emailVerifyToken: hash, emailVerifyExpiry: { gt: new Date() } },
-      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
+      // Limpa também o código de 6 dígitos (caminho alternativo pro mesmo
+      // evento) — sem isso, um código emitido junto com esse link continuaria
+      // válido e tentável mesmo depois do e-mail já verificado pelo link.
+      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null, emailVerifyCode: null, emailVerifyCodeExpiry: null, emailVerifyCodeAttempts: 0 },
     })
     if (claim.count === 0) return res.status(400).json({ error: 'Link inválido ou expirado. Solicite um novo na página de configurações.' })
 
@@ -898,6 +915,72 @@ router.post('/verify-email', verifyEmailLimiter, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     reportError(err, { tag: '[auth] verify-email' })
+    res.status(500).json({ error: 'Erro ao verificar e-mail.' })
+  }
+})
+
+// ── POST /auth/verify-email-code ────────────────────────
+// Autenticada — ao contrário do link (que pode ser aberto em outro
+// navegador/dispositivo sem sessão), o código de 6 dígitos é digitado na
+// própria tela logo após o cadastro, com o usuário já logado — precisa
+// saber de QUAL conta é o código, não dá pra resolver isso só pelo valor
+// digitado (ao contrário do token de 32 bytes, que é único o bastante pra
+// servir de identificador por si só).
+router.post('/verify-email-code', authMiddleware, verifyEmailLimiter, async (req, res) => {
+  try {
+    const { code } = req.body
+    if (!code || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: 'Código inválido.' })
+    }
+
+    const user = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { name: true, emailVerified: true, referredBy: true, emailVerifyCode: true, emailVerifyCodeExpiry: true, emailVerifyCodeAttempts: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+    if (user.emailVerified) return res.status(400).json({ error: 'E-mail já verificado.' })
+    if (!user.emailVerifyCode || !user.emailVerifyCodeExpiry || user.emailVerifyCodeExpiry < new Date()) {
+      return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
+    }
+    if (user.emailVerifyCodeAttempts >= MAX_EMAIL_CODE_ATTEMPTS) {
+      return res.status(429).json({ error: 'Muitas tentativas. Solicite um novo código.' })
+    }
+
+    const hash = crypto.createHash('sha256').update(code).digest('hex')
+    if (hash !== user.emailVerifyCode) {
+      const { emailVerifyCodeAttempts: attempts } = await prisma.user.update({
+        where:  { id: req.userId },
+        data:   { emailVerifyCodeAttempts: { increment: 1 } },
+        select: { emailVerifyCodeAttempts: true },
+      })
+      // Teto atingido: invalida o código na hora, em vez de deixar mais uma
+      // tentativa passar antes de barrar na próxima requisição.
+      if (attempts >= MAX_EMAIL_CODE_ATTEMPTS) {
+        await prisma.user.update({ where: { id: req.userId }, data: { emailVerifyCode: null, emailVerifyCodeExpiry: null } })
+        return res.status(429).json({ error: 'Muitas tentativas. Solicite um novo código.' })
+      }
+      return res.status(400).json({ error: 'Código incorreto.' })
+    }
+
+    // updateMany condicionado ao código ainda ser o mesmo — mesmo raciocínio
+    // do /verify-email por link: uma 2ª requisição concorrente com o mesmo
+    // código certo não encontra mais nada pra atualizar depois que a 1ª já
+    // limpou emailVerifyCode, evitando reprocessar a recompensa de indicação.
+    const claim = await prisma.user.updateMany({
+      where: { id: req.userId, emailVerifyCode: hash },
+      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null, emailVerifyCode: null, emailVerifyCodeExpiry: null, emailVerifyCodeAttempts: 0 },
+    })
+    if (claim.count === 0) return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
+
+    if (user.referredBy) {
+      rewardReferrer(req.userId, user.referredBy).then(referrer => {
+        if (referrer) sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
+      }).catch(err => reportError(err, { tag: '[auth] rewardReferrer call' }))
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    reportError(err, { tag: '[auth] verify-email-code' })
     res.status(500).json({ error: 'Erro ao verificar e-mail.' })
   }
 })
@@ -944,14 +1027,20 @@ router.post('/resend-verification', authMiddleware, verifyEmailLimiter, async (r
     const rawToken  = crypto.randomBytes(32).toString('hex')
     const hash      = crypto.createHash('sha256').update(rawToken).digest('hex')
     const expiry    = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const code       = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
+    const codeHash   = crypto.createHash('sha256').update(code).digest('hex')
+    const codeExpiry = new Date(Date.now() + 15 * 60 * 1000)
 
     await prisma.user.update({
       where: { id: req.userId },
-      data:  { emailVerifyToken: hash, emailVerifyExpiry: expiry },
+      data:  {
+        emailVerifyToken: hash, emailVerifyExpiry: expiry,
+        emailVerifyCode: codeHash, emailVerifyCodeExpiry: codeExpiry, emailVerifyCodeAttempts: 0,
+      },
     })
 
     const verifyLink = `${APP_URL}/verify-email?token=${rawToken}`
-    sendVerificationEmail(user.email, user.name, verifyLink).catch(() => {})
+    sendVerificationEmail(user.email, user.name, verifyLink, code).catch(() => {})
 
     res.json({ ok: true })
   } catch (err) {
