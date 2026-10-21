@@ -33,6 +33,13 @@ describe('interceptor de resposta — 401/403 vs credencial errada', () => {
     '/auth/2fa/use-backup-code',
     '/auth/2fa/disable',
     '/auth/2fa/regenerate-backup-codes',
+    // Achado de auditoria de segurança (2026-10-21): essas 4 rotas também
+    // comparam a senha atual e devolvem 401 — faltavam na lista, causando
+    // logout forçado + mensagem de erro real escondida do usuário.
+    '/auth/password',
+    '/auth/change-email',
+    '/auth/account',
+    '/auth/downgrade',
   ])('401 em %s (credencial errada) NÃO limpa sessão nem redireciona', async (url) => {
     await expect(rejected()(makeError(401, url))).rejects.toBeTruthy()
     expect(sessionStorage.getItem('user')).not.toBeNull()

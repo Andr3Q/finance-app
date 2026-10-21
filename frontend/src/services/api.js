@@ -31,6 +31,13 @@ const CREDENTIAL_CHECK_ROUTES = [
   '/auth/2fa/use-backup-code',
   '/auth/2fa/disable',
   '/auth/2fa/regenerate-backup-codes',
+  // Mesmo padrão (bcrypt.compare da senha atual, 401 em caso de erro) —
+  // faltavam aqui, causando o mesmo logout forçado + mensagem escondida
+  // (achado de auditoria de segurança, 2026-10-21).
+  '/auth/password',
+  '/auth/change-email',
+  '/auth/account',
+  '/auth/downgrade',
 ]
 
 // Interceptor de resposta:
