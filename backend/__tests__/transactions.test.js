@@ -359,3 +359,94 @@ describe('POST /api/transactions/import', () => {
     expect(created[0].amount).toBe(1234)
   })
 })
+
+// ══════════════════════════════════════════════════════════
+// AUTO-LANÇAMENTO DE CONTAS FIXAS — pula as já pagas individualmente
+// ══════════════════════════════════════════════════════════
+// Regressão: antes disso, esta rota lançava TODAS as contas fixas
+// incondicionalmente na 1ª chamada do mês (controlado só por uma flag global
+// no User). Uma conta já paga individualmente antes (botão "Marcar como
+// paga" ou chat de IA) sempre duplicava quando o usuário clicava "Lançar
+// agora" depois — bug real relatado por testadores beta.
+describe('POST /api/transactions/auto-launch', () => {
+  const { nowBrasilia } = require('../src/utils/helpers')
+  const { month, year } = nowBrasilia()
+  const budgetPaid   = { id: 'bud-1', name: 'Internet', amount: 89, userId: 'user-123' }
+  const budgetUnpaid = { id: 'bud-2', name: 'Claro',     amount: 49, userId: 'user-123' }
+
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.transaction.count.mockResolvedValue(0)
+  })
+
+  test('pula conta já paga individualmente (budgetId vinculado) e lança só as pendentes', async () => {
+    prisma.budget.findMany.mockResolvedValue([budgetPaid, budgetUnpaid])
+    prisma.transaction.findMany.mockResolvedValue([{ budgetId: budgetPaid.id }])
+    prisma.transaction.createMany.mockResolvedValue({ count: 1 })
+
+    const res = await request(app).post('/api/transactions/auto-launch').set(authHeader())
+
+    expect(res.status).toBe(200)
+    expect(res.body.count).toBe(1)
+    expect(prisma.transaction.createMany).toHaveBeenCalledWith({
+      skipDuplicates: true,
+      data: [{ description: 'Claro', amount: 49, type: 'expense', category: 'fixed', budgetId: 'bud-2', month, year, userId: 'user-123' }],
+    })
+  })
+
+  test('todas já pagas: não cria nenhuma transação, retorna alreadyLaunched', async () => {
+    prisma.budget.findMany.mockResolvedValue([budgetPaid])
+    prisma.transaction.findMany.mockResolvedValue([{ budgetId: budgetPaid.id }])
+
+    const res = await request(app).post('/api/transactions/auto-launch').set(authHeader())
+
+    expect(res.status).toBe(200)
+    expect(res.body.alreadyLaunched).toBe(true)
+    expect(prisma.transaction.createMany).not.toHaveBeenCalled()
+  })
+
+  test('nenhuma paga: lança todas, cada transação com o budgetId correspondente', async () => {
+    prisma.budget.findMany.mockResolvedValue([budgetPaid, budgetUnpaid])
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.transaction.createMany.mockResolvedValue({ count: 2 })
+
+    const res = await request(app).post('/api/transactions/auto-launch').set(authHeader())
+
+    expect(res.status).toBe(200)
+    expect(res.body.count).toBe(2)
+    const data = prisma.transaction.createMany.mock.calls[0][0].data
+    expect(data.map(d => d.budgetId).sort()).toEqual(['bud-1', 'bud-2'])
+  })
+
+  test('sem contas fixas cadastradas retorna 400', async () => {
+    prisma.budget.findMany.mockResolvedValue([])
+    const res = await request(app).post('/api/transactions/auto-launch').set(authHeader())
+    expect(res.status).toBe(400)
+  })
+
+  test('limite de transações do plano Free atingido não lança nenhuma', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+    prisma.budget.findMany.mockResolvedValue([budgetUnpaid])
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.transaction.count.mockResolvedValue(20)
+
+    const res = await request(app).post('/api/transactions/auto-launch').set(authHeader())
+
+    expect(res.status).toBe(403)
+    expect(res.body.limitReached).toBe(true)
+    expect(prisma.transaction.createMany).not.toHaveBeenCalled()
+  })
+
+  test('plano Elite (sem limite) lança mesmo com muitas transações já no mês', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.budget.findMany.mockResolvedValue([budgetUnpaid])
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.transaction.count.mockResolvedValue(500)
+    prisma.transaction.createMany.mockResolvedValue({ count: 1 })
+
+    const res = await request(app).post('/api/transactions/auto-launch').set(authHeader())
+
+    expect(res.status).toBe(200)
+    expect(res.body.count).toBe(1)
+  })
+})

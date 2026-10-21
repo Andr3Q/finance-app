@@ -91,25 +91,39 @@ model Transaction {
   month       Int                                 // Mês da transação (1-12)
   year        Int                                 // Ano da transação
 
+  // Vínculo opcional com a conta fixa que esta transação quita (pagamento
+  // individual de uma Budget específica). NULL = transação avulsa, sem
+  // relação com nenhuma conta fixa (ex: lançamento manual de categoria
+  // "fixed" sem vínculo). onDelete SetNull preserva o histórico financeiro
+  // se a conta fixa for excluída depois.
+  budgetId    String?
+  budget      Budget?  @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, month, year, archived])
   @@index([userId, type, month, year])
+  // Garante no banco que uma conta fixa nunca é paga 2x no mesmo mês — rede
+  // de segurança contra corrida (2 requests simultâneos) por trás do próprio
+  // payBudget(). NULLs não colidem entre si no Postgres, então transações
+  // avulsas (budgetId null) continuam sem nenhuma restrição.
+  @@unique([budgetId, month, year])
 }
 
 // ── Tabela: budgets ─────────────────────────────────────
 // Armazena as contas fixas mensais (aluguel, luz, etc.)
 model Budget {
-  id               String    @id @default(uuid())
-  name             String                         // Ex: "Aluguel", "Internet"
-  amount           Decimal                        // Valor mensal fixo
-  dueDay           Int?                           // Dia do vencimento (1-31)
-  endDate          DateTime?                      // Data final (conta com prazo, ex: parcelas)
-  endDateNotifSent Boolean   @default(false)      // Notificação de expiração enviada
+  id               String        @id @default(uuid())
+  name             String                             // Ex: "Aluguel", "Internet"
+  amount           Decimal                            // Valor mensal fixo
+  dueDay           Int?                               // Dia do vencimento (1-31)
+  endDate          DateTime?                          // Data final (conta com prazo, ex: parcelas)
+  endDateNotifSent Boolean       @default(false)      // Notificação de expiração enviada
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@index([userId])
 }

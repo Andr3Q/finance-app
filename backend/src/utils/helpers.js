@@ -47,4 +47,31 @@ function computeEffectivePlan(user, now = new Date()) {
   return { effectivePlan, planExpired, trialExpired }
 }
 
-module.exports = { nowBrasilia, partsBrasilia, parseDateInput, computeEffectivePlan }
+// Única fonte de verdade pro "quanto das contas fixas ainda não foi pago este
+// mês" — usado pra calcular saldo disponível em /transactions/summary,
+// /transactions/dashboard e reports.js (relatório mensal + PDF + e-mail),
+// cada um antes refazia essa conta com a flag binária user.autoLaunchMonth/Year
+// ("tudo lançado" ou "nada lançado"). Generaliza pra pagamento PARCIAL: uma
+// conta fixa conta como paga quando existe uma Transaction com budgetId
+// apontando pra ela neste mês/ano (ver services/budgetPayment.js) — só essas
+// são descontadas de totalFixedCosts, as outras continuam "reservadas".
+//
+// legacyAllLaunched preserva o comportamento antigo (desconta zero) só
+// durante o mês em que a migration foi publicada, pra quem já tinha chamado
+// o auto-launch ANTES dessa mudança (transações sem budgetId, category
+// 'fixed', criadas pelo mecanismo antigo) — sem isso, o saldo desse usuário
+// cairia de repente ao recarregar a página, descontando de novo contas que
+// na prática já estão em totalExpenses. Deixa de fazer qualquer diferença a
+// partir do mês seguinte (a flag nunca mais bate com o mês atual).
+function computeFixedCostsStatus({ budgets, transactions, legacyAllLaunched = false }) {
+  const totalFixedCosts = budgets.reduce((s, b) => s + Number(b.amount), 0)
+  if (legacyAllLaunched) {
+    return { totalFixedCosts, unpaidFixedCosts: 0, unpaidBudgetIds: [] }
+  }
+  const paidBudgetIds   = new Set(transactions.filter(t => t.budgetId).map(t => t.budgetId))
+  const unpaidBudgets   = budgets.filter(b => !paidBudgetIds.has(b.id))
+  const unpaidFixedCosts = unpaidBudgets.reduce((s, b) => s + Number(b.amount), 0)
+  return { totalFixedCosts, unpaidFixedCosts, unpaidBudgetIds: unpaidBudgets.map(b => b.id) }
+}
+
+module.exports = { nowBrasilia, partsBrasilia, parseDateInput, computeEffectivePlan, computeFixedCostsStatus }

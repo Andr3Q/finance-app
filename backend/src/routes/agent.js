@@ -5,8 +5,9 @@ const { toFile }     = require('groq-sdk')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { transcribeLimiter } = require('../middleware/rateLimiter')
-const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS, UUID_REGEX, MAX_AMOUNT } = require('../utils/constants')
-const { nowBrasilia, partsBrasilia, parseDateInput } = require('../utils/helpers')
+const { CATEGORY_LABELS, VALID_CATEGORIES, MONTHS, UUID_REGEX, MAX_AMOUNT, TRANSACTION_PLAN_LIMITS } = require('../utils/constants')
+const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
+const { payBudget } = require('../services/budgetPayment')
 const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
@@ -135,7 +136,7 @@ const MAX_TOOL_ITERATIONS = 5
 // Ferramentas que alteram dado real (vs. get_transactions/get_summary, que só
 // leem) — usado pra avisar o frontend que o cache de Dashboard/Transactions
 // ficou desatualizado depois de uma conversa no chat.
-const MUTATING_TOOLS = new Set(['create_transaction', 'update_transaction', 'delete_transaction'])
+const MUTATING_TOOLS = new Set(['create_transaction', 'pay_fixed_bill', 'update_transaction', 'delete_transaction'])
 
 const TOOLS = [
   {
@@ -164,7 +165,7 @@ const TOOLS = [
     type: 'function',
     function: {
       name: 'create_transaction',
-      description: 'Cria uma nova transação quando o usuário pedir para registrar um gasto ou entrada.',
+      description: 'Cria uma nova transação quando o usuário pedir para registrar um gasto ou entrada. NÃO use para pagar uma conta fixa (recorrente) já cadastrada, como aluguel, internet, luz, academia — use pay_fixed_bill nesse caso, senão a conta fica contada em dobro quando o usuário lançar as contas fixas pendentes.',
       parameters: {
         type: 'object',
         properties: {
@@ -175,6 +176,22 @@ const TOOLS = [
           date:        { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'YYYY-MM-DD. Null para hoje.' },
         },
         required: ['type', 'amount', 'category'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'pay_fixed_bill',
+      description: 'Registra o pagamento de uma conta fixa (recorrente) já cadastrada pelo usuário — aluguel, internet, luz, academia, etc. Use get_summary antes para saber os nomes exatos das contas fixas cadastradas (campo "budgets"). Se a conta já tiver sido paga este mês, a ferramenta avisa em vez de duplicar.',
+      parameters: {
+        type: 'object',
+        properties: {
+          budgetName: { type: 'string', description: 'Nome exato da conta fixa, como retornado por get_summary.' },
+          amount:     { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'Valor pago, se diferente do valor cadastrado (ex: conta de luz variou este mês). Null para usar o valor padrão da conta.' },
+          date:       { anyOf: [{ type: 'string' }, { type: 'null' }], description: 'YYYY-MM-DD. Null para hoje.' },
+        },
+        required: ['budgetName'],
       },
     },
   },
@@ -241,7 +258,7 @@ async function runTool(name, args, userId, effectivePlan) {
     const [txs, budgets, user] = await Promise.all([
       prisma.transaction.findMany({ where: { userId, month, year, archived: false } }),
       prisma.budget.findMany({ where: { userId } }),
-      prisma.user.findUnique({ where: { id: userId }, select: { salary: true, plan: true } }),
+      prisma.user.findUnique({ where: { id: userId }, select: { salary: true, plan: true, autoLaunchMonth: true, autoLaunchYear: true } }),
     ])
     // Number(...) é obrigatório aqui: salary/amount são Prisma.Decimal, cujo
     // valueOf()/toJSON() retorna string de propósito (evita conversão implícita
@@ -249,12 +266,18 @@ async function runTool(name, args, userId, effectivePlan) {
     // "23000" + totalIncome 0 vira "230000", dado 10x errado indo pra IA).
     const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
     const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
+    // Mesma regra de transactions.js/reports.js: só desconta as contas fixas
+    // AINDA NÃO pagas (sem transação com budgetId vinculado este mês) — sem
+    // isso, uma conta já paga (presente em totalExpenses) era descontada de
+    // novo aqui, inflando o "gasto" que a IA reportava pro usuário.
+    const legacyAllLaunched = user?.autoLaunchMonth === month && user?.autoLaunchYear === year
+    const { unpaidFixedCosts } = computeFixedCostsStatus({ budgets, transactions: txs, legacyAllLaunched })
     const fixedTotal    = budgets.reduce((s, b) => s + Number(b.amount), 0)
     const salary        = Number(user?.salary || 0)
     return {
       month, year,
-      salary, totalIncome, totalExpenses, fixedTotal,
-      balance: salary + totalIncome - fixedTotal - totalExpenses,
+      salary, totalIncome, totalExpenses, fixedTotal, unpaidFixedCosts,
+      balance: salary + totalIncome - unpaidFixedCosts - totalExpenses,
       transactionCount: txs.length, plan: user?.plan,
       budgets: budgets.map(b => ({ name: b.name, amount: Number(b.amount) })),
     }
@@ -306,8 +329,7 @@ async function runTool(name, args, userId, effectivePlan) {
       select: { _count: { select: { transactions: { where: { month: txMonth, year: txYear, archived: false } } } } }
     })
     const txCount = userData?._count?.transactions ?? 0
-    const PLAN_LIMITS = { free: 20, pro: 35 }
-    const planLimit = PLAN_LIMITS[effectivePlan]
+    const planLimit = TRANSACTION_PLAN_LIMITS[effectivePlan]
     if (planLimit && txCount >= planLimit) {
       return { error: `Limite de ${planLimit} transações por mês atingido no plano ${effectivePlan === 'free' ? 'Gratuito' : 'Pro'}.` }
     }
@@ -325,6 +347,32 @@ async function runTool(name, args, userId, effectivePlan) {
     return {
       success: true, id: tx.id,
       message: `Transação criada: ${args.type === 'income' ? '+' : '-'}R$ ${amount.toFixed(2)} em ${CATEGORY_LABELS[args.category]}`,
+    }
+  }
+
+  if (name === 'pay_fixed_bill') {
+    if (!args.budgetName || typeof args.budgetName !== 'string') return { error: 'Nome da conta fixa é obrigatório.' }
+
+    const budget = await prisma.budget.findFirst({
+      where: { userId, name: { equals: args.budgetName, mode: 'insensitive' } },
+    })
+    if (!budget) return { error: `Conta fixa "${args.budgetName}" não encontrada. Confira o nome exato com get_summary.` }
+
+    if (args.date != null && !/^\d{4}-\d{2}-\d{2}$/.test(args.date)) return { error: 'Data inválida. Use YYYY-MM-DD.' }
+
+    // payBudget() é a mesma função usada pelo botão "Marcar como paga" — ela
+    // já garante (checagem + constraint única no banco) que a conta não é
+    // paga 2x no mesmo mês, e que "Lançar agora" nunca mais lança de novo o
+    // que a IA já pagou aqui.
+    const result = await payBudget({
+      userId, budgetId: budget.id,
+      amount: args.amount ?? null, dateStr: args.date ?? null,
+      effectivePlan,
+    })
+    if (!result.ok) return { error: result.error }
+    return {
+      success: true,
+      message: `Pagamento de "${budget.name}" registrado: R$ ${Number(result.transaction.amount).toFixed(2)}.`,
     }
   }
 
@@ -412,6 +460,8 @@ const SYSTEM = `Você é o assistente financeiro pessoal do Nancy.
 Responda sempre em português, de forma clara e objetiva.
 Use as ferramentas disponíveis para buscar os dados reais do usuário — nunca invente números.
 Ao analisar gastos, seja específico com valores. Ao criar transações, confirme o que foi registrado.
+
+Quando o usuário disser que quer pagar, registrar ou lançar uma conta fixa/recorrente já cadastrada (aluguel, internet, luz, academia, etc.), use SEMPRE pay_fixed_bill — nunca create_transaction. Use get_summary antes se não tiver certeza do nome exato da conta cadastrada.
 
 Para editar ou excluir uma transação que o usuário descreveu (ex: "exclui a conta de alimentação de 400", "muda o valor do mercado de 400 para 300"), SEMPRE chame get_transactions primeiro para encontrar o id correto — nunca invente ou adivinhe um id. Se mais de uma transação combinar com a descrição, liste as opções (com valor e data) e peça pro usuário confirmar qual delas antes de editar ou excluir. Exclusão é permanente e irreversível — na dúvida, pergunte antes de agir. Transações de meses já fechados não podem mais ser editadas nem excluídas; avise o usuário se isso acontecer.`
 

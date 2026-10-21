@@ -620,29 +620,33 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Contas fixas pendentes */}
-              {!summary?.autoLaunched && budgets.length > 0 && (
+              {/* Contas fixas do mês — status por conta, não mais tudo-ou-nada */}
+              {budgets.length > 0 && (
                 <div className="hb-bars-card">
                   <div className="hb-card-head">
                     <span className="hb-card-title">Contas fixas do mês</span>
                     <button className="hb-card-link" onClick={() => navigate('/settings')}>Gerenciar →</button>
                   </div>
-                  {budgets.map((b) => (
-                    <div key={b.id} className="hb-bar-row">
-                      <div className="hb-bar-dot" style={{ background: '#ff8c42' }} />
-                      <div className="hb-bar-name">{b.name}</div>
-                      <div className="hb-bar-track">
-                        <div className="hb-bar-fill" style={{ width: summary?.totalFixedCosts > 0 ? `${(b.amount / summary.totalFixedCosts) * 100}%` : '0%', background: '#ff8c42' }} />
+                  {budgets.map((b) => {
+                    const unpaid = summary?.unpaidBudgetIds?.includes(b.id) ?? true
+                    const color  = unpaid ? '#ff8c42' : '#4ae2ac'
+                    return (
+                      <div key={b.id} className="hb-bar-row">
+                        <div className="hb-bar-dot" style={{ background: color }} />
+                        <div className="hb-bar-name">{b.name}</div>
+                        <div className="hb-bar-track">
+                          <div className="hb-bar-fill" style={{ width: summary?.totalFixedCosts > 0 ? `${(b.amount / summary.totalFixedCosts) * 100}%` : '0%', background: color }} />
+                        </div>
+                        <div className="hb-bar-right">
+                          <span className="hb-bar-val">R$ {fmtShort(b.amount)}</span>
+                          <span className="hb-bar-pct" style={{ color }}>{unpaid ? 'pendente' : 'paga'}</span>
+                        </div>
                       </div>
-                      <div className="hb-bar-right">
-                        <span className="hb-bar-val">R$ {fmtShort(b.amount)}</span>
-                        <span className="hb-bar-pct" style={{ color:'#ff8c42' }}>pendente</span>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   <div className="hb-fixed-total-row">
-                    <span>Total a lançar</span>
-                    <span>R$ {fmt(summary?.totalFixedCosts)}</span>
+                    <span>{summary?.unpaidFixedCosts > 0 ? 'Total a lançar' : 'Total mensal'}</span>
+                    <span>R$ {fmt(summary?.unpaidFixedCosts > 0 ? summary.unpaidFixedCosts : summary?.totalFixedCosts)}</span>
                   </div>
                 </div>
               )}

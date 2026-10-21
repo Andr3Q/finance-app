@@ -53,6 +53,22 @@ describe('OnboardingModal — quando mostrar', () => {
     render(<OnboardingModal />)
     expect(screen.getByText(/bem-vindo/i)).toBeInTheDocument()
   })
+
+  // Regressão: testador relatou "escolhi o salário no cadastro e perguntou de
+  // novo" — o passo 1 sempre perguntava salário, mesmo já tendo vindo
+  // preenchido do cadastro. Quem já informou o salário pula direto pro passo 2.
+  it('pula a pergunta de salário (passo 1) quando o usuário já informou salário no cadastro', () => {
+    setUser({ salary: 5000 })
+    render(<OnboardingModal />)
+    expect(screen.queryByText(/qual é o seu salário mensal/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Contas fixas')).toBeInTheDocument()
+  })
+
+  it('mostra a pergunta de salário no passo 1 quando o usuário ainda não tem salário cadastrado', () => {
+    setUser({ salary: 0 })
+    render(<OnboardingModal />)
+    expect(screen.getByText(/qual é o seu salário mensal/i)).toBeInTheDocument()
+  })
 })
 
 describe('OnboardingModal — fluxo de conclusão', () => {

@@ -15,7 +15,7 @@ const authMiddleware         = require('../middleware/auth')
 const { sendMonthlyReport }  = require('../services/emailService')
 const { generateMonthlyPDF } = require('../services/pdfService')
 const { reportLimiter }      = require('../middleware/rateLimiter')
-const { nowBrasilia }        = require('../utils/helpers')
+const { nowBrasilia, computeFixedCostsStatus } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
@@ -55,17 +55,19 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
     const totalExpenses   = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
     const totalIncome     = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
     const totalFixedCosts = budgets.reduce((s, b) => s + Number(b.amount), 0)
-    // Se as contas fixas já foram lançadas como transações (auto-launch), elas já estão
-    // em totalExpenses — não subtrair novamente para evitar dupla contagem
-    const autoLaunched   = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    // Só desconta de totalAvailable as contas fixas AINDA NÃO pagas este mês
+    // (sem transação com budgetId vinculado) — ver computeFixedCostsStatus.
+    const legacyAllLaunched = user.autoLaunchMonth === month && user.autoLaunchYear === year
+    const { unpaidFixedCosts } = computeFixedCostsStatus({ budgets, transactions, legacyAllLaunched })
     const salary         = Number(user.salary)
-    const totalAvailable = autoLaunched
-      ? salary + totalIncome
-      : salary + totalIncome - totalFixedCosts
+    const totalAvailable = salary + totalIncome - unpaidFixedCosts
     const currentBalance  = totalAvailable - totalExpenses
     const percentUsed     = totalAvailable > 0 ? Math.round((totalExpenses / totalAvailable) * 100) : 0
 
-    const summary = { salary, totalExpenses, totalIncome, totalFixedCosts, totalAvailable, currentBalance, percentUsed, autoLaunched }
+    const summary = {
+      salary, totalExpenses, totalIncome, totalFixedCosts, unpaidFixedCosts,
+      totalAvailable, currentBalance, percentUsed, autoLaunched: unpaidFixedCosts === 0,
+    }
 
     // Gera PDF
     const pdfBuffer = await generateMonthlyPDF(user, month, year, summary, transactions)

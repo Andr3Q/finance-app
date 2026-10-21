@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { budgetAPI, transactionsAPI } from '../../../services/api.js'
 import { invalidateCache } from '../../../services/cache.js'
-import { useUser, saveUser } from '../../../hooks/useUser.js'
+import { useUser } from '../../../hooks/useUser.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 import { analytics } from '../../../services/analytics.js'
 import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
@@ -10,12 +10,6 @@ import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
   window.dispatchEvent(new CustomEvent('budget-updated'))
-}
-
-function isLaunchedThisMonth(user) {
-  const now = new Date()
-  return user?.autoLaunchMonth === now.getMonth() + 1 &&
-         user?.autoLaunchYear  === now.getFullYear()
 }
 
 export default function FixedExpensesCard({ onMessage, onUpgrade }) {
@@ -27,7 +21,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const refAAAA = useRef(null)
   const [submitting, setSubmitting] = useState(false)
   const [launching,  setLaunching]  = useState(false)
-  const [launched,   setLaunched]   = useState(() => isLaunchedThisMonth(user))
+  const [payingId,   setPayingId]   = useState(null)
   const [endDateErr,      setEndDateErr]      = useState('')
   const [dueDayErr,       setDueDayErr]       = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
@@ -43,7 +37,8 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
 
   useEffect(() => { fetchBudgets() }, [])
 
-  const totalFixed = budgets.reduce((s, b) => s + b.amount, 0)
+  const totalFixed  = budgets.reduce((s, b) => s + b.amount, 0)
+  const unpaidCount = budgets.filter(b => !b.paidThisMonth).length
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -85,34 +80,12 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         endDate: endDateISO || undefined,
       })
 
-      // Se o auto-launch já rodou este mês, cria a transação agora mesmo
-      // (caso contrário, será criada pelo auto-launch no início do próximo ciclo)
-      let txLimitReached = false
-      const now = new Date()
-      const currentMonth = now.getMonth() + 1
-      const currentYear  = now.getFullYear()
-      if (user.autoLaunchMonth === currentMonth && user.autoLaunchYear === currentYear) {
-        try {
-          await transactionsAPI.create({
-            description: newBudget.name,
-            amount:      newBudget.amount,
-            type:        'expense',
-            category:    'fixed',
-          })
-        } catch (txErr) {
-          if (txErr?.response?.status === 403) txLimitReached = true
-          // outros erros: silencioso — budget foi criado, falha no lançamento é secundária
-        }
-      }
-
+      // A conta nasce "pendente" — usar "Marcar como paga" nela ou o botão de
+      // lançar as pendentes, igual a qualquer outra conta fixa.
       setNewBudget({ name: '', amount: '', dueDay: '', endDate: { dd: '', mm: '', aaaa: '' }, hasEndDate: false })
       fetchBudgets()
       notifyBudgetChanged()
-      if (txLimitReached) {
-        onMessage('Conta fixa criada, mas o lançamento não foi registrado (limite de transações atingido).', 'error')
-      } else {
-        onMessage('Conta fixa adicionada!')
-      }
+      onMessage('Conta fixa adicionada!')
     } catch (err) {
       if (err.response?.data?.limitReached) {
         analytics.track('limit_reached', { feature: 'budgets' })
@@ -130,18 +103,30 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     try {
       const { data } = await transactionsAPI.autoLaunch()
       if (data.alreadyLaunched) {
-        onMessage('As contas fixas já foram lançadas este mês.', 'success')
+        onMessage('Todas as contas fixas já foram pagas este mês.', 'success')
       } else {
-        onMessage(`✓ ${data.count} contas fixas lançadas como transações!`)
-        notifyBudgetChanged()
+        onMessage(`✓ ${data.count} ${data.count === 1 ? 'conta fixa lançada' : 'contas fixas lançadas'} como transações!`)
       }
-      setLaunched(true)
-      const now = new Date()
-      saveUser({ ...user, autoLaunchMonth: now.getMonth() + 1, autoLaunchYear: now.getFullYear() })
+      fetchBudgets()
+      notifyBudgetChanged()
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao lançar contas fixas.', 'error')
     } finally {
       setLaunching(false)
+    }
+  }
+
+  const handlePay = async (budget) => {
+    setPayingId(budget.id)
+    try {
+      await budgetAPI.pay(budget.id)
+      onMessage(`${budget.name} marcada como paga!`)
+      fetchBudgets()
+      notifyBudgetChanged()
+    } catch (err) {
+      onMessage(err.response?.data?.error || 'Erro ao marcar conta como paga.', 'error')
+    } finally {
+      setPayingId(null)
     }
   }
 
@@ -194,6 +179,25 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                       até {new Date(b.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })}
                     </span>
                   ) : null}
+                  {b.paidThisMonth ? (
+                    <span className="cfg-fixed-paid" title={b.paidDate ? `Pago em ${new Date(b.paidDate).toLocaleDateString('pt-BR')}` : undefined}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                      paga
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="cfg-btn-ghost cfg-fixed-pay-btn"
+                      onClick={() => handlePay(b)}
+                      disabled={payingId === b.id}
+                    >
+                      {payingId === b.id
+                        ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2 }} />
+                        : 'Marcar como paga'}
+                    </button>
+                  )}
                   <button className="cfg-del-btn" type="button" onClick={() => setDeleteConfirmId(b.id)} aria-label="Remover">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -210,12 +214,12 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         )}
         {budgets.length > 0 && (
           <div className="cfg-launch-row">
-            {launched ? (
+            {unpaidCount === 0 ? (
               <div className="cfg-launched-ok">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                Contas fixas lançadas este mês
+                Todas as contas fixas pagas este mês
               </div>
             ) : (
               <button className="cfg-btn-launch" onClick={handleLaunch} disabled={launching}>
@@ -225,7 +229,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                       </svg>
-                      Lançar como transações deste mês
+                      Lançar {unpaidCount === budgets.length ? 'todas como pagas' : `${unpaidCount} ${unpaidCount === 1 ? 'pendente' : 'pendentes'}`}
                     </>
                 }
               </button>

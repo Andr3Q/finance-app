@@ -102,6 +102,7 @@ export const budgetAPI = {
   create:        (data)       => api.post('/budget', data),
   update:        (id, data)   => api.put(`/budget/${id}`, data),
   remove:        (id)         => api.delete(`/budget/${id}`),
+  pay:           (id, data)   => api.post(`/budget/${id}/pay`, data || {}),
   updateSalary:  (salary)     => api.put('/budget/salary', { salary }),
   // Limites por categoria
   getLimits:     ()           => api.get('/budget/category-limits'),

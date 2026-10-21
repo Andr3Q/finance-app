@@ -713,6 +713,44 @@ export default function Transactions() {
             </div>
           )}
 
+          {/* ── Análise do mês (gastos variáveis) ── */}
+          {topCats.length >= 2 && !search && filter === 'all' && (
+            <div className="tx1-insights-section">
+              <div className="tx1-insights-header">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>
+                </svg>
+                <span>Análise do mês</span>
+              </div>
+              <div className="tx1-insights-body">
+                <div className="tx1-insights-highlight">
+                  <span className="tx1-insights-highlight-label">Maior gasto variável</span>
+                  <div className="tx1-insights-highlight-row">
+                    <div className="tx1-insights-highlight-ico">
+                      <CategoryIcon category={topCats[0][0]} size={15} color="currentColor" />
+                    </div>
+                    <span className="tx1-insights-highlight-cat">{CATEGORY_LABELS[topCats[0][0]] || topCats[0][0]}</span>
+                    <span className="tx1-insights-highlight-val">R$ {fmt(topCats[0][1])}</span>
+                    <span className="tx1-insights-highlight-pct">{Math.round(topCats[0][1] / totalVarExp * 100)}% do total</span>
+                  </div>
+                </div>
+                <div className="tx1-insights-cats">
+                  <span className="tx1-insights-cats-label">Top categorias</span>
+                  {topCats.map(([cat, val]) => (
+                    <div key={cat} className="tx1-insights-cat-row">
+                      <CategoryIcon category={cat} size={13} color="currentColor" />
+                      <span className="tx1-insights-cat-name">{CATEGORY_LABELS[cat] || cat}</span>
+                      <div className="tx1-insights-bar-wrap">
+                        <div className="tx1-insights-bar-fill" style={{ width:`${Math.round(val / topCats[0][1] * 100)}%` }} />
+                      </div>
+                      <span className="tx1-insights-cat-val">R$ {fmt(val)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Section: Gastos do Dia a Dia ── */}
           <div className="tx1-section-sep">
             <span className="tx1-section-title">Gastos do dia a dia</span>
@@ -809,38 +847,6 @@ export default function Transactions() {
                     })}
                   </div>
                 ))}
-                {topCats.length >= 2 && !search && filter === 'all' && (
-                  <div className="tx1-ai-box">
-                    <div className="tx1-ai-header">
-                      <div className="tx1-ai-icon">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                          <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                        </svg>
-                      </div>
-                      <span>Análise do mês</span>
-                    </div>
-                    <div className="tx1-ai-insights">
-                      <div className="tx1-ai-insight">
-                        <span className="tx1-ai-insight-label">Maior gasto variável</span>
-                        <span className="tx1-ai-insight-val">{CATEGORY_LABELS[topCats[0][0]] || topCats[0][0]} · R$ {fmt(topCats[0][1])} ({Math.round(topCats[0][1] / totalVarExp * 100)}% do total)</span>
-                      </div>
-                      <div className="tx1-ai-insight">
-                        <span className="tx1-ai-insight-label">Top categorias</span>
-                        <div className="tx1-ai-cats">
-                          {topCats.map(([cat, val]) => (
-                            <div key={cat} className="tx1-ai-cat-bar">
-                              <span className="tx1-ai-cat-name">{CATEGORY_LABELS[cat] || cat}</span>
-                              <div className="tx1-ai-bar-wrap">
-                                <div className="tx1-ai-bar-fill" style={{ width:`${Math.round(val / topCats[0][1] * 100)}%` }} />
-                              </div>
-                              <span className="tx1-ai-cat-val">R$ {fmt(val)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
                 <div className="tx1-footer">
                   <span>{filtered.length} transação(ões)</span>
                 </div>
