@@ -10532,7 +10532,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   width: 100%; display: flex; align-items: center; justify-content: center;
   background: #1546FF; color: #fff; border: none; border-radius: 12px;
   padding: 14px; font-size: 15px; font-weight: 700; font-family: var(--fd);
-  cursor: pointer; transition: background .15s;
+  cursor: pointer; transition: background .15s; text-decoration: none; box-sizing: border-box;
 }
 .auth-btn-primary:hover:not(:disabled) { background: #0f39e0; }
 .auth-btn-primary:disabled { opacity: .65; cursor: not-allowed; }
@@ -10570,6 +10570,16 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 }
 .auth-terms a { color: #1546FF; font-weight: 600; text-decoration: none; }
 .auth-terms a:hover { text-decoration: underline; }
+
+.auth-sent { text-align: center; padding: 8px 0 4px; }
+.auth-sent-ico {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(21,70,255,.08); border: 1px solid rgba(21,70,255,.18);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; color: #1546FF;
+}
+.auth-sent-title { font-family: var(--fd); font-weight: 800; font-size: 18px; color: #0d0d0d; margin: 0 0 10px; }
+.auth-sent-text { font-size: 13.5px; color: #6b7280; line-height: 1.6; margin: 0 0 22px; }
 
 @media (min-width: 700px) {
   .auth-card { max-width: 440px; }
