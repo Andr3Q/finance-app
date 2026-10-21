@@ -5286,7 +5286,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .home-story {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
   flex-shrink: 0; width: 56px; font-size: 10.5px; color: var(--t2); text-align: center;
+  /* Reset de <button> — o círculo do mês atual é clicável (abre a tela de
+     stories), os outros continuam <div> puros e ignoram isso de graça. */
+  background: none; border: none; padding: 0; font-family: inherit; cursor: default;
 }
+button.home-story { cursor: pointer; }
 .home-story span {
   width: 52px; height: 52px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -10636,4 +10640,57 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 
 @media (min-width: 700px) {
   .auth-card { max-width: 440px; }
+}
+
+/* ── Resumo em stories (tela 09) — tela cheia, só o slide de abertura por
+   enquanto. Zonas de toque começam abaixo do cabeçalho (top: 56px) pra
+   nunca brigar com os botões de pausar/fechar; o texto do slide tem
+   pointer-events:none pra não bloquear o toque por baixo dele. ── */
+.stories-page {
+  position: fixed; inset: 0; z-index: 2000;
+  background: linear-gradient(165deg, #1546FF 0%, #1140E8 55%, #0D34C4 100%);
+  color: #fff;
+  display: flex; flex-direction: column;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 24px;
+  overflow: hidden;
+}
+
+.stories-progress-row { display: flex; gap: 4px; margin-bottom: 14px; flex-shrink: 0; }
+.stories-progress-track { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,.3); overflow: hidden; }
+.stories-progress-fill { height: 100%; background: #fff; border-radius: 3px; }
+
+.stories-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
+.stories-header-user { display: flex; align-items: center; gap: 10px; }
+.stories-avatar {
+  width: 28px; height: 28px; border-radius: 9px; background: rgba(255,255,255,.2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0;
+}
+.stories-header-text { display: flex; flex-direction: column; line-height: 1.25; text-align: left; }
+.stories-title { font-size: 13px; font-weight: 700; }
+.stories-sub { font-size: 11px; color: rgba(255,255,255,.65); }
+.stories-header-actions { display: flex; align-items: center; gap: 2px; }
+.stories-iconbtn {
+  width: 30px; height: 30px; border-radius: 50%; background: none; border: none;
+  color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.stories-iconbtn:hover { background: rgba(255,255,255,.12); }
+
+.stories-tap-zone { position: absolute; top: 56px; bottom: 0; width: 40%; background: none; border: none; padding: 0; margin: 0; }
+.stories-tap-left  { left: 0; }
+.stories-tap-right { right: 0; }
+
+.stories-content {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  position: relative; pointer-events: none;
+}
+.stories-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: rgba(255,255,255,.6); margin-bottom: 10px;
+}
+.stories-headline { font-family: var(--fd); font-weight: 800; font-size: 30px; line-height: 1.15; margin: 0 0 12px; }
+.stories-subtext { font-size: 14px; color: rgba(255,255,255,.75); margin: 0; }
+
+@media (min-width: 700px) {
+  .stories-page { max-width: 440px; margin: 0 auto; border-radius: 24px; top: 24px; bottom: 24px; height: calc(100% - 48px); }
 }

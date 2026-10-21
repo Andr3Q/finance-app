@@ -77,7 +77,10 @@ export default function InstallBanner() {
   // campo de senha e do botão de entrar em viewports de celular, bloqueando
   // o login por toque — QA de homologação, 2026-10-19.
   const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']
-  if (!visible || pathname === '/settings/instalar' || AUTH_ROUTES.includes(pathname)) return null
+  // Resumo em stories (tela 09) é tela cheia por cima de tudo (z-index maior
+  // que esse banner) e tem o próprio botão "Fechar" — o banner aparecendo
+  // junto duplicava o rótulo "Fechar" e cobria parte da zona de toque.
+  if (!visible || pathname === '/settings/instalar' || pathname === '/resumo-stories' || AUTH_ROUTES.includes(pathname)) return null
 
   const posDesktop = { position: 'fixed', bottom: 24, right: 84, width: 300, zIndex: 210 }
   const posMobile  = {

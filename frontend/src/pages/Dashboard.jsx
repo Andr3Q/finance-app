@@ -411,27 +411,30 @@ export default function Dashboard() {
 
           <div className="home-body">
 
-            {/* Resumos em stories — tela própria ("Resumo em stories") ainda não
-                implementada, então os círculos só mostram visual por enquanto,
-                sem abrir nada ao tocar. */}
+            {/* Resumos em stories — "OUT" e "SET" abrem a tela 09 (Resumo em
+                stories, parametrizada pelo mês), que por ora só tem o slide
+                de abertura pra qualquer mês. Dicas IA e Metas ainda não têm
+                tela própria enviada, então continuam só visuais por
+                enquanto — todas as 4 têm o mesmo anel verde (sinaliza que
+                são tocáveis), confirmado por André. */}
             <h2 className="home-section-title">Resumos</h2>
             <div className="home-stories-row">
-              <div className="home-story home-story-blue">
+              <button className="home-story home-story-blue" onClick={() => navigate('/resumo-stories', { state: { monthOffset: 0 } })}>
                 <span>{MONTHS[now.getMonth()].slice(0, 3).toUpperCase()}</span>
                 <small>{MONTHS[now.getMonth()]}</small>
-              </div>
-              <div className="home-story home-story-dashed">
-                <IconPlus />
+              </button>
+              <div className="home-story home-story-light">
+                <span><IconSparkle /></span>
                 <small>Dicas IA</small>
               </div>
               <div className="home-story home-story-ring">
                 <span>{goalsAvgPct !== null ? `${goalsAvgPct}%` : '—'}</span>
                 <small>Metas</small>
               </div>
-              <div className="home-story home-story-blue">
+              <button className="home-story home-story-blue" onClick={() => navigate('/resumo-stories', { state: { monthOffset: -1 } })}>
                 <span>{MONTHS[prevMonthDate.getMonth()].slice(0, 3).toUpperCase()}</span>
                 <small>{MONTHS[prevMonthDate.getMonth()]}</small>
-              </div>
+              </button>
             </div>
 
             <div className="home-health-card">
