@@ -5,6 +5,12 @@ import { analytics } from '../services/analytics.js'
 import { saveUser } from '../hooks/useUser.js'
 import PasswordStrength from '../components/ui/PasswordStrength.jsx'
 
+const IconChevronLeft = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+)
+
 const EmailIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -260,6 +266,89 @@ export default function Login({ isRegister = false }) {
           <button type="button" className="lauth-link" style={{ marginTop: 8, width: '100%', textAlign: 'center', fontSize: 12, color: 'var(--t3)' }} onClick={() => setTwoFA({ active: false, tempToken: '', code: '', useBackup: false, backupCode: '' })}>
             Voltar ao login
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Tela 03 (Nancy 2) — login compacto, mesmo invólucro de página da Landing
+  // (lw-page). Cadastro continua na tela antiga (lauth-split) até a tela
+  // "Criar conta" do novo design chegar — ver project_nancy_2_redesign.
+  if (mode === 'login') {
+    return (
+      <div className="lw-page">
+        <div className="auth-card">
+          <div className="auth-hero">
+            <Link to="/" className="auth-back" aria-label="Voltar">
+              <IconChevronLeft />
+            </Link>
+            <h1 className="auth-title">Bem-vindo de volta</h1>
+            <p className="auth-subtitle">Entre para ver como estão suas finanças.</p>
+          </div>
+
+          <div className="auth-sheet">
+            <form onSubmit={handleSubmit} noValidate>
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="f-email">E-mail</label>
+                <input
+                  id="f-email" name="email" type="email"
+                  placeholder="voce@email.com"
+                  autoComplete="email" inputMode="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  className={`auth-input${fieldErrs.email ? ' err' : ''}`}
+                />
+                {fieldErrs.email && <div className="auth-field-err"><ErrIcon /> {fieldErrs.email}</div>}
+              </div>
+
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="f-pass">Senha</label>
+                <div className="auth-pass-wrap">
+                  <input
+                    id="f-pass" name="password"
+                    type={showPass ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    value={form.password}
+                    onChange={handleChange}
+                    className={`auth-input${fieldErrs.password ? ' err' : ''}`}
+                  />
+                  <button
+                    type="button"
+                    className="auth-eye"
+                    onClick={() => setShowPass(v => !v)}
+                    aria-label="Mostrar senha"
+                  >
+                    {showPass ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+                {fieldErrs.password && <div className="auth-field-err"><ErrIcon /> {fieldErrs.password}</div>}
+              </div>
+
+              <div className="auth-forgot-row">
+                <Link to="/forgot-password" className="auth-link-sm">Esqueci a senha</Link>
+              </div>
+
+              {serverErr && <div className="auth-server-err"><ErrIcon />{serverErr}</div>}
+
+              <button type="submit" className="auth-btn-primary" disabled={loading}>
+                {loading ? <div className="auth-spinner" /> : <span>Entrar</span>}
+              </button>
+            </form>
+
+            <div className="auth-divider"><span>ou</span></div>
+
+            <button
+              type="button"
+              className="auth-btn-google"
+              disabled
+              title="Login com Google — em breve"
+            >
+              Continuar com Google
+            </button>
+
+            <p className="auth-foot">Não tem conta? <Link to="/register">Criar conta</Link></p>
+          </div>
         </div>
       </div>
     )

@@ -51,7 +51,7 @@ describe('Login — modo entrar', () => {
     setup()
     await userEvent.type(screen.getByLabelText('E-mail'), 'invalido')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha123')
-    await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
     expect(await screen.findByText('E-mail inválido')).toBeInTheDocument()
   })
 
@@ -59,7 +59,7 @@ describe('Login — modo entrar', () => {
     setup()
     await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), '123')
-    await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
     expect(await screen.findByText('Mínimo 8 caracteres')).toBeInTheDocument()
   })
 
@@ -70,7 +70,7 @@ describe('Login — modo entrar', () => {
     setup()
     await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
-    await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
     expect(sessionStorage.getItem('token')).toBeNull()
   })
@@ -82,7 +82,7 @@ describe('Login — modo entrar', () => {
     setup({}, [{ pathname: '/login', state: { from: { pathname: '/settings/pagamentos', search: '?plano=pro' } } }])
     await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
-    await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/settings/pagamentos?plano=pro'))
   })
 
@@ -91,7 +91,7 @@ describe('Login — modo entrar', () => {
     setup()
     await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
-    await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
     expect(await screen.findByText('Credenciais inválidas')).toBeInTheDocument()
   })
 
@@ -102,7 +102,7 @@ describe('Login — modo entrar', () => {
     setup()
     await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
-    await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
     expect(await screen.findByText('Verificação em dois fatores')).toBeInTheDocument()
   })
 })
@@ -115,7 +115,7 @@ describe('Login — 2FA', () => {
     setup()
     await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
-    await userEvent.click(screen.getByRole('button', { name: /entrar na conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
     await screen.findByText('Verificação em dois fatores')
   }
 
