@@ -129,21 +129,20 @@ test.describe('Auth — Registro', () => {
     await page.getByRole('link', { name: /^criar conta$/i }).click()
     await expect(page).toHaveURL(/\/register/)
     // Exibe campo de nome (só aparece no modo register)
-    await expect(page.getByPlaceholder('André Pereira')).toBeVisible()
+    await expect(page.getByPlaceholder('Como quer ser chamado?')).toBeVisible()
   })
 
   test('preenche formulário e cria conta com sucesso', async ({ page }) => {
     await page.goto('/register')
 
-    await page.getByPlaceholder('André Pereira').fill('João Teste')
-    await page.getByPlaceholder('seu@email.com').fill('joao@test.com')
+    await page.getByPlaceholder('Como quer ser chamado?').fill('João Teste')
+    await page.getByPlaceholder('voce@email.com').fill('joao@test.com')
     await page.getByPlaceholder('Mínimo 8 caracteres').fill('Senha@123')
-    await page.getByPlaceholder('Repita a senha').fill('Senha@123')
 
     const termsBox = page.getByRole('checkbox', { name: /termos/i })
     if (await termsBox.isVisible()) await termsBox.check()
 
-    await page.getByRole('button', { name: /criar minha conta grátis/i }).click()
+    await page.getByRole('button', { name: /^criar conta$/i }).click()
 
     await expect(page).toHaveURL(/\/(dashboard|transactions|onboarding)?$/)
   })
@@ -154,15 +153,14 @@ test.describe('Auth — Registro', () => {
 
     await page.goto('/register')
 
-    await page.getByPlaceholder('André Pereira').fill('João')
-    await page.getByPlaceholder('seu@email.com').fill('existente@test.com')
+    await page.getByPlaceholder('Como quer ser chamado?').fill('João')
+    await page.getByPlaceholder('voce@email.com').fill('existente@test.com')
     await page.getByPlaceholder('Mínimo 8 caracteres').fill('Senha@123')
-    await page.getByPlaceholder('Repita a senha').fill('Senha@123')
 
     const termsBox = page.getByRole('checkbox', { name: /termos/i })
     if (await termsBox.isVisible()) await termsBox.check()
 
-    await page.getByRole('button', { name: /criar minha conta grátis/i }).click()
+    await page.getByRole('button', { name: /^criar conta$/i }).click()
     await expect(page.getByText(/já está cadastrado/i)).toBeVisible()
   })
 })

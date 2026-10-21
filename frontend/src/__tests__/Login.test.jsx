@@ -146,35 +146,34 @@ describe('Login — 2FA', () => {
 // ── Cadastro ─────────────────────────────────────────────────────────────────
 
 describe('Login — modo cadastro', () => {
-  it('renderiza campos nome, e-mail, senha e salário', () => {
+  it('renderiza campos nome, e-mail e senha', () => {
     setup({ isRegister: true })
-    expect(screen.getByLabelText('Nome completo')).toBeInTheDocument()
+    expect(screen.getByLabelText('Nome')).toBeInTheDocument()
     expect(screen.getByLabelText('E-mail')).toBeInTheDocument()
     expect(screen.getByLabelText('Senha')).toBeInTheDocument()
-    expect(screen.getByLabelText(/salário mensal/i)).toBeInTheDocument()
   })
 
   it('mostra erro se nome estiver vazio', async () => {
     setup({ isRegister: true })
-    await userEvent.click(screen.getByRole('button', { name: /criar minha conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^criar conta$/i }))
     expect(await screen.findByText('Nome obrigatório')).toBeInTheDocument()
   })
 
   it('mostra erro se senha não atender ao padrão PASSWORD_RE', async () => {
     setup({ isRegister: true })
-    await userEvent.type(screen.getByLabelText('Nome completo'), 'André')
+    await userEvent.type(screen.getByLabelText('Nome'), 'André')
     await userEvent.type(screen.getByLabelText('E-mail'), 'andre@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'senhafraca')
-    await userEvent.click(screen.getByRole('button', { name: /criar minha conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^criar conta$/i }))
     expect(await screen.findByText(/mínimo 8 caracteres/i)).toBeInTheDocument()
   })
 
   it('mostra erro se termos não forem aceitos', async () => {
     setup({ isRegister: true })
-    await userEvent.type(screen.getByLabelText('Nome completo'), 'André')
+    await userEvent.type(screen.getByLabelText('Nome'), 'André')
     await userEvent.type(screen.getByLabelText('E-mail'), 'andre@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
-    await userEvent.click(screen.getByRole('button', { name: /criar minha conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^criar conta$/i }))
     expect(await screen.findByText(/aceitar os termos/i)).toBeInTheDocument()
   })
 
@@ -183,12 +182,11 @@ describe('Login — modo cadastro', () => {
       data: { user: { id: '2', plan: 'free' } },
     })
     setup({ isRegister: true })
-    await userEvent.type(screen.getByLabelText('Nome completo'), 'André')
+    await userEvent.type(screen.getByLabelText('Nome'), 'André')
     await userEvent.type(screen.getByLabelText('E-mail'), 'andre@test.com')
     await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
-    await userEvent.type(screen.getByLabelText('Confirme sua senha'), 'Senha12345')
     await userEvent.click(screen.getByRole('checkbox'))
-    await userEvent.click(screen.getByRole('button', { name: /criar minha conta/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^criar conta$/i }))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
   })
 })

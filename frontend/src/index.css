@@ -10559,6 +10559,18 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .auth-foot a { color: #1546FF; font-weight: 600; text-decoration: none; }
 .auth-foot a:hover { text-decoration: underline; }
 
+.auth-terms {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 2px 0 14px; cursor: pointer;
+  font-size: 12.5px; color: #6b7280; line-height: 1.5;
+}
+.auth-terms input[type=checkbox] {
+  margin-top: 2px; width: 15px; height: 15px; flex-shrink: 0;
+  accent-color: #1546FF; cursor: pointer;
+}
+.auth-terms a { color: #1546FF; font-weight: 600; text-decoration: none; }
+.auth-terms a:hover { text-decoration: underline; }
+
 @media (min-width: 700px) {
   .auth-card { max-width: 440px; }
 }
