@@ -558,6 +558,254 @@ describe('POST /api/auth/reset-password', () => {
 
     expect(res.status).toBe(400)
   })
+
+  // Achado de auditoria de segurança (2026-10-21): sem isso, um usuário travado
+  // por força bruta continuava bloqueado no login mesmo depois de resetar a
+  // senha com sucesso — o único desbloqueio (e-mail de uso único, 1h de
+  // validade, sem reenvio) podia já ter expirado, deixando-o sem nenhuma rota
+  // self-service de recuperação.
+  test('limpa accountLockedAt e failedLoginCount ao resetar a senha com sucesso', async () => {
+    const crypto = require('crypto')
+    const token  = 'valid-reset-token-123'
+    const hash   = crypto.createHash('sha256').update(token).digest('hex')
+    const user   = mockUser({
+      resetToken: hash, resetTokenExpiry: new Date(Date.now() + 3600_000),
+      accountLockedAt: new Date(), failedLoginCount: 10,
+    })
+
+    prisma.user.findFirst.mockResolvedValue(user)
+    prisma.$transaction.mockResolvedValue([])
+
+    const res = await request(app)
+      .post('/api/auth/reset-password')
+      .send({ token, password: 'NewPassword456' })
+
+    expect(res.status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ accountLockedAt: null, failedLoginCount: 0 }),
+    }))
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// VERIFICAÇÃO DE E-MAIL + RECOMPENSA DE INDICAÇÃO
+// ══════════════════════════════════════════════════════════
+// Reescrito por achado de auditoria de segurança (2026-10-21): a versão
+// antiga fazia count()-então-update() sem lock algum, permitindo (a)
+// reprocessar o MESMO token de verificação em paralelo multiplicar a
+// recompensa pro mesmo indicado várias vezes, e (b) vários indicados
+// DIFERENTES verificando ao mesmo tempo estourarem o teto de 5 recompensas
+// por indicador. Zero cobertura de teste existia pra essa rota antes disto.
+describe('POST /api/auth/verify-email', () => {
+  const { sendReferralRewardEmail } = require('../src/services/emailService')
+  const TOKEN = 'valid-verify-token'
+  const HASH  = require('crypto').createHash('sha256').update(TOKEN).digest('hex')
+
+  // A recompensa roda em background (fire-and-forget, não bloqueia a resposta
+  // de /verify-email) — dá um tick pra cadeia de promises internas resolver
+  // antes de checar os mocks.
+  const flush = () => new Promise(resolve => setImmediate(resolve))
+
+  beforeEach(() => {
+    sendReferralRewardEmail.mockClear()
+  })
+
+  test('token ausente retorna 400', async () => {
+    const res = await request(app).post('/api/auth/verify-email').send({})
+    expect(res.status).toBe(400)
+  })
+
+  test('token inválido ou expirado retorna 400', async () => {
+    prisma.user.findFirst.mockResolvedValue(null)
+    const res = await request(app).post('/api/auth/verify-email').send({ token: 'lixo' })
+    expect(res.status).toBe(400)
+  })
+
+  test('verificação sem indicação: marca emailVerified e não mexe em recompensa', async () => {
+    const user = mockUser({ id: 'user-456', referredBy: null })
+    prisma.user.findFirst.mockResolvedValue(user)
+    prisma.user.updateMany.mockResolvedValue({ count: 1 })
+
+    const res = await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+    await flush()
+
+    expect(res.status).toBe(200)
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'user-456', emailVerifyToken: HASH, emailVerifyExpiry: { gt: expect.any(Date) } },
+      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
+    })
+    expect(sendReferralRewardEmail).not.toHaveBeenCalled()
+  })
+
+  // updateMany condicionado ao token: uma 2ª requisição concorrente com o
+  // MESMO token (já consumido pela 1ª) não encontra mais nada pra
+  // atualizar — count:0 — em vez de reprocessar como verificação válida.
+  test('token já consumido por outra requisição concorrente (count:0) retorna 400', async () => {
+    const user = mockUser({ id: 'user-456', referredBy: null })
+    prisma.user.findFirst.mockResolvedValue(user)
+    prisma.user.updateMany.mockResolvedValue({ count: 0 })
+
+    const res = await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+
+    expect(res.status).toBe(400)
+  })
+
+  describe('recompensa do indicador', () => {
+    // clearMocks (jest.config.js) só limpa o HISTÓRICO de chamadas antes de
+    // cada teste — não esvazia a fila de mockResolvedValueOnce ainda não
+    // consumida por um teste anterior que retornou mais cedo (ex: indicador
+    // não encontrado). mockReset() limpa a fila inteira também, evitando que
+    // um valor sobrando vaze pro próximo teste e desalinhe a sequência.
+    beforeEach(() => {
+      prisma.user.updateMany.mockReset()
+      prisma.user.findUnique.mockReset()
+    })
+
+    const referredUser = () => mockUser({ id: 'referred-1', referredBy: 'REFCODE1' })
+    const referrer = (overrides = {}) => ({
+      id: 'referrer-1', name: 'Quem Indicou', email: 'referrer@test.com',
+      plan: 'free', trialEndsAt: null, planExpiresAt: null, referralRewardsGiven: 0,
+      ...overrides,
+    })
+
+    // Sequência real de chamadas dentro de rewardReferrer(): 1) claim atômico
+    // no indicado (referralRewardedAt), 2) busca o indicador, 3) lê o estado
+    // atual do indicador (lock otimista), 4) updateMany condicionado pra
+    // creditar — mockResolvedValueOnce em ordem simula isso sem ambiguidade.
+    function mockRewardFlow({ claimCount = 1, referrerData, lockReadData, creditCount = 1 }) {
+      prisma.user.updateMany
+        .mockResolvedValueOnce({ count: 1 })       // verify-email: marca emailVerified
+        .mockResolvedValueOnce({ count: claimCount }) // claim do indicado
+      prisma.user.findUnique
+        .mockResolvedValueOnce(referrerData)        // busca o indicador por referralCode
+        .mockResolvedValueOnce(lockReadData)        // leitura do estado atual (lock otimista)
+      if (claimCount === 1 && referrerData) {
+        prisma.user.updateMany.mockResolvedValueOnce({ count: creditCount }) // credita
+      }
+    }
+
+    test('indicador sem trial/plano ativo: vira pro com novo trial de 10 dias', async () => {
+      prisma.user.findFirst.mockResolvedValue(referredUser())
+      mockRewardFlow({ referrerData: referrer(), lockReadData: referrer() })
+
+      const res = await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+      await flush()
+
+      expect(res.status).toBe(200)
+      const creditCall = prisma.user.updateMany.mock.calls[2][0]
+      expect(creditCall.where).toEqual({
+        id: 'referrer-1', referralRewardsGiven: 0, plan: 'free', trialEndsAt: null, planExpiresAt: null,
+      })
+      expect(creditCall.data.plan).toBe('pro')
+      expect(creditCall.data.referralRewardsGiven).toBe(1)
+      expect(creditCall.data.trialEndsAt.getTime()).toBeGreaterThan(Date.now() + 9 * 24 * 60 * 60 * 1000)
+      expect(sendReferralRewardEmail).toHaveBeenCalledWith('referrer@test.com', 'Quem Indicou', referredUser().name)
+    })
+
+    test('indicador com trial ativo: soma 10 dias ao trialEndsAt existente', async () => {
+      const futureTrials = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
+      prisma.user.findFirst.mockResolvedValue(referredUser())
+      mockRewardFlow({
+        referrerData: referrer({ trialEndsAt: futureTrials }),
+        lockReadData: referrer({ trialEndsAt: futureTrials }),
+      })
+
+      await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+      await flush()
+
+      const creditCall = prisma.user.updateMany.mock.calls[2][0]
+      expect(creditCall.data.trialEndsAt.getTime()).toBe(futureTrials.getTime() + 10 * 24 * 60 * 60 * 1000)
+      expect(creditCall.data.plan).toBeUndefined() // não mexe no plano, só estende o trial
+    })
+
+    test('indicador com plano pago ativo: soma 10 dias ao planExpiresAt existente', async () => {
+      const futureExpiry = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000)
+      prisma.user.findFirst.mockResolvedValue(referredUser())
+      mockRewardFlow({
+        referrerData: referrer({ plan: 'elite', planExpiresAt: futureExpiry }),
+        lockReadData: referrer({ plan: 'elite', planExpiresAt: futureExpiry }),
+      })
+
+      await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+      await flush()
+
+      const creditCall = prisma.user.updateMany.mock.calls[2][0]
+      expect(creditCall.data.planExpiresAt.getTime()).toBe(futureExpiry.getTime() + 10 * 24 * 60 * 60 * 1000)
+    })
+
+    // Achado 2 da auditoria: reprocessar o MESMO indicado (ex: 2 requisições
+    // concorrentes com o mesmo token de verificação) não pode recompensar 2x.
+    test('indicado já recompensado antes (claim perde a corrida): não credita de novo', async () => {
+      prisma.user.findFirst.mockResolvedValue(referredUser())
+      prisma.user.updateMany
+        .mockResolvedValueOnce({ count: 1 }) // verify-email: marca emailVerified
+        .mockResolvedValueOnce({ count: 0 }) // claim do indicado: já estava setado (perdeu a corrida)
+
+      const res = await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+      await flush()
+
+      expect(res.status).toBe(200) // a verificação de e-mail em si funciona normalmente
+      expect(prisma.user.findUnique).not.toHaveBeenCalled() // nem chega a buscar o indicador
+      expect(sendReferralRewardEmail).not.toHaveBeenCalled()
+    })
+
+    // Achado 3 da auditoria: teto de 5 recompensas por indicador, agora como
+    // parte do mesmo lock otimista que credita os dias (não mais uma
+    // contagem solta antes do update).
+    test('indicador já no teto de 5 recompensas: não credita a 6ª', async () => {
+      prisma.user.findFirst.mockResolvedValue(referredUser())
+      mockRewardFlow({
+        referrerData: referrer({ referralRewardsGiven: 5 }),
+        lockReadData: referrer({ referralRewardsGiven: 5 }),
+      })
+
+      await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+      await flush()
+
+      // só 2 updateMany: marca emailVerified + claim do indicado — nunca chega a creditar
+      expect(prisma.user.updateMany).toHaveBeenCalledTimes(2)
+      expect(sendReferralRewardEmail).not.toHaveBeenCalled()
+    })
+
+    test('código de indicação não corresponde a nenhum indicador: não quebra, não credita', async () => {
+      prisma.user.findFirst.mockResolvedValue(referredUser())
+      prisma.user.updateMany
+        .mockResolvedValueOnce({ count: 1 })
+        .mockResolvedValueOnce({ count: 1 })
+      prisma.user.findUnique.mockResolvedValueOnce(null) // indicador não existe mais
+
+      const res = await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+      await flush()
+
+      expect(res.status).toBe(200)
+      expect(sendReferralRewardEmail).not.toHaveBeenCalled()
+    })
+
+    // Corrida entre indicados DIFERENTES (ou qualquer outra escrita concorrente
+    // no indicador): a 1ª tentativa do lock otimista perde (outra transação já
+    // mudou a linha), tenta de novo com o valor fresco, e credita na 2ª.
+    test('lock otimista perde a 1ª tentativa (corrida) e credita com sucesso na 2ª', async () => {
+      prisma.user.findFirst.mockResolvedValue(referredUser())
+      prisma.user.updateMany
+        .mockResolvedValueOnce({ count: 1 }) // verify-email
+        .mockResolvedValueOnce({ count: 1 }) // claim do indicado
+        .mockResolvedValueOnce({ count: 0 }) // 1ª tentativa de crédito: perdeu a corrida
+        .mockResolvedValueOnce({ count: 1 }) // 2ª tentativa: sucesso com valor fresco
+      prisma.user.findUnique
+        .mockResolvedValueOnce(referrer())                              // busca indicador
+        .mockResolvedValueOnce(referrer({ referralRewardsGiven: 0 }))   // 1ª leitura (lock)
+        .mockResolvedValueOnce(referrer({ referralRewardsGiven: 1 }))   // 2ª leitura: outra recompensa já foi dada nesse meio tempo
+
+      const res = await request(app).post('/api/auth/verify-email').send({ token: TOKEN })
+      await flush()
+
+      expect(res.status).toBe(200)
+      expect(prisma.user.updateMany).toHaveBeenCalledTimes(4)
+      const secondAttemptData = prisma.user.updateMany.mock.calls[3][0].data
+      expect(secondAttemptData.referralRewardsGiven).toBe(2) // baseado na leitura fresca (1), não na antiga (0)
+      expect(sendReferralRewardEmail).toHaveBeenCalled()
+    })
+  })
 })
 
 // ══════════════════════════════════════════════════════════

@@ -13,12 +13,23 @@ import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
 
+// Neutraliza CSV Injection (Formula Injection): um valor começando com
+// =, +, -, @, tab ou CR é interpretado como fórmula por Excel/Sheets/
+// LibreOffice ao abrir o arquivo exportado (ex: descrição de uma transação
+// digitada como "=HYPERLINK(...)" por quem a criou) — prefixar com aspas
+// simples força o programa a tratar como texto literal, sem alterar o que
+// aparece na célula. Achado de auditoria de segurança, 2026-10-21.
+export function csvSafe(value) {
+  const str = String(value ?? '')
+  return /^[=+\-@\t\r]/.test(str) ? `'${str}` : str
+}
+
 function exportCSV(rows) {
   const header = ['Data', 'Descrição', 'Categoria', 'Tipo', 'Valor (R$)']
   const lines  = rows.map(t => {
     const date = new Date(t.date).toLocaleDateString('pt-BR')
-    const desc = (t.description || CATEGORY_LABELS[t.category] || t.category).replace(/"/g, '""')
-    const cat  = (CATEGORY_LABELS[t.category] || t.category).replace(/"/g, '""')
+    const desc = csvSafe(t.description || CATEGORY_LABELS[t.category] || t.category).replace(/"/g, '""')
+    const cat  = csvSafe(CATEGORY_LABELS[t.category] || t.category).replace(/"/g, '""')
     const type = t.type === 'income' ? 'Entrada' : 'Saída'
     const val  = (t.type === 'income' ? t.amount : -t.amount).toFixed(2).replace('.', ',')
     return `"${date}","${desc}","${cat}","${type}","${val}"`

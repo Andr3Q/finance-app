@@ -55,34 +55,72 @@ function setAuthCookie(res, token) {
 
 const router = express.Router()
 
-async function rewardReferrer(referrer) {
-  const BONUS_MS = 10 * 24 * 60 * 60 * 1000  // 10 dias por indicação válida
+// Recompensa o indicador quando `referredUserId` (o indicado) verifica o
+// e-mail. Retorna { email, name } do indicador se recompensou, ou null.
+//
+// Reescrito por achado de auditoria de segurança (2026-10-21): a versão
+// antiga fazia count()-então-update() sem nenhum lock, em 2 corridas reais:
+// (a) reprocessar o MESMO token de verificação em paralelo multiplicava a
+// recompensa pro mesmo indicado várias vezes; (b) vários indicados
+// DIFERENTES verificando ao mesmo tempo passavam todos pela checagem do
+// teto de 5 antes de qualquer update confirmar, estourando o limite.
+//
+// Fix: (a) um updateMany atômico em referralRewardedAt do PRÓPRIO indicado
+// garante que cada indicado só pode disparar a recompensa 1 vez, não
+// importa quantas requisições concorrentes cheguem. (b) o teto de 5 e o
+// crédito de dias do indicador viram UMA única operação com lock otimista
+// e retry (mesmo padrão de payments.js/A-03): lê plan/trialEndsAt/
+// planExpiresAt/referralRewardsGiven, calcula o novo valor, e só grava se
+// nada mudou desde a leitura — senão tenta de novo com o valor fresco.
+async function rewardReferrer(referredUserId, referralCode) {
+  const BONUS_MS     = 10 * 24 * 60 * 60 * 1000  // 10 dias por indicação válida
+  const MAX_REWARDS  = 5
+  const MAX_RETRIES  = 5
 
-  // Anti-abuso: conta apenas indicados que verificaram o e-mail (sem fake accounts)
-  // Máximo de 5 recompensas por indicador — após isso, link funciona mas sem bônus
-  const rewardedCount = await prisma.user.count({
-    where: { referredBy: referrer.referralCode, emailVerified: true },
+  const claim = await prisma.user.updateMany({
+    where: { id: referredUserId, referralRewardedAt: null },
+    data:  { referralRewardedAt: new Date() },
   })
-  if (rewardedCount > 5) return false  // limite atingido (> 5 pois o indicado já consta como verified ao contar)
+  if (claim.count === 0) return null // já recompensado antes, ou corrida perdida
 
-  const now      = new Date()
-  if (referrer.plan !== 'free' && referrer.planExpiresAt && referrer.planExpiresAt > now) {
-    await prisma.user.update({
-      where: { id: referrer.id },
-      data:  { planExpiresAt: new Date(referrer.planExpiresAt.getTime() + BONUS_MS) },
+  const referrer = await prisma.user.findUnique({
+    where:  { referralCode },
+    select: { id: true, name: true, email: true },
+  })
+  if (!referrer) return null
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const cur = await prisma.user.findUnique({
+      where:  { id: referrer.id },
+      select: { plan: true, trialEndsAt: true, planExpiresAt: true, referralRewardsGiven: true },
     })
-  } else if (referrer.trialEndsAt && referrer.trialEndsAt > now) {
-    await prisma.user.update({
-      where: { id: referrer.id },
-      data:  { trialEndsAt: new Date(referrer.trialEndsAt.getTime() + BONUS_MS) },
+    if (!cur || cur.referralRewardsGiven >= MAX_REWARDS) return null // limite atingido
+
+    const now  = new Date()
+    const data = { referralRewardsGiven: cur.referralRewardsGiven + 1 }
+    if (cur.plan !== 'free' && cur.planExpiresAt && cur.planExpiresAt > now) {
+      data.planExpiresAt = new Date(cur.planExpiresAt.getTime() + BONUS_MS)
+    } else if (cur.trialEndsAt && cur.trialEndsAt > now) {
+      data.trialEndsAt = new Date(cur.trialEndsAt.getTime() + BONUS_MS)
+    } else {
+      data.plan        = 'pro'
+      data.trialEndsAt = new Date(now.getTime() + BONUS_MS)
+    }
+
+    const result = await prisma.user.updateMany({
+      where: {
+        id: referrer.id, referralRewardsGiven: cur.referralRewardsGiven,
+        plan: cur.plan, trialEndsAt: cur.trialEndsAt, planExpiresAt: cur.planExpiresAt,
+      },
+      data,
     })
-  } else {
-    await prisma.user.update({
-      where: { id: referrer.id },
-      data:  { plan: 'pro', trialEndsAt: new Date(now.getTime() + BONUS_MS) },
-    })
+    if (result.count === 1) return { email: referrer.email, name: referrer.name }
   }
-  return true
+
+  reportError(new Error(`rewardReferrer: falha após ${MAX_RETRIES} tentativas concorrentes`), {
+    tag: '[auth] rewardReferrer', referrerId: referrer.id,
+  })
+  return null
 }
 
 // ── POST /auth/register ─────────────────────────────────
@@ -516,11 +554,19 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12)
     // Desativa 2FA junto com o reset — o link de e-mail prova identidade do dono da conta.
     // Incrementa tokenVersion para invalidar todos os JWTs ativos emitidos antes do reset.
+    // Limpa accountLockedAt/failedLoginCount: sem isso, quem reseta a senha depois de
+    // travado por força bruta continuava bloqueado no login (o único desbloqueio era um
+    // e-mail de uso único enviado na hora do lockout, com 1h de validade e sem reenvio —
+    // achado de auditoria de segurança, 2026-10-21).
     await prisma.$transaction([
       prisma.twoFactorBackupCode.deleteMany({ where: { userId: user.id } }),
       prisma.user.update({
         where: { id: user.id },
-        data:  { password: hashedPassword, resetToken: null, resetTokenExpiry: null, twoFactorEnabled: false, twoFactorSecret: null, tokenVersion: { increment: 1 } },
+        data:  {
+          password: hashedPassword, resetToken: null, resetTokenExpiry: null,
+          twoFactorEnabled: false, twoFactorSecret: null, tokenVersion: { increment: 1 },
+          accountLockedAt: null, failedLoginCount: 0,
+        },
       }),
     ])
 
@@ -816,7 +862,9 @@ router.put('/password', authMiddleware, async (req, res) => {
 // Pública — recebe o token no body (não na URL) para evitar exposição em logs.
 // O link do e-mail aponta para a rota do frontend que lê o token da URL
 // e o envia via POST body, evitando que apareça em logs de acesso do servidor.
-router.post('/verify-email', async (req, res) => {
+// verifyEmailLimiter: faltava aqui (só protegia o reenvio) — achado de
+// auditoria de segurança, 2026-10-21.
+router.post('/verify-email', verifyEmailLimiter, async (req, res) => {
   try {
     const { token } = req.body
     if (!token || typeof token !== 'string') {
@@ -828,22 +876,23 @@ router.post('/verify-email', async (req, res) => {
     })
     if (!user) return res.status(400).json({ error: 'Link inválido ou expirado. Solicite um novo na página de configurações.' })
 
-    await prisma.user.update({
-      where: { id: user.id },
+    // updateMany (não update) condicionado ao token ainda ser o mesmo e
+    // válido: uma 2ª requisição concorrente com o MESMO token não encontra
+    // mais nada pra atualizar depois que a 1ª já limpou emailVerifyToken,
+    // em vez de as duas reprocessarem o verify (e a recompensa de indicação
+    // abaixo) como se fossem 2 verificações legítimas.
+    const claim = await prisma.user.updateMany({
+      where: { id: user.id, emailVerifyToken: hash, emailVerifyExpiry: { gt: new Date() } },
       data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
     })
+    if (claim.count === 0) return res.status(400).json({ error: 'Link inválido ou expirado. Solicite um novo na página de configurações.' })
 
     // Recompensa diferida: se esse usuário foi indicado, libera o bônus para o indicador
     // (verificação de e-mail garante que não é conta fake — mecanismo anti-abuso)
     if (user.referredBy) {
-      prisma.user.findUnique({
-        where:  { referralCode: user.referredBy },
-        select: { id: true, plan: true, trialEndsAt: true, planExpiresAt: true, referralCode: true, name: true, email: true },
-      }).then(referrer => {
-        if (referrer) rewardReferrer(referrer).then(rewarded => {
-          if (rewarded) sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
-        }).catch(() => {})
-      }).catch(() => {})
+      rewardReferrer(user.id, user.referredBy).then(referrer => {
+        if (referrer) sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
+      }).catch(err => reportError(err, { tag: '[auth] rewardReferrer call' }))
     }
 
     res.json({ ok: true })
