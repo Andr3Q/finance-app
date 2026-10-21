@@ -1,6 +1,5 @@
 // @ts-nocheck
 const { test, expect } = require('@playwright/test')
-const { createMock }   = require('../helpers/mockApi')
 
 // ─────────────────────────────────────────────────────────────────
 // Dados de mock — completos para o contrato atual da API
@@ -15,23 +14,25 @@ const mockUser = {
   notifBudgetAlert: true, notifBudgetReminder: true,
 }
 
-// 7 transações em 5 datas distintas — garante que "Ver mais" aparece (FEED_PREVIEW=3)
+// 7 transações — "Últimas" mostra só as 5 mais recentes (slice(0,5))
 const mockTxList = [
-  { id: 't1', description: 'Aluguel',     amount: 2000, type: 'expense', category: 'housing',  date: '2026-06-01T10:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't2', description: 'Salário',      amount: 5000, type: 'income',  category: 'salary',   date: '2026-06-01T09:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't3', description: 'Supermercado', amount:  450, type: 'expense', category: 'food',     date: '2026-06-02T12:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't4', description: 'Internet',     amount:  120, type: 'expense', category: 'utilities',date: '2026-06-03T08:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't5', description: 'Freelance',    amount: 1500, type: 'income',  category: 'freelance',date: '2026-06-04T14:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't6', description: 'Luz',          amount:  180, type: 'expense', category: 'utilities',date: '2026-06-05T10:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't7', description: 'Academia',     amount:   90, type: 'expense', category: 'health',   date: '2026-06-05T11:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't1', description: 'Aluguel',     amount: 2000, type: 'expense', category: 'housing',  date: '2026-06-05T10:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't2', description: 'Academia',    amount:   90, type: 'expense', category: 'health',   date: '2026-06-05T11:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't3', description: 'Supermercado',amount:  450, type: 'expense', category: 'food',     date: '2026-06-04T12:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't4', description: 'Internet',    amount:  120, type: 'expense', category: 'utilities',date: '2026-06-03T08:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't5', description: 'Freelance',   amount: 1500, type: 'income',  category: 'freelance',date: '2026-06-02T14:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't6', description: 'Luz',         amount:  180, type: 'expense', category: 'utilities',date: '2026-06-01T10:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't7', description: 'Salário',     amount: 5000, type: 'income',  category: 'salary',   date: '2026-06-01T09:00:00Z', month: 6, year: 2026, archived: false },
 ]
 
-// Resposta do /api/transactions/dashboard — shape correto esperado pelo componente
+// Resposta do /api/transactions/dashboard — mesmo shape que o backend real
+// envia (backend/src/routes/transactions.js) — score/saúde financeira são
+// computados no client a partir destes campos, não vêm prontos do backend.
 const mockDashboard = {
   summary: {
-    currentBalance: 5660, totalAvailable: 6500, salary: 5000,
-    totalExpenses: 2840, totalIncome: 1500, percentUsed: 57,
-    financialScore: 72, healthLabel: 'Saudável', extras: 1500,
+    salary: 5000, totalIncome: 1500, totalFixedCosts: 2000, unpaidFixedCosts: 0,
+    unpaidBudgetIds: [], totalExpenses: 2840, totalAvailable: 6500,
+    currentBalance: 3660, percentUsed: 44,
   },
   transactions: mockTxList,
   limits: [],
@@ -51,7 +52,6 @@ async function goDashboard(page) {
   })
 
   // 2. Rotas específicas (maior prioridade — sobrepõem o wildcard)
-  // LIFO — ordem: geral ANTES, específico DEPOIS (específico ganha)
   await page.route('**/api/auth/me**',            r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockUser) }))
   await page.route('**/api/transactions**',        r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockTxList) }))
   await page.route('**/api/transactions/dashboard**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard) }))
@@ -101,10 +101,10 @@ test.describe('Dashboard — Responsividade Mobile (375px)', () => {
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
   })
 
-  test('.hb-feed-card não ultrapassa a borda da tela', async ({ page }) => {
+  test('.home-recent não ultrapassa a borda da tela', async ({ page }) => {
     await goDashboard(page)
     const cardRight = await page.evaluate(() => {
-      const card = document.querySelector('.hb-feed-card')
+      const card = document.querySelector('.home-recent')
       if (!card) return null
       return card.getBoundingClientRect().right
     })
@@ -114,190 +114,106 @@ test.describe('Dashboard — Responsividade Mobile (375px)', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 2. HERO MOBILE — tabs e card (hb-kpi-block)
+// 2. CABEÇALHO — saldo e ações rápidas (Nancy 2, tela 08)
 // ─────────────────────────────────────────────────────────────────
-test.describe('Dashboard — Hero Mobile', () => {
+test.describe('Dashboard — Início: cabeçalho e ações rápidas', () => {
   test.use({ viewport: { width: 393, height: 852 } })
 
-  test('bloco kpi-block visível no mobile', async ({ page }) => {
+  test('saldo disponível visível com o valor do resumo', async ({ page }) => {
     await goDashboard(page)
-    await expect(page.locator('.hb-kpi-block')).toBeVisible()
+    await expect(page.locator('.home-balance-lbl')).toContainText('Saldo disponível')
+    await expect(page.locator('.home-balance-val')).toContainText('3.660')
   })
 
-  test('4 tabs visíveis (Saldo, Entradas, Gastos, Score)', async ({ page }) => {
+  test('4 ações rápidas visíveis (Adicionar, Extrato, Metas, Nancy IA)', async ({ page }) => {
     await goDashboard(page)
-    const tabs = page.locator('.hb-btab')
-    await expect(tabs).toHaveCount(4)
-    await expect(tabs.nth(0)).toContainText('Saldo')
-    await expect(tabs.nth(1)).toContainText('Entradas')
-    await expect(tabs.nth(2)).toContainText('Gastos')
-    await expect(tabs.nth(3)).toContainText('Score')
+    const actions = page.locator('.home-qa-btn')
+    await expect(actions).toHaveCount(4)
+    await expect(actions.nth(0)).toContainText('Adicionar')
+    await expect(actions.nth(1)).toContainText('Extrato')
+    await expect(actions.nth(2)).toContainText('Metas')
+    await expect(actions.nth(3)).toContainText('Nancy IA')
   })
 
-  test('tab Saldo ativa por padrão — underline verde', async ({ page }) => {
+  test('botão "Adicionar" abre o formulário de nova transação', async ({ page }) => {
     await goDashboard(page)
-    const saldoTab = page.locator('.hb-btab').first()
-    const borderColor = await saldoTab.evaluate(el =>
-      window.getComputedStyle(el).borderBottomColor
-    )
-    // Deve ter border-bottom colorido (não transparente)
-    expect(borderColor).not.toBe('rgba(0, 0, 0, 0)')
-    expect(borderColor).not.toBe('transparent')
+    await page.locator('.home-qa-btn', { hasText: 'Adicionar' }).click()
+    await expect(page.locator('.modal-overlay.movl')).toBeVisible({ timeout: 5000 })
   })
 
-  test('clicar tab Score muda conteúdo do card', async ({ page }) => {
+  test('ocultar/mostrar saldo mascara os valores sensíveis', async ({ page }) => {
     await goDashboard(page)
-    await page.locator('.hb-btab').nth(3).click()
-    await page.waitForTimeout(200)
-    const scoreLabel = page.locator('.hb-pane-lbl')
-    await expect(scoreLabel).toContainText(/score/i)
-  })
+    const balance = page.locator('.home-balance-val')
+    await expect(balance).toContainText('3.660')
 
-  test('botão Nova Transação visível no hero mobile', async ({ page }) => {
-    await goDashboard(page)
-    const btn = page.locator('.hb-btn-main')
-    await expect(btn).toBeVisible()
-    await expect(btn).toContainText('Nova Transação')
-  })
+    await page.locator('.home-iconbtn[aria-label="Ocultar valores"]').click()
+    await expect(balance).toContainText('••')
+    await expect(balance).not.toContainText('3.660')
 
-  test('hb-desktop-only oculto em 393px', async ({ page }) => {
-    await goDashboard(page)
-    const desktop = page.locator('.hb-desktop-only').first()
-    const isHidden = await desktop.evaluate(el =>
-      window.getComputedStyle(el).display === 'none'
-    )
-    expect(isHidden).toBe(true)
+    await page.locator('.home-iconbtn[aria-label="Mostrar valores"]').click()
+    await expect(balance).toContainText('3.660')
   })
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 3. HERO DESKTOP — tabs + gráfico
+// 3. RESUMOS, SAÚDE FINANCEIRA E ESTATÍSTICAS
 // ─────────────────────────────────────────────────────────────────
-test.describe('Dashboard — Hero Desktop (1280px)', () => {
-  test.use({ viewport: { width: 1280, height: 800 } })
+test.describe('Dashboard — Resumos, saúde financeira e estatísticas', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
 
-  test('hero section visível no desktop', async ({ page }) => {
+  test('4 círculos de resumo visíveis', async ({ page }) => {
     await goDashboard(page)
-    await expect(page.locator('.hb-hero-section')).toBeVisible()
+    await expect(page.locator('.home-story')).toHaveCount(4)
   })
 
-  test('4 tabs desktop visíveis', async ({ page }) => {
+  test('card de saúde financeira mostra uma pontuação de 0 a 100', async ({ page }) => {
     await goDashboard(page)
-    const tabs = page.locator('.hb-htab')
-    await expect(tabs).toHaveCount(4)
+    const scoreText = await page.locator('.home-health-score').textContent()
+    const score = parseInt(scoreText, 10)
+    expect(score).toBeGreaterThanOrEqual(0)
+    expect(score).toBeLessThanOrEqual(100)
+    await expect(page.locator('.home-health-title')).toContainText('Saúde financeira')
   })
 
-  test('gráfico SVG renderizado no hero', async ({ page }) => {
+  test('3 estatísticas visíveis (Entradas, Saídas, Contas fixas)', async ({ page }) => {
     await goDashboard(page)
-    const hasSvg = await page.evaluate(() => !!document.querySelector('.hb-chart-svg'))
-    expect(hasSvg).toBe(true)
-  })
-
-  test('hb-kpi-block oculto em 1280px', async ({ page }) => {
-    await goDashboard(page)
-    const mobile = page.locator('.hb-kpi-block').first()
-    const isHidden = await mobile.evaluate(el =>
-      window.getComputedStyle(el).display === 'none'
-    )
-    expect(isHidden).toBe(true)
+    const stats = page.locator('.home-stat')
+    await expect(stats).toHaveCount(3)
+    await expect(stats.nth(0)).toContainText('Entradas')
+    await expect(stats.nth(1)).toContainText('Saídas')
+    await expect(stats.nth(2)).toContainText('Contas fixas')
   })
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 4. FEED DE ATIVIDADE — Ver mais / Ver menos
+// 4. ÚLTIMAS — lista de transações recentes
 // ─────────────────────────────────────────────────────────────────
-test.describe('Dashboard — Feed de Atividade (Ver mais / Ver menos)', () => {
+test.describe('Dashboard — Últimas transações', () => {
 
-  test('botão "Ver mais" aparece quando há mais de 3 grupos de data', async ({ page }) => {
+  test('mostra no máximo as 5 transações mais recentes', async ({ page }) => {
     await goDashboard(page)
-    const btn = page.locator('.hb-feed-toggle')
-    await expect(btn).toBeVisible({ timeout: 8000 })
-    await expect(btn).toContainText('Ver mais')
+    const rows = page.locator('.home-recent-row')
+    await expect(rows.first()).toBeVisible({ timeout: 8000 })
+    const count = await rows.count()
+    expect(count).toBeLessThanOrEqual(5)
+    expect(count).toBeGreaterThan(0)
   })
 
-  test('clicar "Ver mais" expande o feed e exibe "Ver menos"', async ({ page }) => {
+  test('"Ver extrato" navega para /transactions', async ({ page }) => {
     await goDashboard(page)
-    const toggle = page.locator('.hb-feed-toggle')
-    await expect(toggle).toContainText('Ver mais', { timeout: 8000 })
-
-    await toggle.click()
-    await expect(toggle).toContainText('Ver menos')
+    await page.locator('.home-section-link', { hasText: 'Ver extrato' }).click()
+    await page.waitForURL(/\/transactions/, { timeout: 5000 })
   })
 
-  test('clicar "Ver menos" volta ao estado colapsado', async ({ page }) => {
+  test('remover transação abre o diálogo de confirmação', async ({ page }) => {
     await goDashboard(page)
-    const toggle = page.locator('.hb-feed-toggle')
-    await toggle.click()
-    await expect(toggle).toContainText('Ver menos')
-    await toggle.click()
-    await expect(toggle).toContainText('Ver mais')
+    await page.locator('.home-recent-del').first().click()
+    await expect(page.getByText('Tem certeza?')).toBeVisible()
   })
-
-  test('trocar filtro "Gastos" reseta feed para colapsado', async ({ page }) => {
-    await goDashboard(page)
-    const toggle = page.locator('.hb-feed-toggle')
-    await toggle.click()
-    await expect(toggle).toContainText('Ver menos')
-
-    // Clica no filtro do feed (não no tab do hero)
-    await page.locator('.hb-feed-tab', { hasText: /^Gastos$/i }).click()
-    await expect(toggle).toContainText('Ver mais', { timeout: 5000 })
-  })
-
-  test('lista original de transações não é mutada', async ({ page }) => {
-    await goDashboard(page)
-    const countBefore = await page.locator('.hb-feed-item').count()
-    await page.locator('.hb-feed-toggle').click()
-    const countAfter = await page.locator('.hb-feed-item').count()
-    expect(countAfter).toBeGreaterThanOrEqual(countBefore)
-    expect(countAfter).toBeLessThanOrEqual(mockTxList.length)
-  })
-
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 5. TOKEN DE COR var(--c)
-// ─────────────────────────────────────────────────────────────────
-test.describe('Dashboard — Token de cor var(--c)', () => {
-
-  test('--c está definido no :root', async ({ page }) => {
-    await goDashboard(page)
-    const color = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--c').trim()
-    )
-    expect(color).not.toBe('')
-    expect(color.startsWith('#') || color.startsWith('rgb')).toBeTruthy()
-  })
-
-  test('botão Nova Transação mobile usa var(--c) — não hardcoded #4ac46e', async ({ page }) => {
-    await page.setViewportSize({ width: 393, height: 852 })
-    await goDashboard(page)
-
-    // Mobile: .hb-btn-main
-    const btnBg = await page.evaluate(() => {
-      const btn = document.querySelector('.hb-btn-main')
-      return btn ? getComputedStyle(btn).backgroundColor : null
-    })
-    expect(btnBg).not.toBeNull()
-    expect(btnBg).not.toBe('rgb(74, 196, 110)')   // antigo #4ac46e hardcoded
-  })
-
-  test('botão Nova Transação desktop usa var(--c) — não hardcoded', async ({ page }) => {
-    await goDashboard(page) // viewport padrão 1280px
-
-    // Desktop: .hb-hero-btn
-    const btnBg = await page.evaluate(() => {
-      const btn = document.querySelector('.hb-hero-btn')
-      return btn ? getComputedStyle(btn).backgroundColor : null
-    })
-    expect(btnBg).not.toBeNull()
-    expect(btnBg).not.toBe('rgb(74, 196, 110)')
-  })
-
-})
-
-// ─────────────────────────────────────────────────────────────────
-// 6. MOCK LIFO — Isolamento em execução paralela
+// 5. MOCK LIFO — Isolamento em execução paralela
 // ─────────────────────────────────────────────────────────────────
 test.describe('Dashboard — Isolamento de mocks (LIFO / paralelo)', () => {
 

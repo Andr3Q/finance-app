@@ -5227,6 +5227,138 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* ═══════════════════════════════════════════════════════
+   home-* — Início (Nancy 2, tela 08). Substitui o conteúdo do dashboard
+   que usava as classes hb-* logo abaixo — deixadas como estão (algumas,
+   como .hb-empty, continuam em uso aqui mesmo). Cabeçalho sempre azul
+   (marca, igual nas telas de auth); corpo segue o tema claro/escuro do
+   app normalmente (diferente das telas de auth, que são sempre escuras).
+   ═══════════════════════════════════════════════════════ */
+.home-page { padding-bottom: 32px; }
+
+.home-hero {
+  background: linear-gradient(165deg, #1546FF 0%, #1140E8 55%, #0D34C4 100%);
+  padding: 20px 20px 24px;
+  color: #fff;
+}
+.home-hero-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.home-user { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.home-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0;
+}
+.home-greet { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.home-hi { font-size: 12px; color: rgba(255,255,255,.75); }
+.home-name { font-size: 15px; font-weight: 700; font-family: var(--fd); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.home-hero-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.home-iconbtn {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: rgba(255,255,255,.14); border: none; color: #fff;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  position: relative; flex-shrink: 0;
+}
+.home-iconbtn:hover { background: rgba(255,255,255,.22); }
+
+.home-balance-lbl { font-size: 12.5px; color: rgba(255,255,255,.7); margin-bottom: 4px; }
+.home-balance-val { font-family: var(--fd); font-weight: 800; font-size: 30px; margin-bottom: 16px; }
+
+.home-quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.home-qa-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  background: rgba(255,255,255,.12); border: none; border-radius: 14px;
+  padding: 10px 4px; color: #fff; font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.home-qa-btn:hover { background: rgba(255,255,255,.2); }
+.home-qa-ico { width: 32px; height: 32px; border-radius: 10px; background: rgba(255,255,255,.14); display: flex; align-items: center; justify-content: center; }
+.home-qa-btn-active { background: #fff; color: #1546FF; }
+.home-qa-btn-active .home-qa-ico { background: rgba(21,70,255,.1); color: #1546FF; }
+.home-qa-btn-active:hover { background: #fff; opacity: .92; }
+
+.home-body { background: var(--bg); padding: 20px; }
+
+.home-section-title { font-family: var(--fd); font-weight: 700; font-size: 15px; color: var(--t1); margin: 0 0 12px; }
+.home-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.home-section-head .home-section-title { margin-bottom: 0; }
+.home-section-link { background: none; border: none; color: var(--c); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+
+.home-stories-row { display: flex; gap: 14px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px; }
+.home-story {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  flex-shrink: 0; width: 56px; font-size: 10.5px; color: var(--t2); text-align: center;
+}
+.home-story span {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 700; font-size: 12px; color: #fff;
+}
+.home-story-blue span { background: linear-gradient(135deg, #1546FF, #0D34C4); }
+.home-story-ring span { background: linear-gradient(135deg, var(--c), #2bbf96); color: #04140d; }
+.home-story-dashed svg {
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 1.5px dashed var(--bd); color: var(--t3); box-sizing: border-box;
+}
+
+.home-health-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--s1); border: 1px solid var(--bd); border-radius: 16px;
+  padding: 16px; margin-bottom: 16px;
+}
+.home-health-ring-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+.home-health-ring-wrap svg { position: absolute; inset: 0; }
+.home-health-score {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 18px; color: var(--t1);
+}
+.home-health-title { font-size: 14px; font-weight: 700; color: var(--t1); font-family: var(--fd); }
+.home-health-sub { font-size: 12.5px; margin-top: 2px; }
+
+.home-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.home-stat {
+  background: var(--s1); border: 1px solid var(--bd); border-radius: 14px;
+  padding: 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.home-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+.home-stat-lbl { font-size: 11.5px; color: var(--t2); }
+.home-stat-val { font-size: 13.5px; font-weight: 700; color: var(--t1); font-family: var(--fd); }
+
+.home-insight {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: linear-gradient(135deg, #1546FF, #0D34C4); border: none; border-radius: 14px;
+  padding: 14px; color: #fff; cursor: pointer; margin-bottom: 20px;
+}
+.home-insight-ico { flex-shrink: 0; opacity: .9; }
+.home-insight-text { flex: 1; font-size: 12.5px; line-height: 1.5; }
+.home-insight-cta { flex-shrink: 0; font-size: 11.5px; font-weight: 700; white-space: nowrap; opacity: .9; }
+
+.home-recent-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--bd);
+}
+.home-recent-row:last-child { border-bottom: none; }
+.home-recent-ico {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.home-recent-ico.exp { background: rgba(21,70,255,.1); color: #1546FF; }
+.home-recent-ico.inc { background: rgba(74,226,172,.14); color: var(--c); }
+.home-recent-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home-recent-name { font-size: 13.5px; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-recent-meta { font-size: 11.5px; color: var(--t3); }
+.home-recent-amt { font-size: 13px; font-weight: 700; font-family: var(--fd); flex-shrink: 0; }
+.home-recent-amt.inc { color: var(--c); }
+.home-recent-amt.exp { color: var(--t1); }
+.home-recent-del { background: none; border: none; color: var(--t3); cursor: pointer; padding: 4px; flex-shrink: 0; }
+.home-recent-del:hover { color: #ff4757; }
+
+@media (min-width: 860px) {
+  .home-hero, .home-body { max-width: 720px; margin: 0 auto; }
+  .home-hero { border-radius: 0 0 24px 24px; padding: 28px 32px 32px; }
+  .home-body { padding: 28px 32px; }
+  .home-balance-val { font-size: 36px; }
+}
+
+/* ═══════════════════════════════════════════════════════
    hb-* — Layout Híbrido (mistura Option 1-4)
    ═══════════════════════════════════════════════════════ */
 

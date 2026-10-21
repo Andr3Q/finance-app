@@ -76,13 +76,13 @@ for (const vp of VIEWPORTS) {
       ).toBe(true)
     })
 
-    test('.hb-feed-card não ultrapassa a borda da tela', async ({ page }) => {
+    test('.home-recent não ultrapassa a borda da tela', async ({ page }) => {
       await injectSession(page)
       await mockAllAPIs(page)
       await page.goto('/dashboard', { waitUntil: 'networkidle' })
       await page.waitForTimeout(500)
 
-      const card = page.locator('.hb-feed-card').first()
+      const card = page.locator('.home-recent').first()
       await expect(card).toBeVisible()
 
       const box   = await card.boundingBox()
