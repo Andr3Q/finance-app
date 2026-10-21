@@ -3,9 +3,8 @@
 export function IconFood({ size = 17, color = 'currentColor' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8h1a4 4 0 010 8h-1"/>
-      <path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/>
-      <line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+      <path d="M7 2v7a2.5 2.5 0 005 0V2"/><line x1="9.5" y1="2" x2="9.5" y2="22"/>
+      <path d="M17 22V2c-2.2 1.2-3.5 3.7-3.5 6.5V14H17"/>
     </svg>
   )
 }
@@ -23,9 +22,9 @@ export function IconShopping({ size = 17, color = 'currentColor' }) {
 export function IconTransport({ size = 17, color = 'currentColor' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="1" y="3" width="15" height="13" rx="2"/>
-      <path d="M16 8h4l3 5v3h-7V8z"/>
-      <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+      <rect x="4" y="3" width="16" height="15" rx="3"/><line x1="4" y1="11" x2="20" y2="11"/>
+      <circle cx="8.5" cy="14.5" r=".6"/><circle cx="15.5" cy="14.5" r=".6"/>
+      <line x1="7" y1="18" x2="7" y2="21"/><line x1="17" y1="18" x2="17" y2="21"/>
     </svg>
   )
 }
@@ -75,8 +74,9 @@ export function IconOther({ size = 17, color = 'currentColor' }) {
 export function IconIncome({ size = 17, color = 'currentColor' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="19" x2="12" y2="5"/>
-      <polyline points="5 12 12 5 19 12"/>
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M14.6 9.4C14.2 8.5 13.3 8 12.2 8 10.8 8 9.8 8.7 9.8 9.8s.9 1.6 2.4 2c1.5.4 2.4.9 2.4 2.1 0 1.1-1 1.8-2.4 1.8-1.1 0-2.1-.5-2.5-1.4"/>
+      <line x1="12" y1="6" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="18"/>
     </svg>
   )
 }
@@ -145,7 +145,8 @@ export function IconCoin({ size = 16, color = 'currentColor' }) {
 export function IconFixed({ size = 17, color = 'currentColor' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+      <path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/>
+      <line x1="9" y1="8" x2="15" y2="8"/><line x1="9" y1="12" x2="15" y2="12"/>
     </svg>
   )
 }

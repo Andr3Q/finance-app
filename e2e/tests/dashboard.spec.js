@@ -309,14 +309,72 @@ test.describe('Dashboard — Últimas transações', () => {
 
   test('"Ver extrato" navega para /transactions', async ({ page }) => {
     await goDashboard(page)
-    await page.locator('.home-section-link', { hasText: 'Ver extrato' }).click()
+    await page.locator('.home-recent-link', { hasText: 'Ver extrato' }).click()
     await page.waitForURL(/\/transactions/, { timeout: 5000 })
   })
 
-  test('remover transação abre o diálogo de confirmação', async ({ page }) => {
+  test('as linhas mostram "categoria · data" e valor com sinal, sem botão de remover (a exclusão vive no Extrato)', async ({ page }) => {
     await goDashboard(page)
-    await page.locator('.home-recent-del').first().click()
-    await expect(page.getByText('Tem certeza?')).toBeVisible()
+    const first = page.locator('.home-recent-row').first()
+    await expect(first.locator('.home-recent-meta')).toContainText(/ · \d{2} [a-zç]{3}$/)
+    await expect(first.locator('.home-recent-amt')).toContainText(/^[+−]R\$ /)
+    await expect(page.locator('.home-recent-del')).toHaveCount(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
+// Nancy 2 é desenhado só no claro: o Início ignora o tema escuro salvo, sem
+// apagar a preferência (as telas antigas continuam no tema escolhido).
+// ─────────────────────────────────────────────────────────────────
+test.describe('Dashboard — tema claro imposto e barra de baixo', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
+
+  test('com o tema escuro salvo, o Início sai claro e a preferência escura volta nas telas antigas', async ({ page }) => {
+    await goDashboard(page)
+    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    const bg = await page.evaluate(() => getComputedStyle(document.querySelector('.home-body')).backgroundColor)
+    expect(bg).toBe('rgb(242, 246, 255)') // #F2F6FF do design
+
+    await page.locator('.dsb-mobile-nav').getByRole('button', { name: 'Perfil' }).click()
+    await page.waitForURL(/\/settings/)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+
+    await page.locator('.dsb-mobile-nav').getByRole('button', { name: 'Início' }).click()
+    await page.waitForURL(/\/dashboard/)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+  })
+
+  test('barra de baixo: Início · Extrato · + · Metas · Perfil, com o item atual em destaque', async ({ page }) => {
+    await goDashboard(page)
+    const nav = page.locator('.dsb-mobile-nav')
+    await expect(nav.locator('.dsb-mn-lbl')).toHaveText(['Início', 'Extrato', 'Metas', 'Perfil'])
+    await expect(nav.locator('.dsb-mn-fab')).toBeVisible()
+    await expect(nav.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Início')
+  })
+
+  test('cabeçalho: só olho e sino (sem tema/busca) e selo do mês com o crescimento do saldo', async ({ page }) => {
+    await goDashboard(page)
+    await expect(page.locator('.home-hero-actions .home-iconbtn')).toHaveCount(2)
+    await expect(page.locator('.home-iconbtn[aria-label="Alternar tema"]')).toHaveCount(0)
+    // mock: salário 5000 − contas fixas 2000 = 3000 no início; saldo 3660 → +22,0%
+    await expect(page.locator('.home-badge')).toHaveText('+22,0% no mês')
+  })
+
+  test('banner "No ritmo atual" aparece a partir do 3º dia do mês, com o mês e a ação de perguntar à Nancy', async ({ page }) => {
+    await goDashboard(page)
+    const banner = page.locator('.home-insight')
+    if (new Date().getDate() < 3) { await expect(banner).toHaveCount(0); return }
+    await expect(banner).toContainText('No ritmo atual, você termina')
+    await expect(banner).toContainText('Perguntar à Nancy')
+  })
+
+  test('estatísticas em número inteiro, sem R$ nem "k" (Entradas = salário + entradas)', async ({ page }) => {
+    await goDashboard(page)
+    const vals = page.locator('.home-stat-val')
+    await expect(vals.nth(0)).toHaveText('6.500')   // 5000 de salário + 1500 de entradas
+    await expect(vals.nth(1)).toHaveText('2.840')
+    await expect(vals.nth(2)).toHaveText('2.000')
   })
 })
 

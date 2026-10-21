@@ -112,7 +112,7 @@ describe('Extrato — lista por dia', () => {
   it('cada linha mostra descrição, categoria e valor com sinal; contas fixas aparecem na lista', async () => {
     setup()
     expect(await screen.findByText('Academia')).toBeInTheDocument()
-    expect(screen.getByText('Conta Fixa')).toBeInTheDocument()
+    expect(screen.getByText('Contas fixas')).toBeInTheDocument()
     expect(screen.getByText('−R$ 200,00')).toBeInTheDocument()
     expect(screen.getByText('+R$ 1.800,00', { selector: '.ex-row-val' })).toBeInTheDocument()
   })

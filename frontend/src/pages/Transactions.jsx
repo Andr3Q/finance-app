@@ -8,6 +8,7 @@ import TransactionForm from '../components/features/TransactionForm.jsx'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 import { useUser } from '../hooks/useUser.js'
+import { useForcedLightTheme } from '../hooks/useTheme.js'
 import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 import { getLimit } from '../config/planLimits.js'
 
@@ -80,6 +81,7 @@ const IconChevron = ({ dir }) => (
 
 export default function Transactions() {
   const user = useUser()
+  useForcedLightTheme() // Extrato é desenhado só no claro (design Nancy 2)
   const location = useLocation()
   const routerNavigate = useRouterNavigate() // nome próprio: "navigate" já é a função de trocar de mês nesta tela
   const [transactions,  setTransactions]  = useState([])

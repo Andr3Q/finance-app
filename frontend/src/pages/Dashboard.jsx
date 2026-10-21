@@ -1,18 +1,17 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { transactionsAPI, agentAPI, goalsAPI } from '../services/api.js'
+import { transactionsAPI, goalsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
-import { useTheme } from '../hooks/useTheme.js'
+import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import GradCard from '../components/ui/GradCard.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import AutoLaunchPrompt from '../components/features/AutoLaunchPrompt.jsx'
-import SearchOverlay   from '../components/features/SearchOverlay.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
-import { fmt, fmtShort } from '../utils/format.js'
+import { fmt } from '../utils/format.js'
+import { monthGrowthPct, projectedBalance } from '../utils/homeMetrics.js'
 import { readSeen, resumoKey, dicasKey, metasKey } from '../utils/storiesSeen.js'
 import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notifications.js'
 
@@ -58,7 +57,7 @@ export default function Dashboard() {
   const [seen] = useState(readSeen)
   const seenCls = (key) => (seen[key] ? ' is-seen' : '')
   const user = useUser()
-  const { theme, toggle: toggleTheme } = useTheme()
+  useForcedLightTheme() // Início é desenhado só no claro (design Nancy 2)
 
   const [summary,      setSummary]      = useState(null)
   const [transactions, setTransactions] = useState([])
@@ -68,16 +67,12 @@ export default function Dashboard() {
   const [showForm,     setShowForm]     = useState(false)
   const [quickAddType, setQuickAddType] = useState(null) // 'income' | 'expense' | null
   const [toast,        setToast]        = useState(null)
-  const [showSearch,   setShowSearch]   = useState(false)
   // Preferência de privacidade (ocultar valores) persiste entre sessões —
   // sem isso o usuário teria que escondê-los de novo toda vez que abrisse o app.
   const [hideBalance,  setHideBalance]  = useState(() => {
     try { return localStorage.getItem('hide-balance') === '1' } catch { return false }
   })
-  const [prediction,   setPrediction]   = useState(null)
-  const [predLoading,  setPredLoading]  = useState(false)
   const [goals,        setGoals]        = useState([])
-  const [confirmDeleteTx, setConfirmDeleteTx] = useState(null)
 
   const [showBell,           setShowBell]           = useState(false)
   const [bellDismissed,      setBellDismissed]      = useState(false)
@@ -87,8 +82,6 @@ export default function Dashboard() {
   const salaryNotif = getSalaryNotif()
   const trialNotif  = user.id ? getTrialNotif(user) : null
   const hasNotif    = (!!salaryNotif && !bellDismissed) || (!!trialNotif && !trialBellDismissed)
-
-  const isPro = user.plan === 'pro' || user.plan === 'elite'
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -149,33 +142,6 @@ export default function Dashboard() {
     return () => window.removeEventListener('budget-updated', handler)
   }, [fetchData])
 
-  // Predição IA — cache em sessionStorage (apaga ao fechar a aba, não persiste dados financeiros)
-  useEffect(() => {
-    if (!summary || !transactions.length) return
-    if (!isPro) return
-    const d = new Date()
-    const key = `ai-predict-${d.getMonth() + 1}-${d.getFullYear()}`
-    try {
-      const cached = JSON.parse(sessionStorage.getItem(key) || 'null')
-      if (cached?.ts && Date.now() - cached.ts < 6 * 3600 * 1000) {
-        setPrediction(cached.text)
-        return
-      }
-    } catch {}
-    let cancelled = false
-    setPredLoading(true)
-    agentAPI.predict()
-      .then(({ data }) => {
-        if (cancelled) return
-        const text = data.prediction || ''
-        setPrediction(text)
-        sessionStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }))
-      })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setPredLoading(false) })
-    return () => { cancelled = true }
-  }, [summary, transactions.length, isPro])
-
   useEffect(() => {
     let cancelled = false
     goalsAPI.list()
@@ -206,32 +172,6 @@ export default function Dashboard() {
     playSoftChime()
   }, [!!trialNotif])
 
-  const handleRefreshPrediction = () => {
-    const d = new Date()
-    const key = `ai-predict-${d.getMonth() + 1}-${d.getFullYear()}`
-    sessionStorage.removeItem(key)
-    setPrediction(null)
-    setPredLoading(true)
-    agentAPI.predict()
-      .then(({ data }) => {
-        const text = data.prediction || ''
-        setPrediction(text)
-        sessionStorage.setItem(key, JSON.stringify({ text, ts: Date.now() }))
-      })
-      .catch(() => {})
-      .finally(() => setPredLoading(false))
-  }
-
-  const handleDelete = async (id) => {
-    try {
-      await transactionsAPI.remove(id)
-      fetchData(true)
-    } catch {
-      showToast('Erro ao remover transação.', false)
-    }
-    setConfirmDeleteTx(null)
-  }
-
   const pct = summary?.percentUsed || 0
   const now = new Date()
 
@@ -251,11 +191,11 @@ export default function Dashboard() {
     score >= 40 ? 'Fique de olho' :
     score >= 20 ? 'Precisa de atenção' : 'Momento crítico'
 
-  const scoreColor = score === null ? 'var(--t2)' :
-    score >= 80 ? 'var(--c)' :
-    score >= 60 ? '#4ae2ac' :
-    score >= 40 ? '#ffc107' :
-    score >= 20 ? '#ff8c42' : '#ff4757'
+  // anel + texto do rótulo por faixa (design: verde #19C884 / #117953 no "saudável")
+  const scoreRing = score === null ? '#99A5BE' :
+    score >= 60 ? '#19C884' : score >= 40 ? '#F5A524' : score >= 20 ? '#FF8C42' : '#FF4757'
+  const scoreInk = score === null ? '#5B6784' :
+    score >= 60 ? '#117953' : score >= 40 ? '#B26A00' : score >= 20 ? '#B54708' : '#B42318'
 
   const toggleHideBalance = () => {
     setHideBalance(v => {
@@ -279,6 +219,15 @@ export default function Dashboard() {
 
   const recentTx = useMemo(() => transactions.slice(0, 5), [transactions])
 
+  const fmtInt = (n) => Math.round(Number(n) || 0).toLocaleString('pt-BR')
+  const HIDDEN = 'R$ ••••'
+  const monthName = MONTHS[now.getMonth()].toLowerCase()
+
+  const monthGrowth = useMemo(() => monthGrowthPct(summary), [summary])
+  const dayOfMonth  = now.getDate()
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+  const projected   = useMemo(() => projectedBalance(summary, dayOfMonth, daysInMonth), [summary, dayOfMonth, daysInMonth])
+
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh' }}>
       <div style={{ textAlign:'center' }}>
@@ -288,7 +237,7 @@ export default function Dashboard() {
     </div>
   )
 
-  const RING_R          = 24
+  const RING_R          = 25
   const RING_CIRC       = 2 * Math.PI * RING_R
   const scoreRingOffset = RING_CIRC * (1 - (score ?? 0) / 100)
 
@@ -311,27 +260,11 @@ export default function Dashboard() {
               <div className="home-user">
                 <div className="home-avatar">{initials}</div>
                 <div className="home-greet">
-                  <span className="home-hi">{greeting},</span>
+                  <span className="home-hi">{greeting}</span>
                   <span className="home-name">{firstName || 'bem-vindo'}</span>
                 </div>
               </div>
               <div className="home-hero-actions">
-                <button className="home-iconbtn" onClick={toggleTheme} aria-label="Alternar tema">
-                  {theme === 'dark' ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-                    </svg>
-                  ) : (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                    </svg>
-                  )}
-                </button>
-                <button className="home-iconbtn" onClick={() => setShowSearch(true)} aria-label="Buscar">
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>
-                  </svg>
-                </button>
                 <button className="home-iconbtn" onClick={toggleHideBalance} aria-label={hideBalance ? 'Mostrar valores' : 'Ocultar valores'}>
                   {hideBalance ? <IconEyeOff /> : <IconEye />}
                 </button>
@@ -404,19 +337,24 @@ export default function Dashboard() {
             <div className="home-balance-val">
               {hideBalance ? 'R$ ••••••' : `R$ ${fmt(summary?.currentBalance)}`}
             </div>
+            {monthGrowth !== null && (
+              <span className={`home-badge${monthGrowth < 0 ? ' neg' : ''}`}>
+                {monthGrowth > 0 ? '+' : monthGrowth < 0 ? '−' : ''}{Math.min(999, Math.abs(monthGrowth)).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% no mês
+              </span>
+            )}
 
             <div className="home-quick-actions">
               <button className="home-qa-btn" onClick={() => setShowForm(true)}>
-                <span className="home-qa-ico"><IconPlus /></span>Adicionar
+                <span className="home-qa-ico"><IconPlus /></span><span className="home-qa-lbl">Adicionar</span>
               </button>
               <button className="home-qa-btn" onClick={() => navigate('/transactions')}>
-                <span className="home-qa-ico"><IconSwap /></span>Extrato
+                <span className="home-qa-ico"><IconSwap /></span><span className="home-qa-lbl">Extrato</span>
               </button>
               <button className="home-qa-btn" onClick={() => navigate('/goals')}>
-                <span className="home-qa-ico"><IconTarget /></span>Metas
+                <span className="home-qa-ico"><IconTarget /></span><span className="home-qa-lbl">Metas</span>
               </button>
               <button className="home-qa-btn home-qa-btn-active" onClick={() => window.dispatchEvent(new Event('nancy:open-agent-chat'))}>
-                <span className="home-qa-ico"><IconSparkle /></span>Nancy IA
+                <span className="home-qa-ico"><IconSparkle /></span><span className="home-qa-lbl">Nancy IA</span>
               </button>
             </div>
           </div>
@@ -449,13 +387,13 @@ export default function Dashboard() {
 
             <div className="home-health-card">
               <div className="home-health-ring-wrap">
-                <svg width="64" height="64" viewBox="0 0 64 64">
-                  <circle cx="32" cy="32" r={RING_R} fill="none" stroke="var(--bdbd)" strokeWidth="6" />
+                <svg width="56" height="56" viewBox="0 0 56 56">
+                  <circle cx="28" cy="28" r={RING_R} fill="none" stroke="#E8FBF2" strokeWidth="6" />
                   <circle
-                    cx="32" cy="32" r={RING_R} fill="none"
-                    stroke={scoreColor} strokeWidth="6" strokeLinecap="round"
+                    cx="28" cy="28" r={RING_R} fill="none"
+                    stroke={scoreRing} strokeWidth="6" strokeLinecap="round"
                     strokeDasharray={RING_CIRC} strokeDashoffset={scoreRingOffset}
-                    transform="rotate(-90 32 32)"
+                    transform="rotate(-90 28 28)"
                     style={{ transition:'stroke-dashoffset .8s cubic-bezier(.4,0,.2,1), stroke .4s' }}
                   />
                 </svg>
@@ -463,65 +401,67 @@ export default function Dashboard() {
               </div>
               <div>
                 <div className="home-health-title">Saúde financeira</div>
-                <div className="home-health-sub" style={{ color: scoreColor }}>{healthLabel}</div>
+                <div className="home-health-sub" style={{ color: scoreInk }}>{healthLabel}</div>
               </div>
             </div>
 
             <div className="home-stats-row">
               <div className="home-stat">
-                <span className="home-stat-dot" style={{ background:'#4ae2ac' }} />
+                <span className="home-stat-dot" style={{ background:'#19C884' }} />
                 <span className="home-stat-lbl">Entradas</span>
-                <span className="home-stat-val">{hideBalance ? '••••' : `R$ ${fmtShort(summary?.totalAvailable)}`}</span>
+                <span className="home-stat-val">{hideBalance ? '••••' : fmtInt((summary?.salary || 0) + (summary?.totalIncome || 0))}</span>
               </div>
               <div className="home-stat">
-                <span className="home-stat-dot" style={{ background:'#4f8ef7' }} />
+                <span className="home-stat-dot" style={{ background:'#1C48FF' }} />
                 <span className="home-stat-lbl">Saídas</span>
-                <span className="home-stat-val">{hideBalance ? '••••' : `R$ ${fmtShort(summary?.totalExpenses)}`}</span>
+                <span className="home-stat-val">{hideBalance ? '••••' : fmtInt(summary?.totalExpenses)}</span>
               </div>
               <div className="home-stat">
-                <span className="home-stat-dot" style={{ background:'#9fe8d1' }} />
+                <span className="home-stat-dot" style={{ background:'#BCF4D9' }} />
                 <span className="home-stat-lbl">Contas fixas</span>
-                <span className="home-stat-val">{hideBalance ? '••••' : `R$ ${fmtShort(summary?.totalFixedCosts)}`}</span>
+                <span className="home-stat-val">{hideBalance ? '••••' : fmtInt(summary?.totalFixedCosts)}</span>
               </div>
             </div>
 
-            {isPro && (prediction || predLoading) && (
+            {projected !== null && (
               <button className="home-insight" onClick={() => window.dispatchEvent(new Event('nancy:open-agent-chat'))}>
                 <span className="home-insight-ico"><IconSparkle /></span>
-                <span className="home-insight-text">{predLoading ? 'Analisando seu mês...' : prediction}</span>
-                <span className="home-insight-cta">Perguntar à Nancy →</span>
+                <span className="home-insight-body">
+                  <span className="home-insight-text">
+                    No ritmo atual, você termina {monthName} com{' '}
+                    <strong className={projected < 0 ? 'neg' : ''}>{hideBalance ? HIDDEN : `R$ ${fmt(Math.abs(projected))}`}</strong>{' '}
+                    {projected >= 0 ? 'sobrando.' : 'no vermelho.'}
+                  </span>
+                  <span className="home-insight-cta">Perguntar à Nancy →</span>
+                </span>
               </button>
             )}
 
             <div className="home-recent">
-              <div className="home-section-head">
-                <h2 className="home-section-title">Últimas</h2>
-                <button className="home-section-link" onClick={() => navigate('/transactions')}>Ver extrato →</button>
+              <div className="home-recent-head">
+                <h2 className="home-recent-title">Últimas</h2>
+                <button className="home-recent-link" onClick={() => navigate('/transactions')}>Ver extrato →</button>
               </div>
               {recentTx.length === 0 ? (
                 <div className="hb-empty">Nenhuma transação encontrada</div>
               ) : recentTx.map(t => {
                 const isInc = t.type === 'income'
+                const d     = new Date(t.date)
                 const desc  = t.description || CATEGORY_LABELS[t.category] || t.category
                 return (
                   <div key={t.id} className="home-recent-row">
-                    <div className={`home-recent-ico ${isInc ? 'inc' : 'exp'}`}>
-                      <CategoryIcon category={t.category} size={15} color="currentColor" />
+                    <div className="home-recent-ico">
+                      <CategoryIcon category={t.category} size={16} color="currentColor" />
                     </div>
                     <div className="home-recent-body">
                       <span className="home-recent-name">{desc}</span>
                       <span className="home-recent-meta">
-                        {CATEGORY_LABELS[t.category]} · {new Date(t.date).toLocaleDateString('pt-BR', { day:'2-digit', month:'short' })}
+                        {CATEGORY_LABELS[t.category] || t.category} · {String(d.getDate()).padStart(2, '0')} {MONTHS[d.getMonth()].slice(0, 3).toLowerCase()}
                       </span>
                     </div>
                     <span className={`home-recent-amt ${isInc ? 'inc' : 'exp'}`}>
-                      {hideBalance ? '••••' : `${isInc ? '+' : '−'}R$ ${fmt(t.amount)}`}
+                      {hideBalance ? HIDDEN : `${isInc ? '+' : '−'}R$ ${fmt(t.amount)}`}
                     </span>
-                    <button className="home-recent-del" onClick={() => setConfirmDeleteTx(t.id)} title="Remover" aria-label="Remover transação">
-                      <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                      </svg>
-                    </button>
                   </div>
                 )
               })}
@@ -530,10 +470,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* "+" flutuante isolado removido — a mesma ação agora vive no botão
-          central da barra de navegação (menu rápido: Receita/Despesa/
-          Parcelamento/IA/Metas), evitando dois "+" com comportamentos
-          diferentes na mesma tela. */}
+      {/* "+" flutuante isolado removido — a mesma ação vive no botão central da
+          barra de navegação (menu rápido), evitando dois "+" na mesma tela. */}
 
       {showForm && (
         <TransactionForm
@@ -549,47 +487,6 @@ export default function Dashboard() {
             window.dispatchEvent(new CustomEvent('budget-updated'))
           }}
         />
-      )}
-
-      <SearchOverlay
-        isOpen={showSearch}
-        onClose={() => setShowSearch(false)}
-        transactions={transactions}
-      />
-
-      {confirmDeleteTx && createPortal(
-        <div className="gls-modal-overlay" onClick={() => setConfirmDeleteTx(null)}>
-          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
-            <div className="gls-modal-head">
-              <span>Remover transação</span>
-              <button className="gls-modal-close" onClick={() => setConfirmDeleteTx(null)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
-              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                </svg>
-              </div>
-              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
-              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Esta transação será removida permanentemente.</div>
-            </div>
-            <div className="gls-modal-foot">
-              <button className="gls-btn-ghost" onClick={() => setConfirmDeleteTx(null)}>Cancelar</button>
-              <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={() => handleDelete(confirmDeleteTx)}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                </svg>
-                Sim, excluir
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
       )}
     </>
   )
