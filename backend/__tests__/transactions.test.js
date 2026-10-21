@@ -450,3 +450,40 @@ describe('POST /api/transactions/auto-launch', () => {
     expect(res.body.count).toBe(1)
   })
 })
+
+// ══════════════════════════════════════════════════════════
+// RESUMO EM STORIES
+// ══════════════════════════════════════════════════════════
+describe('GET /api/transactions/monthly-recap', () => {
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.budget.findMany.mockResolvedValue([])
+    prisma.goal.findMany.mockResolvedValue([])
+  })
+
+  test('exige autenticação', async () => {
+    const res = await request(app).get('/api/transactions/monthly-recap')
+    expect(res.status).toBe(401)
+  })
+
+  test.each(['1', '-12', 'abc', '0.5'])('rejeita offset inválido (%s)', async (offset) => {
+    const res = await request(app).get('/api/transactions/monthly-recap').query({ offset }).set(authHeader())
+    expect(res.status).toBe(400)
+  })
+
+  test('sem movimento devolve hasData=false', async () => {
+    const res = await request(app).get('/api/transactions/monthly-recap').set(authHeader())
+    expect(res.status).toBe(200)
+    expect(res.body.hasData).toBe(false)
+  })
+
+  test('escopa todas as consultas pelo usuário e não filtra archived', async () => {
+    await request(app).get('/api/transactions/monthly-recap').query({ offset: -1 }).set(authHeader())
+    const where = prisma.transaction.findMany.mock.calls.at(-1)[0].where
+    expect(where.userId).toBe('user-123')
+    expect(where).not.toHaveProperty('archived')
+    expect(prisma.budget.findMany.mock.calls.at(-1)[0].where.userId).toBe('user-123')
+    expect(prisma.goal.findMany.mock.calls.at(-1)[0].where.userId).toBe('user-123')
+  })
+})

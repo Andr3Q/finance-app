@@ -21,6 +21,7 @@ const { dashboardLimiter } = require('../middleware/rateLimiter')
 const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES, TRANSACTION_PLAN_LIMITS } = require('../utils/constants')
 const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
+const { buildMonthlyRecap, shiftMonth } = require('../services/monthlyRecap')
 
 const router = express.Router()
 
@@ -219,6 +220,36 @@ router.get('/subscriptions', dashboardLimiter, async (req, res) => {
   } catch (err) {
     reportError(err, { tag: 'Erro nas assinaturas' })
     res.status(500).json({ error: 'Erro ao detectar assinaturas.' })
+  }
+})
+
+// ── GET /transactions/monthly-recap ────────────────────
+// Dados do "Resumo em stories" (tela 09). ?offset=0 (mês atual) até -11.
+// Diferente do monthly-history, inclui transações ARQUIVADAS (meses já
+// fechados) — é justamente o mês passado que o resumo costuma mostrar.
+router.get('/monthly-recap', dashboardLimiter, async (req, res) => {
+  try {
+    const offset = req.query.offset === undefined ? 0 : Number(req.query.offset)
+    if (!Number.isInteger(offset) || offset > 0 || offset < -11)
+      return res.status(400).json({ error: 'offset deve ser um inteiro entre -11 e 0.' })
+
+    const target = shiftMonth(nowBrasilia(), offset)
+
+    const [transactions, budgets, goals, user] = await Promise.all([
+      prisma.transaction.findMany({
+        where: { userId: req.userId, year: { gte: target.year - 1 } },
+        select: { type: true, amount: true, category: true, month: true, year: true, budgetId: true },
+      }),
+      prisma.budget.findMany({ where: { userId: req.userId }, select: { id: true, amount: true } }),
+      prisma.goal.findMany({ where: { userId: req.userId }, select: { title: true, targetAmount: true, currentAmount: true } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true } }),
+    ])
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    res.json(buildMonthlyRecap({ target, transactions, budgets, goals, salary: Number(user.salary) }))
+  } catch (err) {
+    reportError(err, { tag: 'Erro no resumo mensal' })
+    res.status(500).json({ error: 'Erro ao montar o resumo.' })
   }
 })
 
