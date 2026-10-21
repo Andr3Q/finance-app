@@ -45,13 +45,13 @@ describe('OnboardingModal — quando mostrar', () => {
     setUser({ onboardingComplete: false })
     expect(sessionStorage.getItem('just_registered')).toBeNull()
     render(<OnboardingModal />)
-    expect(screen.getByText(/bem-vindo/i)).toBeInTheDocument()
+    expect(screen.getByText('Vamos começar')).toBeInTheDocument()
   })
 
   it('renderiza quando onboardingComplete é undefined (usuário antigo, campo nunca setado)', () => {
     setUser({ onboardingComplete: undefined })
     render(<OnboardingModal />)
-    expect(screen.getByText(/bem-vindo/i)).toBeInTheDocument()
+    expect(screen.getByText('Vamos começar')).toBeInTheDocument()
   })
 
   // Regressão: testador relatou "escolhi o salário no cadastro e perguntou de
@@ -60,14 +60,14 @@ describe('OnboardingModal — quando mostrar', () => {
   it('pula a pergunta de salário (passo 1) quando o usuário já informou salário no cadastro', () => {
     setUser({ salary: 5000 })
     render(<OnboardingModal />)
-    expect(screen.queryByText(/qual é o seu salário mensal/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('Quanto você ganha por mês?')).not.toBeInTheDocument()
     expect(screen.getByText('Contas fixas')).toBeInTheDocument()
   })
 
   it('mostra a pergunta de salário no passo 1 quando o usuário ainda não tem salário cadastrado', () => {
     setUser({ salary: 0 })
     render(<OnboardingModal />)
-    expect(screen.getByText(/qual é o seu salário mensal/i)).toBeInTheDocument()
+    expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument()
   })
 })
 
@@ -76,11 +76,31 @@ describe('OnboardingModal — fluxo de conclusão', () => {
     setUser()
     render(<OnboardingModal />)
 
-    await userEvent.click(screen.getByRole('button', { name: 'Pular' })) // passo 1 → 2
-    await userEvent.click(screen.getByRole('button', { name: 'Pular' })) // passo 2 → 3
-    await userEvent.click(screen.getByRole('button', { name: 'Pular' })) // passo 3 → finish()
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' })) // passo 1 → 2
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' })) // passo 2 → 3
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' })) // passo 3 → finish()
 
     const { authAPI } = await import('../services/api.js')
     expect(authAPI.completeOnboarding).toHaveBeenCalledTimes(1)
+  })
+
+  // Tela "Vamos começar" (Nancy 2): o botão de voltar não tem passo anterior
+  // pra onde ir no passo 1 — age como pular (mesmo guard de confirmação se
+  // tiver salário digitado sem salvar).
+  it('botão de voltar no passo 1 funciona como pular', async () => {
+    setUser()
+    render(<OnboardingModal />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    expect(screen.getByText('Contas fixas')).toBeInTheDocument()
+  })
+
+  it('botão de voltar no passo 2 retorna pro passo 1, sem pular', async () => {
+    setUser()
+    render(<OnboardingModal />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' })) // vai pro passo 2
+    await userEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument()
   })
 })

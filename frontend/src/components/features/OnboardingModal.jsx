@@ -3,6 +3,14 @@ import { authAPI, budgetAPI, goalsAPI } from '../../services/api.js'
 import { useUser, saveUser } from '../../hooks/useUser.js'
 import { analytics } from '../../services/analytics.js'
 
+const IconChevronLeft = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+)
+
+const STEP_TITLES = { 1: 'Vamos começar', 2: 'Contas fixas', 3: 'Primeira meta' }
+
 export default function OnboardingModal() {
   const user = useUser()
 
@@ -55,6 +63,24 @@ export default function OnboardingModal() {
     }
   }
 
+  // No passo 1, "Pular" descartava o salário digitado sem avisar — fácil de
+  // clicar por engano com o botão "Continuar" logo ao lado. Também usada pelo
+  // botão de voltar quando ele está no passo 1 (não tem passo anterior dentro
+  // do onboarding pra onde voltar — pular é a ação equivalente).
+  const handleSkip = () => {
+    if (step === 1 && parseFloat(salary) > 0 &&
+        !window.confirm('Você digitou um salário mas não salvou. Pular mesmo assim?')) {
+      return
+    }
+    if (step < 3) setStep(s => s + 1)
+    else finish()
+  }
+
+  const handleBack = () => {
+    if (step === 1) handleSkip()
+    else setStep(s => s - 1)
+  }
+
   const handleAddBudget = async () => {
     if (!bName.trim() || !(parseFloat(bAmount) > 0) || saving) return
     setSaving(true)
@@ -74,147 +100,128 @@ export default function OnboardingModal() {
 
   return (
     <div className="ob-overlay">
-      <div className="ob-card">
-        <div className="ob-dots">
-          {[1, 2, 3].map(s => <span key={s} className={`ob-dot${step >= s ? ' on' : ''}`} />)}
+      <div className="ob-shell">
+        <div className="auth-hero ob-hero">
+          <div className="ob-hero-top">
+            <button type="button" className="auth-back" aria-label="Voltar" onClick={handleBack} disabled={saving}>
+              <IconChevronLeft />
+            </button>
+            <div className="ob-dots">
+              {[1, 2, 3].map(s => (
+                <span key={s} className={`ob-dot${step === s ? ' current' : step > s ? ' done' : ''}`} />
+              ))}
+            </div>
+          </div>
+          <h1 className="auth-title">{STEP_TITLES[step]}</h1>
+          {step === 1 && <p className="auth-subtitle">Quanto você ganha por mês?</p>}
         </div>
 
-        {step === 1 && (
-          <>
-            <div className="ob-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </div>
-            <h2 className="ob-title">Bem-vindo(a), {user.name?.split(' ')[0] || 'por aqui'}!</h2>
-            <p className="ob-desc">Configure sua conta em 2 minutos para aproveitar o máximo do Nancy.</p>
-            <div className="ob-field">
-              <label>Qual é o seu salário mensal?</label>
-              <input
-                type="number"
-                placeholder="Ex: 5000"
-                value={salary}
-                onChange={e => setSalary(e.target.value)}
-                min="0"
-                max="999999999"
-                autoFocus
-              />
-            </div>
-          </>
-        )}
+        <div className="auth-sheet ob-sheet">
+          <div className="ob-sheet-body">
+            {step === 1 && (
+              <div className="auth-field">
+                <div className="ob-currency-wrap">
+                  <span className="ob-currency-prefix">R$</span>
+                  <input
+                    type="number"
+                    placeholder="0,00"
+                    value={salary}
+                    onChange={e => setSalary(e.target.value)}
+                    min="0"
+                    max="999999999"
+                    className="ob-currency-input"
+                    autoFocus
+                  />
+                </div>
+                <p className="ob-hint">Usamos isso para calcular seu saldo disponível. Você pode mudar depois.</p>
+              </div>
+            )}
 
-        {step === 2 && (
-          <>
-            <div className="ob-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"/>
-                <line x1="1" y1="10" x2="23" y2="10"/>
-              </svg>
-            </div>
-            <h2 className="ob-title">Contas fixas</h2>
-            <p className="ob-desc">Adicione aluguel, internet, academia... Você pode incluir mais depois em Configurações.</p>
-            {budgetsAdded > 0 && (
-              <div className="ob-added">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                {budgetsAdded} {budgetsAdded === 1 ? 'conta adicionada' : 'contas adicionadas'}
-              </div>
+            {step === 2 && (
+              <>
+                <p className="ob-desc">Adicione aluguel, internet, academia... Você pode incluir mais depois em Configurações.</p>
+                {budgetsAdded > 0 && (
+                  <div className="ob-added">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    {budgetsAdded} {budgetsAdded === 1 ? 'conta adicionada' : 'contas adicionadas'}
+                  </div>
+                )}
+                <div className="ob-row">
+                  <div className="ob-field">
+                    <label>Nome</label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Aluguel"
+                      value={bName}
+                      onChange={e => { setBName(e.target.value); setBudgetErr('') }}
+                      maxLength={60}
+                    />
+                  </div>
+                  <div className="ob-field ob-field-sm">
+                    <label>Valor</label>
+                    <input
+                      type="number"
+                      placeholder="1200"
+                      value={bAmount}
+                      onChange={e => { setBAmount(e.target.value); setBudgetErr('') }}
+                      min="0.01"
+                    />
+                  </div>
+                </div>
+                {budgetErr && (
+                  <div style={{ fontSize: 12, color: '#f59e0b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {budgetErr}
+                  </div>
+                )}
+                <button
+                  className="ob-add"
+                  onClick={handleAddBudget}
+                  disabled={!bName.trim() || !(parseFloat(bAmount) > 0) || saving || !!budgetErr}
+                >
+                  {saving ? '...' : '+ Adicionar conta'}
+                </button>
+              </>
             )}
-            <div className="ob-row">
-              <div className="ob-field">
-                <label>Nome</label>
-                <input
-                  type="text"
-                  placeholder="Ex: Aluguel"
-                  value={bName}
-                  onChange={e => { setBName(e.target.value); setBudgetErr('') }}
-                  maxLength={60}
-                />
-              </div>
-              <div className="ob-field ob-field-sm">
-                <label>Valor</label>
-                <input
-                  type="number"
-                  placeholder="1200"
-                  value={bAmount}
-                  onChange={e => { setBAmount(e.target.value); setBudgetErr('') }}
-                  min="0.01"
-                />
-              </div>
-            </div>
-            {budgetErr && (
-              <div style={{ fontSize: 12, color: '#f59e0b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                {budgetErr}
-              </div>
+
+            {step === 3 && (
+              <>
+                <p className="ob-desc">Defina um objetivo: viagem, reserva de emergência, celular novo... (opcional)</p>
+                <div className="ob-field">
+                  <label>Nome da meta</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Reserva de emergência"
+                    value={gTitle}
+                    onChange={e => setGTitle(e.target.value)}
+                    maxLength={80}
+                    autoFocus
+                  />
+                </div>
+                <div className="ob-field">
+                  <label>Valor-alvo</label>
+                  <input
+                    type="number"
+                    placeholder="Ex: 10000"
+                    value={gAmount}
+                    onChange={e => setGAmount(e.target.value)}
+                    min="0.01"
+                  />
+                </div>
+              </>
             )}
-            <button
-              className="ob-add"
-              onClick={handleAddBudget}
-              disabled={!bName.trim() || !(parseFloat(bAmount) > 0) || saving || !!budgetErr}
-            >
-              {saving ? '...' : '+ Adicionar conta'}
+          </div>
+
+          <div className="ob-sheet-actions">
+            <button className="auth-btn-primary" onClick={handleNext} disabled={saving}>
+              {saving ? <div className="auth-spinner" /> : <span>{step === 3 ? 'Concluir' : 'Continuar'}</span>}
             </button>
-          </>
-        )}
-
-        {step === 3 && (
-          <>
-            <div className="ob-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/>
-                <circle cx="12" cy="12" r="6"/>
-                <circle cx="12" cy="12" r="2"/>
-              </svg>
-            </div>
-            <h2 className="ob-title">Primeira meta</h2>
-            <p className="ob-desc">Defina um objetivo: viagem, reserva de emergência, celular novo... (opcional)</p>
-            <div className="ob-field">
-              <label>Nome da meta</label>
-              <input
-                type="text"
-                placeholder="Ex: Reserva de emergência"
-                value={gTitle}
-                onChange={e => setGTitle(e.target.value)}
-                maxLength={80}
-                autoFocus
-              />
-            </div>
-            <div className="ob-field">
-              <label>Valor-alvo</label>
-              <input
-                type="number"
-                placeholder="Ex: 10000"
-                value={gAmount}
-                onChange={e => setGAmount(e.target.value)}
-                min="0.01"
-              />
-            </div>
-          </>
-        )}
-
-        <div className="ob-actions">
-          <button
-            className="ob-skip"
-            onClick={() => {
-              // No passo 1, "Pular" descartava o salário digitado sem avisar —
-              // fácil de clicar por engano com o botão "Próximo" logo ao lado.
-              if (step === 1 && parseFloat(salary) > 0 &&
-                  !window.confirm('Você digitou um salário mas não salvou. Pular mesmo assim?')) {
-                return
-              }
-              if (step < 3) setStep(s => s + 1)
-              else finish()
-            }}
-            disabled={saving}
-          >
-            Pular
-          </button>
-          <button className="ob-next" onClick={handleNext} disabled={saving}>
-            {saving ? '...' : step === 3 ? 'Concluir' : 'Próximo →'}
-          </button>
+            <button type="button" className="ob-skip-link" onClick={handleSkip} disabled={saving}>
+              Pular por agora
+            </button>
+          </div>
         </div>
       </div>
     </div>

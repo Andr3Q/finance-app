@@ -8924,215 +8924,119 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 }
 
 /* ── Onboarding Modal ──────────────────────────────────── */
+/* ── Onboarding (Nancy 2, tela 07) — card no mesmo estilo visual das
+   telas de auth (hero azul + sheet branco), mas continua um overlay
+   fixo por cima do dashboard (não uma rota própria) — bloqueia
+   interação até terminar/pular, igual sempre funcionou. */
 .ob-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  overflow-y: auto;
 }
-
-.ob-card {
-  background: #1a1a1a;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--rlg);
-  padding: 32px;
+.ob-shell {
   width: 100%;
-  max-width: 440px;
-  animation: obFadeUp 0.3s ease;
+  max-width: 400px;
+  min-height: min(620px, 85vh);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  display: flex;
+  flex-direction: column;
+  animation: obFadeUp .3s ease;
 }
-
 @keyframes obFadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-.ob-dots {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 28px;
+.ob-hero-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px;
 }
-
+.ob-dots { display: flex; align-items: center; gap: 6px; }
 .ob-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  transition: background 0.3s, transform 0.3s;
+  width: 7px; height: 7px; border-radius: 4px;
+  background: rgba(255,255,255,.3); transition: width .25s, background .25s;
 }
+.ob-dot.done    { background: var(--c); }
+.ob-dot.current { width: 22px; background: var(--c); }
 
-.ob-dot.on {
-  background: var(--c);
-  transform: scale(1.2);
+.ob-sheet { flex: 1; display: flex; flex-direction: column; }
+.ob-sheet-body { flex: 1; }
+.ob-sheet-actions { margin-top: auto; padding-top: 16px; }
+
+.ob-skip-link {
+  display: block; width: 100%; margin-top: 12px; text-align: center;
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: #1546FF;
 }
+.ob-skip-link:hover:not(:disabled) { text-decoration: underline; }
+.ob-skip-link:disabled { opacity: .5; cursor: default; }
 
-.ob-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: rgba(74,226,172,0.1);
-  border: 1px solid rgba(74,226,172,0.22);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-  color: var(--c);
+/* Passo 1 — campo de salário com prefixo R$ */
+.ob-currency-wrap {
+  display: flex; align-items: center; gap: 10px;
+  border: 1.5px solid #E5E9F2; background: #F7F9FC; border-radius: 12px;
+  padding: 0 16px; transition: border-color .15s, background .15s;
 }
-
-.ob-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--t1);
-  margin-bottom: 8px;
+.ob-currency-wrap:focus-within { border-color: #1546FF; background: #fff; }
+.ob-currency-prefix { font-size: 17px; font-weight: 700; color: #0d0d0d; flex-shrink: 0; }
+.ob-currency-input {
+  border: none; background: transparent; outline: none; width: 100%;
+  padding: 15px 0; font-size: 22px; font-weight: 700; color: #0d0d0d;
+  font-family: inherit; -moz-appearance: textfield;
 }
+.ob-currency-input::-webkit-outer-spin-button,
+.ob-currency-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.ob-currency-input::placeholder { color: #A7AEBD; font-weight: 700; }
+.ob-hint { font-size: 12.5px; color: #6b7280; line-height: 1.5; margin: 10px 0 0; }
 
-.ob-desc {
-  font-size: 14px;
-  color: var(--t2);
-  margin-bottom: 24px;
-  line-height: 1.55;
-}
+/* Passos 2/3 — conteúdo preservado da versão antiga, só recolorido pro
+   sheet branco novo (antes presumia o fundo escuro do .ob-card antigo). */
+.ob-desc { font-size: 14px; color: #6b7280; margin-bottom: 20px; line-height: 1.55; }
 
-.ob-field {
-  margin-bottom: 14px;
-}
-
+.ob-field { margin-bottom: 14px; }
 .ob-field label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--t2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 7px;
+  display: block; font-size: 11px; font-weight: 600; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 7px;
 }
-
 .ob-field input {
-  width: 100%;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--rsm);
-  padding: 10px 14px;
-  color: var(--t1);
-  font-size: 14px;
-  font-family: var(--fn);
-  transition: border-color 0.2s;
-  outline: none;
+  width: 100%; box-sizing: border-box;
+  background: #F7F9FC; border: 1.5px solid #E5E9F2; border-radius: 12px;
+  padding: 12px 14px; color: #0d0d0d; font-size: 14px; font-family: inherit;
+  transition: border-color .15s, background .15s; outline: none;
 }
+.ob-field input:focus { border-color: #1546FF; background: #fff; }
+.ob-field input::placeholder { color: #A7AEBD; }
 
-.ob-field input:focus {
-  border-color: var(--c);
-}
-
-.ob-field input::placeholder {
-  color: var(--t3);
-}
-
-.ob-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-}
-
-.ob-row .ob-field {
-  flex: 1;
-  margin-bottom: 0;
-}
-
-.ob-field-sm {
-  max-width: 130px;
-}
+.ob-row { display: flex; gap: 10px; align-items: flex-end; }
+.ob-row .ob-field { flex: 1; margin-bottom: 0; }
+.ob-field-sm { max-width: 130px; }
 
 .ob-add {
-  width: 100%;
-  margin-top: 10px;
-  background: rgba(74,226,172,0.1);
-  border: 1px solid rgba(74,226,172,0.28);
-  border-radius: var(--rsm);
-  padding: 10px;
-  color: var(--c);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--fn);
-  cursor: pointer;
-  transition: var(--tr);
+  width: 100%; margin-top: 10px;
+  background: rgba(21,70,255,.06); border: 1px solid rgba(21,70,255,.2);
+  border-radius: 12px; padding: 11px; color: #1546FF;
+  font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: background .15s;
 }
-
-.ob-add:hover:not(:disabled) {
-  background: rgba(74,226,172,0.18);
-}
-
-.ob-add:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
+.ob-add:hover:not(:disabled) { background: rgba(21,70,255,.12); }
+.ob-add:disabled { opacity: 0.4; cursor: default; }
 
 .ob-added {
-  font-size: 13px;
-  color: var(--c);
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  font-size: 13px; color: #087A52; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 6px;
 }
 
-.ob-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-.ob-skip {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--rsm);
-  padding: 10px 18px;
-  color: var(--t2);
-  font-size: 13px;
-  font-family: var(--fn);
-  cursor: pointer;
-  transition: var(--tr);
-}
-
-.ob-skip:hover:not(:disabled) {
-  border-color: rgba(255,255,255,0.25);
-  color: var(--t1);
-}
-
-.ob-skip:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.ob-next {
-  background: var(--c);
-  border: none;
-  border-radius: var(--rsm);
-  padding: 10px 22px;
-  color: #000;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: var(--fn);
-  cursor: pointer;
-  transition: var(--tr);
-}
-
-.ob-next:hover:not(:disabled) {
-  background: #2bbf96;
-}
-
-.ob-next:disabled {
-  opacity: 0.5;
-  cursor: default;
+@media (min-width: 700px) {
+  .ob-shell { max-width: 440px; }
 }
 
 @media (max-width: 480px) {
