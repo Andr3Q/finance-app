@@ -10362,13 +10362,6 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
-  /* Espaço extra embaixo só pra permitir rolar o card pra cima de baixo do
-     banner de cookies (sempre global) e do de instalar PWA (que aqui, fora
-     das rotas de auth, continua aparecendo) — sem isso, em telas onde o
-     conteúdo já cabe exatamente no viewport não dá pra rolar nada e o
-     rodapé/botão "Já tenho conta" ficam permanentemente cobertos. Não muda
-     a posição do card em repouso (scrollTop 0), só destrava o scroll. */
-  padding-bottom: calc(300px + env(safe-area-inset-bottom, 0px));
 }
 .lw-card {
   width: 100%;
@@ -10466,7 +10459,6 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 /* Desktop: card ganha mais respiro e um pouco mais de escala — mesmo
    conteúdo, só não fica esticado feio numa tela larga. */
 @media (min-width: 700px) {
-  .lw-page { padding-bottom: 24px; }
   .lw-card { max-width: 440px; }
   .lw-headline { font-size: 34px; }
   .lw-preview { padding: 20px 22px 24px; }
