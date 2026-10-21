@@ -178,8 +178,12 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/"                element={<HomeRoute />} />
-            <Route path="/login"           element={<Login />} />
-            <Route path="/register"        element={<Login isRegister />} />
+            {/* key diferente força remount ao navegar /login <-> /register — sem
+                isso o React reaproveita a mesma instância (mesmo componente)
+                e o estado "mode", inicializado só no mount a partir de
+                isRegister, fica preso no valor antigo. */}
+            <Route path="/login"           element={<Login key="login" />} />
+            <Route path="/register"        element={<Login key="register" isRegister />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password"  element={<ResetPassword />} />
             <Route path="/verify-email"    element={<VerifyEmail />} />

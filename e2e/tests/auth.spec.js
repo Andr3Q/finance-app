@@ -27,10 +27,10 @@ test.describe('Auth — Landing', () => {
 })
 
 test.describe('Auth — Login', () => {
-  test('exibe tabs "Entrar" e "Criar conta"', async ({ page }) => {
+  test('exibe botão "Entrar" e link para criar conta', async ({ page }) => {
     await page.goto('/login')
     await expect(page.getByRole('button', { name: /^entrar$/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /^criar conta$/i })).toBeVisible()
+    await expect(page.getByRole('link', { name: /^criar conta$/i })).toBeVisible()
   })
 
   test('login com credenciais válidas redireciona para o dashboard', async ({ page }) => {
@@ -50,9 +50,9 @@ test.describe('Auth — Login', () => {
     mock.get('/api/goals', [])
 
     await page.goto('/login')
-    await page.getByPlaceholder('seu@email.com').fill('ana@test.com')
+    await page.getByPlaceholder('voce@email.com').fill('ana@test.com')
     await page.getByPlaceholder('••••••••').fill('Senha@123')
-    await page.getByRole('button', { name: /entrar na conta/i }).click()
+    await page.getByRole('button', { name: /^entrar$/i }).click()
 
     await expect(page).toHaveURL(/\/(dashboard|transactions)?$/)
   })
@@ -62,9 +62,9 @@ test.describe('Auth — Login', () => {
     mock.fail('/api/auth/login', 'E-mail ou senha incorretos.', 400)
 
     await page.goto('/login')
-    await page.getByPlaceholder('seu@email.com').fill('errado@test.com')
+    await page.getByPlaceholder('voce@email.com').fill('errado@test.com')
     await page.getByPlaceholder('••••••••').fill('SenhaErrada1')
-    await page.getByRole('button', { name: /entrar na conta/i }).click()
+    await page.getByRole('button', { name: /^entrar$/i }).click()
 
     await expect(page.getByText(/e-mail ou senha incorretos/i)).toBeVisible()
   })
@@ -74,9 +74,9 @@ test.describe('Auth — Login', () => {
     mock.post('/api/auth/login', { requires2FA: true, tempToken: 'temp-abc' })
 
     await page.goto('/login')
-    await page.getByPlaceholder('seu@email.com').fill('ana@test.com')
+    await page.getByPlaceholder('voce@email.com').fill('ana@test.com')
     await page.getByPlaceholder('••••••••').fill('Senha@123')
-    await page.getByRole('button', { name: /entrar na conta/i }).click()
+    await page.getByRole('button', { name: /^entrar$/i }).click()
 
     // Exibe campo do código 2FA (placeholder "000 000")
     await expect(page.getByPlaceholder('000 000')).toBeVisible()
@@ -88,9 +88,9 @@ test.describe('Auth — Login', () => {
     mock.fail('/api/auth/2fa/verify-login', 'Código inválido.', 400)
 
     await page.goto('/login')
-    await page.getByPlaceholder('seu@email.com').fill('ana@test.com')
+    await page.getByPlaceholder('voce@email.com').fill('ana@test.com')
     await page.getByPlaceholder('••••••••').fill('Senha@123')
-    await page.getByRole('button', { name: /entrar na conta/i }).click()
+    await page.getByRole('button', { name: /^entrar$/i }).click()
 
     await page.getByPlaceholder('000 000').fill('000000')
     await page.getByRole('button', { name: /verificar|confirmar/i }).click()
@@ -124,16 +124,16 @@ test.describe('Auth — Registro', () => {
     mock.get('/api/goals', [])
   })
 
-  test('alterna para aba de cadastro ao clicar em "Criar conta"', async ({ page }) => {
+  test('navega para /register ao clicar em "Criar conta" e exibe formulário de cadastro', async ({ page }) => {
     await page.goto('/login')
-    await page.getByRole('button', { name: /^criar conta$/i }).click()
+    await page.getByRole('link', { name: /^criar conta$/i }).click()
+    await expect(page).toHaveURL(/\/register/)
     // Exibe campo de nome (só aparece no modo register)
     await expect(page.getByPlaceholder('André Pereira')).toBeVisible()
   })
 
   test('preenche formulário e cria conta com sucesso', async ({ page }) => {
-    await page.goto('/login')
-    await page.getByRole('button', { name: /^criar conta$/i }).click()
+    await page.goto('/register')
 
     await page.getByPlaceholder('André Pereira').fill('João Teste')
     await page.getByPlaceholder('seu@email.com').fill('joao@test.com')
@@ -152,8 +152,7 @@ test.describe('Auth — Registro', () => {
     const mock = createMock(page)
     mock.fail('/api/auth/register', 'Este e-mail já está cadastrado.', 400)
 
-    await page.goto('/login')
-    await page.getByRole('button', { name: /^criar conta$/i }).click()
+    await page.goto('/register')
 
     await page.getByPlaceholder('André Pereira').fill('João')
     await page.getByPlaceholder('seu@email.com').fill('existente@test.com')
