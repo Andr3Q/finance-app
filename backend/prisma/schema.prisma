@@ -35,6 +35,14 @@ model User {
   trialEndsAt          DateTime?
   referralCode         String?   @unique
   referredBy           String?
+  // Marca quando ESTE usuário (como indicado) já disparou a recompensa do seu
+  // indicador — impede reprocessamento do mesmo indicado conceder o bônus de
+  // novo (corrida em /verify-email). Contagem de quantas recompensas ESTE
+  // usuário (como indicador) já deu — parte do mesmo lock otimista que credita
+  // os dias, fechando a corrida do teto de 5 entre indicados diferentes
+  // verificando ao mesmo tempo. Achado de auditoria de segurança, 2026-10-21.
+  referralRewardedAt   DateTime?
+  referralRewardsGiven Int       @default(0)
   twoFactorSecret      String?
   twoFactorEnabled     Boolean   @default(false)
   tokenVersion         Int       @default(0)
