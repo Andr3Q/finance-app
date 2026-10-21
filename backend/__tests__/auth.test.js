@@ -1097,32 +1097,41 @@ describe('POST /api/auth/verify-email-code', () => {
     expect(res.body.error).toMatch(/expirado/i)
   })
 
-  test('já atingiu o limite de tentativas → 429, sem nem comparar o código', async () => {
+  // Reserva a tentativa de forma atômica (updateMany condicionado) ANTES de
+  // comparar o código — achado de auditoria de segurança, 2026-10-21: a
+  // versão original lia emailVerifyCodeAttempts solto e só incrementava
+  // depois de decidir comparar, então requisições concorrentes liam o
+  // mesmo contador defasado e todas passavam do teto antes de qualquer
+  // escrita aterrissar. Essa suíte cobre a versão corrigida.
+  test('teto de tentativas já estourado → 429 sem nem tentar verificar o código', async () => {
     const crypto = require('crypto')
     prisma.user.findUnique.mockResolvedValue(mockUser({
       emailVerified: false,
       emailVerifyCode: crypto.createHash('sha256').update('123456').digest('hex'),
       emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
-      emailVerifyCodeAttempts: 5,
     }))
+    // where: { emailVerifyCodeAttempts: { lt: MAX } } não acha a linha — já no teto
+    prisma.user.updateMany.mockResolvedValue({ count: 0 })
+
     const res = await request(app)
       .post('/api/auth/verify-email-code')
       .set('Cookie', authCookie())
       .send({ code: '123456' }) // mesmo o código certo não passa — limite já estourado
 
     expect(res.status).toBe(429)
-    expect(prisma.user.update).not.toHaveBeenCalled()
+    // Só a reserva de tentativa foi chamada — nunca chegou no updateMany de
+    // verificação (que teria emailVerifyCode no where).
+    expect(prisma.user.updateMany).toHaveBeenCalledTimes(1)
   })
 
-  test('código incorreto (abaixo do limite) → 400 e incrementa tentativas', async () => {
+  test('código incorreto (abaixo do limite) → 400 e reserva/consome uma tentativa', async () => {
     const crypto = require('crypto')
     prisma.user.findUnique.mockResolvedValue(mockUser({
       emailVerified: false,
       emailVerifyCode: crypto.createHash('sha256').update('999999').digest('hex'),
       emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
-      emailVerifyCodeAttempts: 2,
     }))
-    prisma.user.update.mockResolvedValue({ emailVerifyCodeAttempts: 3 })
+    prisma.user.updateMany.mockResolvedValue({ count: 1 })
 
     const res = await request(app)
       .post('/api/auth/verify-email-code')
@@ -1131,35 +1140,33 @@ describe('POST /api/auth/verify-email-code', () => {
 
     expect(res.status).toBe(400)
     expect(res.body.error).toMatch(/incorreto/i)
-    expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({
-      where: { id: 'user-123' },
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'user-123', emailVerifyCodeAttempts: { lt: 5 } },
       data:  { emailVerifyCodeAttempts: { increment: 1 } },
-    }))
+    })
   })
 
-  test('código incorreto que atinge o limite agora → 429 e invalida o código na hora', async () => {
+  // A 5ª tentativa errada ainda reserva normalmente (4 < 5) e responde
+  // "incorreto" — só a PRÓXIMA requisição (6ª) encontra o teto já estourado
+  // e vira 429. Diferente da versão antiga, que tentava detectar "acabei de
+  // estourar" dentro da mesma requisição; a nova versão não precisa disso
+  // porque o próprio where da reserva já barra pra sempre a partir daqui.
+  test('5ª tentativa errada (última dentro do limite) ainda responde "incorreto", não 429', async () => {
     const crypto = require('crypto')
     prisma.user.findUnique.mockResolvedValue(mockUser({
       emailVerified: false,
       emailVerifyCode: crypto.createHash('sha256').update('999999').digest('hex'),
       emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
-      emailVerifyCodeAttempts: 4,
     }))
-    prisma.user.update.mockResolvedValue({ emailVerifyCodeAttempts: 5 })
+    prisma.user.updateMany.mockResolvedValue({ count: 1 }) // where lt:5 ainda bate (attempts era 4)
 
     const res = await request(app)
       .post('/api/auth/verify-email-code')
       .set('Cookie', authCookie())
       .send({ code: '111111' })
 
-    expect(res.status).toBe(429)
-    // 2 chamadas: a 1ª incrementa, a 2ª já invalida o código (não espera mais
-    // uma requisição pra barrar a próxima tentativa)
-    expect(prisma.user.update).toHaveBeenCalledTimes(2)
-    expect(prisma.user.update).toHaveBeenLastCalledWith({
-      where: { id: 'user-123' },
-      data:  { emailVerifyCode: null, emailVerifyCodeExpiry: null },
-    })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/incorreto/i)
   })
 
   test('código correto → 200, verifica e limpa token/código/tentativas', async () => {
@@ -1189,16 +1196,19 @@ describe('POST /api/auth/verify-email-code', () => {
     })
   })
 
-  test('código correto mas corrida (updateMany conta 0) → 400, não 200', async () => {
+  test('código correto mas corrida na verificação final (updateMany conta 0) → 400, não 200', async () => {
     const crypto = require('crypto')
     const hash   = crypto.createHash('sha256').update('123456').digest('hex')
     prisma.user.findUnique.mockResolvedValue(mockUser({
       emailVerified: false,
       emailVerifyCode: hash,
       emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
-      emailVerifyCodeAttempts: 0,
     }))
-    prisma.user.updateMany.mockResolvedValue({ count: 0 })
+    // 1ª chamada (reserva de tentativa) passa normalmente; 2ª (verificação
+    // final, condicionada ao emailVerifyCode) perde a corrida.
+    prisma.user.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 })
 
     const res = await request(app)
       .post('/api/auth/verify-email-code')

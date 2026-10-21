@@ -935,30 +935,34 @@ router.post('/verify-email-code', authMiddleware, verifyEmailLimiter, async (req
 
     const user = await prisma.user.findUnique({
       where:  { id: req.userId },
-      select: { name: true, emailVerified: true, referredBy: true, emailVerifyCode: true, emailVerifyCodeExpiry: true, emailVerifyCodeAttempts: true },
+      select: { name: true, emailVerified: true, referredBy: true, emailVerifyCode: true, emailVerifyCodeExpiry: true },
     })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
     if (user.emailVerified) return res.status(400).json({ error: 'E-mail já verificado.' })
     if (!user.emailVerifyCode || !user.emailVerifyCodeExpiry || user.emailVerifyCodeExpiry < new Date()) {
       return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
     }
-    if (user.emailVerifyCodeAttempts >= MAX_EMAIL_CODE_ATTEMPTS) {
-      return res.status(429).json({ error: 'Muitas tentativas. Solicite um novo código.' })
-    }
+
+    // Reserva uma tentativa de forma atômica, condicionada a ainda não ter
+    // estourado o teto — ANTES de comparar o código. A versão original lia
+    // emailVerifyCodeAttempts solto (findUnique acima) e só incrementava
+    // depois de já ter decidido comparar, então requisições concorrentes
+    // liam o mesmo contador defasado e todas passavam do teto antes de
+    // qualquer escrita aterrissar (achado de auditoria de segurança,
+    // 2026-10-21) — exatamente a race que o lockout de login
+    // (failedLoginCount) já tinha sido corrigido pra evitar, só que esse
+    // raciocínio não tinha sido aplicado de verdade aqui ainda. Como efeito
+    // colateral, também não precisa mais invalidar o código explicitamente
+    // ao estourar o teto: a própria condição do where já barra qualquer
+    // tentativa futura pra sempre, até um reenvio zerar o contador.
+    const attemptClaim = await prisma.user.updateMany({
+      where: { id: req.userId, emailVerifyCodeAttempts: { lt: MAX_EMAIL_CODE_ATTEMPTS } },
+      data:  { emailVerifyCodeAttempts: { increment: 1 } },
+    })
+    if (attemptClaim.count === 0) return res.status(429).json({ error: 'Muitas tentativas. Solicite um novo código.' })
 
     const hash = crypto.createHash('sha256').update(code).digest('hex')
     if (hash !== user.emailVerifyCode) {
-      const { emailVerifyCodeAttempts: attempts } = await prisma.user.update({
-        where:  { id: req.userId },
-        data:   { emailVerifyCodeAttempts: { increment: 1 } },
-        select: { emailVerifyCodeAttempts: true },
-      })
-      // Teto atingido: invalida o código na hora, em vez de deixar mais uma
-      // tentativa passar antes de barrar na próxima requisição.
-      if (attempts >= MAX_EMAIL_CODE_ATTEMPTS) {
-        await prisma.user.update({ where: { id: req.userId }, data: { emailVerifyCode: null, emailVerifyCodeExpiry: null } })
-        return res.status(429).json({ error: 'Muitas tentativas. Solicite um novo código.' })
-      }
       return res.status(400).json({ error: 'Código incorreto.' })
     }
 
