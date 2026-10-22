@@ -84,6 +84,7 @@ test.describe('Segurança', () => {
 
   test('a barra de força enche e muda de cor conforme a nova senha', async ({ page }) => {
     await setup(page)
+    await expect(page.locator('.sc-meter-fill')).toBeAttached()   // só mede depois que a tela carregou
     const fill = () => page.evaluate(() => { const f = document.querySelector('.sc-meter-fill'); return { w: Math.round(f.getBoundingClientRect().width / f.parentElement.getBoundingClientRect().width * 100), bg: getComputedStyle(f).backgroundColor } })
     expect((await fill()).w).toBe(0)
     await page.getByPlaceholder('Nova senha', { exact: true }).fill('abc')
