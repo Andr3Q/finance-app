@@ -139,6 +139,14 @@ const avatarLimiter = rateLimit({
   message:      { error: 'Muitas trocas de foto. Tente novamente em 1 hora.' },
 })
 
+// Baixar o PDF de um mês já fechado: 30 por hora por usuário (gera o PDF na hora; sem e-mail, bem mais leve que fechar)
+const reportDownloadLimiter = rateLimit({
+  ...opts,
+  windowMs:     60 * 60 * 1000,
+  max:          30,
+  message:      { error: 'Muitos downloads de relatório. Tente novamente em 1 hora.' },
+})
+
 module.exports = {
   apiLimiter,
   loginLimiter,
@@ -155,4 +163,5 @@ module.exports = {
   exportLimiter,
   verifyEmailLimiter,
   avatarLimiter,
+  reportDownloadLimiter,
 }

@@ -11850,3 +11850,31 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .pr-device { padding-top: 3px; padding-bottom: 3px; }
 .pr-device .pr-row { border-top: none; }
 .pr-row .sb-switch:disabled { opacity: .6; cursor: default; }
+
+/* ═══════════════════════════════════════════════════════
+   bm-* — Balanço mensal (Nancy 2, tela 28): cartão azul com o resultado do mês, Entradas/Saídas, botão branco
+   de fechar o mês e a lista "Relatórios anteriores" (um PDF por mês fechado).
+   ═══════════════════════════════════════════════════════ */
+.bm-card { background: #1C48FF; color: #fff; border-radius: 28px; padding: 22px; margin-bottom: 16px; }
+.bm-label { font-family: var(--fin-mono); font-size: 11px; font-weight: 700; letter-spacing: .14em; line-height: 13px; text-transform: uppercase; color: rgba(255,255,255,.72); }
+.bm-value { margin-top: 19px; font-size: 32px; line-height: 40px; font-weight: 700; letter-spacing: -.02em; }
+.bm-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.bm-box { background: rgba(255,255,255,.12); border-radius: 16px; padding: 12px 12px 13px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bm-box-lbl { font-size: 11.5px; line-height: 14px; color: rgba(255,255,255,.75); }
+.bm-box-val { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-size: 15.5px; font-weight: 700; line-height: 18px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-box-val.in { color: #3DE29F; }
+.bm-close {
+  margin-top: 15px; width: 100%; height: 54px; border: none; border-radius: 16px; background: #fff; color: #1C48FF; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-size: 15px; font-weight: 600;
+}
+.bm-close:disabled { opacity: .7; cursor: default; }
+.bm-close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.bm-list-title { margin: 0; font-size: 16px; line-height: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.bm-list { list-style: none; margin: 5px 0 0; padding: 0; }
+.bm-row { display: flex; align-items: center; gap: 13px; padding: 13px 0; border-top: 1px solid var(--bdbd); }
+.bm-doc { width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.bm-row-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; letter-spacing: -.01em; color: var(--t1); }
+.bm-dl { width: 34px; height: 34px; border: none; background: none; color: #1C48FF; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.bm-dl:disabled { opacity: .6; cursor: default; }
+.bm-dl:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; border-radius: 10px; }
+.bm-empty { margin: 8px 0 2px; font-size: 12.5px; line-height: 1.5; color: var(--t2); }

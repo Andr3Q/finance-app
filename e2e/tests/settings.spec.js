@@ -161,18 +161,19 @@ test.describe('Configurações — Cancelar plano', () => {
   })
 })
 
-test.describe('Configurações — Fechar mês', () => {
-  test('card "Fechar o mês" visível para Pro', async ({ page }) => {
+test.describe('Configurações — Fechar mês (Balanço mensal)', () => {
+  test('tela "Balanço mensal" com o botão de fechar visível para Pro', async ({ page }) => {
     await setupSettings(page)
     await page.goto('/settings/fechamento')
-    await expect(page.getByText(/fechar o mês/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Balanço mensal' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /fechar mês e gerar pdf/i })).toBeVisible()
   })
 
-  test('mostra lock "Recurso Pro" para Free', async ({ page }) => {
+  test('plano grátis: o botão abre o convite "Recurso Pro"', async ({ page }) => {
     await setupSettings(page, FREE_USER)
     await page.goto('/settings/fechamento')
-    await expect(page.getByText(/fechar o mês/i)).toBeVisible()
-    await expect(page.getByText(/recurso pro/i).first()).toBeVisible()
+    await page.getByRole('button', { name: /fechar mês e gerar pdf/i }).click()
+    await expect(page.getByText(/exclusivo do plano pro/i).first()).toBeVisible()
   })
 
   test('fecha mês com sucesso e exibe toast', async ({ page }) => {
@@ -187,9 +188,9 @@ test.describe('Configurações — Fechar mês', () => {
 
     await page.addInitScript(() => { window.confirm = () => true })
     await page.goto('/settings/fechamento')
-    await page.getByRole('button', { name: /fechar mês e enviar relatório/i }).click()
+    await page.getByRole('button', { name: /fechar mês e gerar pdf/i }).click()
 
-    await expect(page.getByText(/mês fechado|relatório enviado/i)).toBeVisible()
+    await expect(page.getByText(/mês fechado com sucesso/i)).toBeVisible()
   })
 })
 

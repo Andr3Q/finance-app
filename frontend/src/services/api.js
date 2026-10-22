@@ -124,7 +124,8 @@ export const budgetAPI = {
 // ── Funções de relatórios ───────────────────────────────
 export const reportsAPI = {
   monthlyClose: () => api.post('/reports/monthly-close'),
-  history:      () => api.get('/reports/history')
+  history:      () => api.get('/reports/history'),
+  pdf:          (month, year) => api.get('/reports/pdf', { params: { month, year }, responseType: 'blob' }),
 }
 
 // ── Funções de notificações push ────────────────────────

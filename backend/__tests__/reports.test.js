@@ -316,3 +316,61 @@ describe('GET /api/reports/history', () => {
     expect(res.status).toBe(500)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────
+// GET /api/reports/pdf — baixar de novo o PDF de um mês já fechado
+// ─────────────────────────────────────────────────────────────────
+describe('GET /api/reports/pdf', () => {
+  const URL = (m = 4, y = 2026) => `/api/reports/pdf?month=${m}&year=${y}`
+  const get = (url, token = makeToken()) => request(app).get(url).set('Authorization', `Bearer ${token}`)
+
+  test('401 sem token', async () => {
+    expect((await request(app).get(URL())).status).toBe(401)
+  })
+
+  test('200 com o PDF do mês fechado (transações arquivadas daquele mês), como anexo', async () => {
+    const res = await get(URL(4, 2026)).buffer(true).parse((r, cb) => { const c = []; r.on('data', d => c.push(d)); r.on('end', () => cb(null, Buffer.concat(c))) })
+    expect(res.status).toBe(200)
+    expect(res.headers['content-type']).toBe('application/pdf')
+    expect(res.headers['content-disposition']).toBe('attachment; filename="nancy-balanco-2026-04.pdf"')
+    expect(res.body.toString()).toBe('fake-pdf')
+    expect(prisma.transaction.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: USER_ID, month: 4, year: 2026, archived: true } }))
+    expect(generateMonthlyPDF).toHaveBeenCalledWith(expect.objectContaining({ id: USER_ID }), 4, 2026, expect.objectContaining({ totalIncome: 500, totalExpenses: 350 }), mockTransactions)
+  })
+
+  test('403 para usuário free', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockProUser({ plan: 'free' }))
+    const res = await get(URL())
+    expect(res.status).toBe(403)
+    expect(generateMonthlyPDF).not.toHaveBeenCalled()
+  })
+
+  test.each([['mês 0', 0, 2026], ['mês 13', 13, 2026], ['mês texto', 'abc', 2026], ['ano texto', 4, 'x'], ['ano 1999', 4, 1999], ['ano 2101', 4, 2101], ['mês decimal', 4.5, 2026]])('400 para %s', async (_n, m, y) => {
+    const res = await get(`/api/reports/pdf?month=${m}&year=${y}`)
+    expect(res.status).toBe(400)
+    expect(generateMonthlyPDF).not.toHaveBeenCalled()
+  })
+
+  test('400 sem month/year', async () => {
+    expect((await get('/api/reports/pdf')).status).toBe(400)
+  })
+
+  test('404 quando o mês ainda não foi fechado (sem transações arquivadas) — não gera PDF de mês aberto', async () => {
+    prisma.transaction.findMany.mockResolvedValue([])
+    const res = await get(URL())
+    expect(res.status).toBe(404)
+    expect(generateMonthlyPDF).not.toHaveBeenCalled()
+  })
+
+  test('só enxerga as transações do próprio usuário (multi-tenant)', async () => {
+    await get(URL())
+    expect(prisma.transaction.findMany.mock.calls[0][0].where.userId).toBe(USER_ID)
+    expect(prisma.budget.findMany.mock.calls[0][0].where.userId).toBe(USER_ID)
+  })
+
+  test('500 quando o PDF falha', async () => {
+    generateMonthlyPDF.mockRejectedValueOnce(new Error('pdf'))
+    expect((await get(URL())).status).toBe(500)
+  })
+})
+
