@@ -1,19 +1,32 @@
 import { useState } from 'react'
 import { authAPI } from '../../../services/api.js'
-import PasswordStrength from '../../ui/PasswordStrength.jsx'
+import { passwordStrength } from '../../ui/PasswordStrength.jsx'
 
 const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
 
+const LockGlyph = () => (
+  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+  </svg>
+)
+const EyeIcon = ({ off }) => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {off
+      ? <><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></>
+      : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}
+  </svg>
+)
+
+// Alterar senha (Nancy 2, tela 26): o formulário já vem aberto, com a barra de força entre "Nova senha"
+// e a confirmação. As regras são as de sempre (8+ com maiúscula, minúscula e número) e a troca exige a
+// senha atual. O olho de mostrar/ocultar só aparece depois que o campo tem texto.
 export default function ChangePasswordCard({ onMessage }) {
-  const [open,    setOpen]    = useState(false)
   const [form,    setForm]    = useState({ current: '', next: '', confirm: '' })
-  const [show,    setShow]    = useState({ current: false, next: false })
+  const [show,    setShow]    = useState({ current: false, next: false, confirm: false })
   const [errs,    setErrs]    = useState({})
   const [loading, setLoading] = useState(false)
 
-  const EyeIcon = ({ on }) => on
-    ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-    : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+  const strength = passwordStrength(form.next)
 
   const validate = () => {
     const e = {}
@@ -32,7 +45,7 @@ export default function ChangePasswordCard({ onMessage }) {
     try {
       await authAPI.changePassword(form.current, form.next)
       setForm({ current: '', next: '', confirm: '' })
-      setOpen(false)
+      setShow({ current: false, next: false, confirm: false })
       onMessage('Senha alterada com sucesso!')
     } catch (err) {
       const msg = err.response?.data?.error || 'Erro ao alterar senha.'
@@ -43,80 +56,52 @@ export default function ChangePasswordCard({ onMessage }) {
     }
   }
 
-  const field = (key, label, showKey, placeholder) => (
-    <div className="cfg-field">
-      <label className="cfg-label">{label}</label>
-      <div style={{ position: 'relative' }}>
+  const field = (key, placeholder, autoComplete) => (
+    <div className="sc-field">
+      <div className="sc-inp-wrap">
         <input
-          className={`cfg-inp${errs[key] ? ' inp-err' : ''}`}
-          type={show[showKey] ? 'text' : 'password'}
+          className={`sc-inp${errs[key] ? ' err' : ''}`}
+          type={show[key] ? 'text' : 'password'}
           placeholder={placeholder}
+          aria-label={placeholder}
+          autoComplete={autoComplete}
           value={form[key]}
           onChange={e => { setForm(f => ({ ...f, [key]: e.target.value })); setErrs(v => ({ ...v, [key]: '' })) }}
-          style={{ paddingRight: 40 }}
         />
-        <button
-          type="button"
-          onClick={() => setShow(s => ({ ...s, [showKey]: !s[showKey] }))}
-          style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'var(--t3)', padding:4, display:'flex' }}
-          tabIndex={-1}
-        >
-          <EyeIcon on={show[showKey]} />
-        </button>
+        {form[key] && (
+          <button type="button" className="sc-eye" onClick={() => setShow(s => ({ ...s, [key]: !s[key] }))}
+            aria-label={show[key] ? `Ocultar ${placeholder.toLowerCase()}` : `Mostrar ${placeholder.toLowerCase()}`}>
+            <EyeIcon off={show[key]} />
+          </button>
+        )}
       </div>
-      {errs[key] && <div className="cfg-field-err">{errs[key]}</div>}
+      {errs[key] && <div className="sc-err" role="alert">{errs[key]}</div>}
     </div>
   )
 
   return (
-    <div className="cfg-card">
-      <div className="cfg-card-head">
-        <div className="cfg-ch-ico">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t2)" strokeWidth="2" strokeLinecap="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0110 0v4"/>
-          </svg>
+    <section className="fin-card sc-card" aria-label="Alterar senha">
+      <div className="fin-head">
+        <span className="fin-ico"><LockGlyph /></span>
+        <div className="fin-head-text">
+          <h2 className="sc-title">Alterar senha</h2>
+          <p className="sc-sub">Use 8+ caracteres com número e símbolo</p>
         </div>
-        <div style={{ flex: 1 }}>
-          <div className="cfg-ch-title">Alterar senha</div>
-          <div className="cfg-ch-sub">Recomendamos usar uma senha forte e única.</div>
-        </div>
-        <button
-          className="cfg-btn-secondary"
-          onClick={() => { setOpen(o => !o); setErrs({}); setForm({ current: '', next: '', confirm: '' }) }}
-          style={{ flexShrink: 0, fontSize: 12, padding: '8px 14px' }}
-        >
-          {open ? 'Cancelar' : 'Alterar senha'}
-        </button>
       </div>
 
-      {open && (
-        <div className="cfg-card-body" style={{ marginTop: 16 }}>
-          <form onSubmit={handleSubmit} noValidate>
-            {field('current', 'Senha atual', 'current', '••••••••')}
-            {field('next',    'Nova senha',  'next',    'Mínimo 8 caracteres')}
-            <PasswordStrength password={form.next} />
-
-            <div className="cfg-field">
-              <label className="cfg-label">Confirmar nova senha</label>
-              <input
-                className={`cfg-inp${errs.confirm ? ' inp-err' : ''}`}
-                type="password"
-                placeholder="Repita a nova senha"
-                value={form.confirm}
-                onChange={e => { setForm(f => ({ ...f, confirm: e.target.value })); setErrs(v => ({ ...v, confirm: '' })) }}
-              />
-              {errs.confirm && <div className="cfg-field-err">{errs.confirm}</div>}
-            </div>
-
-            <button type="submit" className="cfg-btn-primary" disabled={loading} style={{ marginTop: 4 }}>
-              {loading
-                ? <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />
-                : 'Salvar nova senha'}
-            </button>
-          </form>
+      <form className="sc-form" onSubmit={handleSubmit} noValidate>
+        {field('current', 'Senha atual', 'current-password')}
+        {field('next', 'Nova senha', 'new-password')}
+        <div className="sc-meter" role="progressbar" aria-label="Força da nova senha" aria-valuemin={0} aria-valuemax={4} aria-valuenow={strength.level}
+          aria-valuetext={strength.label || 'Digite a nova senha'}>
+          <span className="sc-meter-fill" style={{ width: `${strength.level * 25}%`, background: strength.color }} />
         </div>
-      )}
-    </div>
+        {strength.level > 0 && <div className="sc-meter-label" style={{ color: strength.color }}>{strength.label}</div>}
+        {field('confirm', 'Confirmar nova senha', 'new-password')}
+        <button type="submit" className="fin-btn sc-btn" disabled={loading}>
+          {loading ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : 'Atualizar senha'}
+        </button>
+      </form>
+    </section>
   )
 }

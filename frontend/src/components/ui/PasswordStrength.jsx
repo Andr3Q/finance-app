@@ -29,6 +29,13 @@ function score(pwd) {
   return 1
 }
 
+/** Nível de força de uma senha: { level: 0..4, label, color } (level 0 = vazia). */
+export function passwordStrength(password) {
+  if (!password) return { level: 0, label: '', color: 'transparent' }
+  const level = score(password)
+  return { level, ...LEVELS[level - 1] }
+}
+
 export default function PasswordStrength({ password }) {
   if (!password) return null
 

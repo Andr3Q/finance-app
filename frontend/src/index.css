@@ -11753,3 +11753,54 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 /* Perfil (tela 24): a foto, quando existe, ocupa o círculo do avatar */
 .pf-av { overflow: hidden; }
 .pf-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ═══════════════════════════════════════════════════════
+   sc-* — Segurança (Nancy 2, tela 26): cabeçalho/corpo da Finanças (fin-*), cartão "Alterar senha" com o
+   formulário aberto e barra de força, e o cartão "Autenticação em duas etapas" com interruptor (sb-switch).
+   ═══════════════════════════════════════════════════════ */
+.sc-title { margin: 0; font-size: 16px; line-height: 21px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.sc-sub { margin: 1px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--t2); }
+.sc-form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.sc-inp-wrap { position: relative; }
+.sc-inp {
+  display: block; width: 100%; box-sizing: border-box; height: 53px; padding: 0 44px 0 16px; border: 1px solid #E6ECF7; border-radius: 16px;
+  background: #F4F7FC; font-family: inherit; font-size: 15px; color: var(--t1); outline: none;
+}
+.sc-inp::placeholder { color: var(--t3); }
+.sc-inp:focus { border-color: #1C48FF; }
+.sc-inp.err { border-color: #E5484D; }
+.sc-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: none; background: none; color: var(--t3); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.sc-eye:hover { color: var(--t2); }
+.sc-err { margin-top: 6px; padding-left: 4px; font-size: 12px; line-height: 1.4; color: #D64545; }
+.sc-meter { height: 5px; margin: 2px 0; border-radius: 3px; background: #EAEEFF; overflow: hidden; }
+.sc-meter-fill { display: block; height: 100%; border-radius: 3px; transition: width .2s, background .2s; }
+.sc-meter-label { margin: -6px 0 0 4px; font-size: 11px; font-weight: 600; }
+.sc-btn { width: 100%; margin-top: 1px; display: flex; align-items: center; justify-content: center; }
+.sc-2fa-row { display: flex; align-items: center; gap: 14px; }
+.sc-2fa-text { flex: 1; min-width: 0; }
+.sc-2fa-text .sc-sub { line-height: 1.6; }
+.sc-2fa-note { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--bdbd); font-size: 12px; line-height: 1.5; color: var(--t2); }
+.sc-2fa-note.warn { color: #B67824; }
+.sc-2fa-extra { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--bdbd); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sc-2fa-count { font-size: 12px; color: var(--t2); }
+.sc-2fa-count.low { color: #D64545; }
+.sc-link { border: none; background: none; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #1C48FF; cursor: pointer; }
+.sc-link:focus-visible, .sc-eye:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+.sc-2fa .sb-switch:disabled { opacity: .6; cursor: default; }
+
+/* Modais do 2FA (QR code, desativar, regenerar e códigos de recuperação): usavam --s1/--s2 (que não
+   existem) e ficavam transparentes sobre a página. Aqui ganham as cores do design claro e o azul dos botões. */
+.tfa-overlay { --s1: #fff; --s2: #F4F7FC; --border: #E6ECF7; --cp: #1C48FF; --t1: #121A33; --t2: #5B6784; --t3: #99A5BE; background: rgba(18,26,51,.55); }
+.tfa-modal { background: #fff; border-color: #EDF2F8; border-radius: 24px; box-shadow: 0 24px 60px rgba(18,26,51,.28); color: #121A33; }
+.tfa-modal-head { border-bottom-color: #EDF2F8; }
+.tfa-overlay .cfg-btn-primary, .tfa-overlay .cfg-btn-secondary, .tfa-overlay .cfg-btn-danger {
+  min-height: 46px; padding: 0 16px; border-radius: 14px; font-family: inherit; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.tfa-overlay .cfg-btn-primary { background: #1C48FF; color: #fff; border: none; }
+.tfa-overlay .cfg-btn-primary:disabled { opacity: .45; }
+.tfa-overlay .cfg-btn-secondary { background: #EEF2FF; color: #1C48FF; border: 1px solid #D6E0FF; }
+.tfa-overlay .cfg-btn-danger { background: #FDECEC; color: #D64545; border: 1px solid #F8CFCF; }
+.tfa-overlay .tfa-backup-notice { background: #FFF6E5; border-color: #F6DDA8; color: #7A5413; }
+.tfa-overlay .tfa-backup-code { background: #F4F7FC; border-color: #E6ECF7; color: #121A33; }
+.tfa-overlay .tfa-backup-notice { display: block; line-height: 1.55; }
+.tfa-overlay .tfa-backup-notice svg { vertical-align: -2px; margin-right: 6px; }

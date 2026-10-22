@@ -60,31 +60,29 @@ test.describe('Configurações — Alterar senha', () => {
   test.beforeEach(async ({ page }) => {
     await setupSettings(page)
     await page.goto('/settings/seguranca')
-    // Clica no toggle "Alterar senha" pra revelar os campos do formulário
-    await page.getByRole('button', { name: /^alterar senha$/i }).click()
+    // Nancy 2 (tela 26): o formulário de senha já vem aberto
   })
 
-  test('exibe campos do formulário de senha após clicar no toggle', async ({ page }) => {
-    // Placeholder real: '••••••••' para senha atual
-    await expect(page.getByPlaceholder('••••••••').first()).toBeVisible()
+  test('exibe os campos do formulário de senha já abertos', async ({ page }) => {
+    await expect(page.getByPlaceholder('Senha atual', { exact: true })).toBeVisible()
+    await expect(page.getByPlaceholder('Nova senha', { exact: true })).toBeVisible()
+    await expect(page.getByPlaceholder('Confirmar nova senha')).toBeVisible()
   })
 
   test('exibe erro quando senha atual está vazia ao submeter', async ({ page }) => {
-    // Deixa senha atual vazia, preenche nova e confirmação
-    const inputs = page.locator('input[type="password"], input[type="text"][placeholder="Mínimo 8 caracteres"]')
     // Preenche nova senha e confirmação mas deixa atual vazia
-    await page.getByPlaceholder('Mínimo 8 caracteres').fill('Nova@Senha99')
-    await page.getByPlaceholder('Repita a nova senha').fill('Nova@Senha99')
-    await page.getByRole('button', { name: /salvar nova senha/i }).click()
+    await page.getByPlaceholder('Nova senha', { exact: true }).fill('Nova@Senha99')
+    await page.getByPlaceholder('Confirmar nova senha').fill('Nova@Senha99')
+    await page.getByRole('button', { name: 'Atualizar senha' }).click()
 
     await expect(page.getByText(/informe a senha atual/i)).toBeVisible()
   })
 
   test('exibe erro quando senhas não coincidem', async ({ page }) => {
-    await page.getByPlaceholder('••••••••').first().fill('Atual@123')
-    await page.getByPlaceholder('Mínimo 8 caracteres').fill('Nova@Senha99')
-    await page.getByPlaceholder('Repita a nova senha').fill('SenhaDiferente9')
-    await page.getByRole('button', { name: /salvar nova senha/i }).click()
+    await page.getByPlaceholder('Senha atual', { exact: true }).fill('Atual@123')
+    await page.getByPlaceholder('Nova senha', { exact: true }).fill('Nova@Senha99')
+    await page.getByPlaceholder('Confirmar nova senha').fill('SenhaDiferente9')
+    await page.getByRole('button', { name: 'Atualizar senha' }).click()
 
     await expect(page.getByText(/não coincidem/i)).toBeVisible()
   })
@@ -95,10 +93,10 @@ test.describe('Configurações — Alterar senha', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: 'Senha alterada com sucesso!' }) })
     })
 
-    await page.getByPlaceholder('••••••••').first().fill('Atual@123')
-    await page.getByPlaceholder('Mínimo 8 caracteres').fill('Nova@Senha99')
-    await page.getByPlaceholder('Repita a nova senha').fill('Nova@Senha99')
-    await page.getByRole('button', { name: /salvar nova senha/i }).click()
+    await page.getByPlaceholder('Senha atual', { exact: true }).fill('Atual@123')
+    await page.getByPlaceholder('Nova senha', { exact: true }).fill('Nova@Senha99')
+    await page.getByPlaceholder('Confirmar nova senha').fill('Nova@Senha99')
+    await page.getByRole('button', { name: 'Atualizar senha' }).click()
 
     await expect(page.getByText(/senha alterada/i)).toBeVisible()
   })
@@ -109,10 +107,10 @@ test.describe('Configurações — Alterar senha', () => {
       route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Senha atual incorreta.' }) })
     })
 
-    await page.getByPlaceholder('••••••••').first().fill('SenhaErrada1')
-    await page.getByPlaceholder('Mínimo 8 caracteres').fill('Nova@Senha99')
-    await page.getByPlaceholder('Repita a nova senha').fill('Nova@Senha99')
-    await page.getByRole('button', { name: /salvar nova senha/i }).click()
+    await page.getByPlaceholder('Senha atual', { exact: true }).fill('SenhaErrada1')
+    await page.getByPlaceholder('Nova senha', { exact: true }).fill('Nova@Senha99')
+    await page.getByPlaceholder('Confirmar nova senha').fill('Nova@Senha99')
+    await page.getByRole('button', { name: 'Atualizar senha' }).click()
 
     await expect(page.getByText(/senha atual incorreta/i)).toBeVisible()
   })
