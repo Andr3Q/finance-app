@@ -122,8 +122,9 @@ export default function Navbar() {
   const isActive  = (path) => path === '/settings'
     ? location.pathname.startsWith('/settings')
     : location.pathname === path
-  // No design, a tela Notificações aparece com "Extrato" aceso na barra de baixo (mobile).
-  const isMobileActive = (path) => isActive(path) || (path === '/transactions' && location.pathname === '/notificacoes')
+  // No design, Notificações e Finanças (aberta pelo "Contas do mês" do Extrato) aparecem com
+  // "Extrato" aceso na barra de baixo (mobile).
+  const isMobileActive = (path) => isActive(path) || (path === '/transactions' && ['/notificacoes', '/financas'].includes(location.pathname))
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'

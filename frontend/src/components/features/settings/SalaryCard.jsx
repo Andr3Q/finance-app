@@ -30,32 +30,27 @@ export default function SalaryCard({ user, onMessage }) {
   }
 
   return (
-    <div className="cfg-card r5">
-      <div className="cfg-card-head">
-        <div className="cfg-ch-ico">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
-            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+    <section className="fin-card">
+      <div className="fin-head">
+        <span className="fin-ico">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 20h16a2 2 0 002-2V8a2 2 0 00-2-2h-7.93a2 2 0 01-1.66-.9l-.82-1.2A2 2 0 007.93 3H4a2 2 0 00-2 2v13c0 1.1.9 2 2 2z"/>
           </svg>
-        </div>
-        <div>
-          <div className="cfg-ch-title">Salário mensal</div>
-          <div className="cfg-ch-sub">Usado para calcular seu saldo disponível</div>
+        </span>
+        <div className="fin-head-text">
+          <h2 className="fin-title">Salário mensal</h2>
+          <p className="fin-sub">Usado para calcular seu saldo disponível</p>
         </div>
       </div>
-      <form onSubmit={handleSave} className="cfg-card-body">
-        <div className="cfg-inp-group">
-          <span className="cfg-inp-prefix">R$</span>
-          <CurrencyInput
-            className="cfg-inp cfg-inp-prefixed"
-            value={salary}
-            onChange={setSalary}
-            placeholder="0,00"
-          />
-          <button type="submit" className="cfg-btn-primary" disabled={saving} style={{ flexShrink: 0 }}>
-            {saving ? 'Salvando…' : 'Salvar'}
-          </button>
+      <form onSubmit={handleSave} className="fin-salary-row">
+        <div className="fin-field">
+          <span className="fin-prefix">R$</span>
+          <CurrencyInput className="fin-inp" value={salary} onChange={setSalary} placeholder="0,00" />
         </div>
+        <button type="submit" className="fin-btn" disabled={saving}>
+          {saving ? 'Salvando…' : 'Salvar'}
+        </button>
       </form>
-    </div>
+    </section>
   )
 }

@@ -25,6 +25,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const [endDateErr,      setEndDateErr]      = useState('')
   const [dueDayErr,       setDueDayErr]       = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [openId,         setOpenId]         = useState(null) // linha com os detalhes (pagar / encerramento) aberta
 
   const fetchBudgets = async () => {
     try {
@@ -145,19 +146,22 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
 
   return (
     <>
-    <div className="cfg-card r6">
-      <div className="cfg-card-head">
-        <div className="cfg-ch-ico">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
-            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+    <section className="fin-card fin-card-list">
+      <div className="fin-head">
+        <span className="fin-ico">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/>
           </svg>
+        </span>
+        <div className="fin-head-text">
+          <h2 className="fin-title">Contas fixas</h2>
+          <p className="fin-sub">Despesas recorrentes mensais</p>
         </div>
-        <div>
-          <div className="cfg-ch-title">Contas fixas</div>
-          <div className="cfg-ch-sub">Despesas recorrentes mensais</div>
-        </div>
+        {budgets.length > 0 && (
+          <span className="fin-total" aria-label="Total mensal">R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+        )}
       </div>
-      <div className="cfg-card-body">
+      <div className="fin-card-body">
         <PlanUsageBanner
           plan={user.plan ?? 'free'}
           feature="budgets"
@@ -167,50 +171,55 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         {budgets.length === 0 ? (
           <div className="cfg-empty-hint">Nenhuma conta fixa cadastrada.</div>
         ) : (
-          <div className="cfg-fixed-list">
-            {budgets.map(b => (
-              <div key={b.id} className="cfg-fixed-item">
-                <span className="cfg-fixed-name">{b.name}</span>
-                <div className="cfg-fixed-right">
-                  <span className="cfg-fixed-val">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                  {b.dueDay ? <span className="cfg-fixed-due">dia {b.dueDay}</span> : null}
-                  {b.endDate ? (
-                    <span className="cfg-fixed-end" title="Data de encerramento">
-                      até {new Date(b.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })}
-                    </span>
-                  ) : null}
-                  {b.paidThisMonth ? (
-                    <span className="cfg-fixed-paid" title={b.paidDate ? `Pago em ${new Date(b.paidDate).toLocaleDateString('pt-BR')}` : undefined}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                      paga
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="cfg-btn-ghost cfg-fixed-pay-btn"
-                      onClick={() => handlePay(b)}
-                      disabled={payingId === b.id}
-                    >
-                      {payingId === b.id
-                        ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2 }} />
-                        : 'Marcar como paga'}
+          <ul className="fin-list">
+            {budgets.map(b => {
+              const open = openId === b.id
+              return (
+                <li key={b.id} className="fin-row">
+                  <div className="fin-row-line">
+                    <button type="button" className="fin-row-main" onClick={() => setOpenId(open ? null : b.id)} aria-expanded={open}>
+                      <span className="fin-row-ico">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/>
+                        </svg>
+                      </span>
+                      <span className="fin-row-info">
+                        <span className="fin-row-name">{b.name}</span>
+                        <span className="fin-row-due">
+                          {b.dueDay ? `Vence dia ${b.dueDay}` : 'Sem dia de vencimento'}
+                          {b.paidThisMonth && <> · <span className="fin-paid">paga</span></>}
+                        </span>
+                      </span>
+                      <span className="fin-row-val">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </button>
+                    <button className="fin-del" type="button" onClick={() => setDeleteConfirmId(b.id)} aria-label="Remover">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                  {open && (
+                    <div className="fin-row-detail">
+                      {b.paidThisMonth ? (
+                        <span className="fin-detail-txt">
+                          {b.paidDate ? `Paga em ${new Date(b.paidDate).toLocaleDateString('pt-BR')}` : 'Paga este mês'}
+                        </span>
+                      ) : (
+                        <button type="button" className="fin-pay" onClick={() => handlePay(b)} disabled={payingId === b.id}>
+                          {payingId === b.id ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2 }} /> : 'Marcar como paga'}
+                        </button>
+                      )}
+                      {b.endDate && (
+                        <span className="fin-detail-txt" title="Data de encerramento">
+                          Até {new Date(b.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                   )}
-                  <button className="cfg-del-btn" type="button" onClick={() => setDeleteConfirmId(b.id)} aria-label="Remover">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-            <div className="cfg-fixed-total">
-              <span>Total mensal</span>
-              <span>R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-            </div>
-          </div>
+                </li>
+              )
+            })}
+          </ul>
         )}
         {budgets.length > 0 && (
           <div className="cfg-launch-row">
@@ -320,7 +329,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
           </div>
         )}
       </div>
-    </div>
+    </section>
 
     {deleteConfirmId && createPortal(
       <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>

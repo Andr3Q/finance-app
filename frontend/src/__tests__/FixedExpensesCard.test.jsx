@@ -55,7 +55,36 @@ test('mostra "paga" pra conta já quitada e botão "Marcar como paga" pra penden
 
   expect(await screen.findByText('Internet')).toBeInTheDocument()
   expect(screen.getByText('paga')).toBeInTheDocument()
+  // o botão de pagar fica no detalhe da linha: só aparece ao tocar na conta pendente
+  expect(screen.queryByRole('button', { name: /marcar como paga/i })).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: /claro/i }))
   expect(screen.getByRole('button', { name: /marcar como paga/i })).toBeInTheDocument()
+})
+
+test('o detalhe de uma conta já paga mostra a data do pagamento e não oferece pagar de novo', async () => {
+  budgetAPI.list.mockResolvedValue({ data: [
+    { id: 'b1', name: 'Internet', amount: 89, paidThisMonth: true, paidAmount: 89, paidDate: '2026-10-05T12:00:00Z', endDate: '2027-03-10T12:00:00Z' },
+  ] })
+
+  renderCard()
+  fireEvent.click(await screen.findByRole('button', { name: /internet/i }))
+
+  expect(screen.getByText(/paga em 05\/10\/2026/i)).toBeInTheDocument()
+  expect(screen.getByText(/^até 10.*mar.*27$/i)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /marcar como paga/i })).not.toBeInTheDocument()
+})
+
+test('o total mensal aparece no cabeçalho do cartão e as linhas mostram o vencimento', async () => {
+  budgetAPI.list.mockResolvedValue({ data: [
+    { id: 'b1', name: 'Aluguel', amount: 3500, dueDay: 5,    paidThisMonth: false },
+    { id: 'b2', name: 'Celular', amount: 47.5, dueDay: null, paidThisMonth: false },
+  ] })
+
+  renderCard()
+
+  expect(await screen.findByLabelText('Total mensal')).toHaveTextContent('R$ 3.547,50')
+  expect(screen.getByText('Vence dia 5')).toBeInTheDocument()
+  expect(screen.getByText('Sem dia de vencimento')).toBeInTheDocument()
 })
 
 test('clicar em "Marcar como paga" chama budgetAPI.pay com o id certo e atualiza a lista', async () => {
@@ -65,7 +94,7 @@ test('clicar em "Marcar como paga" chama budgetAPI.pay com o id certo e atualiza
   budgetAPI.pay.mockResolvedValue({ data: {} })
 
   renderCard()
-  await screen.findByText('Claro')
+  fireEvent.click(await screen.findByRole('button', { name: /claro/i }))
   fireEvent.click(screen.getByRole('button', { name: /marcar como paga/i }))
 
   await waitFor(() => expect(budgetAPI.pay).toHaveBeenCalledWith('b2'))
