@@ -21,16 +21,16 @@ const Svg = ({ size = 16, sw = 2, children }) => (
 )
 const BackIcon = () => <Svg size={17} sw={2.4}><polyline points="15 18 9 12 15 6"/></Svg>
 const ScaleGlyph = () => (
-  <Svg size={20} sw={1.8}>
-    <path d="M12 4v16"/><path d="M8 20h8"/><path d="M4 7h16"/>
-    <path d="M4 7l-2.5 6a2.5 2.5 0 005 0z"/><path d="M20 7l-2.5 6a2.5 2.5 0 005 0z"/>
+  <Svg size={22} sw={1.9}>
+    <path d="M12 3v18.5"/><path d="M3 8.5h18"/>
+    <path d="M4.8 9L1.6 14.8a3.3 3.3 0 006.4 0z"/><path d="M19.2 9L16 14.8a3.3 3.3 0 006.4 0z"/>
   </Svg>
 )
-// Um ícone por categoria (a tela mostra os de Alimentação, Transporte e Shopping)
+// Um ícone por categoria (desenhados como os do design: Alimentação, Transporte e Shopping)
 const CAT_ICONS = {
-  food:      <><path d="M4 3v6a3 3 0 003 3v9"/><path d="M7 3v6"/><path d="M10 3v6a3 3 0 01-3 3"/><path d="M19 21V3c-2.5 1.5-3.5 4-3.5 7 0 2 1 3 3.5 3"/></>,
-  transport: <><path d="M7.5 8h9A3.5 3.5 0 0120 11.5V15a2 2 0 01-2 2H6a2 2 0 01-2-2v-3.5A3.5 3.5 0 017.5 8z"/><path d="M7 17v2"/><path d="M17 17v2"/></>,
-  shopping:  <><rect x="5" y="8" width="14" height="13" rx="2"/><path d="M9 8V6a3 3 0 016 0v2"/></>,
+  food:      <><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 002-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 00-5 5v6c0 1.1.9 2 2 2h3zm0 0v7"/></>,
+  transport: <><path d="M7.5 5h9a2 2 0 011.9 1.4L20.5 11v5a1 1 0 01-1 1h-15a1 1 0 01-1-1v-5l2.1-4.6A2 2 0 017.5 5z"/><path d="M7 17v2.5"/><path d="M17 17v2.5"/></>,
+  shopping:  <><path d="M4.5 8h15l-1 11.5a2 2 0 01-2 1.8h-9a2 2 0 01-2-1.8z"/><path d="M8.5 8V6.5a3.5 3.5 0 017 0V8"/></>,
   health:    <path d="M12 20.5s-8-4.6-8-10.2A4.3 4.3 0 018 6c1.7 0 3.2.9 4 2.3C12.8 6.9 14.3 6 16 6a4.3 4.3 0 014 4.3c0 5.6-8 10.2-8 10.2z"/>,
   leisure:   <><path d="M3 9a3 3 0 010 6v2a2 2 0 002 2h14a2 2 0 002-2v-2a3 3 0 010-6V7a2 2 0 00-2-2H5a2 2 0 00-2 2z"/><path d="M14 5v2"/><path d="M14 11v2"/><path d="M14 17v2"/></>,
   education: <><path d="M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/><path d="M22 10v6"/></>,
@@ -187,11 +187,11 @@ export default function Limits() {
                         return (
                           <li key={r.category} className="lm-item">
                             <div className="lm-top">
-                              <span className="lm-cat"><Svg size={16}>{CAT_ICONS[r.category] || CAT_ICONS.other}</Svg></span>
+                              <span className="lm-cat"><Svg size={16} sw={2}>{CAT_ICONS[r.category] || CAT_ICONS.other}</Svg></span>
                               <span className="lm-name">{r.label}</span>
                               <span className="lm-amt">{money(r.spent)} / {money(r.limit)}</span>
                               <button type="button" className="lm-del" aria-label={`Remover limite de ${r.label}`} onClick={() => remove(r)}>
-                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><line x1="1.5" y1="1.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="1.5" x2="1.5" y2="12.5"/></svg>
+                                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
                               </button>
                             </div>
                             <div className="lm-bar" role="progressbar" aria-label={`${r.label}: ${r.used}% do limite usado`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, r.used)}>
