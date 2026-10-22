@@ -336,8 +336,12 @@ test.describe('Dashboard — tema claro imposto e barra de baixo', () => {
     const bg = await page.evaluate(() => getComputedStyle(document.querySelector('.home-body')).backgroundColor)
     expect(bg).toBe('rgb(242, 246, 255)') // #F2F6FF do design
 
+    // o Perfil já é Nancy 2 (claro); Segurança ainda é tela antiga e volta ao tema salvo
     await page.locator('.dsb-mobile-nav').getByRole('button', { name: 'Perfil' }).click()
-    await page.waitForURL(/\/settings/)
+    await page.waitForURL(/\/settings$/)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    await page.getByRole('button', { name: 'Segurança', exact: true }).click()
+    await page.waitForURL(/\/settings\/seguranca/)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
     await page.locator('.dsb-mobile-nav').getByRole('button', { name: 'Início' }).click()

@@ -83,7 +83,7 @@ test.describe('Finanças', () => {
 
   test('voltar retorna à tela de onde se chegou (Perfil → Finanças)', async ({ page }) => {
     await setup(page, { goto: '/settings' })
-    await page.getByText('Salário e contas fixas').click()
+    await page.getByRole('button', { name: 'Finanças', exact: true }).click()
     await expect(page).toHaveURL(/\/financas$/)
     await page.getByRole('button', { name: 'Voltar' }).click()
     await expect(page).toHaveURL(/\/settings$/)
