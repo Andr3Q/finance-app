@@ -53,7 +53,7 @@ test.describe('Lembretes', () => {
     expect(m.hero).toBe('rgb(28, 72, 255)')
     expect(m.body).toBe('rgb(242, 246, 255)')
     expect(m.card).toBe('rgb(255, 255, 255)')
-    expect([m.cardBox.x, m.cardBox.w]).toEqual([20, 353])
+    expect([m.cardBox.x, m.cardBox.w]).toEqual([18, 357])   // 18px de margem de cada lado (medido no print)
     expect([m.ico.w, m.ico.h]).toEqual([42, 42])
     expect(m.icoBg).toBe('rgb(238, 242, 255)')
     expect(m.on).toBe('rgb(25, 200, 132)')
