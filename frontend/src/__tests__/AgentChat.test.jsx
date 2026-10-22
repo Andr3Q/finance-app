@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import AgentChat from '../components/features/AgentChat.jsx'
 
 vi.mock('../services/analytics.js', () => ({
@@ -109,7 +109,7 @@ describe('AgentChat — fluxo de gravação e transcrição', () => {
     fireEvent.click(screen.getByLabelText('Parar gravação'))
 
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Pergunte algo sobre suas finanças…')).toHaveValue('Gastei 50 reais no mercado')
+      expect(screen.getByPlaceholderText('Pergunte à Nancy…')).toHaveValue('Gastei 50 reais no mercado')
     })
     expect(agentAPI.transcribe).toHaveBeenCalledTimes(1)
     // Confere que o áudio foi enviado como multipart com o campo "audio"
@@ -220,7 +220,7 @@ describe('AgentChat — fluxo de gravação e transcrição', () => {
 
 describe('AgentChat — envio de mensagem de texto', () => {
   function sendText(text) {
-    const input = screen.getByPlaceholderText('Pergunte algo sobre suas finanças…')
+    const input = screen.getByPlaceholderText('Pergunte à Nancy…')
     fireEvent.change(input, { target: { value: text } })
     fireEvent.click(screen.getByLabelText('Enviar'))
   }
@@ -308,5 +308,116 @@ describe('AgentChat — envio de mensagem de texto', () => {
     })
     expect(onBudgetUpdated).not.toHaveBeenCalled()
     window.removeEventListener('budget-updated', onBudgetUpdated)
+  })
+})
+
+
+// ── Tela 12 (Nancy IA): chat azul, saudação, sugestões e fechar ─────────────
+describe('AgentChat — Nancy IA (tela 12)', () => {
+  const MONTH_NOW = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'][new Date().getMonth()]
+
+  it('cabeçalho "Nancy IA" com o indicador online', () => {
+    setup()
+    const panel = screen.getByRole('dialog', { name: 'Nancy IA' })
+    expect(panel).toHaveTextContent('Nancy IA')
+    expect(panel).toHaveTextContent('online')
+  })
+
+  it('saudação com o primeiro nome do usuário', () => {
+    setup({ name: 'André Elias' })
+    expect(screen.getByText(/^Oi, André! Sou a Nancy\. Pergunte sobre seus gastos/)).toBeInTheDocument()
+    expect(screen.getByText(/Pode digitar ou mandar um áudio\./)).toBeInTheDocument()
+  })
+
+  it('sem nome cadastrado a saudação continua natural', () => {
+    setup()
+    expect(screen.getByText(/^Oi! Sou a Nancy\./)).toBeInTheDocument()
+  })
+
+  it('as 4 sugestões do design, com o mês atual na terceira', () => {
+    setup()
+    const chips = [...document.querySelectorAll('.nia-suggestion')].map(c => c.textContent)
+    expect(chips).toEqual([
+      'Quanto gastei esse mês?',
+      'Onde estou gastando mais?',
+      `Vou conseguir guardar em ${MONTH_NOW}?`,
+      'Registrar gasto de R$ 50 em alimentação',
+    ])
+  })
+
+  it('tocar numa sugestão envia aquela mensagem; depois disso as sugestões somem e a saudação fica', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Você gastou R$ 7.300,00.' } })
+    setup({ name: 'André Elias' })
+    fireEvent.click(screen.getByText('Quanto gastei esse mês?', { selector: '.nia-suggestion' }))
+
+    await waitFor(() => expect(agentAPI.chat).toHaveBeenCalledWith('Quanto gastei esse mês?', []))
+    expect(await screen.findByText('Você gastou R$ 7.300,00.')).toBeInTheDocument()
+    expect(document.querySelectorAll('.nia-suggestion')).toHaveLength(0)
+    expect(screen.getByText(/^Oi, André! Sou a Nancy\./)).toBeInTheDocument()
+    // a saudação é só da tela: não vai pro histórico enviado à IA
+    fireEvent.change(screen.getByPlaceholderText('Pergunte à Nancy…'), { target: { value: 'e no mês passado?' } })
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'ok' } })
+    fireEvent.click(screen.getByLabelText('Enviar'))
+    await waitFor(() => expect(agentAPI.chat).toHaveBeenLastCalledWith('e no mês passado?', [
+      { role: 'user', content: 'Quanto gastei esse mês?' },
+      { role: 'assistant', content: 'Você gastou R$ 7.300,00.' },
+    ]))
+  })
+
+  it('mensagem do usuário e da Nancy ficam em lados e estilos diferentes; erro tem estilo próprio', async () => {
+    agentAPI.chat.mockRejectedValue({ response: { status: 429, data: {} } })
+    setup()
+    fireEvent.change(screen.getByPlaceholderText('Pergunte à Nancy…'), { target: { value: 'oi' } })
+    fireEvent.click(screen.getByLabelText('Enviar'))
+    expect(await screen.findByText(/Muitas mensagens seguidas/)).toBeInTheDocument()
+    expect(screen.getByText('oi').closest('.nia-msg')).toHaveClass('user')
+    expect(screen.getByText(/Muitas mensagens seguidas/).closest('.nia-msg')).toHaveClass('bot', 'err')
+  })
+
+  it('o X do cabeçalho fecha o chat', () => {
+    setup()
+    fireEvent.click(screen.getByLabelText('Fechar chat'))
+    expect(screen.queryByRole('dialog', { name: 'Nancy IA' })).not.toBeInTheDocument()
+  })
+
+  it('fechar pelo X durante a gravação também para o microfone', async () => {
+    stubMic()
+    setup()
+    fireEvent.click(screen.getByLabelText('Falar mensagem'))
+    await waitFor(() => expect(screen.getByLabelText('Parar gravação')).toBeInTheDocument())
+    fireEvent.click(screen.getByLabelText('Fechar chat'))
+    await waitFor(() => expect(MockMediaRecorder.instances[0].state).toBe('inactive'))
+  })
+
+  it('o evento do app (Perguntar à Nancy, Nancy IA, menu do +) abre o chat', async () => {
+    setUser()
+    render(<MemoryRouter><AgentChat /></MemoryRouter>)
+    expect(screen.queryByRole('dialog', { name: 'Nancy IA' })).not.toBeInTheDocument()
+    window.dispatchEvent(new Event('nancy:open-agent-chat'))
+    expect(await screen.findByRole('dialog', { name: 'Nancy IA' })).toBeInTheDocument()
+  })
+
+  it('quem não é Elite vê o convite do plano e nenhum campo de mensagem', () => {
+    setup({ plan: 'free', name: 'Ana Souza' })
+    expect(screen.getByText(/^Oi, Ana! A Nancy IA analisa seus gastos/)).toBeInTheDocument()
+    expect(screen.getByText(/disponível no plano Elite/)).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Pergunte à Nancy…')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Enviar')).not.toBeInTheDocument()
+    expect(document.querySelectorAll('.nia-suggestion')).toHaveLength(0)
+  })
+
+  it('"Ver planos" fecha o chat e leva para /planos', () => {
+    setUser({ plan: 'free' })
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<AgentChat />} />
+          <Route path="/planos" element={<div>Página de planos</div>} />
+        </Routes>
+      </MemoryRouter>
+    )
+    fireEvent.click(screen.getByLabelText('Assistente IA'))
+    fireEvent.click(screen.getByRole('button', { name: /ver planos/i }))
+    expect(screen.getByText('Página de planos')).toBeInTheDocument()
   })
 })

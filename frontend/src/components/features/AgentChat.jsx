@@ -4,13 +4,18 @@ import { agentAPI } from '../../services/api.js'
 import { useUser } from '../../hooks/useUser.js'
 import { analytics } from '../../services/analytics.js'
 import { invalidateCache } from '../../services/cache.js'
+import { MONTHS } from '../../constants/index.js'
+import NancyMark from '../ui/NancyMark.jsx'
 
-const SUGGESTIONS = [
-  'Quanto gastei esse mês?',
-  'Qual meu saldo atual?',
-  'Onde estou gastando mais?',
-  'Registrar gasto de R$ 50 em alimentação',
-]
+// Sugestões da conversa vazia (design Nancy 2, tela 12). A do meio usa o mês atual.
+function buildSuggestions(now = new Date()) {
+  return [
+    'Quanto gastei esse mês?',
+    'Onde estou gastando mais?',
+    `Vou conseguir guardar em ${MONTHS[now.getMonth()].toLowerCase()}?`,
+    'Registrar gasto de R$ 50 em alimentação',
+  ]
+}
 
 // Duração máxima de uma gravação — evita upload/transcrição gigante se o
 // usuário esquecer o microfone ligado (custo de Whisper cresce com a duração).
@@ -70,6 +75,8 @@ export default function AgentChat() {
   }, [])
   const user             = useUser()
   const isElite          = user.plan === 'elite'
+  const firstName        = user.name?.split(' ')[0] || ''
+  const suggestions      = buildSuggestions()
 
   useEffect(() => {
     // MediaRecorder + getUserMedia são suportados de forma muito mais ampla e
@@ -291,141 +298,105 @@ export default function AgentChat() {
         )}
       </button>
 
-      {/* Painel do chat */}
+      {/* Painel do chat — tela cheia azul no celular, janela flutuante no desktop (tela 12) */}
       {open && (
-        <div className="agent-panel fade-in">
-          {/* Header */}
-          <div className="agent-header">
-            <div className="agent-header-ico">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+        <div className="agent-panel nia-panel fade-in" role="dialog" aria-label="Nancy IA">
+          <div className="nia-head">
+            <NancyMark size={42} />
+            <div className="nia-head-txt">
+              <div className="nia-name">Nancy IA</div>
+              <div className="nia-status"><span className="nia-dot" />online</div>
+            </div>
+            <button type="button" className="nia-close" onClick={() => setOpen(false)} aria-label="Fechar chat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
-            </div>
-            <div>
-              <div className="agent-header-title">Assistente IA</div>
-              <div className="agent-header-sub">Finance · Claude</div>
-            </div>
-            <div className="agent-header-dot" />
+            </button>
           </div>
 
-          {/* Mensagens */}
-          <div className="agent-messages">
+          <div className="nia-msgs">
             {!isElite ? (
-              <div className="agent-welcome">
-                <div className="agent-welcome-ico" style={{ background: 'rgba(123,47,255,.12)', border: '1px solid rgba(123,47,255,.25)' }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                  </svg>
+              <>
+                <div className="nia-msg bot">
+                  <div className="nia-bubble">
+                    Oi{firstName ? `, ${firstName}` : ''}! A Nancy IA analisa seus gastos, tira dúvidas e registra transações por texto ou áudio. Ela está disponível no plano Elite.
+                  </div>
                 </div>
-                <div className="agent-welcome-title">Assistente IA</div>
-                <div className="agent-welcome-sub" style={{ marginBottom: 16 }}>
-                  Analise gastos, tire dúvidas e registre transações por texto. Disponível no plano <strong style={{ color: '#a78bfa' }}>Elite</strong>.
-                </div>
-                <button
-                  onClick={() => { setOpen(false); navigate('/planos') }}
-                  style={{ background: 'linear-gradient(135deg,#a78bfa,#7c3aed)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                >
+                <button type="button" className="nia-upgrade" onClick={() => { setOpen(false); navigate('/planos') }}>
                   Ver planos →
                 </button>
-              </div>
-            ) : history.length === 0 ? (
-              <div className="agent-welcome">
-                <div className="agent-welcome-ico">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                  </svg>
-                </div>
-                <div className="agent-welcome-title">Olá! Sou seu assistente financeiro.</div>
-                <div className="agent-welcome-sub">Posso analisar seus gastos, responder dúvidas e registrar transações por texto.</div>
-                <div className="agent-suggestions">
-                  {SUGGESTIONS.map((s, i) => (
-                    <button key={i} className="agent-suggestion" onClick={() => send(s)}>{s}</button>
-                  ))}
-                </div>
-              </div>
+              </>
             ) : (
-              history.map((m, i) => (
-                <div key={i} className={`agent-msg ${m.role}${m.error ? ' err' : ''}`}>
-                  {m.role === 'assistant' && (
-                    <div className="agent-msg-ico">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
-                      </svg>
-                    </div>
-                  )}
-                  <div className="agent-msg-bubble">{m.content}</div>
+              <>
+                <div className="nia-msg bot">
+                  <div className="nia-bubble">
+                    Oi{firstName ? `, ${firstName}` : ''}! Sou a Nancy. Pergunte sobre seus gastos ou peça para eu registrar uma despesa. Pode digitar ou mandar um áudio.
+                  </div>
                 </div>
-              ))
+                {history.length === 0 && (
+                  <div className="nia-suggestions">
+                    {suggestions.map((sug, i) => (
+                      <button key={i} type="button" className="nia-suggestion" onClick={() => send(sug)}>{sug}</button>
+                    ))}
+                  </div>
+                )}
+                {history.map((m, i) => (
+                  <div key={i} className={`nia-msg ${m.role === 'user' ? 'user' : 'bot'}${m.error ? ' err' : ''}`}>
+                    <div className="nia-bubble">{m.content}</div>
+                  </div>
+                ))}
+              </>
             )}
             {loading && (
-              <div className="agent-msg assistant">
-                <div className="agent-msg-ico">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
-                  </svg>
-                </div>
-                <div className="agent-typing">
-                  <span/><span/><span/>
-                </div>
+              <div className="nia-msg bot">
+                <div className="nia-bubble nia-typing" aria-label="Nancy está digitando"><span/><span/><span/></div>
               </div>
             )}
             <div ref={bottomRef} />
           </div>
 
-          {/* Input — só exibido para Elite */}
-          {isElite && voiceError && (
-            <div className="agent-voice-error">{voiceError}</div>
-          )}
-          {isElite && <div className="agent-input-wrap">
-            <textarea
-              ref={inputRef}
-              className={`agent-input${listening ? ' voice-active' : ''}`}
-              placeholder={listening ? 'Ouvindo…' : transcribing ? 'Transcrevendo…' : 'Pergunte algo sobre suas finanças…'}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKey}
-              rows={1}
-              maxLength={2000}
-              disabled={loading || transcribing}
-            />
-            {voiceSupport && (
-              <button
-                className={`agent-mic${listening ? ' listening' : ''}${transcribing ? ' transcribing' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
-                onClick={toggleVoice}
+          {isElite && voiceError && <div className="nia-voice-error">{voiceError}</div>}
+          {isElite && (
+            <div className="nia-input-bar">
+              <textarea
+                ref={inputRef}
+                className={`nia-input${listening ? ' voice-active' : ''}`}
+                placeholder={listening ? 'Ouvindo…' : transcribing ? 'Transcrevendo…' : 'Pergunte à Nancy…'}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKey}
+                rows={1}
+                maxLength={2000}
                 disabled={loading || transcribing}
-                aria-label={listening ? 'Parar gravação' : transcribing ? 'Transcrevendo áudio' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
-                title={micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : undefined}
-                type="button"
-              >
-                {listening ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="5" y="5" width="14" height="14" rx="2"/>
-                  </svg>
-                ) : transcribing ? (
-                  <span className="agent-mic-spinner" />
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
-                    <path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
-                  </svg>
-                )}
+              />
+              {voiceSupport && (
+                <button
+                  className={`nia-mic${listening ? ' listening' : ''}${transcribing ? ' transcribing' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
+                  onClick={toggleVoice}
+                  disabled={loading || transcribing}
+                  aria-label={listening ? 'Parar gravação' : transcribing ? 'Transcrevendo áudio' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
+                  title={micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : undefined}
+                  type="button"
+                >
+                  {listening ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+                  ) : transcribing ? (
+                    <span className="agent-mic-spinner" />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                      <path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+                    </svg>
+                  )}
+                </button>
+              )}
+              <button className={`nia-send${loading || transcribing ? ' busy' : ''}`} onClick={() => send()} disabled={!input.trim() || loading || transcribing} aria-label="Enviar">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
               </button>
-            )}
-            <button
-              className="agent-send"
-              onClick={() => send()}
-              disabled={!input.trim() || loading || transcribing}
-              aria-label="Enviar"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </button>
-          </div>}
+            </div>
+          )}
         </div>
       )}
     </>

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI, goalsAPI, agentAPI } from '../services/api.js'
 import { monthName, money, maskSlides, HIDDEN_AMOUNT, buildRecapSlides, buildTipSlides, buildGoalSlides } from '../utils/storySlides.js'
 import { resumoKey, dicasKey, metasKey, markSeen } from '../utils/storiesSeen.js'
+import NancyMark from '../components/ui/NancyMark.jsx'
 
 const STORY_DURATION_MS = 5000
 const RING_R    = 46
@@ -186,7 +187,7 @@ export default function StoriesResumo() {
 
       <div className="stories-header">
         <div className="stories-header-user">
-          <div className="stories-avatar">n</div>
+          <NancyMark size={30} />
           <div className="stories-header-text">
             <span className="stories-title">{title}</span>
             <span className="stories-sub">Nancy · resumo</span>

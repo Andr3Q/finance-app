@@ -154,19 +154,19 @@ export default function Navbar() {
   // /goals) — evita ele ficar aberto por cima de uma tela diferente.
   useEffect(() => { setShowQuickMenu(false) }, [location.pathname])
 
-  // Círculo sempre escuro (identidade do Nancy) — só o ícone muda de cor.
-  // Verde/vermelho seguem o mesmo padrão já usado em receita/despesa no
-  // resto do app; as demais ações usam o verde-menta da marca.
+  // Bolhas brancas com o ícone colorido (design Nancy 2): verde = entrada, vermelho =
+  // saída, azul = ações da marca. Receita/Despesa abrem a folha "Nova transação" por
+  // cima da tela atual (NewTransactionSheet, montado em App.jsx).
   const quickMenuActions = [
-    { key: 'income',      label: 'Receita',          Icon: ArrowUpIcon,   iconColor: '#4ae2ac',
-      onSelect: () => navigate('/dashboard', { state: { openTxForm: 'income' } }) },
-    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,      iconColor: '#4ae2ac',
+    { key: 'income',      label: 'Receita',          Icon: ArrowUpIcon,   iconColor: '#19C884',
+      onSelect: () => window.dispatchEvent(new CustomEvent('nancy:new-transaction', { detail: { type: 'income' } })) },
+    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,      iconColor: '#1C48FF',
       onSelect: () => navigate('/transactions', { state: { openInstallmentForm: true } }) },
-    { key: 'voice',       label: 'Falar com IA',     Icon: MicIcon,       iconColor: '#4ae2ac',
+    { key: 'voice',       label: 'Falar com IA',     Icon: MicIcon,       iconColor: '#1C48FF',
       onSelect: () => window.dispatchEvent(new Event('nancy:open-agent-chat')) },
-    { key: 'expense',     label: 'Despesa',          Icon: ArrowDownIcon, iconColor: '#ff6b6b',
-      onSelect: () => navigate('/dashboard', { state: { openTxForm: 'expense' } }) },
-    { key: 'goals',       label: 'Metas',            Icon: TargetIcon,    iconColor: '#4ae2ac',
+    { key: 'expense',     label: 'Despesa',          Icon: ArrowDownIcon, iconColor: '#E5484D',
+      onSelect: () => window.dispatchEvent(new CustomEvent('nancy:new-transaction', { detail: { type: 'expense' } })) },
+    { key: 'goals',       label: 'Metas',            Icon: TargetIcon,    iconColor: '#12A06E',
       onSelect: () => navigate('/goals') },
   ]
 
@@ -407,7 +407,7 @@ export default function Navbar() {
       )}
 
       {/* ── Mobile bottom nav ── */}
-      <nav className="dsb-mobile-nav">
+      <nav className={`dsb-mobile-nav${showQuickMenu ? ' menu-open' : ''}`}>
         {mobileNavLinksLeft.map(({ path, label, Icon }) => {
           const active = isActive(path)
           return (

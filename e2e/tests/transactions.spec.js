@@ -142,10 +142,10 @@ test.describe('Transações — Criar transação', () => {
     await page.getByPlaceholder('0,00').fill('85')
 
     // Preenche descrição
-    await page.getByPlaceholder(/ex: almoço/i).fill('Jantar sushi')
+    await page.getByPlaceholder(/ex\.: mercado/i).fill('Jantar sushi')
 
-    // Botão de submit: "Registrar Gasto"
-    await page.getByRole('button', { name: /registrar gasto|registrar entrada/i }).click()
+    // Botão de submit: "Salvar"
+    await page.getByRole('button', { name: /^salvar$/i }).click()
 
     // onSuccess() fecha o modal — sem toast neste fluxo
     await expect(page.locator('.modal')).not.toBeVisible({ timeout: 5000 })
@@ -156,9 +156,9 @@ test.describe('Transações — Criar transação', () => {
     await page.locator('.modal').first().waitFor()
 
     // Deixa valor vazio, preenche só a descrição
-    await page.getByPlaceholder(/ex: almoço/i).fill('Sem valor')
+    await page.getByPlaceholder(/ex\.: mercado/i).fill('Sem valor')
 
-    await page.getByRole('button', { name: /registrar gasto|registrar entrada/i }).click()
+    await page.getByRole('button', { name: /^salvar$/i }).click()
 
     // Valor obrigatório — modal permanece aberto
     await expect(page.locator('.modal').first()).toBeVisible()

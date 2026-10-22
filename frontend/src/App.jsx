@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState, createContext, useContext } from '
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
+import NewTransactionSheet from './components/features/NewTransactionSheet.jsx'
 import OnboardingModal from './components/features/OnboardingModal.jsx'
 import PlanExpiryBanner from './components/features/PlanExpiryBanner.jsx'
 import CookieBanner from './components/features/CookieBanner.jsx'
@@ -66,7 +67,7 @@ function PrivateRoute({ children }) {
   // /settings/pagamentos) — sem isso, Login.jsx sempre mandava pro
   // /dashboard genérico depois de autenticar, perdendo a intenção original.
   if (!isLoggedIn()) return <Navigate to="/login" state={{ from: location }} replace />
-  return <>{children}<AgentChat /><OnboardingModal /><PlanExpiryBanner /></>
+  return <>{children}<AgentChat /><NewTransactionSheet /><OnboardingModal /><PlanExpiryBanner /></>
 }
 
 function HomeRoute() {
