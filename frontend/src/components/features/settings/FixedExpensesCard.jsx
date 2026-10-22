@@ -6,6 +6,7 @@ import { useUser } from '../../../hooks/useUser.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 import { analytics } from '../../../services/analytics.js'
 import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
+import { ReceiptGlyph, CloseGlyph } from '../../ui/NancyGlyphs.jsx'
 
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
@@ -149,9 +150,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     <section className="fin-card fin-card-list">
       <div className="fin-head">
         <span className="fin-ico">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/>
-          </svg>
+          <ReceiptGlyph />
         </span>
         <div className="fin-head-text">
           <h2 className="fin-title">Contas fixas</h2>
@@ -179,9 +178,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                   <div className="fin-row-line">
                     <button type="button" className="fin-row-main" onClick={() => setOpenId(open ? null : b.id)} aria-expanded={open}>
                       <span className="fin-row-ico">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/>
-                        </svg>
+                        <ReceiptGlyph />
                       </span>
                       <span className="fin-row-info">
                         <span className="fin-row-name">{b.name}</span>
@@ -193,9 +190,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
                       <span className="fin-row-val">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </button>
                     <button className="fin-del" type="button" onClick={() => setDeleteConfirmId(b.id)} aria-label="Remover">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                      </svg>
+                      <CloseGlyph />
                     </button>
                   </div>
                   {open && (

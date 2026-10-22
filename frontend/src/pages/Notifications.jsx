@@ -5,6 +5,7 @@ import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { getCache, setCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import { WalletGlyph, ReceiptGlyph } from '../components/ui/NancyGlyphs.jsx'
 import { getSalaryNotif, getTrialNotif } from '../utils/notifications.js'
 import { buildNotifications, countUnread, readNotifIds, markNotifsRead } from '../utils/notificationsFeed.js'
 import { buildRecapSlides, maskAmounts } from '../utils/storySlides.js'
@@ -22,10 +23,10 @@ const Svg = ({ children }) => (
 )
 
 const ICONS = {
-  salary: () => <Svg><path d="M4 20h16a2 2 0 002-2V8a2 2 0 00-2-2h-7.93a2 2 0 01-1.66-.9l-.82-1.2A2 2 0 007.93 3H4a2 2 0 00-2 2v13c0 1.1.9 2 2 2z"/></Svg>,
+  salary: () => <WalletGlyph size={19} />,
   recap:  () => <Svg><path d="M9.94 15.5A2 2 0 008.5 14.06l-6.14-1.58a.5.5 0 010-.96L8.5 9.94A2 2 0 009.94 8.5l1.58-6.14a.5.5 0 01.96 0L14.06 8.5a2 2 0 001.44 1.44l6.14 1.58a.5.5 0 010 .96L15.5 14.06a2 2 0 00-1.44 1.44l-1.58 6.14a.5.5 0 01-.96 0z"/></Svg>,
   limit:  () => <Svg><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></Svg>,
-  bill:   () => <Svg><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/></Svg>,
+  bill:   () => <ReceiptGlyph size={19} />,
   trial:  () => <Svg><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>,
 }
 

@@ -3,6 +3,7 @@ import { budgetAPI } from '../../../services/api.js'
 import { saveUser } from '../../../hooks/useUser.js'
 import { invalidateCache } from '../../../services/cache.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
+import { WalletGlyph } from '../../ui/NancyGlyphs.jsx'
 
 export default function SalaryCard({ user, onMessage }) {
   const [salary, setSalary] = useState(user.salary || '')
@@ -33,9 +34,7 @@ export default function SalaryCard({ user, onMessage }) {
     <section className="fin-card">
       <div className="fin-head">
         <span className="fin-ico">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 20h16a2 2 0 002-2V8a2 2 0 00-2-2h-7.93a2 2 0 01-1.66-.9l-.82-1.2A2 2 0 007.93 3H4a2 2 0 00-2 2v13c0 1.1.9 2 2 2z"/>
-          </svg>
+          <WalletGlyph />
         </span>
         <div className="fin-head-text">
           <h2 className="fin-title">Salário mensal</h2>
