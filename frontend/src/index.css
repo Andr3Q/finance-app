@@ -11878,3 +11878,72 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .bm-dl:disabled { opacity: .6; cursor: default; }
 .bm-dl:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; border-radius: 10px; }
 .bm-empty { margin: 8px 0 2px; font-size: 12.5px; line-height: 1.5; color: var(--t2); }
+
+/* ═══════════════════════════════════════════════════════
+   pl-* — Planos (Nancy 2, tela 29): cabeçalho/corpo da Finanças (fin-*), chamada com o alternador Mensal/Anual,
+   cartões Grátis (neutro), Pro (borda azul + "Recomendado") e Elite (botão escuro), comparativo, garantia e FAQ.
+   ═══════════════════════════════════════════════════════ */
+.pl-intro { text-align: center; padding-top: 4px; margin-bottom: 16px; }
+.pl-headline { margin: 0 auto; max-width: 300px; font-size: 27px; line-height: 30.7px; font-weight: 700; letter-spacing: -.02em; color: var(--t1); }
+.pl-headline span { color: #1C48FF; }
+.pl-lead { margin: 8px 0 0; font-size: 12.5px; line-height: 18px; color: var(--t2); }
+.pl-toggle { display: inline-flex; margin-top: 21px; padding: 4px; gap: 2px; background: #fff; border: 1px solid var(--bdbd); border-radius: 16px; }
+.pl-toggle button { height: 34px; padding: 0 14px; border: none; border-radius: 12px; background: none; color: var(--t2); font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.pl-toggle button.on { background: #1C48FF; color: #fff; font-weight: 700; }
+.pl-toggle button:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+.pl-card { background: #fff; border: 1px solid var(--bdbd); border-radius: 24px; padding: 22px; margin-bottom: 16px; }
+.pl-pro { border: 1.5px solid #1C48FF; padding: 21.5px; }
+.pl-tier-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pl-tier { margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.pl-badge { height: 23px; padding: 0 10px; border-radius: 999px; background: #3DE29F; color: #0B3D2B; font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; }
+.pl-badge-current { background: #EEF2FF; color: #1C48FF; }
+.pl-tagline { margin: 14px 0 0; font-size: 12.5px; line-height: 17px; color: var(--t2); }
+.pl-price { margin-top: 17px; display: flex; align-items: baseline; gap: 8px; }
+.pl-price-num { font-size: 32px; line-height: 32px; font-weight: 800; letter-spacing: -.02em; color: var(--t1); }
+.pl-price-note { font-size: 11px; color: var(--t2); }
+.pl-price-sub { margin: 6px 0 0; font-size: 11.5px; line-height: 16px; color: var(--t2); }
+.pl-feats { list-style: none; margin: 19px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pl-feat { display: flex; align-items: flex-start; gap: 15px; font-size: 13.5px; line-height: 20px; color: var(--t1); }
+.pl-feat b { font-weight: 700; color: #1C48FF; }
+.pl-check { color: #3CCB9A; flex-shrink: 0; margin-top: 3px; }
+.pl-cta { margin-top: 14px; width: 100%; height: 48px; border: none; border-radius: 16px; font-family: inherit; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.pl-cta:disabled { cursor: default; }
+.pl-cta-ghost { background: #F4F7FC; color: var(--t2); }
+.pl-cta-pro { background: #1C48FF; color: #fff; font-weight: 700; }
+.pl-cta-elite { background: #121A33; color: #fff; font-weight: 700; }
+.pl-cta-current { background: #EEF2FF; color: #1C48FF; font-weight: 700; }
+.pl-cta-pro:disabled, .pl-cta-elite:disabled { opacity: .65; }
+.pl-cta:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+.pl-cta-note { margin: 10px 0 0; text-align: center; font-size: 11px; line-height: 15px; color: var(--t3); }
+
+.pl-compare, .pl-guar, .pl-faq { padding: 18px 16px; }
+.pl-section-title { margin: 0 0 12px; font-size: 15px; line-height: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.pl-tr { display: grid; grid-template-columns: 1fr 44px 44px 62px; align-items: center; padding: 9px 0; border-top: 1px solid var(--bdbd); font-size: 12px; line-height: 16px; }
+.pl-th { border-top: none; padding-top: 0; font-size: 11px; font-weight: 700; color: var(--t2); }
+.pl-td-feat { color: var(--t1); padding-right: 6px; }
+.pl-th .pl-td-feat { color: var(--t2); }
+.pl-td { display: flex; justify-content: center; text-align: center; }
+.pl-td-pro { color: #1C48FF; }
+.pl-th .pl-td-pro { color: #1C48FF; }
+.pl-no { color: var(--t3); }
+.pl-cell-val { font-size: 10.5px; font-weight: 600; color: var(--t1); }
+.pl-group { margin-top: 12px; padding-bottom: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--t3); }
+.pl-guar-sub { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--t2); }
+.pl-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.pl-tags span { height: 26px; padding: 0 10px; border-radius: 999px; background: #EEF2FF; color: #1C48FF; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; }
+.pl-faq-item { border-top: 1px solid var(--bdbd); }
+.pl-faq-q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border: none; background: none; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--t1); text-align: left; cursor: pointer; }
+.pl-faq-arrow { color: var(--t3); font-size: 18px; transition: transform .15s; }
+.pl-faq-item.open .pl-faq-arrow { transform: rotate(90deg); }
+.pl-faq-a { margin: 0 0 14px; font-size: 12.5px; line-height: 1.55; color: var(--t2); }
+.pl-faq-q:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+.pl-modal-overlay { --t1: #121A33; --t2: #5B6784; --t3: #99A5BE; position: fixed; inset: 0; z-index: 9000; background: rgba(18,26,51,.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pl-modal { width: 100%; max-width: 400px; background: #fff; border-radius: 24px; padding: 24px; color: var(--t1); }
+.pl-modal-title { margin: 0; font-size: 16px; font-weight: 700; }
+.pl-modal-sub { margin: 4px 0 0; font-size: 12px; color: var(--t3); }
+.pl-modal-text { margin: 16px 0 0; font-size: 13px; line-height: 1.65; color: var(--t2); }
+.pl-modal-text strong { color: var(--t1); }
+.pl-modal-mail { margin: 14px 0 6px; padding: 10px 14px; border-radius: 12px; background: #FFF6E5; color: #7A5413; font-size: 12px; }
+.pl-modal .pl-cta { margin-top: 14px; }

@@ -43,24 +43,85 @@ beforeEach(() => {
 // ── Renderização básica ──────────────────────────────────────────
 
 describe('Planos — renderização', () => {
-  it('exibe os três cards de plano', () => {
+  it('cabeçalho do design, chamada e os três cards de plano (Grátis, Pro, Elite)', () => {
     setUser()
     const { container } = renderPlanos()
-    expect(container.querySelectorAll('.pp1-card').length).toBe(3)
+    expect(screen.getByRole('heading', { name: 'Planos' })).toBeInTheDocument()
+    expect(screen.getByText('Assinatura Pro e Elite')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Controle total do seu dinheiro\./ })).toBeInTheDocument()
+    expect(screen.getByText('Comece grátis e faça upgrade quando quiser.')).toBeInTheDocument()
+    expect(container.querySelectorAll('.pl-card.pl-free, .pl-card.pl-pro, .pl-card.pl-elite').length).toBe(3)
   })
 
-  it('marca "Plano atual" no card Grátis para usuário free', () => {
+  it('usuário free: o card Grátis é o atual ("Plano básico", desabilitado) e o Pro vem como "Recomendado"', () => {
     setUser({ plan: 'free' })
     const { container } = renderPlanos()
-    // O badge de plano atual fica dentro do card free
-    expect(container.querySelector('.pp1-card.pp1-free .pp1-current-badge')).toBeTruthy()
+    const free = container.querySelector('.pl-free')
+    expect(free).toHaveAttribute('aria-current', 'true')
+    expect(free.querySelector('.pl-cta')).toHaveTextContent('Plano básico')
+    expect(free.querySelector('.pl-cta')).toBeDisabled()
+    expect(screen.getByText('Para começar a se organizar')).toBeInTheDocument()
+    expect(screen.getByText('R$ 0')).toBeInTheDocument()
+    expect(container.querySelector('.pl-pro .pl-badge')).toHaveTextContent('Recomendado')
+    expect(container.querySelector('.pl-pro')).not.toHaveAttribute('aria-current')
   })
 
-  it('toggle Anual exibe badge de economia', async () => {
+  it('usuário Pro: Pro vira "Plano atual" (sem botão de assinar) e o Elite oferece o upgrade', () => {
+    setUser({ plan: 'pro' })
+    const { container } = renderPlanos()
+    expect(container.querySelector('.pl-pro')).toHaveAttribute('aria-current', 'true')
+    expect(container.querySelector('.pl-pro .pl-badge')).toHaveTextContent('Plano atual')
+    expect(container.querySelector('.pl-pro .pl-cta')).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /^assinar pro/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /fazer upgrade para elite/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /cancelar assinatura/i })).toBeInTheDocument()   // no card Grátis
+  })
+
+  it('usuário Elite: Elite é o atual; "Mudar para Pro" explica o rebaixamento em vez de cobrar', async () => {
+    setUser({ plan: 'elite' })
+    const { container } = renderPlanos()
+    expect(container.querySelector('.pl-elite')).toHaveAttribute('aria-current', 'true')
+    await userEvent.click(screen.getByRole('button', { name: /mudar para pro/i }))
+    expect(screen.getByRole('dialog', { name: /downgrade de plano/i })).toHaveTextContent('aguarde o fim do seu ciclo de faturamento')
+    expect(paymentsAPI.createPreference).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Entendido' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('preços: Pro R$ 9,90 e Elite R$ 34,90 por mês; no Anual, R$ 8,25 e R$ 27,90 com o total cobrado por ano', async () => {
     setUser()
     renderPlanos()
+    expect(screen.getByText('R$ 9,90')).toBeInTheDocument()
+    expect(screen.getByText('R$ 34,90')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /anual/i }))
-    expect(screen.getByText(/economize 20%/i)).toBeInTheDocument()
+    expect(screen.getByText('R$ 8,25')).toBeInTheDocument()
+    expect(screen.getByText('R$ 27,90')).toBeInTheDocument()
+    expect(screen.getByText('Cobrado anualmente (R$ 99,00/ano)')).toBeInTheDocument()
+    expect(screen.getByText('Cobrado anualmente (R$ 334,80/ano)')).toBeInTheDocument()
+  })
+
+  it('alternador Mensal/Anual: o anual mostra "2 meses grátis" e marca qual está ativo', async () => {
+    setUser()
+    renderPlanos()
+    const mensal = screen.getByRole('button', { name: 'Mensal' })
+    const anual  = screen.getByRole('button', { name: /anual · 2 meses grátis/i })
+    expect(mensal).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(anual)
+    expect(anual).toHaveAttribute('aria-pressed', 'true')
+    expect(mensal).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('comparativo completo, garantia e perguntas frequentes (a pergunta velha sobre "quando o Pro estará disponível" saiu)', async () => {
+    setUser()
+    renderPlanos()
+    expect(screen.getByText('Comparativo completo')).toBeInTheDocument()
+    expect(screen.getByText('Relatório PDF mensal')).toBeInTheDocument()
+    expect(screen.getByText('Cancele quando quiser', { selector: 'h3' })).toBeInTheDocument()
+    expect(screen.queryByText(/Quando o Pro estará disponível/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /plano Grátis tem limite de tempo/i }))
+    expect(screen.getByText(/gratuito para sempre/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /plano Grátis tem limite de tempo/i }))
+    expect(screen.queryByText(/gratuito para sempre/)).not.toBeInTheDocument()
   })
 
   it('toggle Anual altera o período passado para createPreference', async () => {
