@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import Goals from '../pages/Goals.jsx'
 
 vi.mock('../services/api.js', () => ({
@@ -142,10 +142,20 @@ describe('Metas — atalhos do cabeçalho (antigas abas)', () => {
     expect(await screen.findByText('Reserva de emergência')).toBeInTheDocument()
   })
 
-  it('quem não é Elite vê o convite do plano em Assinaturas', async () => {
-    renderGoals([goal()], 'free')
+  it('"Histórico" e "Assinaturas" abrem as telas próprias (não trocam o conteúdo)', async () => {
+    setUser('elite')
+    goalsAPI.list.mockResolvedValue({ data: [goal()] })
+    render(
+      <MemoryRouter initialEntries={['/goals']}>
+        <Routes>
+          <Route path="/goals" element={<Goals />} />
+          <Route path="/historico" element={<div>tela Histórico</div>} />
+          <Route path="/assinaturas" element={<div>tela Assinaturas</div>} />
+        </Routes>
+      </MemoryRouter>
+    )
     await screen.findByText('Reserva de emergência')
     fireEvent.click(screen.getByRole('button', { name: /Assinaturas/ }))
-    expect(await screen.findByText('Recurso Elite')).toBeInTheDocument()
+    expect(await screen.findByText('tela Assinaturas')).toBeInTheDocument()
   })
 })

@@ -34,7 +34,7 @@ const moneyCompact = (n) => (Number.isInteger(n) ? `R$ ${n.toLocaleString('pt-BR
  */
 export function buildNotifications({
   now = new Date(), summary = null, transactions = [], limits = [], budgets = [],
-  salaryNotif = null, trialNotif = null, recapSlides = null,
+  salaryNotif = null, trialNotif = null, recapSlides = null, cancelReminders = [],
 } = {}) {
   const items = []
   const today       = now.getDate()
@@ -118,6 +118,16 @@ export function buildNotifications({
       title: `Resumo de ${MONTHS[now.getMonth()].toLowerCase()} pronto`,
       body:  recapSlides ? `Veja seu mês em ${recapSlides} ${recapSlides === 1 ? 'história' : 'histórias'}` : 'Veja seu mês em histórias',
       when: 'hoje', action: { type: 'story', monthOffset: 0 },
+    })
+  }
+
+  // Assinaturas que o usuário pediu pra ser lembrado de cancelar (tela Assinaturas) — um aviso por mês
+  for (const c of cancelReminders) {
+    items.push({
+      id: `cancel:${c.key}:${monthKey(now)}`, kind: 'cancel', rank: 6,
+      title: `Cancelar ${c.name}?`,
+      body:  `${moneyCompact(Number(c.amount) || 0)}/mês · você pediu pra ser lembrado`,
+      when: 'este mês', action: { type: 'route', to: '/assinaturas' },
     })
   }
 

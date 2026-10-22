@@ -17,6 +17,7 @@ const ROUTE_TITLES = {
   '/contas-do-mes': 'Contas do mês',
   '/analise':     'Análise do mês',
   '/historico':   'Histórico',
+  '/assinaturas': 'Assinaturas',
   '/notificacoes': 'Notificações',
   '/settings':    'Configurações',
   '/planos':      'Planos',
@@ -130,7 +131,7 @@ export default function Navbar() {
   // "Extrato" aceso na barra de baixo (mobile).
   const isMobileActive = (path) => isActive(path)
     || (path === '/transactions' && ['/notificacoes', '/financas', '/parcelados', '/contas-do-mes', '/calendar', '/analise'].includes(location.pathname))
-    || (path === '/goals' && location.pathname === '/historico') // sub-telas das Metas
+    || (path === '/goals' && ['/historico', '/assinaturas'].includes(location.pathname)) // sub-telas das Metas
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'

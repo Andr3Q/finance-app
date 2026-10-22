@@ -118,6 +118,26 @@ describe('resumo do mês pronto', () => {
   })
 })
 
+describe('lembretes de cancelar assinatura', () => {
+  const reminders = [{ key: 'música', name: 'Música', amount: 21.9 }]
+
+  it('uma assinatura marcada vira aviso do mês que leva à tela Assinaturas', () => {
+    const [n] = build({ budgets: [], cancelReminders: reminders })
+    expect(n).toMatchObject({ kind: 'cancel', title: 'Cancelar Música?', body: 'R$ 21,90/mês · você pediu pra ser lembrado', when: 'este mês', action: { type: 'route', to: '/assinaturas' } })
+  })
+
+  it('o id leva o mês: no mês seguinte o lembrete volta a ser novo', () => {
+    const a = buildNotifications({ now: NOW, cancelReminders: reminders })[0].id
+    const b = buildNotifications({ now: new Date(2026, 10, 20, 12), cancelReminders: reminders })[0].id
+    expect(a).not.toBe(b)
+  })
+
+  it('valor redondo sai sem centavos e sem marcações não há aviso', () => {
+    expect(build({ budgets: [], cancelReminders: [{ key: 'x', name: 'X', amount: 50 }] })[0].body).toBe('R$ 50/mês · você pediu pra ser lembrado')
+    expect(build({ budgets: [], cancelReminders: [] }).filter(n => n.kind === 'cancel')).toEqual([])
+  })
+})
+
 describe('ordem e "novas"', () => {
   it('ordem de importância: conta que vence hoje, salário, limite estourado, limite perto, resumo, conta de amanhã', () => {
     const out = buildNotifications({

@@ -3,15 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 import { analytics } from '../services/analytics.js'
-import GradCard from '../components/ui/GradCard.jsx'
-import { transactionsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useGoals } from '../hooks/useGoals.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
-import { getCache, setCache } from '../services/cache.js'
-import { CATEGORY_LABELS } from '../constants/index.js'
 import { fmt, fmtDate } from '../utils/format.js'
 import RemindersCard      from '../components/features/settings/RemindersCard.jsx'
 import CategoryLimitsCard from '../components/features/settings/CategoryLimitsCard.jsx'
@@ -26,7 +22,6 @@ const amountBucket = (v) => {
   return '20000+'
 }
 
-const CACHE_SUBS    = 'analytics:subs'
 const TTL_5MIN      = 5 * 60_000
 
 const ChipArrow = ({ dir }) => (
@@ -40,7 +35,7 @@ const chipIcon = (d) => (
 // As antigas abas viram atalhos do cabeçalho; sem nenhum ativo, a tela mostra as metas.
 const TABS = [
   { key: 'historico',   label: 'Histórico',   to: '/historico', icon: chipIcon(<><line x1="6" y1="20" x2="6" y2="11"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></>) },
-  { key: 'assinaturas', label: 'Assinaturas', icon: chipIcon(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>) },
+  { key: 'assinaturas', label: 'Assinaturas', to: '/assinaturas', icon: chipIcon(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>) },
   { key: 'lembretes',   label: 'Lembretes',   icon: chipIcon(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>) },
   { key: 'limites',     label: 'Limites',     icon: chipIcon(<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>) },
 ]
@@ -237,48 +232,6 @@ function GoalForm({ initial, onSave, onCancel, onDelete, saving }) {
   )
 }
 
-function SubscriptionsList({ data, loading }) {
-  if (loading) return (
-    <div className="anl-loading">
-      <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
-    </div>
-  )
-  if (!Array.isArray(data) || !data.length) return (
-    <div className="anl-empty">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="1.5" strokeLinecap="round">
-        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
-        <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
-      </svg>
-      <span>Nenhuma assinatura detectada</span>
-      <span className="anl-empty-sub">Precisamos de pelo menos 2 meses de transações similares</span>
-    </div>
-  )
-  const total = data.reduce((s, s2) => s + s2.amount, 0)
-  return (
-    <div className="anl-subs-list">
-      {data.map((s, i) => (
-        <div key={i} className="anl-sub-item">
-          <div className="anl-sub-ico">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round">
-              <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
-              <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
-            </svg>
-          </div>
-          <div className="anl-sub-info">
-            <span className="anl-sub-name">{s.description}</span>
-            <span className="anl-sub-cat">{CATEGORY_LABELS[s.category] || s.category} · {s.months}x detectado</span>
-          </div>
-          <span className="anl-sub-amt">R$ {fmt(s.amount)}/mês</span>
-        </div>
-      ))}
-      <div className="anl-subs-total">
-        <span>Total em assinaturas</span>
-        <span style={{ color: '#ff6b6b', fontWeight: 700 }}>R$ {fmt(total)}/mês</span>
-      </div>
-    </div>
-  )
-}
-
 export default function Goals() {
   const user     = useUser()
   const navigate = useNavigate()
@@ -289,8 +242,6 @@ export default function Goals() {
   const [toast,           setToast]           = useState(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
-  const [subs,          setSubs]          = useState([])
-  const [loadingSubs,   setLoadingSubs]   = useState(true)
 
   const [activeTab, setActiveTab] = useState('metas')
   const [newGoal, setNewGoal] = useState({ title: '', targetAmount: '' })
@@ -316,28 +267,7 @@ export default function Goals() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  useEffect(() => {
-    fetchGoals()
-
-    let cancelled = false
-
-    if (isElite) {
-      const cachedSubs = getCache(CACHE_SUBS)
-      if (cachedSubs) {
-        setSubs(cachedSubs)
-        setLoadingSubs(false)
-      } else {
-        transactionsAPI.subscriptions()
-          .then(r => { if (!cancelled) { setCache(CACHE_SUBS, r.data, TTL_5MIN); setSubs(r.data) } })
-          .catch(() => { if (!cancelled) setLoadingSubs(false) })
-          .finally(() => { if (!cancelled) setLoadingSubs(false) })
-      }
-    } else {
-      setLoadingSubs(false)
-    }
-
-    return () => { cancelled = true }
-  }, [fetchGoals])
+  useEffect(() => { fetchGoals() }, [fetchGoals])
 
   const handleSave = async (form) => {
     if (!form.title.trim()) { showToast('Informe o nome da meta.', false); return false }
@@ -492,28 +422,6 @@ export default function Goals() {
 
             {activeTab !== 'metas' && (
             <div className="gl-panel">
-            {/* ── Detector de Assinaturas (Elite) ── */}
-            {activeTab === 'assinaturas' && (
-              !isElite ? (
-                <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-                  </svg>
-                  <div className="cfg-pro-lock-title">Recurso Elite</div>
-                  <div className="cfg-pro-lock-sub">Detecte automaticamente assinaturas e gastos recorrentes</div>
-                </div>
-              ) : (
-                <GradCard
-                  iconBg="rgba(123,47,255,.1)" iconBorder="rgba(123,47,255,.25)"
-                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="2" strokeLinecap="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>}
-                  title="Gastos recorrentes detectados"
-                  sub="Transações que se repetem em meses diferentes"
-                >
-                  <SubscriptionsList data={subs} loading={loadingSubs} />
-                </GradCard>
-              )
-            )}
-
             {/* ── Lembretes (Elite) ── */}
             {activeTab === 'lembretes' && (
               !isElite ? (
