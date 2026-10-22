@@ -11705,3 +11705,51 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 @media (min-width: 769px) {
   .pf-page { max-width: 520px; margin: 8px auto 32px; border-radius: 28px; min-height: 0; padding-bottom: 28px; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   dp-* — Dados pessoais (Nancy 2, tela 25): cabeçalho/corpo da Finanças (fin-*), avatar azul com
+   "Alterar foto", cartão branco com Nome e E-mail (+ selo de verificação) e o botão "Salvar alterações".
+   ═══════════════════════════════════════════════════════ */
+.fin-body.dp-body { padding: 27px 18px 20px; }
+.dp-photo { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+.dp-av {
+  width: 88px; height: 88px; border-radius: 50%; background: #1C48FF; color: #fff; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 29px; letter-spacing: -.01em; transition: opacity .15s;
+}
+.dp-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dp-av.busy { opacity: .55; }
+.dp-photo-actions { margin-top: 10px; display: flex; align-items: center; gap: 14px; min-height: 16px; }
+.dp-link { border: none; background: none; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 600; line-height: 16px; color: #1C48FF; cursor: pointer; }
+.dp-link:disabled { opacity: .5; cursor: default; }
+.dp-link-muted { color: var(--t2); font-weight: 500; }
+.dp-file { display: none; }
+.dp-card { padding-bottom: 18px; }
+.dp-lbl { display: block; font-size: 12px; font-weight: 500; line-height: 16px; color: var(--t2); margin: 0 0 13px; }
+.dp-lbl-2 { margin-top: 14px; }
+.dp-inp {
+  display: block; width: 100%; box-sizing: border-box; height: 52px; padding: 0 16px; border: 1px solid #E6ECF7; border-radius: 16px;
+  background: #F4F7FC; font-family: inherit; font-size: 15px; color: var(--t1); outline: none;
+}
+.dp-inp:focus { border-color: #1C48FF; }
+.dp-inp::placeholder { color: var(--t3); }
+.dp-verify { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 14px; padding: 0 8px; }
+.dp-pill { display: inline-flex; align-items: center; height: 21px; padding: 0 7px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.dp-pill.ok { background: #EDF9F3; color: #117953; }
+.dp-pill.warn { background: #FFF3DC; color: #B67824; }
+.dp-change { margin-left: auto; }
+.dp-note { margin: 10px 8px 0; font-size: 12px; line-height: 1.45; color: var(--t2); }
+.dp-email-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--bdbd); }
+.dp-secondary {
+  margin-top: 14px; width: 100%; height: 46px; border-radius: 14px; background: #EEF2FF; border: 1px solid #D6E0FF;
+  color: #1C48FF; font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.dp-secondary:disabled { opacity: .6; cursor: default; }
+.dp-save { width: 100%; }
+.dp-status { margin: 12px 0 0; text-align: center; font-size: 12.5px; line-height: 1.4; }
+.dp-status.ok { color: #117953; }
+.dp-status.err { color: #D64545; }
+.dp-link:focus-visible, .dp-secondary:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+/* Perfil (tela 24): a foto, quando existe, ocupa o círculo do avatar */
+.pf-av { overflow: hidden; }
+.pf-av img { width: 100%; height: 100%; object-fit: cover; display: block; }

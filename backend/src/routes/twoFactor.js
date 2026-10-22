@@ -232,7 +232,7 @@ router.post('/verify-login', twoFALimiter, async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where:  { id: payload.userId },
-      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, twoFactorSecret: true, twoFactorEnabled: true, tokenVersion: true, lastUsedTotpToken: true, lastUsedTotpAt: true },
+      select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, twoFactorSecret: true, twoFactorEnabled: true, tokenVersion: true, lastUsedTotpToken: true, lastUsedTotpAt: true, avatarUpdatedAt: true },
     })
     if (!user?.twoFactorEnabled || !user?.twoFactorSecret) {
       return res.status(401).json({ error: 'Usuário não encontrado.' })
@@ -314,7 +314,7 @@ router.post('/use-backup-code', twoFALimiter, async (req, res) => {
       if (updated.count === 0) return null // race: outro request chegou primeiro
       return tx.user.findUnique({
         where:  { id: payload.userId },
-        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, tokenVersion: true },
+        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, tokenVersion: true, avatarUpdatedAt: true },
       })
     })
 

@@ -131,6 +131,13 @@ const verifyEmailLimiter = rateLimit({
   message:      { error: 'Muitas tentativas de reenvio. Tente novamente em 1 hora.' },
 })
 
+// Foto de perfil: 20 trocas / hora por usuário — cada chamada grava até ~48 KB no banco
+const avatarLimiter = rateLimit({
+  ...opts,
+  windowMs:     60 * 60 * 1000,
+  max:          20,
+  message:      { error: 'Muitas trocas de foto. Tente novamente em 1 hora.' },
+})
 
 module.exports = {
   apiLimiter,
@@ -147,4 +154,5 @@ module.exports = {
   twoFALimiter,
   exportLimiter,
   verifyEmailLimiter,
+  avatarLimiter,
 }

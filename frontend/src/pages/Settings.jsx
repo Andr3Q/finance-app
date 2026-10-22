@@ -4,6 +4,7 @@ import { authAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { isInstalled } from '../services/installPrompt.js'
+import { avatarSrc } from '../utils/avatarImage.js'
 
 const Ico = ({ size = 18, sw = 1.9, children }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -70,7 +71,7 @@ export default function Settings() {
       <div className="pwnav pf-pwnav fade-in">
         <div className="pf-page">
           <header className="pf-hero">
-            <div className="pf-av" aria-hidden="true">{initialsOf(user.name)}</div>
+            <div className="pf-av" aria-hidden="true">{avatarSrc(user) ? <img src={avatarSrc(user)} alt="" /> : initialsOf(user.name)}</div>
             <h1 className="pf-name">{user.name || 'Usuário'}</h1>
             <button type="button" className={`pf-plan${paid ? '' : ' free'}`} onClick={() => navigate('/planos')} aria-label={`${planLabel}: gerenciar plano`}>
               {planLabel}

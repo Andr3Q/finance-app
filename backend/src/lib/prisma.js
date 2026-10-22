@@ -117,7 +117,7 @@ function isRetryable(err) {
 // explicitamente e com comentário.
 const TENANT_MODELS = new Set([
   'Transaction', 'Budget', 'CategoryLimit', 'Goal', 'PushSubscription',
-  'InstallmentPlan', 'TwoFactorBackupCode', 'ProcessedPayment', 'AccountUnlockToken',
+  'InstallmentPlan', 'TwoFactorBackupCode', 'ProcessedPayment', 'AccountUnlockToken', 'UserAvatar',
 ])
 
 // findUnique/findUniqueOrThrow ficam de fora de propósito — são lookups por

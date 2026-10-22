@@ -36,6 +36,13 @@ describe('Perfil', () => {
     expect(screen.getByRole('button', { name: /Plano Elite/ })).toBeInTheDocument()
   })
 
+  it('com foto de perfil, ela ocupa o círculo do avatar no lugar das iniciais', () => {
+    renderPage({ id: 'u1', name: 'André Pereira', plan: 'elite', avatarUpdatedAt: '2026-10-22T15:00:00.000Z' })
+    const av = document.querySelector('.pf-av')
+    expect(av.querySelector('img')).toHaveAttribute('src', '/api/auth/avatar?v=2026-10-22T15%3A00%3A00.000Z')
+    expect(av.textContent).toBe('')
+  })
+
   it('selo do plano: Pro, Grátis (também sem plano) e leva aos planos', () => {
     renderPage({ id: 'u1', name: 'Ana', plan: 'pro' })
     expect(screen.getByRole('button', { name: /Plano Pro/ })).toBeInTheDocument()

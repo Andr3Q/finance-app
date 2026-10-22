@@ -6,7 +6,7 @@ const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { sendResetEmail, sendWelcomeEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail, sendEmailChangeVerification, sendEmailChangeAlert } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
-const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
+const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter, avatarLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
 const { computeEffectivePlan } = require('../utils/helpers')
@@ -37,7 +37,7 @@ const MAX_EMAIL_CODE_ATTEMPTS = 5
 // tanto por /me quanto por /login, pra nunca mais divergir os dois (foi
 // assim que o onboarding passou a aparecer à toa depois de um login normal:
 // /login não mandava onboardingComplete, só /me mandava).
-const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true, pendingEmail: true }
+const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, avatarUpdatedAt: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true, pendingEmail: true }
 
 // user já carregado (com ou sem `select`) → objeto raso só com os campos de
 // ME_SELECT, prontos pra ir na resposta. Number(salary) porque Prisma.Decimal
@@ -654,6 +654,89 @@ router.put('/profile', authMiddleware, async (req, res) => {
   }
 })
 
+// ── Foto de perfil ───────────────────────────────────────
+// O app já reduz a imagem (256x256, JPEG) antes de enviar; aqui só se aceita exatamente isso: data URL
+// JPEG, base64 CANÔNICO (o que se grava é o re-encode dos bytes validados, nunca a string recebida),
+// entre 128 B e 48 KB, com assinatura de JPEG (começa em FFD8FF e termina em FFD9). Nada de SVG/HTML/
+// outros tipos. A imagem fica em UserAvatar (fora da linha de User); em User só avatarUpdatedAt, que o
+// app usa pra saber que há foto e como versão do endereço GET /auth/avatar?v=...
+const AVATAR_PREFIX    = 'data:image/jpeg;base64,'
+const AVATAR_MIN_BYTES = 128
+const AVATAR_MAX_BYTES = 48 * 1024
+
+// → Buffer com o JPEG validado, ou null se a imagem não for aceitável
+function parseAvatar(image) {
+  if (typeof image !== 'string' || !image.startsWith(AVATAR_PREFIX)) return null
+  const b64 = image.slice(AVATAR_PREFIX.length)
+  if (b64.length === 0 || b64.length > Math.ceil(AVATAR_MAX_BYTES / 3) * 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return null
+  const buf = Buffer.from(b64, 'base64')
+  if (buf.toString('base64') !== b64) return null   // base64 fora do padrão (ex.: sobra de bits) não passa
+  if (buf.length < AVATAR_MIN_BYTES || buf.length > AVATAR_MAX_BYTES) return null
+  const isJpeg = buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF && buf[buf.length - 2] === 0xFF && buf[buf.length - 1] === 0xD9
+  return isJpeg ? buf : null
+}
+
+// ── PUT /auth/avatar ─────────────────────────────────────
+router.put('/avatar', authMiddleware, avatarLimiter, async (req, res) => {
+  try {
+    const buf = parseAvatar(req.body && req.body.image)
+    if (!buf) return res.status(400).json({ error: 'Imagem inválida ou grande demais. Envie um JPEG de até 48 KB.' })
+    const image = AVATAR_PREFIX + buf.toString('base64')
+    const now = new Date()
+    await prisma.$transaction([
+      prisma.userAvatar.upsert({ where: { userId: req.userId }, create: { userId: req.userId, image }, update: { image } }),
+      prisma.user.update({ where: { id: req.userId }, data: { avatarUpdatedAt: now }, select: { id: true } }),
+    ])
+    res.json({ avatarUpdatedAt: now.toISOString() })
+  } catch (error) {
+    reportError(error, { tag: '[auth] avatar' })
+    res.status(500).json({ error: 'Erro ao salvar a foto.' })
+  }
+})
+
+// ── DELETE /auth/avatar ──────────────────────────────────
+router.delete('/avatar', authMiddleware, avatarLimiter, async (req, res) => {
+  try {
+    await prisma.$transaction([
+      prisma.userAvatar.deleteMany({ where: { userId: req.userId } }),
+      prisma.user.update({ where: { id: req.userId }, data: { avatarUpdatedAt: null }, select: { id: true } }),
+    ])
+    res.json({ avatarUpdatedAt: null })
+  } catch (error) {
+    reportError(error, { tag: '[auth] avatar-delete' })
+    res.status(500).json({ error: 'Erro ao remover a foto.' })
+  }
+})
+
+// ── GET /auth/avatar ─────────────────────────────────────
+// Devolve a própria foto como imagem (o app usa em <img src="/api/auth/avatar?v=<avatarUpdatedAt>">; o
+// cookie de sessão vai junto). Só a do usuário logado — não há id na rota. Revalida por ETag (a versão é
+// a data da última troca), então a imagem só trafega quando muda. Cabeçalhos fecham o uso do arquivo:
+// tipo fixo, sem sniffing, sem script e sem uso cross-origin.
+router.get('/avatar', authMiddleware, async (req, res) => {
+  try {
+    const meta = await prisma.user.findUnique({ where: { id: req.userId }, select: { avatarUpdatedAt: true } })
+    if (!meta || !meta.avatarUpdatedAt) return res.status(404).json({ error: 'Sem foto de perfil.' })
+    const etag = `"av-${new Date(meta.avatarUpdatedAt).getTime()}"`
+    res.setHeader('ETag', etag)
+    res.setHeader('Cache-Control', 'private, no-cache')
+    if (req.headers['if-none-match'] === etag) return res.status(304).end()
+    const row = await prisma.userAvatar.findUnique({ where: { userId: req.userId }, select: { image: true } })
+    const buf = row && parseAvatar(row.image)
+    if (!buf) return res.status(404).json({ error: 'Sem foto de perfil.' })
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.setHeader('Content-Length', String(buf.length))
+    res.setHeader('Content-Disposition', 'inline; filename="avatar.jpg"')
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
+    res.end(buf)
+  } catch (error) {
+    reportError(error, { tag: '[auth] avatar-get' })
+    res.status(500).json({ error: 'Erro ao carregar a foto.' })
+  }
+})
+
 // ── POST /auth/change-email ─────────────────────────────
 // Troca o e-mail de LOGIN (diferente de reportEmail, que /profile já cobre).
 // Não aplica na hora — só marca pendingEmail e manda um link de confirmação
@@ -1057,23 +1140,24 @@ router.post('/resend-verification', authMiddleware, verifyEmailLimiter, async (r
 // LGPD Art. 15: direito de acesso. Retorna todos os dados do usuário em JSON.
 router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
   try {
-    const [user, transactions, budgets, goals, installments, categoryLimits] = await Promise.all([
+    const [user, transactions, budgets, goals, installments, categoryLimits, avatarRow] = await Promise.all([
       prisma.user.findUnique({
         where:  { id: req.userId },
-        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, referredBy: true, createdAt: true, twoFactorEnabled: true, onboardingComplete: true },
+        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, referredBy: true, createdAt: true, twoFactorEnabled: true, onboardingComplete: true, avatarUpdatedAt: true },
       }),
       prisma.transaction.findMany({ where: { userId: req.userId }, orderBy: { date: 'desc' } }),
       prisma.budget.findMany({ where: { userId: req.userId } }),
       prisma.goal.findMany({ where: { userId: req.userId } }),
       prisma.installmentPlan.findMany({ where: { userId: req.userId } }),
       prisma.categoryLimit.findMany({ where: { userId: req.userId } }),
+      prisma.userAvatar.findUnique({ where: { userId: req.userId }, select: { image: true } }),
     ])
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
     const exportData = {
       exportedAt:     new Date().toISOString(),
-      profile:        user,
+      profile:        { ...user, avatar: (avatarRow && avatarRow.image) || null },
       transactions,
       budgets,
       goals,

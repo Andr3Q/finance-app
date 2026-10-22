@@ -866,6 +866,166 @@ describe('PUT /api/auth/profile', () => {
 })
 
 // ══════════════════════════════════════════════════════════
+// FOTO DE PERFIL (tela "Dados pessoais", Nancy 2)
+// ══════════════════════════════════════════════════════════
+describe('Foto de perfil — /api/auth/avatar', () => {
+  const jpegBytes = (n = 300) => {
+    const b = Buffer.alloc(n, 0x41)
+    b[0] = 0xFF; b[1] = 0xD8; b[2] = 0xFF; b[3] = 0xE0
+    b[n - 2] = 0xFF; b[n - 1] = 0xD9
+    return b
+  }
+  const PREFIX  = 'data:image/jpeg;base64,'
+  const dataUrl = (buf, mime = 'image/jpeg') => `data:${mime};base64,${buf.toString('base64')}`
+  const cookie  = () => `token=${makeToken('user-123')}`
+  const put = (body, token = cookie()) => request(app).put('/api/auth/avatar').set('Cookie', token).send(body)
+  const binary = (res, cb) => { const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks))) }
+
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.user.update.mockResolvedValue({ id: 'user-123' })
+  })
+
+  describe('PUT', () => {
+    test('salva um JPEG válido na tabela da foto, marca a data na linha do usuário e devolve só a data', async () => {
+      const image = dataUrl(jpegBytes())
+      const res = await put({ image })
+      expect(res.status).toBe(200)
+      expect(res.body.avatar).toBeUndefined()
+      expect(new Date(res.body.avatarUpdatedAt).toString()).not.toBe('Invalid Date')
+      expect(prisma.userAvatar.upsert).toHaveBeenCalledWith({ where: { userId: 'user-123' }, create: { userId: 'user-123', image }, update: { image } })
+      expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'user-123' }, data: { avatarUpdatedAt: expect.any(Date) } }))
+    })
+
+    test('aceita o tamanho máximo (48 KB) — o corpo cabe no teto próprio da rota', async () => {
+      expect((await put({ image: dataUrl(jpegBytes(48 * 1024)) })).status).toBe(200)
+    })
+
+    test('sem login: 401 e nada é gravado', async () => {
+      const res = await request(app).put('/api/auth/avatar').send({ image: dataUrl(jpegBytes()) })
+      expect(res.status).toBe(401)
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test.each([
+      ['sem o campo image', {}],
+      ['image que não é texto', { image: 123 }],
+      ['PNG', { image: `data:image/png;base64,${jpegBytes().toString('base64')}` }],
+      ['SVG', { image: `data:image/svg+xml;base64,${Buffer.from('<svg onload="alert(1)"/>').toString('base64')}` }],
+      ['URL externa', { image: 'https://exemplo.com/foto.jpg' }],
+      ['base64 com caracteres inválidos', { image: `${PREFIX}/9j/<script>alert(1)</script>` }],
+      ['base64 vazio', { image: PREFIX }],
+    ])('recusa %s com 400', async (_nome, body) => {
+      expect((await put(body)).status).toBe(400)
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test('recusa base64 fora do padrão: sobra de caractere, sem padding e bits sobrando', async () => {
+      const b64 = jpegBytes(301).toString('base64')                    // termina em "xx=="
+      expect(b64.endsWith('==')).toBe(true)
+      const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+      const bitsSobrando = b64.slice(0, -3) + ALPHA[ALPHA.indexOf(b64.slice(-3, -2)) + 1] + '=='
+      expect(Buffer.from(bitsSobrando, 'base64').equals(Buffer.from(b64, 'base64'))).toBe(true)   // decodifica igual, mas não é o canônico
+      for (const ruim of [b64 + 'A', b64.replace(/=+$/, ''), bitsSobrando]) {
+        expect((await put({ image: PREFIX + ruim })).status).toBe(400)
+      }
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test('recusa bytes que não são JPEG, JPEG cortado (sem FFD9) e arquivo minúsculo', async () => {
+      const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47]), Buffer.alloc(300, 1), Buffer.from([0xFF, 0xD9])])
+      expect((await put({ image: dataUrl(png) })).status).toBe(400)
+      const cortado = jpegBytes(); cortado[cortado.length - 1] = 0x00
+      expect((await put({ image: dataUrl(cortado) })).status).toBe(400)
+      expect((await put({ image: dataUrl(Buffer.from([0xFF, 0xD8, 0xFF, 0xFF, 0xD9])) })).status).toBe(400)
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test('recusa JPEG acima de 48 KB (400) e corpo gigante (413)', async () => {
+      expect((await put({ image: dataUrl(jpegBytes(48 * 1024 + 3)) })).status).toBe(400)
+      expect((await put({ image: dataUrl(jpegBytes(120 * 1024)) })).status).toBe(413)
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test('o teto maior vale só para /avatar: o resto da API continua com 10 KB', async () => {
+      const res = await request(app).put('/api/auth/profile').set('Cookie', cookie()).send({ name: 'A'.repeat(11 * 1024) })
+      expect(res.status).toBe(413)
+    })
+  })
+
+  describe('DELETE', () => {
+    test('remove a foto e zera a data', async () => {
+      const res = await request(app).delete('/api/auth/avatar').set('Cookie', cookie())
+      expect(res.status).toBe(200)
+      expect(res.body.avatarUpdatedAt).toBeNull()
+      expect(prisma.userAvatar.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-123' } })
+      expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'user-123' }, data: { avatarUpdatedAt: null } }))
+    })
+  })
+
+  describe('GET', () => {
+    const when = new Date('2026-10-22T15:00:00Z')
+
+    test('devolve a própria foto como JPEG, com cabeçalhos de segurança e ETag da versão', async () => {
+      const buf = jpegBytes(500)
+      prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: when }))
+      prisma.userAvatar.findUnique.mockResolvedValue({ image: dataUrl(buf) })
+      const res = await request(app).get('/api/auth/avatar').set('Cookie', cookie()).buffer(true).parse(binary)
+      expect(res.status).toBe(200)
+      expect(res.headers['content-type']).toBe('image/jpeg')
+      expect(res.headers['x-content-type-options']).toBe('nosniff')
+      expect(res.headers['content-security-policy']).toBe("default-src 'none'; sandbox")
+      expect(res.headers['cross-origin-resource-policy']).toBe('same-origin')
+      expect(res.headers['cache-control']).toBe('private, no-cache')
+      expect(res.headers.etag).toBe(`"av-${when.getTime()}"`)
+      expect(res.body.equals(buf)).toBe(true)
+      expect(prisma.userAvatar.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-123' } }))
+    })
+
+    test('com If-None-Match igual à versão: 304 e a imagem nem é lida do banco', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: when }))
+      const res = await request(app).get('/api/auth/avatar').set('Cookie', cookie()).set('If-None-Match', `"av-${when.getTime()}"`)
+      expect(res.status).toBe(304)
+      expect(prisma.userAvatar.findUnique).not.toHaveBeenCalled()
+    })
+
+    test('sem foto: 404', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: null }))
+      expect((await request(app).get('/api/auth/avatar').set('Cookie', cookie())).status).toBe(404)
+    })
+
+    test('linha da foto ausente ou com conteúdo que não é JPEG válido: 404 (nunca serve lixo)', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: when }))
+      prisma.userAvatar.findUnique.mockResolvedValue(null)
+      expect((await request(app).get('/api/auth/avatar').set('Cookie', cookie())).status).toBe(404)
+      prisma.userAvatar.findUnique.mockResolvedValue({ image: 'data:text/html;base64,PHNjcmlwdD4=' })
+      expect((await request(app).get('/api/auth/avatar').set('Cookie', cookie())).status).toBe(404)
+    })
+
+    test('sem login: 401', async () => {
+      expect((await request(app).get('/api/auth/avatar')).status).toBe(401)
+    })
+  })
+
+  test('/me devolve a data da foto, nunca a imagem', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: new Date('2026-10-22T15:00:00Z') }))
+    const res = await request(app).get('/api/auth/me').set('Cookie', cookie())
+    expect(res.status).toBe(200)
+    expect(res.body.avatarUpdatedAt).toBe('2026-10-22T15:00:00.000Z')
+    expect(res.body.avatar).toBeUndefined()
+  })
+
+  test('a exportação de dados (LGPD) inclui a foto', async () => {
+    const image = dataUrl(jpegBytes())
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.userAvatar.findUnique.mockResolvedValue({ image })
+    const res = await request(app).get('/api/auth/export-data').set('Cookie', cookie())
+    expect(res.status).toBe(200)
+    expect(res.body.profile.avatar).toBe(image)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
 // TROCA DE E-MAIL (login) — 2 passos: pedir (com senha) + confirmar (token
 // enviado pro e-mail NOVO). Regressão do bug onde PUT /profile recebia
 // `email` do frontend mas nunca aplicava (só lia name/reportEmail do body).
