@@ -28,8 +28,13 @@ describe('contas fixas que vencem', () => {
     expect(build({ summary: { unpaidBudgetIds: [], totalExpenses: 1, totalIncome: 0 } }).filter(n => n.kind === 'bill')).toEqual([])
   })
 
-  it('vence daqui a 2+ dias ou já venceu: sem aviso (só hoje e amanhã)', () => {
-    expect(build({ budgets: [bill({ dueDay: 22 })] }).filter(n => n.kind === 'bill')).toEqual([])
+  it('vence em 2 dias (antecedência padrão): "vence em 2 dias"', () => {
+    const [n] = build({ budgets: [bill({ dueDay: 22 })] })
+    expect(n).toMatchObject({ title: 'Academia vence em 2 dias', when: 'em 2 dias', body: 'R$ 200,00 · conta fixa' })
+  })
+
+  it('vence daqui a 3+ dias (fora da antecedência padrão) ou já venceu neste mês: sem aviso', () => {
+    expect(build({ budgets: [bill({ dueDay: 23 })] }).filter(n => n.kind === 'bill')).toEqual([])
     expect(build({ budgets: [bill({ dueDay: 15 })] }).filter(n => n.kind === 'bill')).toEqual([])
   })
 
@@ -48,6 +53,50 @@ describe('contas fixas que vencem', () => {
     const a = buildNotifications({ now: NOW, summary: { unpaidBudgetIds: ['b1'] }, budgets: [bill()] })[0].id
     const b = buildNotifications({ now: day(21), summary: { unpaidBudgetIds: ['b1'] }, budgets: [bill({ dueDay: 21 })] })[0].id
     expect(a).not.toBe(b)
+  })
+})
+
+describe('lembretes de vencimento (tela Lembretes)', () => {
+  const state = (bills = {}, custom = []) => ({ bills, custom })
+
+  it('a antecedência escolhida vale: 5 dias antes avisa uma conta que vence daqui a 5', () => {
+    const items = build({ budgets: [bill({ dueDay: 25 })], reminderState: state({ b1: { on: true, lead: 5 } }) })
+    expect(items[0]).toMatchObject({ title: 'Academia vence em 5 dias', when: 'em 5 dias' })
+    expect(build({ budgets: [bill({ dueDay: 26 })], reminderState: state({ b1: { on: true, lead: 5 } }) }).filter(n => n.kind === 'bill')).toEqual([])
+  })
+
+  it('"no dia" (0) só avisa quando vence hoje', () => {
+    const st = state({ b1: { on: true, lead: 0 } })
+    expect(build({ budgets: [bill({ dueDay: 21 })], reminderState: st }).filter(n => n.kind === 'bill')).toEqual([])
+    expect(build({ budgets: [bill({ dueDay: 20 })], reminderState: st })[0].title).toBe('Academia vence hoje')
+  })
+
+  it('interruptor desligado: a conta não gera aviso', () => {
+    expect(build({ reminderState: state({ b1: { on: false, lead: 2 } }) }).filter(n => n.kind === 'bill')).toEqual([])
+  })
+
+  it('conta que vence logo no começo do mês seguinte avisa mesmo sendo "nova" (sem depender do pago deste mês)', () => {
+    const now = new Date(2026, 9, 30, 12) // 30/out; vence dia 1/nov = daqui a 2 dias
+    const out = buildNotifications({ now, summary: { unpaidBudgetIds: [] }, budgets: [bill({ dueDay: 1 })] })
+    expect(out[0]).toMatchObject({ title: 'Academia vence em 2 dias' })
+  })
+
+  it('lembrete avulso anual: aparece dentro da antecedência, com a data e o link pra tela', () => {
+    const st = state({}, [{ id: 'c1', name: 'IPVA 2027', day: 27, month: 10, lead: 7, on: true }])
+    const [n] = build({ budgets: [], reminderState: st })
+    expect(n).toMatchObject({ kind: 'reminder', title: 'IPVA 2027 vence em 7 dias', body: '27 de outubro · lembrete seu', action: { type: 'route', to: '/lembretes' } })
+  })
+
+  it('lembrete avulso fora da antecedência, desligado ou de outro mês não avisa', () => {
+    const st = (c) => state({}, [{ id: 'c1', name: 'IPVA', lead: 7, on: true, ...c }])
+    expect(build({ budgets: [], reminderState: st({ day: 10, month: 1 }) })).toEqual([])           // janeiro: longe
+    expect(build({ budgets: [], reminderState: st({ day: 25, month: 10, on: false }) })).toEqual([])
+    expect(build({ budgets: [], reminderState: st({ day: 25, month: 10, lead: 2 }) })).toEqual([]) // daqui a 5, antecedência 2
+  })
+
+  it('lembrete avulso mensal (sem mês): avisa no dia certo de todo mês', () => {
+    const [n] = build({ budgets: [], reminderState: state({}, [{ id: 'm', name: 'Condomínio', day: 21, month: null, lead: 2, on: true }]) })
+    expect(n).toMatchObject({ title: 'Condomínio vence amanhã', body: 'Dia 21 · lembrete seu' })
   })
 })
 

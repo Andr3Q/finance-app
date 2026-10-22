@@ -11,7 +11,6 @@ vi.mock('../services/api.js', () => ({
 vi.mock('../services/cache.js', () => ({ getCache: vi.fn(() => null), setCache: vi.fn(), invalidateCache: vi.fn() }))
 vi.mock('../services/analytics.js', () => ({ analytics: { track: vi.fn() } }))
 vi.mock('../components/layout/Navbar.jsx', () => ({ default: () => null }))
-vi.mock('../components/features/settings/RemindersCard.jsx', () => ({ default: () => <div>cartão lembretes</div> }))
 vi.mock('../components/features/settings/CategoryLimitsCard.jsx', () => ({ default: () => <div>cartão limites</div> }))
 
 import { goalsAPI, transactionsAPI } from '../services/api.js'
@@ -128,7 +127,7 @@ describe('Metas — editar e remover', () => {
 })
 
 describe('Metas — atalhos do cabeçalho (antigas abas)', () => {
-  it('Histórico, Assinaturas, Lembretes e Limites trocam o conteúdo; tocar de novo volta às metas', async () => {
+  it('Limites troca o conteúdo; tocar de novo volta às metas', async () => {
     renderGoals()
     await screen.findByText('Reserva de emergência')
     const chip = (n) => screen.getByRole('button', { name: new RegExp(n) })
@@ -136,13 +135,11 @@ describe('Metas — atalhos do cabeçalho (antigas abas)', () => {
     expect(await screen.findByText('cartão limites')).toBeInTheDocument()
     expect(screen.queryByText('Reserva de emergência')).not.toBeInTheDocument()
     expect(chip('Limites')).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(chip('Lembretes'))
-    expect(await screen.findByText('cartão lembretes')).toBeInTheDocument()
-    fireEvent.click(chip('Lembretes'))
+    fireEvent.click(chip('Limites'))
     expect(await screen.findByText('Reserva de emergência')).toBeInTheDocument()
   })
 
-  it('"Histórico" e "Assinaturas" abrem as telas próprias (não trocam o conteúdo)', async () => {
+  it('"Histórico", "Assinaturas" e "Lembretes" abrem as telas próprias (não trocam o conteúdo)', async () => {
     setUser('elite')
     goalsAPI.list.mockResolvedValue({ data: [goal()] })
     render(
@@ -151,11 +148,28 @@ describe('Metas — atalhos do cabeçalho (antigas abas)', () => {
           <Route path="/goals" element={<Goals />} />
           <Route path="/historico" element={<div>tela Histórico</div>} />
           <Route path="/assinaturas" element={<div>tela Assinaturas</div>} />
+          <Route path="/lembretes" element={<div>tela Lembretes</div>} />
         </Routes>
       </MemoryRouter>
     )
     await screen.findByText('Reserva de emergência')
     fireEvent.click(screen.getByRole('button', { name: /Assinaturas/ }))
     expect(await screen.findByText('tela Assinaturas')).toBeInTheDocument()
+  })
+
+  it('"Lembretes" abre a tela própria', async () => {
+    setUser('elite')
+    goalsAPI.list.mockResolvedValue({ data: [goal()] })
+    render(
+      <MemoryRouter initialEntries={['/goals']}>
+        <Routes>
+          <Route path="/goals" element={<Goals />} />
+          <Route path="/lembretes" element={<div>tela Lembretes</div>} />
+        </Routes>
+      </MemoryRouter>
+    )
+    await screen.findByText('Reserva de emergência')
+    fireEvent.click(screen.getByRole('button', { name: /Lembretes/ }))
+    expect(await screen.findByText('tela Lembretes')).toBeInTheDocument()
   })
 })

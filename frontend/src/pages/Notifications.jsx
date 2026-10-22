@@ -10,6 +10,7 @@ import { getSalaryNotif, getTrialNotif } from '../utils/notifications.js'
 import { buildNotifications, countUnread, readNotifIds, markNotifsRead } from '../utils/notificationsFeed.js'
 import { buildRecapSlides, maskAmounts } from '../utils/storySlides.js'
 import { readCancelFlags, cancelReminders as toReminders } from '../utils/subsCancel.js'
+import { readReminders } from '../utils/reminders.js'
 
 // Notificações (Nancy 2, tela 13). Os avisos não vêm de uma tabela: são calculados na hora
 // a partir dos mesmos dados do Início (utils/notificationsFeed.js) — por isso a lista nunca
@@ -28,6 +29,7 @@ const ICONS = {
   recap:  () => <Svg><path d="M9.94 15.5A2 2 0 008.5 14.06l-6.14-1.58a.5.5 0 010-.96L8.5 9.94A2 2 0 009.94 8.5l1.58-6.14a.5.5 0 01.96 0L14.06 8.5a2 2 0 001.44 1.44l6.14 1.58a.5.5 0 010 .96L15.5 14.06a2 2 0 00-1.44 1.44l-1.58 6.14a.5.5 0 01-.96 0z"/></Svg>,
   limit:  () => <Svg><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></Svg>,
   bill:   () => <ReceiptGlyph size={19} />,
+  reminder: () => <Svg><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></Svg>,
   cancel: () => <Svg><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></Svg>,
   trial:  () => <Svg><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>,
 }
@@ -87,7 +89,7 @@ export default function Notifications() {
     transactions: Array.isArray(data.transactions) ? data.transactions : [],
     limits: data.limits || [],
     budgets: data.budgets || [],
-    salaryNotif, trialNotif, recapSlides, cancelReminders: toReminders(readCancelFlags()),
+    salaryNotif, trialNotif, recapSlides, cancelReminders: toReminders(readCancelFlags()), reminderState: readReminders(),
   }) : []),
   // salaryNotif/trialNotif mudam só com a data/usuário — recalcular junto dos dados basta
   // eslint-disable-next-line react-hooks/exhaustive-deps

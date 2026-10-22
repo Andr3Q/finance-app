@@ -9,7 +9,6 @@ import { useGoals } from '../hooks/useGoals.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
 import { fmt, fmtDate } from '../utils/format.js'
-import RemindersCard      from '../components/features/settings/RemindersCard.jsx'
 import CategoryLimitsCard from '../components/features/settings/CategoryLimitsCard.jsx'
 const amountBucket = (v) => {
   const n = Number(v)
@@ -36,7 +35,7 @@ const chipIcon = (d) => (
 const TABS = [
   { key: 'historico',   label: 'Histórico',   to: '/historico', icon: chipIcon(<><line x1="6" y1="20" x2="6" y2="11"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></>) },
   { key: 'assinaturas', label: 'Assinaturas', to: '/assinaturas', icon: chipIcon(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>) },
-  { key: 'lembretes',   label: 'Lembretes',   icon: chipIcon(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>) },
+  { key: 'lembretes',   label: 'Lembretes',   to: '/lembretes', icon: chipIcon(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>) },
   { key: 'limites',     label: 'Limites',     icon: chipIcon(<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>) },
 ]
 
@@ -422,21 +421,6 @@ export default function Goals() {
 
             {activeTab !== 'metas' && (
             <div className="gl-panel">
-            {/* ── Lembretes (Elite) ── */}
-            {activeTab === 'lembretes' && (
-              !isElite ? (
-                <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="1.5" strokeLinecap="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-                  </svg>
-                  <div className="cfg-pro-lock-title">Recurso Elite</div>
-                  <div className="cfg-pro-lock-sub">Receba lembretes automáticos de contas a vencer</div>
-                </div>
-              ) : (
-                <RemindersCard />
-              )
-            )}
-
             {/* ── Limites por categoria ── */}
             {activeTab === 'limites' && (
               <CategoryLimitsCard

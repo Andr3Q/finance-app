@@ -16,6 +16,7 @@ import { readSeen, resumoKey, dicasKey, metasKey } from '../utils/storiesSeen.js
 import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notifications.js'
 import { buildNotifications, countUnread, readNotifIds } from '../utils/notificationsFeed.js'
 import { readCancelFlags, cancelReminders } from '../utils/subsCancel.js'
+import { readReminders } from '../utils/reminders.js'
 
 const IconEye = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -170,7 +171,7 @@ export default function Dashboard() {
   const pct = summary?.percentUsed || 0
   const now = new Date()
   const hasNotif = countUnread(
-    buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()) }),
+    buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()), reminderState: readReminders() }),
     seenNotifs,
   ) > 0
 

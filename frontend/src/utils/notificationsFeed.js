@@ -1,5 +1,6 @@
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt } from './format.js'
+import { billSetting, nextOccurrence, daysBetween, dueText, whenText } from './reminders.js'
 
 // Avisos da tela "Notificações" (Nancy 2, tela 13), calculados na hora a partir dos mesmos
 // dados que o Início já carrega (GET /transactions/dashboard): nada é guardado nem
@@ -34,7 +35,7 @@ const moneyCompact = (n) => (Number.isInteger(n) ? `R$ ${n.toLocaleString('pt-BR
  */
 export function buildNotifications({
   now = new Date(), summary = null, transactions = [], limits = [], budgets = [],
-  salaryNotif = null, trialNotif = null, recapSlides = null, cancelReminders = [],
+  salaryNotif = null, trialNotif = null, recapSlides = null, cancelReminders = [], reminderState = null,
 } = {}) {
   const items = []
   const today       = now.getDate()
@@ -42,19 +43,37 @@ export function buildNotifications({
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), today)
   const unpaid = new Set(summary?.unpaidBudgetIds ?? [])
 
-  // Contas fixas que vencem hoje ou amanhã e ainda não foram registradas como pagas.
+  // Contas fixas que vão vencer dentro da antecedência escolhida na tela Lembretes (padrão: 2 dias)
+  // e ainda não foram registradas como pagas. Interruptor desligado = sem aviso daquela conta.
   for (const b of budgets) {
-    if (!b.dueDay || !unpaid.has(b.id)) continue
-    if (b.endDate && new Date(b.endDate) < startOfToday) continue // conta com prazo já encerrada
-    const due  = Math.min(b.dueDay, daysInMonth) // dia 31 num mês de 30 dias vence no último dia
-    const diff = due - today
-    if (diff !== 0 && diff !== 1) continue
+    if (!b.dueDay) continue
+    const set = billSetting(reminderState, b.id)
+    if (!set.on) continue
+    if (b.endDate && new Date(b.endDate) < startOfToday) continue // conta com prazo já encerrado
+    const due  = nextOccurrence(b.dueDay, null, now) // dia 31 num mês de 30 dias vence no último dia
+    const diff = daysBetween(startOfToday, due)
+    if (diff > set.lead) continue
+    // a conta deste mês só avisa se ainda não foi paga; a do mês que vem é sempre nova
+    if (due.getMonth() === now.getMonth() && !unpaid.has(b.id)) continue
     items.push({
-      id: `bill:${b.id}:${dayKey(now)}`, kind: 'bill', rank: diff === 0 ? 0 : 6,
-      title: `${b.name} ${diff === 0 ? 'vence hoje' : 'vence amanhã'}`,
+      id: `bill:${b.id}:${dayKey(now)}`, kind: 'bill', rank: diff === 0 ? 0 : 6 + diff / 10,
+      title: `${b.name} ${dueText(diff)}`,
       body:  `${money(b.amount)} · conta fixa`,
-      when:  diff === 0 ? 'hoje' : 'amanhã',
+      when:  whenText(diff),
       action: { type: 'route', to: '/contas-do-mes' },
+    })
+  }
+
+  // Lembretes avulsos criados pelo usuário (ex.: IPVA, todo janeiro)
+  for (const c of reminderState?.custom ?? []) {
+    if (!c.on) continue
+    const diff = daysBetween(startOfToday, nextOccurrence(c.day, c.month, now))
+    if (diff > c.lead) continue
+    items.push({
+      id: `rem:${c.id}:${dayKey(now)}`, kind: 'reminder', rank: diff === 0 ? 0.5 : 6 + diff / 10,
+      title: `${c.name} ${dueText(diff)}`,
+      body:  c.month ? `${c.day} de ${MONTHS[c.month - 1].toLowerCase()} · lembrete seu` : `Dia ${c.day} · lembrete seu`,
+      when:  whenText(diff), action: { type: 'route', to: '/lembretes' },
     })
   }
 
