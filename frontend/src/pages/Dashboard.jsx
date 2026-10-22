@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI, goalsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
@@ -14,6 +14,7 @@ import { fmt } from '../utils/format.js'
 import { monthGrowthPct, projectedBalance } from '../utils/homeMetrics.js'
 import { readSeen, resumoKey, dicasKey, metasKey } from '../utils/storiesSeen.js'
 import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notifications.js'
+import { buildNotifications, countUnread, readNotifIds } from '../utils/notificationsFeed.js'
 
 const IconEye = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -74,14 +75,14 @@ export default function Dashboard() {
   })
   const [goals,        setGoals]        = useState([])
 
-  const [showBell,           setShowBell]           = useState(false)
-  const [bellDismissed,      setBellDismissed]      = useState(false)
+  // O sino leva à tela Notificações; o pontinho aparece enquanto houver aviso que o usuário
+  // ainda não viu neste aparelho (lido na montagem: abrir a tela navega pra outra rota,
+  // então o Início remonta ao voltar).
   const [trialBellDismissed, setTrialBellDismissed] = useState(false)
-  const bellRef = useRef(null)
+  const [seenNotifs] = useState(readNotifIds)
 
   const salaryNotif = getSalaryNotif()
   const trialNotif  = user.id ? getTrialNotif(user) : null
-  const hasNotif    = (!!salaryNotif && !bellDismissed) || (!!trialNotif && !trialBellDismissed)
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -151,13 +152,6 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    if (!showBell) return
-    const handler = (e) => { if (bellRef.current && !bellRef.current.contains(e.target)) setShowBell(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showBell])
-
-  useEffect(() => {
     const dismiss = () => setTrialBellDismissed(true)
     window.addEventListener('trial-bell-dismiss', dismiss)
     // Descarta imediatamente se o modal já foi exibido nesta sessão
@@ -174,6 +168,10 @@ export default function Dashboard() {
 
   const pct = summary?.percentUsed || 0
   const now = new Date()
+  const hasNotif = countUnread(
+    buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif }),
+    seenNotifs,
+  ) > 0
 
   // Score financeiro (0-100) — igual já existia, só ganhou um rótulo/visual
   // novo ("Saúde financeira") nesta tela.
@@ -268,68 +266,13 @@ export default function Dashboard() {
                 <button className="home-iconbtn" onClick={toggleHideBalance} aria-label={hideBalance ? 'Mostrar valores' : 'Ocultar valores'}>
                   {hideBalance ? <IconEyeOff /> : <IconEye />}
                 </button>
-                <div className="dsb-bell-wrap" ref={bellRef} style={{ position:'relative' }}>
-                  <button className="home-iconbtn" onClick={() => setShowBell(b => !b)} aria-label="Notificações">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                      <path d="M13.73 21a2 2 0 01-3.46 0"/>
-                    </svg>
-                    {hasNotif && <span className="dsb-bell-dot" />}
-                  </button>
-                  {showBell && (
-                    <div className="dsb-bell-drop" style={{ right:0, left:'auto', top:'calc(100% + 8px)' }}>
-                      <div className="dsb-bell-drop-title">Notificações</div>
-                      {(salaryNotif && !bellDismissed) || (trialNotif && !trialBellDismissed) ? (
-                        <>
-                          {salaryNotif && !bellDismissed && (
-                            <div className="dsb-bell-item">
-                              <div className="dsb-bell-item-ico">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
-                                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                                </svg>
-                              </div>
-                              <div className="dsb-bell-item-body">
-                                <div className="dsb-bell-item-title">Lembrete de salário</div>
-                                <div className="dsb-bell-item-msg">{salaryNotif.msg}</div>
-                              </div>
-                              <button className="dsb-bell-item-close" onClick={() => { setBellDismissed(true); setShowBell(false) }}>
-                                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                                </svg>
-                              </button>
-                            </div>
-                          )}
-                          {trialNotif && !trialBellDismissed && (
-                            <div className="dsb-bell-item">
-                              <div className="dsb-bell-item-ico">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round">
-                                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                                </svg>
-                              </div>
-                              <div className="dsb-bell-item-body">
-                                <div className="dsb-bell-item-title">Trial Pro</div>
-                                <div className="dsb-bell-item-msg">{trialNotif.msg}</div>
-                                <button
-                                  onClick={() => { setShowBell(false); navigate('/planos') }}
-                                  style={{ marginTop:6, fontSize:11, fontWeight:700, color:'#4ae2ac', background:'none', border:'none', padding:0, cursor:'pointer' }}
-                                >
-                                  Assinar Pro →
-                                </button>
-                              </div>
-                              <button className="dsb-bell-item-close" onClick={() => setTrialBellDismissed(true)}>
-                                <svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                                </svg>
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="dsb-bell-empty">Sem notificações</div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <button className="home-iconbtn" onClick={() => navigate('/notificacoes')} aria-label="Notificações">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 01-3.46 0"/>
+                  </svg>
+                  {hasNotif && <span className="dsb-bell-dot" />}
+                </button>
               </div>
             </div>
 

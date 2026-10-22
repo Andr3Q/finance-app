@@ -11115,3 +11115,75 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 /* o design mostra o botão cheio mesmo com o campo vazio — só fica esmaecido enquanto a Nancy responde */
 .nia-send:disabled { cursor: default; }
 .nia-send.busy { opacity: .55; }
+
+/* ═══════════════════════════════════════════════════════
+   ntf-* — Notificações (Nancy 2, tela 13): cabeçalho azul chapado com botão de voltar,
+   corpo claro de cantos arredondados e um cartão branco com as linhas (ícone azul 42px,
+   título, texto e "quando" à direita). Tela sempre clara (useForcedLightTheme), então os
+   tokens do design valem só aqui dentro. Medidas tiradas do print.
+   ═══════════════════════════════════════════════════════ */
+.ntf-page {
+  --bg: #F2F6FF; --bg-card: #fff; --bdbd: #EDF2F8;
+  --t1: #121A33; --t2: #5B6784; --t3: #99A5BE;
+  background: #F2F6FF; min-height: 100%;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+}
+.ntf-hero {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #1C48FF; color: #fff; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 46px;
+}
+.ntf-back {
+  width: 42px; height: 42px; flex-shrink: 0; border: none; border-radius: 13px; cursor: pointer;
+  background: rgba(255,255,255,.14); color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.ntf-back:hover { background: rgba(255,255,255,.22); }
+.ntf-head-text { min-width: 0; }
+.ntf-title { font-family: var(--fd); font-weight: 800; font-size: 22px; line-height: 1.2; margin: 0; }
+.ntf-sub { margin: 4px 0 0; font-size: 12px; line-height: 1.3; color: rgba(255,255,255,.72); }
+
+.ntf-body { background: var(--bg); border-radius: 26px 26px 0 0; margin-top: -26px; position: relative; padding: 20px; }
+.ntf-card { list-style: none; margin: 0; padding: 16px 16px 10px; background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 24px; }
+.ntf-item { margin: 0; border-top: 1px solid var(--bdbd); }
+.ntf-row {
+  width: 100%; display: flex; align-items: flex-start; gap: 14px; padding: 14px 0;
+  border: none; background: none; font-family: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.ntf-row:active { opacity: .7; }
+.ntf-ico {
+  width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #1C48FF; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.ntf-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ntf-name { font-size: 14px; font-weight: 700; line-height: 1.35; letter-spacing: -.01em; color: var(--t1); }
+.ntf-text { font-size: 12px; line-height: 1.5; color: var(--t2); }
+.ntf-when { flex-shrink: 0; margin-left: -6px; padding-top: 2px; font-size: 10.5px; line-height: 1.3; color: var(--t3); }
+@media (hover: hover) { .ntf-row:hover .ntf-name { color: #1C48FF; } }
+
+.ntf-prefs {
+  display: block; width: 100%; height: 52px; margin-top: 16px; background: #fff; border: 1px solid #C4CDE0;
+  border-radius: 18px; color: #1C48FF; font-family: inherit; font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; cursor: pointer;
+}
+.ntf-prefs:hover { background: #F7F9FF; }
+
+.ntf-back:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ntf-row:focus-visible, .ntf-prefs:focus-visible, .ntf-retry:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+.ntf-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 36px 24px; }
+.ntf-empty-ico {
+  width: 56px; height: 56px; border-radius: 18px; margin-bottom: 14px; background: #EEF2FF; color: #1C48FF;
+  display: flex; align-items: center; justify-content: center;
+}
+.ntf-empty-title { font-size: 15px; font-weight: 700; color: var(--t1); margin: 0 0 6px; }
+.ntf-empty-sub { font-size: 12.5px; line-height: 1.5; color: var(--t2); margin: 0; max-width: 280px; }
+.ntf-retry {
+  margin-top: 16px; height: 40px; padding: 0 18px; border: none; border-radius: 12px; cursor: pointer;
+  background: #1C48FF; color: #fff; font-family: inherit; font-size: 13px; font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .pwnav.ntf-pwnav, [data-theme="light"] .pwnav.ntf-pwnav { background: #F2F6FF; }
+}
+@media (min-width: 769px) {
+  .ntf-page { max-width: 560px; margin: 0 auto; width: 100%; padding: 8px 24px 32px; background: none; min-height: 0; }
+  .ntf-hero { border-radius: 28px; padding-bottom: 54px; }
+}

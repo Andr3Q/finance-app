@@ -22,6 +22,7 @@ const ConfirmEmailChange = lazy(() => import('./pages/ConfirmEmailChange.jsx'))
 const UnlockAccount  = lazy(() => import('./pages/UnlockAccount.jsx'))
 const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
 const StoriesResumo  = lazy(() => import('./pages/StoriesResumo.jsx'))
+const Notifications  = lazy(() => import('./pages/Notifications.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
 const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
@@ -193,6 +194,7 @@ export default function App() {
             <Route path="/unlock-account"  element={<UnlockAccount />} />
             <Route path="/dashboard"       element={<PrivateRoute><Dashboard /></PrivateRoute>} />
             <Route path="/resumo-stories"  element={<PrivateRoute><StoriesResumo /></PrivateRoute>} />
+            <Route path="/notificacoes"    element={<PrivateRoute><Notifications /></PrivateRoute>} />
             <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
             <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
             <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />

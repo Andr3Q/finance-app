@@ -13,6 +13,7 @@ const ROUTE_TITLES = {
   '/analytics':   'Análises',
   '/goals':       'Metas',
   '/financas':    'Finanças',
+  '/notificacoes': 'Notificações',
   '/settings':    'Configurações',
   '/planos':      'Planos',
   '/calendar':    'Calendário',
@@ -121,6 +122,8 @@ export default function Navbar() {
   const isActive  = (path) => path === '/settings'
     ? location.pathname.startsWith('/settings')
     : location.pathname === path
+  // No design, a tela Notificações aparece com "Extrato" aceso na barra de baixo (mobile).
+  const isMobileActive = (path) => isActive(path) || (path === '/transactions' && location.pathname === '/notificacoes')
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'
@@ -409,7 +412,7 @@ export default function Navbar() {
       {/* ── Mobile bottom nav ── */}
       <nav className={`dsb-mobile-nav${showQuickMenu ? ' menu-open' : ''}`}>
         {mobileNavLinksLeft.map(({ path, label, Icon }) => {
-          const active = isActive(path)
+          const active = isMobileActive(path)
           return (
             <button
               key={path}
@@ -431,7 +434,7 @@ export default function Navbar() {
         </button>
 
         {mobileNavLinksRight.map(({ path, label, Icon }) => {
-          const active = isActive(path)
+          const active = isMobileActive(path)
           return (
             <button
               key={path}
