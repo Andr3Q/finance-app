@@ -5,7 +5,7 @@ const { injectSession, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Metas Financeiras — E2E
-// Botões reais: "Nova meta", "Depositar", "Remover"
+// Metas (Nancy 2, tela 19): cartão "Nova meta", depósito rápido "+ R$ 500", edição/remoção pelo nome da meta
 // ─────────────────────────────────────────────────────────────────
 
 async function setupGoals(page, goals = []) {
@@ -24,16 +24,18 @@ async function setupGoals(page, goals = []) {
 }
 
 test.describe('Metas — Listagem', () => {
-  test('exibe botão "Nova meta" na página', async ({ page }) => {
+  test('exibe o cartão "Nova meta" com "Criar meta" desligado até preencher', async ({ page }) => {
     await setupGoals(page)
     await page.goto('/goals')
-    await expect(page.getByRole('button', { name: /nova meta/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Nova meta' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Criar meta' })).toBeDisabled()
   })
 
-  test('exibe mensagem vazia quando não há metas', async ({ page }) => {
+  test('sem metas só aparece o cartão "Nova meta"', async ({ page }) => {
     await setupGoals(page)
     await page.goto('/goals')
-    await expect(page.getByText(/nenhuma meta|sem metas|crie sua primeira|adicione uma meta/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Metas' })).toBeVisible()
+    await expect(page.locator('.gl-card')).toHaveCount(0)
   })
 
   test('exibe card da meta com nome correto', async ({ page }) => {
@@ -80,36 +82,18 @@ test.describe('Metas — Criar meta', () => {
     await page.goto('/goals')
   })
 
-  test('abre modal ao clicar em "Nova meta"', async ({ page }) => {
-    await page.getByRole('button', { name: /nova meta/i }).click()
-    // Placeholder real do input de nome: "Ex: Reserva de emergência"
-    await expect(page.getByPlaceholder(/reserva de emergência/i)).toBeVisible()
-  })
-
   test('cria meta com sucesso e exibe toast', async ({ page }) => {
-    await page.getByRole('button', { name: /nova meta/i }).click()
-    await page.getByPlaceholder(/reserva de emergência/i).fill('Fundo Emergência')
-
-    // Primeiro CurrencyInput com placeholder "0,00" = valor-alvo
-    await page.getByPlaceholder('0,00').first().fill('5000')
-
-    await page.getByRole('button', { name: /criar meta/i }).click()
-    await expect(page.getByText(/criada|adicionada|sucesso/i)).toBeVisible()
+    await page.getByPlaceholder('Ex.: Carro novo').fill('Fundo Emergência')
+    await page.getByPlaceholder('Valor alvo (R$)').fill('5000')
+    await page.getByRole('button', { name: 'Criar meta' }).click()
+    await expect(page.getByText('Meta criada!')).toBeVisible()
   })
 
-  test('exibe toast de erro ao salvar sem nome', async ({ page }) => {
-    await page.getByRole('button', { name: /nova meta/i }).click()
-    // Deixa nome vazio, preenche valor
-    await page.getByPlaceholder('0,00').first().fill('5000')
-    await page.getByRole('button', { name: /criar meta/i }).click()
-    await expect(page.getByText('Informe o nome da meta.')).toBeVisible()
-  })
-
-  test('"Cancelar" fecha o modal sem criar', async ({ page }) => {
-    await page.getByRole('button', { name: /nova meta/i }).click()
-    await expect(page.getByPlaceholder(/reserva de emergência/i)).toBeVisible()
-    await page.getByRole('button', { name: /^cancelar$/i }).click()
-    await expect(page.getByPlaceholder(/reserva de emergência/i)).not.toBeVisible()
+  test('"Criar meta" fica desligado sem nome ou sem valor', async ({ page }) => {
+    await page.getByPlaceholder('Valor alvo (R$)').fill('5000')
+    await expect(page.getByRole('button', { name: 'Criar meta' })).toBeDisabled()
+    await page.getByPlaceholder('Ex.: Carro novo').fill('Carro')
+    await expect(page.getByRole('button', { name: 'Criar meta' })).toBeEnabled()
   })
 })
 
@@ -139,27 +123,25 @@ test.describe('Metas — Depositar valor', () => {
     await page.getByText('Reserva de emergência').waitFor()
   })
 
-  test('botão "Depositar" está visível no card da meta', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /^depositar$/i })).toBeVisible()
+  test('o card mostra o depósito rápido "+ R$ 500"', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /depositar na meta reserva de emergência/i })).toHaveText('+ R$ 500')
   })
 
-  test('abre modal de depósito ao clicar em "Depositar"', async ({ page }) => {
-    await page.getByRole('button', { name: /^depositar$/i }).click()
-    // Modal tem título "Depositar na meta"
-    await expect(page.getByText(/depositar na meta/i)).toBeVisible()
+  test('abre o depósito com 500 preenchido e só deposita ao confirmar', async ({ page }) => {
+    await page.getByRole('button', { name: /depositar na meta/i }).click()
+    await expect(page.getByText(/depositar na meta/i).first()).toBeVisible()
+    await expect(page.getByPlaceholder('0,00')).toHaveValue('500,00')
   })
 
   test('realiza depósito com sucesso e exibe toast', async ({ page }) => {
-    await page.getByRole('button', { name: /^depositar$/i }).click()
-    await page.getByPlaceholder('0,00').fill('500')
-    // Botão de confirmar no modal de depósito
+    await page.getByRole('button', { name: /depositar na meta/i }).click()
     await page.getByRole('button', { name: /^depositar$/i }).last().click()
     await expect(page.getByText(/depósito registrado|meta atingida/i)).toBeVisible()
   })
 })
 
 test.describe('Metas — Excluir meta', () => {
-  test('clica em "Remover" e exclui a meta', async ({ page }) => {
+  test('remove a meta pela edição, com confirmação', async ({ page }) => {
     await injectSession(page)
 
     let deleted = false
@@ -180,10 +162,33 @@ test.describe('Metas — Excluir meta', () => {
     await page.goto('/goals')
     await page.getByText('Reserva de emergência').waitFor()
 
-    // Botão real: texto "Remover" → abre modal customizado
-    await page.getByRole('button', { name: /^remover$/i }).click()
+    // tocar no nome abre a edição, que tem "Remover meta" → modal de confirmação
+    await page.getByRole('button', { name: /editar meta reserva de emergência/i }).click()
+    await page.getByRole('button', { name: 'Remover meta' }).click()
     // Confirmar no modal customizado de exclusão
     await page.getByRole('button', { name: /sim, excluir/i }).click()
     await expect(page.getByText(/removida|excluída|sucesso/i)).toBeVisible()
+  })
+})
+
+test.describe('Metas — visual do design (celular)', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
+
+  test('tela azul com atalhos, cartões brancos, depósito azul e "Nova meta" tracejado; Metas aceso na barra', async ({ page }) => {
+    await setupGoals(page, [GOAL_ITEM])
+    await page.goto('/goals')
+    await page.getByText('Reserva de emergência').waitFor()
+    await expect(page.getByRole('button', { name: /Histórico/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Assinaturas/ })).toBeVisible()
+    await expect(page.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Metas')
+    const m = await page.evaluate(() => {
+      const cs = (s) => getComputedStyle(document.querySelector(s))
+      return {
+        theme: document.documentElement.getAttribute('data-theme'), blue: cs('.gl-blue').backgroundColor, card: cs('.gl-card').backgroundColor,
+        dep: cs('.gl-dep').backgroundColor, newBorder: cs('.gl-new').borderTopStyle, create: cs('.gl-create').backgroundColor,
+        overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      }
+    })
+    expect(m).toEqual({ theme: 'light', blue: 'rgb(28, 72, 255)', card: 'rgb(255, 255, 255)', dep: 'rgb(28, 72, 255)', newBorder: 'dashed', create: 'rgb(61, 226, 159)', overflow: 0 })
   })
 })
