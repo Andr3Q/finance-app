@@ -9,7 +9,6 @@ import { useGoals } from '../hooks/useGoals.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
 import { fmt, fmtDate } from '../utils/format.js'
-import CategoryLimitsCard from '../components/features/settings/CategoryLimitsCard.jsx'
 const amountBucket = (v) => {
   const n = Number(v)
   if (!n || n <= 0)      return '0'
@@ -31,12 +30,12 @@ const ChipArrow = ({ dir }) => (
 const chipIcon = (d) => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
 )
-// As antigas abas viram atalhos do cabeçalho; sem nenhum ativo, a tela mostra as metas.
+// As antigas abas viram atalhos do cabeçalho, cada um com a sua tela.
 const TABS = [
   { key: 'historico',   label: 'Histórico',   to: '/historico', icon: chipIcon(<><line x1="6" y1="20" x2="6" y2="11"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></>) },
   { key: 'assinaturas', label: 'Assinaturas', to: '/assinaturas', icon: chipIcon(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>) },
   { key: 'lembretes',   label: 'Lembretes',   to: '/lembretes', icon: chipIcon(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>) },
-  { key: 'limites',     label: 'Limites',     icon: chipIcon(<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>) },
+  { key: 'limites',     label: 'Limites',     to: '/limites', icon: chipIcon(<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>) },
 ]
 
 const COLORS = ['#4ae2ac','#4f8ef7','#7b2fff','#ff8c42','#ff4757','#ff6b9d']
@@ -242,7 +241,6 @@ export default function Goals() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
 
-  const [activeTab, setActiveTab] = useState('metas')
   const [newGoal, setNewGoal] = useState({ title: '', targetAmount: '' })
   const chipsRef = useRef(null)
   const scrollChips = (dir) => chipsRef.current?.scrollBy({ left: dir * 150, behavior: 'smooth' })
@@ -250,19 +248,11 @@ export default function Goals() {
 
   const plan    = user?.plan ?? null
   const isFree  = plan === 'free'
-  const isPro   = plan === 'pro' || plan === 'elite'
-  const isElite = plan === 'elite'
   const proLimit = 4
   const atGoalLimit = (isFree && goals.length >= 1) || (plan === 'pro' && goals.length >= proLimit)
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
-    setTimeout(() => setToast(null), 3500)
-  }
-
-  // Adapter para CategoryLimitsCard (usa 'error'|'success'; Goals usa boolean ok)
-  const showMsg = (msg, type = 'success') => {
-    setToast({ msg, ok: type !== 'error' })
     setTimeout(() => setToast(null), 3500)
   }
 
@@ -349,8 +339,7 @@ export default function Goals() {
                 <button className="ex-chip-arrow" onClick={() => scrollChips(-1)} aria-label="Atalhos anteriores"><ChipArrow dir="left" /></button>
                 <div className="ex-chips" ref={chipsRef}>
                   {TABS.map(t => (
-                    <button key={t.key} type="button" className={`ex-chip${!t.to && activeTab === t.key ? ' on' : ''}`} aria-pressed={t.to ? undefined : activeTab === t.key}
-                      onClick={() => (t.to ? navigate(t.to) : setActiveTab(activeTab === t.key ? 'metas' : t.key))}>
+                    <button key={t.key} type="button" className="ex-chip" onClick={() => navigate(t.to)}>
                       {t.icon} {t.label}
                     </button>
                   ))}
@@ -360,8 +349,6 @@ export default function Goals() {
             </header>
 
             <div className="gl-body">
-            {activeTab === 'metas' && (
-              <>
                 {!loading && (
                   <PlanUsageBanner plan={plan ?? 'free'} feature="goals" used={goals.length} label="metas" />
                 )}
@@ -416,22 +403,6 @@ export default function Goals() {
                     {atGoalLimit && <p className="gl-limit">Você atingiu o limite de metas do seu plano.</p>}
                   </form>
                 </section>
-              </>
-            )}
-
-            {activeTab !== 'metas' && (
-            <div className="gl-panel">
-            {/* ── Limites por categoria ── */}
-            {activeTab === 'limites' && (
-              <CategoryLimitsCard
-                isPro={isPro}
-                onMessage={showMsg}
-                onUpgrade={() => navigate('/planos')}
-              />
-            )}
-
-            </div>
-            )}
             </div>
           </div>
         </div>

@@ -11526,7 +11526,6 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .gl-create:disabled { opacity: .55; cursor: default; }
 .gl-limit { margin: 0; font-size: 12px; color: rgba(255,255,255,.85); text-align: center; }
 
-.gl-panel { background: #F2F6FF; border-radius: 24px; padding: 16px; }
 .gls-remove-link { display: block; margin: 18px auto 0; padding: 4px 8px; background: none; border: none; color: #E5484D; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .gl-card-edit:focus-visible, .gl-dep:focus-visible, .gl-create:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
 
@@ -11616,3 +11615,44 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .rm-lead.on { background: #1C48FF; border-color: #1C48FF; color: #fff; font-weight: 700; }
 .rm-err { margin-top: 10px; font-size: 12px; color: #E5484D; }
 .rm-row:focus-visible, .rm-add:focus-visible, .rm-lead:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   lm-* — Limites (Nancy 2): cabeçalho/corpo da Finanças (fin-*), cartão com uma linha por categoria
+   (ícone, nome, "gasto / teto" em mono, X, barra e situação) e o cartão "Novo limite" (chips + teto).
+   ═══════════════════════════════════════════════════════ */
+.lm-state { text-align: center; padding: 28px 20px; }
+.lm-state .fin-sub { max-width: 290px; margin: 6px auto 0; }
+.lm-state-btn { margin-top: 16px; width: 100%; max-width: 220px; }
+.lm-card { padding-top: 17px; margin-bottom: 14px; }
+.lm-empty { margin: 14px 0 2px; font-size: 12.5px; line-height: 1.5; color: var(--t2); }
+.lm-list { list-style: none; margin: 15px 0 0; padding: 0; }
+.lm-item { border-top: 1px solid var(--bdbd); padding: 12px 0 12px; }
+.lm-item:last-child { padding-bottom: 0; }
+.lm-top { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.lm-cat { width: 16px; height: 16px; flex-shrink: 0; color: #1C48FF; display: flex; }
+.lm-name { flex: 0 0 auto; font-size: 14px; font-weight: 600; letter-spacing: -.01em; color: var(--t1); }
+.lm-amt { margin-left: auto; min-width: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; line-height: 1.5; color: var(--t2); }
+.lm-del { flex-shrink: 0; width: 22px; height: 24px; padding: 0; border: none; background: none; color: #99A5BE; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.lm-del:hover { color: #5B6784; }
+.lm-bar { height: 8px; margin-top: 4px; border-radius: 99px; background: #EDF3FF; overflow: hidden; }
+.lm-fill { display: block; height: 100%; border-radius: 99px; background: #19C884; }
+.lm-fill.warn { background: #E7B43D; }
+.lm-fill.over { background: #E5484D; }
+.lm-note { margin: 6px 0 0; font-size: 12px; line-height: 17px; color: var(--t2); }
+.lm-note.warn { color: #B67824; font-weight: 500; }
+.lm-note.over { color: #D64545; }
+.lm-new { padding: 17px 16px; margin-bottom: 0; }
+.lm-new-title { margin: 0; font-size: 15.5px; line-height: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.lm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.lm-chip { height: 34px; padding: 0 12px; border: none; border-radius: 999px; background: #F4F7FC; color: var(--t1); font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.lm-chip.on { background: #1C48FF; color: #fff; }
+.lm-chip.more { background: none; border: 1px dashed #B8C6EE; color: #1C48FF; }
+.lm-form { display: flex; gap: 8px; margin-top: 12px; }
+.lm-inp { flex: 1; min-width: 0; height: 53px; padding: 0 16px; border: 1px solid #E0E7F5; border-radius: 16px; background: #F4F7FC; font-family: inherit; font-size: 14.5px; color: var(--t1); outline: none; }
+.lm-inp::placeholder { color: var(--t3); }
+.lm-inp:focus { border-color: #1C48FF; }
+.lm-save { width: 101px; height: 53px; font-size: 15px; }
+.lm-msg { margin: 10px 0 0; font-size: 12.5px; line-height: 1.4; }
+.lm-msg.ok { color: #117953; }
+.lm-msg.err { color: #D64545; }
+.lm-del:focus-visible, .lm-chip:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }

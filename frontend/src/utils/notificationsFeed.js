@@ -1,5 +1,6 @@
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt } from './format.js'
+import { spentByCategory } from './categoryLimits.js'
 import { billSetting, nextOccurrence, daysBetween, dueText, whenText } from './reminders.js'
 
 // Avisos da tela "Notificações" (Nancy 2, tela 13), calculados na hora a partir dos mesmos
@@ -102,10 +103,7 @@ export function buildNotifications({
   }
 
   // Categorias perto de estourar (ou já estouradas) o limite do mês.
-  const spentBy = {}
-  for (const t of transactions) {
-    if (t.type === 'expense') spentBy[t.category] = (spentBy[t.category] || 0) + Number(t.amount)
-  }
+  const spentBy = spentByCategory(transactions)
   for (const l of limits) {
     const limit = Number(l.amount)
     if (!(limit > 0)) continue

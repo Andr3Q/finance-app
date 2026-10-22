@@ -29,6 +29,7 @@ const Analysis       = lazy(() => import('./pages/Analysis.jsx'))
 const History        = lazy(() => import('./pages/History.jsx'))
 const Subscriptions  = lazy(() => import('./pages/Subscriptions.jsx'))
 const Reminders      = lazy(() => import('./pages/Reminders.jsx'))
+const Limits         = lazy(() => import('./pages/Limits.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
 const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
@@ -207,6 +208,7 @@ export default function App() {
             <Route path="/historico"       element={<PrivateRoute><History /></PrivateRoute>} />
             <Route path="/assinaturas"     element={<PrivateRoute><Subscriptions /></PrivateRoute>} />
             <Route path="/lembretes"       element={<PrivateRoute><Reminders /></PrivateRoute>} />
+            <Route path="/limites"         element={<PrivateRoute><Limits /></PrivateRoute>} />
             <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
             <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
             <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
