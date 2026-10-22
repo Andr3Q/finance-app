@@ -1,10 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { transactionsAPI, budgetAPI, goalsAPI, installmentsAPI } from '../services/api.js'
+import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { MONTHS, CATEGORY_LABELS } from '../constants/index.js'
+import { CategoryIcon } from '../components/ui/icons.jsx'
+import { ReceiptGlyph, LayersGlyph } from '../components/ui/NancyGlyphs.jsx'
 import { fmt } from '../utils/format.js'
 
-const DOW = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+const DOW = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM']
+const HIDDEN = 'R$ ••••'
+const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 
 function buildCalendar(year, month) {
   const firstDow    = new Date(year, month - 1, 1).getDay()
@@ -17,7 +23,33 @@ function buildCalendar(year, month) {
   return cells
 }
 
+const BackIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+)
+const Chevron = ({ dir }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polyline points={dir === 'left' ? '15 18 9 12 15 6' : '9 18 15 12 9 6'}/>
+  </svg>
+)
+const TargetGlyph = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>
+  </svg>
+)
+
+// Qual bolinha cada tipo de evento acende: entrada (verde), saída (azul — gasto, conta fixa que vence
+// e parcela) e meta (âmbar, só quando o mês tem prazo de meta).
+const dotKind = (kind) => (kind === 'income' ? 'in' : kind === 'goal' ? 'goal' : 'out')
+
+// Calendário (Nancy 2, tela 18): vencimentos e lançamentos do mês. Os dados e a lógica são os mesmos
+// de antes (transações, contas fixas, prazos de metas e parcelas em aberto); mudou o visual.
 export default function Calendar() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
+
   const now = new Date()
   const [month,        setMonth]        = useState(now.getMonth() + 1)
   const [year,         setYear]         = useState(now.getFullYear())
@@ -28,6 +60,7 @@ export default function Calendar() {
   const [installments,  setInstallments]  = useState([])
   const [loading,       setLoading]       = useState(true)
   const [fetchError,    setFetchError]    = useState(false)
+  const [hidden]                          = useState(readHidden)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -53,6 +86,8 @@ export default function Calendar() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/transactions'))
+
   const prevMonth = () => {
     setSelectedDay(null)
     if (month === 1) { setMonth(12); setYear(y => y - 1) } else setMonth(m => m - 1)
@@ -67,7 +102,7 @@ export default function Calendar() {
     setSelectedDay(now.getDate())
   }
 
-  // Build events map: day → [event, ...]
+  // dia → eventos
   const evByDay = {}
   const push = (day, ev) => { if (!evByDay[day]) evByDay[day] = []; evByDay[day].push(ev) }
 
@@ -97,6 +132,10 @@ export default function Calendar() {
   const isCurrentMonth = now.getMonth() + 1 === month && now.getFullYear() === year
   const today          = isCurrentMonth ? now.getDate() : -1
   const selEvents      = selectedDay ? (evByDay[selectedDay] || []) : []
+  const hasGoalDots    = Object.values(evByDay).some(evs => evs.some(e => e.kind === 'goal'))
+  const money = (n) => (hidden ? HIDDEN : `R$ ${fmt(n)}`)
+  // dia já passou (ou é hoje) no mês exibido; mês passado inteiro conta como passado
+  const isPast = (day) => year < now.getFullYear() || (year === now.getFullYear() && (month < now.getMonth() + 1 || (month === now.getMonth() + 1 && day <= now.getDate())))
 
   return (
     <>
@@ -106,106 +145,80 @@ export default function Calendar() {
           Erro ao carregar dados do calendário.
         </div>
       )}
-      <div className="pwnav fade-in">
-        <div className="dsb-content">
-          <div className="cal-page">
-
-            {/* ── Header ── */}
-            <div className="cal-header">
-              <button className="cal-nav-btn" onClick={prevMonth} aria-label="Mês anterior">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="15 18 9 12 15 6"/>
-                </svg>
-              </button>
-              <div className="cal-header-center">
-                <span className="cal-month-title">{MONTHS[month - 1]} {year}</span>
-                {!isCurrentMonth && (
-                  <button className="cal-today-btn" onClick={goToday}>Hoje</button>
-                )}
-              </div>
-              <button className="cal-nav-btn" onClick={nextMonth} aria-label="Próximo mês">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
-              </button>
+      <div className="pwnav fin-pwnav fade-in">
+        <div className="fin-page">
+          <header className="fin-hero">
+            <button type="button" className="fin-back" onClick={goBack} aria-label="Voltar"><BackIcon /></button>
+            <div className="fin-hero-text">
+              <h1 className="fin-hero-title">Calendário</h1>
+              <p className="fin-hero-sub">Vencimentos e lançamentos</p>
             </div>
+          </header>
 
-            <div className="cal-layout">
-              {/* ── Grid ── */}
-              <div className="cal-grid-wrap">
-                <div className="cal-dow-row">
-                  {DOW.map(d => <div key={d} className="cal-dow">{d}</div>)}
+          <div className="fin-body">
+            <section className="fin-card cl-card">
+              <div className="cl-head">
+                <h2 className="cl-month">{MONTHS[month - 1]} {year}</h2>
+                <div className="cl-nav">
+                  <button type="button" className="cl-nav-btn" onClick={prevMonth} aria-label="Mês anterior"><Chevron dir="left" /></button>
+                  <button type="button" className="cl-nav-btn" onClick={nextMonth} aria-label="Próximo mês"><Chevron dir="right" /></button>
+                  {!isCurrentMonth && <button type="button" className="cl-today-btn" onClick={goToday}>Hoje</button>}
                 </div>
-
-                {loading ? (
-                  <div className="cal-loading">
-                    <span className="spinner" style={{ width: 24, height: 24, borderWidth: 2.5 }} />
-                  </div>
-                ) : (
-                  <div className="cal-cells">
-                    {cells.map((day, i) => {
-                      if (!day) return <div key={`e${i}`} className="cal-cell empty" />
-                      const events     = evByDay[day] || []
-                      const hasIncome      = events.some(e => e.kind === 'income')
-                      const hasExpense     = events.some(e => e.kind === 'expense')
-                      const hasBudget      = events.some(e => e.kind === 'budget')
-                      const hasGoal        = events.some(e => e.kind === 'goal')
-                      const hasInstallment = events.some(e => e.kind === 'installment')
-                      const isToday    = day === today
-                      const isSel      = day === selectedDay
-                      return (
-                        <div
-                          key={day}
-                          className={`cal-cell${isToday ? ' today' : ''}${isSel ? ' sel' : ''}${events.length ? ' has-ev' : ''}`}
-                          onClick={() => setSelectedDay(isSel ? null : day)}
-                        >
-                          <span className="cal-day-num">{day}</span>
-                          <div className="cal-dots">
-                            {hasExpense     && <span className="cal-dot cal-dot-exp" />}
-                            {hasIncome      && <span className="cal-dot cal-dot-inc" />}
-                            {hasBudget      && <span className="cal-dot cal-dot-bud" />}
-                            {hasGoal        && <span className="cal-dot cal-dot-gol" />}
-                            {hasInstallment && <span className="cal-dot cal-dot-ins" />}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-
-                <div className="cal-legend">
-                  <span className="cal-leg"><span className="cal-dot cal-dot-exp"/><span>Gasto</span></span>
-                  <span className="cal-leg"><span className="cal-dot cal-dot-inc"/><span>Entrada</span></span>
-                  <span className="cal-leg"><span className="cal-dot cal-dot-bud"/><span>Conta fixa</span></span>
-                  <span className="cal-leg"><span className="cal-dot cal-dot-gol"/><span>Meta</span></span>
-                  <span className="cal-leg"><span className="cal-dot cal-dot-ins"/><span>Parcela</span></span>
+                <div className="cl-legend">
+                  <span className="cl-leg"><i className="cl-dot cl-dot-in" />Entrada</span>
+                  <span className="cl-leg"><i className="cl-dot cl-dot-out" />Saída</span>
+                  {hasGoalDots && <span className="cl-leg"><i className="cl-dot cl-dot-goal" />Meta</span>}
                 </div>
               </div>
 
-              {/* ── Detail panel ── */}
-              <div className="cal-detail">
-                {selectedDay ? (
-                  <>
-                    <div className="cal-detail-title">
-                      {selectedDay} de {MONTHS[month - 1]}
-                      {selectedDay === today && <span className="cal-detail-today-badge">Hoje</span>}
-                    </div>
-                    {selEvents.length === 0 ? (
-                      <div className="cal-detail-empty">Nenhum evento neste dia.</div>
-                    ) : (
-                      <div className="cal-ev-list">
-                        {selEvents.map((ev, i) => <CalEvent key={i} ev={ev} />)}
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="cal-detail-empty">
-                    Toque em um dia para ver os eventos.
-                  </div>
-                )}
+              <div className="cl-dow-row">
+                {DOW.map(d => <span key={d} className="cl-dow">{d}</span>)}
               </div>
-            </div>
 
+              {loading ? (
+                <div className="cl-loading"><span className="spinner" style={{ width: 24, height: 24, borderWidth: 2.5 }} /></div>
+              ) : (
+                <div className="cl-cells">
+                  {cells.map((day, i) => {
+                    if (!day) return <span key={`e${i}`} className="cl-cell empty" />
+                    const events = evByDay[day] || []
+                    const kinds  = [...new Set(events.map(e => dotKind(e.kind)))]
+                    const isSel  = day === selectedDay
+                    return (
+                      <button
+                        key={day} type="button"
+                        className={`cl-cell${day === today ? ' today' : ''}${isSel ? ' sel' : ''}${isPast(day) ? '' : ' future'}`}
+                        aria-pressed={isSel}
+                        aria-label={`${day} de ${MONTHS[month - 1].toLowerCase()}${events.length ? `, ${events.length} ${events.length === 1 ? 'evento' : 'eventos'}` : ''}`}
+                        onClick={() => setSelectedDay(isSel ? null : day)}
+                      >
+                        <span className="cl-num">{day}</span>
+                        <span className="cl-dots">{kinds.map(k => <i key={k} className={`cl-dot cl-dot-${k}`} />)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </section>
+
+            <section className="fin-card cl-day-card" aria-live="polite">
+              {selectedDay ? (
+                <>
+                  <h2 className="cl-day-title">
+                    {selectedDay} de {MONTHS[month - 1].toLowerCase()}{selectedDay === today && ' · hoje'}
+                  </h2>
+                  {selEvents.length === 0 ? (
+                    <p className="cl-day-empty">Nenhum evento neste dia.</p>
+                  ) : (
+                    <ul className="cl-ev-list">
+                      {selEvents.map((ev, i) => <CalEvent key={i} ev={ev} money={money} />)}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <p className="cl-day-empty">Toque em um dia para ver os eventos.</p>
+              )}
+            </section>
           </div>
         </div>
       </div>
@@ -213,81 +226,27 @@ export default function Calendar() {
   )
 }
 
-function CalEvent({ ev }) {
-  if (ev.kind === 'income') return (
-    <div className="cal-ev-item cal-ev-inc">
-      <div className="cal-ev-ico cal-ev-ico-inc">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
-        </svg>
-      </div>
-      <div className="cal-ev-info">
-        <span className="cal-ev-name">{ev.tx.description || 'Entrada'}</span>
-        <span className="cal-ev-sub">{CATEGORY_LABELS[ev.tx.category] || ev.tx.category}</span>
-      </div>
-      <span className="cal-ev-amt cal-ev-amt-inc">+R$ {fmt(ev.tx.amount)}</span>
-    </div>
+function CalEvent({ ev, money }) {
+  let icon, name, sub, amount, cls = ''
+  if (ev.kind === 'income' || ev.kind === 'expense') {
+    const isInc = ev.kind === 'income'
+    icon   = <CategoryIcon category={ev.tx.category} size={20} />
+    name   = ev.tx.description || (isInc ? 'Entrada' : 'Gasto')
+    sub    = CATEGORY_LABELS[ev.tx.category] || ev.tx.category
+    amount = `${isInc ? '+' : '-'}${money(ev.tx.amount)}`
+    cls    = isInc ? 'in' : ''
+  } else if (ev.kind === 'budget') {
+    icon = <ReceiptGlyph />; name = ev.budget.name; sub = 'Vencimento'; amount = money(ev.budget.amount)
+  } else if (ev.kind === 'installment') {
+    icon = <LayersGlyph />; name = ev.plan.name; sub = `Parcela ${ev.installmentNum}/${ev.plan.totalInstallments}`; amount = money(ev.plan.amount)
+  } else if (ev.kind === 'goal') {
+    icon = <TargetGlyph />; name = ev.goal.title; sub = 'Prazo da meta'; amount = money(ev.goal.targetAmount)
+  } else return null
+  return (
+    <li className="cl-ev">
+      <span className="cl-ev-ico">{icon}</span>
+      <span className="cl-ev-info"><span className="cl-ev-name">{name}</span><span className="cl-ev-sub">{sub}</span></span>
+      <span className={`cl-ev-amt ${cls}`}>{amount}</span>
+    </li>
   )
-
-  if (ev.kind === 'expense') return (
-    <div className="cal-ev-item cal-ev-exp">
-      <div className="cal-ev-ico cal-ev-ico-exp">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-          <line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/>
-        </svg>
-      </div>
-      <div className="cal-ev-info">
-        <span className="cal-ev-name">{ev.tx.description || 'Gasto'}</span>
-        <span className="cal-ev-sub">{CATEGORY_LABELS[ev.tx.category] || ev.tx.category}</span>
-      </div>
-      <span className="cal-ev-amt cal-ev-amt-exp">-R$ {fmt(ev.tx.amount)}</span>
-    </div>
-  )
-
-  if (ev.kind === 'budget') return (
-    <div className="cal-ev-item cal-ev-bud">
-      <div className="cal-ev-ico cal-ev-ico-bud">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-        </svg>
-      </div>
-      <div className="cal-ev-info">
-        <span className="cal-ev-name">{ev.budget.name}</span>
-        <span className="cal-ev-sub">Vencimento</span>
-      </div>
-      <span className="cal-ev-amt cal-ev-amt-bud">R$ {fmt(ev.budget.amount)}</span>
-    </div>
-  )
-
-  if (ev.kind === 'installment') return (
-    <div className="cal-ev-item cal-ev-ins">
-      <div className="cal-ev-ico cal-ev-ico-ins">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
-        </svg>
-      </div>
-      <div className="cal-ev-info">
-        <span className="cal-ev-name">{ev.plan.name}</span>
-        <span className="cal-ev-sub">Parcela {ev.installmentNum}/{ev.plan.totalInstallments}</span>
-      </div>
-      <span className="cal-ev-amt cal-ev-amt-ins">R$ {fmt(ev.plan.amount)}</span>
-    </div>
-  )
-
-  if (ev.kind === 'goal') return (
-    <div className="cal-ev-item cal-ev-gol">
-      <div className="cal-ev-ico cal-ev-ico-gol">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
-        </svg>
-      </div>
-      <div className="cal-ev-info">
-        <span className="cal-ev-name">{ev.goal.title}</span>
-        <span className="cal-ev-sub">Prazo da meta</span>
-      </div>
-      <span className="cal-ev-amt cal-ev-amt-gol">R$ {fmt(ev.goal.targetAmount)}</span>
-    </div>
-  )
-
-  return null
 }

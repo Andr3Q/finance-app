@@ -126,7 +126,7 @@ export default function Navbar() {
     : location.pathname === path
   // No design, Notificações e Finanças (aberta pelo "Contas do mês" do Extrato) aparecem com
   // "Extrato" aceso na barra de baixo (mobile).
-  const isMobileActive = (path) => isActive(path) || (path === '/transactions' && ['/notificacoes', '/financas', '/parcelados', '/contas-do-mes'].includes(location.pathname))
+  const isMobileActive = (path) => isActive(path) || (path === '/transactions' && ['/notificacoes', '/financas', '/parcelados', '/contas-do-mes', '/calendar'].includes(location.pathname))
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'

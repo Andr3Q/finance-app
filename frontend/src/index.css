@@ -11416,3 +11416,57 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   .ob-hero { padding-top: calc(20px + env(safe-area-inset-top, 0px)); }
   .ob-sheet { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* ═══════════════════════════════════════════════════════
+   cl-* — Calendário (Nancy 2, tela 18): cabeçalho/corpo da Finanças (fin-*), cartão do mês com
+   dias e bolinhas (entrada = verde, saída = azul) e cartão com os eventos do dia escolhido.
+   ═══════════════════════════════════════════════════════ */
+.cl-card { padding: 16px 12px 17px; }
+.cl-head { display: flex; align-items: center; gap: 8px; padding: 0 4px; margin-bottom: 14px; }
+.cl-month { font-size: 19px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0; white-space: nowrap; }
+.cl-nav { display: flex; align-items: center; gap: 4px; }
+.cl-nav-btn {
+  width: 26px; height: 26px; border: none; border-radius: 9px; cursor: pointer; background: #EEF2FF; color: #1C48FF;
+  display: flex; align-items: center; justify-content: center;
+}
+.cl-today-btn { height: 26px; padding: 0 10px; border: none; border-radius: 9px; cursor: pointer; background: #1C48FF; color: #fff; font-family: inherit; font-size: 11.5px; font-weight: 700; }
+.cl-legend { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 10.5px; color: var(--t2); }
+.cl-leg { display: inline-flex; align-items: center; gap: 4px; }
+.cl-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.cl-dot-in   { background: #19C884; }
+.cl-dot-out  { background: #1C48FF; }
+.cl-dot-goal { background: #F5A524; }
+.cl-legend .cl-dot { width: 6px; height: 6px; border-radius: 2px; }
+
+.cl-dow-row, .cl-cells { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cl-dow-row { margin-bottom: 6px; }
+.cl-dow { text-align: center; font-family: var(--fin-mono); font-size: 9.5px; letter-spacing: .08em; color: var(--t3); }
+.cl-cells { row-gap: 4px; }
+.cl-cell {
+  height: 47px; margin: 0 auto; width: 42px; border: none; border-radius: 12px; background: none; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-family: inherit; color: var(--t1); cursor: pointer;
+}
+.cl-cell.empty { cursor: default; }
+.cl-num { font-size: 13px; font-weight: 600; line-height: 1; }
+.cl-cell.future .cl-num { color: var(--t3); font-weight: 500; }
+.cl-dots { display: flex; gap: 2px; height: 5px; }
+.cl-cell.today:not(.sel) { background: #EEF2FF; }
+.cl-cell.today:not(.sel) .cl-num { color: #1C48FF; }
+.cl-cell.sel { background: #1C48FF; color: #fff; }
+.cl-cell.sel .cl-num { color: #fff; font-weight: 800; }
+.cl-cell.sel .cl-dot { background: #fff; }
+.cl-cell.sel .cl-dot-in { background: #6FF0C0; }
+.cl-cell:focus-visible { outline: 2px solid #1C48FF; outline-offset: 1px; }
+.cl-loading { display: flex; justify-content: center; padding: 60px 0; }
+
+.cl-day-title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0; }
+.cl-day-empty { margin: 0; font-size: 12.5px; color: var(--t2); }
+.cl-ev-list { list-style: none; margin: 12px 0 0; padding: 0; }
+.cl-ev { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--bdbd); }
+.cl-ev-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #1C48FF; color: #fff; display: flex; align-items: center; justify-content: center; }
+.cl-ev-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cl-ev-name { font-size: 14px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-ev-sub { font-size: 12px; color: var(--t2); }
+.cl-ev-amt { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; color: var(--t1); }
+.cl-ev-amt.in { color: #117953; }
