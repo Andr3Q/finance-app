@@ -87,12 +87,13 @@ test.describe('Menu do "+"', () => {
     await expect(page.locator('.agent-panel')).toBeVisible()
   })
 
-  test('"Compra Parcelada" abre o Extrato com as compras parceladas e o formulário', async ({ page }) => {
+  test('"Compra Parcelada" abre a tela de compras parceladas com o cursor no formulário', async ({ page }) => {
     await setup(page)
     await fab(page).click()
     await page.locator('.dsb-qm-bubble', { hasText: 'Compra Parcelada' }).click()
-    await expect(page.getByText(/compras parceladas/i)).toBeVisible()
-    await expect(page.getByPlaceholder(/nome \(ex/i)).toBeVisible()
+    await expect(page).toHaveURL(/\/parcelados$/)
+    await expect(page.getByRole('heading', { name: 'Compras parceladas' })).toBeVisible()
+    await expect(page.getByPlaceholder('O que você comprou?')).toBeFocused()
   })
 })
 

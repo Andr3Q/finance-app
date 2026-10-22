@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { useLocation, useNavigate as useRouterNavigate } from 'react-router-dom'
-import { transactionsAPI, installmentsAPI } from '../services/api.js'
+import { useNavigate as useRouterNavigate } from 'react-router-dom'
+import { transactionsAPI } from '../services/api.js'
+import { txCacheKey, currentBrasiliaMonthYear } from '../utils/txCache.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
-import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
@@ -46,22 +46,6 @@ function exportCSV(rows) {
   URL.revokeObjectURL(url)
 }
 
-const txCacheKey = (m, y) => `transactions:list:${y}-${m}`
-
-// /installments/:id/pay e /unpay sempre criam ou removem a transação no mês
-// REAL atual (nowBrasilia() no backend), não no mês que o usuário está vendo
-// na tela (selMonth/selYear pode ser um mês diferente, navegado manualmente).
-// Sem isso, pagar/desfazer uma parcela enquanto o usuário navega outro mês
-// invalidava o cache do mês errado, deixando o mês real desatualizado até o
-// TTL de 30s expirar sozinho.
-function currentBrasiliaMonthYear() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Sao_Paulo', year: 'numeric', month: 'numeric',
-  }).formatToParts(new Date())
-  const get = (type) => Number(parts.find(p => p.type === type).value)
-  return { month: get('month'), year: get('year') }
-}
-
 const IconBillFile = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
@@ -82,33 +66,21 @@ const IconChevron = ({ dir }) => (
 export default function Transactions() {
   const user = useUser()
   useForcedLightTheme() // Extrato é desenhado só no claro (design Nancy 2)
-  const location = useLocation()
   const routerNavigate = useRouterNavigate() // nome próprio: "navigate" já é a função de trocar de mês nesta tela
   const [transactions,  setTransactions]  = useState([])
-  const [installments,  setInstallments]  = useState([])
   const [loading,       setLoading]       = useState(true)
   const [showForm,      setShowForm]      = useState(false)
   const [filter,        setFilter]        = useState('all')
   const [search,        setSearch]        = useState('')
   const [toast,         setToast]         = useState(null)
-  const [parcOpen,      setParcOpen]      = useState(true)
-  // Chip "Parcelados" do cabeçalho: a seção de compras parceladas fica recolhida
-  // até o atalho ser tocado (a tela dedicada de parcelados ainda não existe).
-  const [showParc,      setShowParc]      = useState(false)
   // Resultado do mês vindo do mesmo cálculo da story "Resumo do mês".
   const [recap,         setRecap]         = useState(null)
   // Mesma preferência "ocultar valores" do Início — lida uma vez ao abrir.
   const [hideValues] = useState(() => {
     try { return localStorage.getItem('hide-balance') === '1' } catch { return false }
   })
-  const [showParcForm,  setShowParcForm]  = useState(false)
-  const [newParc,       setNewParc]       = useState({ name: '', amount: '', total: '' })
-  const [parcLoading,   setParcLoading]   = useState(false)
-  const [payingId,          setPayingId]          = useState(null)
-  const [unpayingId,        setUnpayingId]        = useState(null)
   const [editingTx,         setEditingTx]         = useState(null)
   const [confirmDeleteTx,   setConfirmDeleteTx]   = useState(null)
-  const [confirmDeleteParc, setConfirmDeleteParc] = useState(null)
   const fileInputRef  = useRef(null)
   const chipsRef       = useRef(null)
   const fetchRef        = useRef(null)
@@ -180,29 +152,6 @@ export default function Transactions() {
   }
   fetchRef.current = fetchTransactions
 
-  const fetchInstallments = async () => {
-    try {
-      const res = await installmentsAPI.list()
-      setInstallments(Array.isArray(res.data) ? res.data : [])
-    } catch {}
-  }
-
-  useEffect(() => { fetchInstallments() }, [])
-
-  // Vem do menu rápido do "+" na barra de navegação ("Compra Parcelada") —
-  // já abre a seção de parcelamentos expandida com o formulário visível.
-  // Limpa o state da navegação depois, pra não reabrir sozinho ao voltar
-  // pra essa tela depois (ex: botão voltar do navegador).
-  useEffect(() => {
-    if (location.state?.openInstallmentForm) {
-      setShowParc(true)
-      setParcOpen(true)
-      setShowParcForm(true)
-      routerNavigate(location.pathname, { replace: true, state: {} })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state])
-
   useEffect(() => {
     setLoading(true)
     setRecap(null) // não mostra o resultado do mês anterior enquanto o novo carrega
@@ -249,86 +198,6 @@ export default function Transactions() {
       }
     }
     showToast(lastErr?.response?.data?.error || 'Erro ao remover. Tente novamente.', false)
-  }
-
-  const handlePay = async (id) => {
-    setPayingId(id)
-    try {
-      await installmentsAPI.pay(id)
-      fetchInstallments()
-      const { month: curMonth, year: curYear } = currentBrasiliaMonthYear()
-      invalidateCache(txCacheKey(curMonth, curYear))
-      invalidateCache(txCacheKey(selMonth, selYear))
-      fetchTransactions(true)
-      invalidateCache('dashboard')
-      window.dispatchEvent(new CustomEvent('budget-updated'))
-      showToast('Parcela registrada como transação!')
-    } catch (err) {
-      showToast(err.response?.data?.error || 'Erro ao pagar parcela.', false)
-    } finally {
-      setPayingId(null)
-    }
-  }
-
-  const handleUnpay = async (id) => {
-    setUnpayingId(id)
-    try {
-      await installmentsAPI.unpay(id)
-      fetchInstallments()
-      const { month: curMonth, year: curYear } = currentBrasiliaMonthYear()
-      invalidateCache(txCacheKey(curMonth, curYear))
-      invalidateCache(txCacheKey(selMonth, selYear))
-      fetchTransactions(true)
-      invalidateCache('dashboard')
-      window.dispatchEvent(new CustomEvent('budget-updated'))
-      showToast('Parcela desfeita.')
-    } catch (err) {
-      showToast(err.response?.data?.error || 'Erro ao desfazer parcela.', false)
-    } finally {
-      setUnpayingId(null)
-    }
-  }
-
-  const handleDeleteInstallment = async (id) => {
-    setConfirmDeleteParc(null)
-    let lastErr
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        await installmentsAPI.remove(id)
-        fetchInstallments()
-        showToast('Parcelamento removido.')
-        return
-      } catch (err) {
-        lastErr = err
-        if (err?.response?.status === 404) break
-        if (attempt < 3) await new Promise(r => setTimeout(r, 600 * attempt))
-      }
-    }
-    showToast(lastErr?.response?.data?.error || 'Erro ao remover. Tente novamente.', false)
-  }
-
-  const handleCreateInstallment = async (e) => {
-    e.preventDefault()
-    if (!newParc.name || !newParc.amount || !newParc.total) {
-      showToast('Preencha nome, valor e número de parcelas.', false)
-      return
-    }
-    setParcLoading(true)
-    try {
-      await installmentsAPI.create({
-        name:              newParc.name,
-        amount:            newParc.amount,
-        totalInstallments: parseInt(newParc.total),
-      })
-      setNewParc({ name: '', amount: '', total: '' })
-      setShowParcForm(false)
-      fetchInstallments()
-      showToast('Parcelamento criado!')
-    } catch (err) {
-      showToast(err.response?.data?.error || 'Erro ao criar parcelamento.', false)
-    } finally {
-      setParcLoading(false)
-    }
   }
 
   const monthTxs      = transactions.filter(t => t.month === selMonth && t.year === selYear)
@@ -384,7 +253,6 @@ export default function Transactions() {
       }))
   })()
 
-  const activeInstallments = installments.filter(p => p.paidInstallments < p.totalInstallments)
 
   return (
     <>
@@ -413,7 +281,7 @@ export default function Transactions() {
                 <button className="ex-chip" onClick={() => routerNavigate('/financas')}>
                   <IconBillFile /> Contas do mês
                 </button>
-                <button className={`ex-chip${showParc ? ' on' : ''}`} aria-pressed={showParc} onClick={() => setShowParc(p => !p)}>
+                <button className="ex-chip" onClick={() => routerNavigate('/parcelados')}>
                   <IconLayers /> Parcelados
                 </button>
               </div>
@@ -457,168 +325,6 @@ export default function Transactions() {
                 used={monthTxs.length}
                 label="transações este mês"
               />
-            )}
-
-            {/* ── Compras parceladas (aparece pelo atalho "Parcelados" do cabeçalho) ── */}
-            {showParc && (
-            <div className="parc-section">
-              <div className="parc-header" onClick={() => setParcOpen(p => !p)}>
-                <div className="parc-header-left">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
-                  </svg>
-                  <span>Compras parceladas</span>
-                  {activeInstallments.length > 0 && (
-                    <span className="parc-badge">{activeInstallments.length}</span>
-                  )}
-                </div>
-                <div className="parc-header-right">
-                  <button
-                    className="parc-new-btn"
-                    onClick={e => { e.stopPropagation(); setShowParcForm(p => !p); setParcOpen(true) }}
-                  >
-                    + Nova parcela
-                  </button>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-                    style={{ transition: 'transform .2s', transform: parcOpen ? 'rotate(180deg)' : 'rotate(0deg)', opacity: .4 }}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
-                </div>
-              </div>
-
-              {parcOpen && (
-                <div className="parc-body">
-
-                  {/* Formulário novo parcelamento */}
-                  {showParcForm && (
-                    <form className="parc-form" onSubmit={handleCreateInstallment}>
-                      <input
-                        className="cfg-inp"
-                        placeholder="Nome (ex: Celular Samsung)"
-                        value={newParc.name}
-                        onChange={e => setNewParc(p => ({ ...p, name: e.target.value }))}
-                        maxLength={100}
-                      />
-                      <CurrencyInput
-                        className="cfg-inp cfg-inp-num"
-                        placeholder="Valor por parcela"
-                        value={newParc.amount}
-                        onChange={v => setNewParc(p => ({ ...p, amount: v }))}
-                      />
-                      <input
-                        className="cfg-inp cfg-inp-num"
-                        type="number"
-                        inputMode="numeric"
-                        placeholder="Nº parcelas"
-                        min="2" max="360"
-                        value={newParc.total}
-                        onChange={e => setNewParc(p => ({ ...p, total: e.target.value }))}
-                      />
-                      <button type="submit" className="cfg-btn-ghost" disabled={parcLoading}>
-                        {parcLoading
-                          ? <span className="spinner" style={{ width:13, height:13, borderWidth:2 }} />
-                          : 'Adicionar'
-                        }
-                      </button>
-                      <button type="button" className="cfg-btn-ghost" style={{ opacity:.5 }} onClick={() => setShowParcForm(false)}>
-                        Cancelar
-                      </button>
-                    </form>
-                  )}
-
-                  {installments.length === 0 && !showParcForm ? (
-                    <div className="parc-empty">Nenhuma compra parcelada. Clique em "+ Nova parcela" para adicionar.</div>
-                  ) : (
-                    <div className="parc-grid">
-                      {installments.map(p => {
-                        const remaining  = p.totalInstallments - p.paidInstallments
-                        const pct        = Math.round((p.paidInstallments / p.totalInstallments) * 100)
-                        const totalRem   = remaining * p.amount
-                        const done       = remaining === 0
-                        return (
-                          <div key={p.id} className={`parc-card${done ? ' parc-done' : ''}`}>
-                            <div className="parc-card-top">
-                              <div className="parc-name">{p.name}</div>
-                              <button className="parc-del" onClick={() => setConfirmDeleteParc(p.id)} title="Remover" aria-label="Remover parcelamento">
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                                </svg>
-                              </button>
-                            </div>
-
-                            <div className="parc-progress-wrap">
-                              <div className="parc-progress-header">
-                                <span className="parc-count">
-                                  {done
-                                    ? '✓ Quitado'
-                                    : <>{p.paidInstallments}/{p.totalInstallments} pagas</>
-                                  }
-                                </span>
-                                <span className="parc-pct">{pct}%</span>
-                              </div>
-                              <div className="parc-progress-track">
-                                <div className="parc-progress-fill" style={{ width: `${pct}%` }} />
-                              </div>
-                            </div>
-
-                            <div className="parc-values">
-                              <div className="parc-val-item">
-                                <span className="parc-val-label">Por parcela</span>
-                                <span className="parc-val-amount">R$ {fmt(p.amount)}</span>
-                              </div>
-                              {!done && (
-                                <div className="parc-val-item" style={{ textAlign: 'right' }}>
-                                  <span className="parc-val-label">Restante</span>
-                                  <span className="parc-remaining">R$ {fmt(totalRem)}</span>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="parc-actions">
-                              {!done && (
-                                <button
-                                  className="parc-pay-btn"
-                                  onClick={() => handlePay(p.id)}
-                                  disabled={payingId === p.id || unpayingId === p.id}
-                                >
-                                  {payingId === p.id
-                                    ? <><span className="spinner" style={{ width:12, height:12, borderWidth:2 }} /> Registrando...</>
-                                    : <>
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                          <polyline points="20 6 9 17 4 12"/>
-                                        </svg>
-                                        Pagar parcela {p.paidInstallments + 1}/{p.totalInstallments}
-                                      </>
-                                  }
-                                </button>
-                              )}
-                              {p.paidInstallments > 0 && (
-                                <button
-                                  className="parc-unpay-btn"
-                                  onClick={() => handleUnpay(p.id)}
-                                  disabled={unpayingId === p.id || payingId === p.id}
-                                  title="Desfazer última parcela"
-                                >
-                                  {unpayingId === p.id
-                                    ? <span className="spinner" style={{ width:11, height:11, borderWidth:2 }} />
-                                    : <>
-                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                          <path d="M3 7v6h6"/><path d="M3 13C5 8 9.5 5 15 5a9 9 0 010 18c-3.5 0-6.5-1.5-8.5-4"/>
-                                        </svg>
-                                        Desfazer
-                                      </>
-                                  }
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
             )}
 
             {/* ── Busca e filtros ── */}
@@ -762,40 +468,6 @@ export default function Transactions() {
         document.body
       )}
 
-      {confirmDeleteParc && createPortal(
-        <div className="gls-modal-overlay" onClick={() => setConfirmDeleteParc(null)}>
-          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
-            <div className="gls-modal-head">
-              <span>Remover parcelamento</span>
-              <button className="gls-modal-close" onClick={() => setConfirmDeleteParc(null)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
-              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                </svg>
-              </div>
-              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
-              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Todas as parcelas restantes serão removidas permanentemente.</div>
-            </div>
-            <div className="gls-modal-foot">
-              <button className="gls-btn-ghost" onClick={() => setConfirmDeleteParc(null)}>Cancelar</button>
-              <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={() => handleDeleteInstallment(confirmDeleteParc)}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                </svg>
-                Sim, excluir
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
     </>
   )
 }

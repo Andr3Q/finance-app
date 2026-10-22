@@ -20,30 +20,38 @@ async function setupBase(page, installments = []) {
   return mock
 }
 
-// "Compras parceladas" abre pelo atalho "Parcelados" do cabeçalho do Extrato
-// (tela 10) — a seção começa recolhida, então todo teste abre o atalho primeiro.
+// Compras parceladas (Nancy 2): tela própria em /parcelados (antes era uma seção do Extrato).
 async function goToParcelados(page) {
-  await page.goto('/transactions')
-  await page.getByRole('button', { name: /^parcelados$/i }).click()
+  await page.goto('/parcelados')
 }
 
-test.describe('Parcelamentos — Seção', () => {
-  test('exibe cabeçalho "Compras parceladas"', async ({ page }) => {
+test.describe('Parcelamentos — Tela', () => {
+  test('exibe cabeçalho "Compras parceladas" e o formulário de nova compra', async ({ page }) => {
     await setupBase(page)
     await goToParcelados(page)
-    await expect(page.getByText(/compras parceladas/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Compras parceladas' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Nova compra parcelada' })).toBeVisible()
   })
 
   test('exibe mensagem vazia quando não há planos', async ({ page }) => {
     await setupBase(page)
     await goToParcelados(page)
-    await expect(page.getByText(/nenhuma compra parcelada/i)).toBeVisible()
+    await expect(page.getByText(/nenhuma compra parcelada/i).first()).toBeVisible()
   })
 
-  test('exibe badge com quantidade de parcelamentos ativos', async ({ page }) => {
+  test('um card por parcelamento', async ({ page }) => {
     await setupBase(page, [INSTALLMENT_ITEM, { ...INSTALLMENT_ITEM, id: 'inst-002', name: 'MacBook' }])
     await goToParcelados(page)
-    await expect(page.locator('.parc-badge')).toHaveText('2')
+    await expect(page.locator('.inst-card')).toHaveCount(2)
+  })
+
+  test('o atalho "Parcelados" do Extrato abre a tela e voltar retorna ao Extrato', async ({ page }) => {
+    await setupBase(page)
+    await page.goto('/transactions')
+    await page.getByRole('button', { name: /^parcelados$/i }).click()
+    await expect(page).toHaveURL(/\/parcelados$/)
+    await page.getByRole('button', { name: 'Voltar' }).click()
+    await expect(page).toHaveURL(/\/transactions$/)
   })
 })
 
@@ -58,8 +66,8 @@ test.describe('Parcelamentos — Renderização de card', () => {
     await expect(page.getByText('iPhone 15')).toBeVisible()
   })
 
-  test('exibe progresso "2/12 pagas"', async ({ page }) => {
-    await expect(page.getByText(/2.*\/.*12.*pagas/i)).toBeVisible()
+  test('exibe progresso "2 de 12 parcelas"', async ({ page }) => {
+    await expect(page.getByText('2 de 12 parcelas')).toBeVisible()
   })
 
   test('exibe botão "Pagar parcela 3/12"', async ({ page }) => {
@@ -68,10 +76,10 @@ test.describe('Parcelamentos — Renderização de card', () => {
     ).toBeVisible()
   })
 
-  test('exibe botão "Desfazer" quando paidInstallments > 0', async ({ page }) => {
-    await expect(
-      page.getByRole('button', { name: /desfazer/i })
-    ).toBeVisible()
+  test('"Desfazer" fica no detalhe do card (toque) quando paidInstallments > 0', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /desfazer/i })).toHaveCount(0)
+    await page.getByRole('button', { name: /iphone 15/i }).click()
+    await expect(page.getByRole('button', { name: /desfazer/i })).toBeVisible()
   })
 })
 
@@ -132,7 +140,7 @@ test.describe('Parcelamentos — Pagar parcela', () => {
 
   test('progresso avança para 3/12 após pagar', async ({ page }) => {
     await page.getByRole('button', { name: /pagar parcela 3\/12/i }).click()
-    await expect(page.getByText(/3.*\/.*12.*pagas/i)).toBeVisible()
+    await expect(page.getByText('3 de 12 parcelas')).toBeVisible()
   })
 })
 
@@ -163,6 +171,7 @@ test.describe('Parcelamentos — Desfazer parcela', () => {
     })
 
     await goToParcelados(page)
+    await page.getByRole('button', { name: /iphone 15/i }).click()
     await page.getByRole('button', { name: /desfazer/i }).click()
     await expect(page.getByText(/parcela desfeita/i)).toBeVisible()
   })
@@ -197,6 +206,7 @@ test.describe('Parcelamentos — Excluir', () => {
     await goToParcelados(page)
     await page.getByText('iPhone 15').waitFor()
 
+    await page.getByRole('button', { name: /iphone 15/i }).click()
     await page.locator('[title="Remover"]').click()
     // Modal de confirmação — clicar "Sim, excluir" para confirmar
     await page.getByRole('button', { name: /sim, excluir/i }).click()
@@ -233,39 +243,33 @@ test.describe('Parcelamentos — Criar novo plano', () => {
     await goToParcelados(page)
   })
 
-  test('clicar em "+ Nova parcela" exibe o formulário', async ({ page }) => {
-    await page.getByRole('button', { name: /\+ nova parcela/i }).click()
-    await expect(page.getByPlaceholder(/celular samsung/i)).toBeVisible()
+  test('o formulário já está na tela', async ({ page }) => {
+    await expect(page.getByPlaceholder('O que você comprou?')).toBeVisible()
+    await expect(page.getByPlaceholder('Valor total')).toBeVisible()
+    await expect(page.getByPlaceholder('Parcelas')).toBeVisible()
   })
 
-  test('preenche e cria parcelamento com sucesso', async ({ page }) => {
-    await page.getByRole('button', { name: /\+ nova parcela/i }).click()
-
-    await page.getByPlaceholder(/celular samsung/i).fill('MacBook Air')
-
-    // CurrencyInput (placeholder "Valor por parcela")
-    await page.getByPlaceholder(/valor por parcela/i).fill('800')
-
-    await page.getByPlaceholder(/nº parcelas/i).fill('10')
-
-    await page.getByRole('button', { name: /adicionar/i }).click()
+  test('valor total é dividido pelas parcelas e a API recebe o valor de cada uma', async ({ page }) => {
+    let body = null
+    await page.route('**/api/installments**', async (route) => {
+      if (route.request().method() === 'POST') {
+        body = JSON.parse(route.request().postData() || '{}')
+        return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ ...INSTALLMENT_ITEM, id: 'inst-new' }) })
+      }
+      route.fallback()
+    })
+    await page.getByPlaceholder('O que você comprou?').fill('MacBook Air')
+    await page.getByPlaceholder('Valor total').fill('8000')
+    await page.getByPlaceholder('Parcelas').fill('10')
+    await expect(page.getByText('10 parcelas de R$ 800,00')).toBeVisible()
+    await page.getByRole('button', { name: /adicionar parcela/i }).click()
 
     await expect(page.getByText(/parcelamento criado/i)).toBeVisible()
+    expect(body).toMatchObject({ name: 'MacBook Air', amount: 800, totalInstallments: 10 })
   })
 
   test('não cria quando campos obrigatórios estão vazios', async ({ page }) => {
-    await page.getByRole('button', { name: /\+ nova parcela/i }).click()
-    await page.getByRole('button', { name: /adicionar/i }).click()
-
-    // O formulário não submete — permanece na tela
-    await expect(page.getByPlaceholder(/celular samsung/i)).toBeVisible()
-  })
-
-  test('"Cancelar" fecha o formulário', async ({ page }) => {
-    await page.getByRole('button', { name: /\+ nova parcela/i }).click()
-    await expect(page.getByPlaceholder(/celular samsung/i)).toBeVisible()
-
-    await page.getByRole('button', { name: /cancelar/i }).click()
-    await expect(page.getByPlaceholder(/celular samsung/i)).not.toBeVisible()
+    await page.getByRole('button', { name: /adicionar parcela/i }).click()
+    await expect(page.getByText(/preencha nome, valor e número de parcelas/i)).toBeVisible()
   })
 })

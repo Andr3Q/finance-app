@@ -45,6 +45,7 @@ function setup({ list = txs, recapRes = recap } = {}) {
       <Routes>
         <Route path="/transactions" element={<Transactions />} />
         <Route path="/financas" element={<div>Página Finanças</div>} />
+        <Route path="/parcelados" element={<div>Página Parcelados</div>} />
       </Routes>
     </MemoryRouter>
   )
@@ -170,16 +171,10 @@ describe('Extrato — atalhos do cabeçalho', () => {
     expect(await screen.findByText('Página Finanças')).toBeInTheDocument()
   })
 
-  it('"Parcelados" abre e fecha a seção de compras parceladas (recolhida por padrão)', async () => {
+  it('"Parcelados" leva para a tela de compras parceladas (/parcelados)', async () => {
     setup()
-    const chip = await screen.findByRole('button', { name: /^parcelados$/i })
-    expect(screen.queryByText(/compras parceladas/i)).not.toBeInTheDocument()
-    expect(chip).toHaveAttribute('aria-pressed', 'false')
-    await userEvent.click(chip)
-    expect(await screen.findByText(/compras parceladas/i)).toBeInTheDocument()
-    expect(chip).toHaveAttribute('aria-pressed', 'true')
-    await userEvent.click(chip)
-    expect(screen.queryByText(/compras parceladas/i)).not.toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /^parcelados$/i }))
+    expect(await screen.findByText('Página Parcelados')).toBeInTheDocument()
   })
 })
 
@@ -206,3 +201,54 @@ describe('Extrato — privacidade e plano', () => {
     expect(screen.queryByText(/de 20 transações/i)).not.toBeInTheDocument()
   })
 })
+
+// ── Navegação rápida entre meses (race condition) ──────────────────
+
+describe('Extrato — navegação rápida entre meses', () => {
+  // Regressão: sem guarda de sequência, a resposta da 1ª fetch (mês inicial,
+  // rede lenta) podia chegar DEPOIS da 2ª fetch (mês pra onde o usuário já
+  // navegou) e sobrescrever `transactions` com o array do mês errado — que o
+  // filtro de render (t.month === selMonth) então esconde por completo,
+  // fazendo o mês certo (já carregado corretamente) sumir da tela sozinho.
+  it('resposta lenta de uma fetch antiga não sobrescreve o mês pra onde o usuário já navegou', async () => {
+    const today     = new Date()
+    const prevDate   = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    const prevMonth  = prevDate.getMonth() + 1
+    const prevYear   = prevDate.getFullYear()
+
+    let resolveFirst
+    const firstPending = new Promise(res => { resolveFirst = res })
+
+    transactionsAPI.list
+      .mockImplementationOnce(() => firstPending) // 1ª fetch (mês inicial, no mount) fica pendurada
+      .mockResolvedValueOnce({
+        data: {
+          data: [{
+            id: 'tx-novo', description: 'Mês novo', amount: 200, type: 'expense',
+            category: 'food', month: prevMonth, year: prevYear, date: `${prevYear}-${String(prevMonth).padStart(2, '0')}-01`,
+          }],
+        },
+      })
+
+    render(<MemoryRouter><Transactions /></MemoryRouter>)
+    fireEvent.click(await screen.findByLabelText('Mês anterior')) // dispara a 2ª fetch, mês diferente da 1ª
+
+    await waitFor(() => expect(screen.getByText('Mês novo')).toBeInTheDocument())
+
+    // Só agora a 1ª fetch (mês antigo, já abandonado) finalmente resolve.
+    resolveFirst({
+      data: {
+        data: [{
+          id: 'tx-velho', description: 'Mês velho', amount: 100, type: 'expense',
+          category: 'food', month: today.getMonth() + 1, year: today.getFullYear(), date: today.toISOString().slice(0, 10),
+        }],
+      },
+    })
+    await new Promise(r => setTimeout(r, 0))
+
+    // Com a guarda de sequência, essa resposta atrasada é descartada — o mês
+    // certo continua exibido, não vira uma tela vazia.
+    expect(screen.getByText('Mês novo')).toBeInTheDocument()
+  })
+})
+

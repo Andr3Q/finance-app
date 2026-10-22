@@ -20,3 +20,13 @@ export const CloseGlyph = ({ size = 14 }) => (
     <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
   </svg>
 )
+
+export const LayersGlyph = ({ size = 20 }) => (
+  <svg {...base} width={size} height={size} strokeWidth="1.8">
+    <polygon points="12 3 3 8 12 13 21 8 12 3" /><polyline points="3 12.5 12 17.5 21 12.5" /><polyline points="3 17 12 22 21 17" />
+  </svg>
+)
+
+export const PlusGlyph = ({ size = 18 }) => (
+  <svg {...base} width={size} height={size} strokeWidth="1.9"><path d="M12 5v14M5 12h14" /></svg>
+)
