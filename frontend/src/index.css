@@ -11384,3 +11384,35 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .cm-hint { margin: 16px 0 0; text-align: center; font-size: 12px; color: var(--t2); }
 .cm-empty .fin-btn { margin-top: 14px; width: 100%; }
 .cm-row:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   Telas de auth/onboarding (Nancy 2, 03–07) são só claras. As regras antigas
+   `[data-theme="light"] .auth-*` (do cartão de login antigo) escureciam o título em cima do
+   azul e trocavam o fundo dos campos quando o tema estava claro — o que acontece no onboarding,
+   que abre por cima do Início (tema claro imposto), e pra quem salvou o tema claro.
+   ═══════════════════════════════════════════════════════ */
+[data-theme="light"] .auth-card { background: none; }
+[data-theme="light"] .auth-hero .auth-title { color: #fff; }
+[data-theme="light"] .auth-sheet .auth-label { color: #0d0d0d; }
+[data-theme="light"] .auth-sheet .auth-input { background: #F7F9FC; border-color: #E5E9F2; color: #0d0d0d; }
+[data-theme="light"] .auth-sheet .auth-input:focus { border-color: #1546FF; background: #fff; }
+[data-theme="light"] .auth-sheet .auth-input.err { border-color: #e5484d; background: rgba(229,72,77,.05); }
+
+/* Onboarding — medidas do print: título grande, voltar de 42px (é um <button>, então sem a borda
+   padrão), folha de 26px de raio, campo do salário alto e, no celular, tela cheia. */
+.ob-hero { padding-bottom: 56px; }
+.ob-hero-top { margin-bottom: 22px; }
+.ob-hero .auth-back { width: 42px; height: 42px; border-radius: 13px; border: none; padding: 0; margin-bottom: 0; cursor: pointer; }
+.ob-hero .auth-title { font-size: 32px; line-height: 1.15; letter-spacing: -.01em; margin-bottom: 8px; }
+.ob-hero .auth-subtitle { font-size: 15px; }
+.ob-sheet { border-radius: 26px 26px 0 0; margin-top: -26px; padding-top: 28px; }
+.ob-currency-wrap { height: 64px; border: 1px solid #E6ECF7; background: #F2F6FF; border-radius: 16px; }
+.ob-currency-prefix { font-size: 18px; color: #5B6784; }
+.ob-currency-input { font-size: 28px; }
+.ob-skip-link { color: #5B6784; }
+@media (max-width: 768px) {
+  .ob-overlay { padding: 0; align-items: stretch; background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .ob-shell { max-width: none; min-height: 100dvh; border-radius: 0; box-shadow: none; }
+  .ob-hero { padding-top: calc(20px + env(safe-area-inset-top, 0px)); }
+  .ob-sheet { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+}
