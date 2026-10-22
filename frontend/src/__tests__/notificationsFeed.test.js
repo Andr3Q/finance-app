@@ -16,7 +16,7 @@ beforeEach(() => { localStorage.clear() })
 describe('contas fixas que vencem', () => {
   it('vence hoje e ainda não foi paga: aviso "vence hoje" com valor e "conta fixa"', () => {
     const [n] = build()
-    expect(n).toMatchObject({ kind: 'bill', title: 'Academia vence hoje', body: 'R$ 200,00 · conta fixa', when: 'hoje', action: { type: 'route', to: '/financas' } })
+    expect(n).toMatchObject({ kind: 'bill', title: 'Academia vence hoje', body: 'R$ 200,00 · conta fixa', when: 'hoje', action: { type: 'route', to: '/contas-do-mes' } })
   })
 
   it('vence amanhã', () => {

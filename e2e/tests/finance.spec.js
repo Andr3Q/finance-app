@@ -81,11 +81,11 @@ test.describe('Finanças', () => {
     expect(calls.salary).toEqual([{ salary: 6000 }])
   })
 
-  test('voltar retorna ao Extrato (de onde se chega pelo atalho "Contas do mês")', async ({ page }) => {
-    await setup(page, { goto: '/transactions' })
-    await page.getByRole('button', { name: /Contas do mês/ }).click()
+  test('voltar retorna à tela de onde se chegou (Perfil → Finanças)', async ({ page }) => {
+    await setup(page, { goto: '/settings' })
+    await page.getByText('Salário e contas fixas').click()
     await expect(page).toHaveURL(/\/financas$/)
     await page.getByRole('button', { name: 'Voltar' }).click()
-    await expect(page).toHaveURL(/\/transactions$/)
+    await expect(page).toHaveURL(/\/settings$/)
   })
 })

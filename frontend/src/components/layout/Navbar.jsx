@@ -14,6 +14,7 @@ const ROUTE_TITLES = {
   '/goals':       'Metas',
   '/financas':    'Finanças',
   '/parcelados':  'Compras parceladas',
+  '/contas-do-mes': 'Contas do mês',
   '/notificacoes': 'Notificações',
   '/settings':    'Configurações',
   '/planos':      'Planos',
@@ -125,7 +126,7 @@ export default function Navbar() {
     : location.pathname === path
   // No design, Notificações e Finanças (aberta pelo "Contas do mês" do Extrato) aparecem com
   // "Extrato" aceso na barra de baixo (mobile).
-  const isMobileActive = (path) => isActive(path) || (path === '/transactions' && ['/notificacoes', '/financas', '/parcelados'].includes(location.pathname))
+  const isMobileActive = (path) => isActive(path) || (path === '/transactions' && ['/notificacoes', '/financas', '/parcelados', '/contas-do-mes'].includes(location.pathname))
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'

@@ -150,7 +150,7 @@ describe('Notificações — ações', () => {
     const user = userEvent.setup({ advanceTimers: () => {} })
     setup()
     await user.click(await screen.findByRole('button', { name: /Academia vence hoje/ }))
-    expect(screen.getByTestId('where')).toHaveTextContent('/financas')
+    expect(screen.getByTestId('where')).toHaveTextContent('/contas-do-mes')
   })
 
   it('limite leva às Metas', async () => {

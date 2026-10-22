@@ -44,7 +44,7 @@ function setup({ list = txs, recapRes = recap } = {}) {
     <MemoryRouter initialEntries={['/transactions']}>
       <Routes>
         <Route path="/transactions" element={<Transactions />} />
-        <Route path="/financas" element={<div>Página Finanças</div>} />
+        <Route path="/contas-do-mes" element={<div>Página Contas do mês</div>} />
         <Route path="/parcelados" element={<div>Página Parcelados</div>} />
       </Routes>
     </MemoryRouter>
@@ -165,10 +165,10 @@ describe('Extrato — lista por dia', () => {
 })
 
 describe('Extrato — atalhos do cabeçalho', () => {
-  it('"Contas do mês" leva para onde as contas fixas são gerenciadas hoje (/financas)', async () => {
+  it('"Contas do mês" leva para a tela das contas do mês (/contas-do-mes)', async () => {
     setup()
     await userEvent.click(await screen.findByRole('button', { name: /contas do mês/i }))
-    expect(await screen.findByText('Página Finanças')).toBeInTheDocument()
+    expect(await screen.findByText('Página Contas do mês')).toBeInTheDocument()
   })
 
   it('"Parcelados" leva para a tela de compras parceladas (/parcelados)', async () => {

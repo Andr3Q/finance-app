@@ -11347,3 +11347,40 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 }
 .inst-add:disabled { opacity: .6; cursor: default; }
 .inst-head:focus-visible, .inst-pay:focus-visible, .inst-link:focus-visible, .inst-add:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   cm-* — Contas do mês (Nancy 2, tela 15): usa o cabeçalho/corpo da Finanças (fin-*), um cartão
+   azul de resumo (pagas / total / status) e a lista de contas com marcador de pago.
+   ═══════════════════════════════════════════════════════ */
+.cm-summary {
+  display: flex; align-items: flex-start; gap: 4px; padding: 24px 12px 20px; margin-bottom: 14px;
+  background: #1C48FF; color: #fff; border-radius: 22px;
+}
+.cm-stat { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; }
+.cm-val { width: min-content; max-width: 100%; font-size: 20px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; }
+.cm-mono { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; line-height: 1.25; }
+.cm-mint { font-size: 15px; font-weight: 800; line-height: 1.25; color: #3DE29F; }
+.cm-lbl { font-size: 9.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: rgba(255,255,255,.72); }
+
+.cm-list { list-style: none; margin-bottom: 0; padding: 14px 16px 6px; }
+.cm-item { border-top: 1px solid var(--bdbd); }
+.cm-row {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 0; background: none; border: none;
+  text-align: left; font-family: inherit; color: inherit; cursor: pointer;
+}
+.cm-check {
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid #D5DCEB; background: #fff; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.cm-check.on { background: #19C884; border-color: #19C884; }
+.cm-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cm-name { font-size: 14px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-due { font-size: 12px; line-height: 1.4; color: var(--t2); }
+.cm-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.cm-amount { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; color: var(--t1); }
+.cm-pill { padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; line-height: 1.4; }
+.cm-pill.paid { background: #E6F8F0; color: #117953; }
+.cm-pill.pending { background: #E8EEFF; color: #1C48FF; }
+.cm-hint { margin: 16px 0 0; text-align: center; font-size: 12px; color: var(--t2); }
+.cm-empty .fin-btn { margin-top: 14px; width: 100%; }
+.cm-row:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }

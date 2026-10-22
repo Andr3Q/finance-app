@@ -278,7 +278,7 @@ export default function Transactions() {
                 <IconChevron dir="left" />
               </button>
               <div className="ex-chips" ref={chipsRef}>
-                <button className="ex-chip" onClick={() => routerNavigate('/financas')}>
+                <button className="ex-chip" onClick={() => routerNavigate('/contas-do-mes')}>
                   <IconBillFile /> Contas do mês
                 </button>
                 <button className="ex-chip" onClick={() => routerNavigate('/parcelados')}>

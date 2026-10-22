@@ -54,7 +54,7 @@ export function buildNotifications({
       title: `${b.name} ${diff === 0 ? 'vence hoje' : 'vence amanhã'}`,
       body:  `${money(b.amount)} · conta fixa`,
       when:  diff === 0 ? 'hoje' : 'amanhã',
-      action: { type: 'route', to: '/financas' },
+      action: { type: 'route', to: '/contas-do-mes' },
     })
   }
 
