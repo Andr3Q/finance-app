@@ -7,7 +7,9 @@ import { getCache, setCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import { WalletGlyph, ReceiptGlyph } from '../components/ui/NancyGlyphs.jsx'
 import { getSalaryNotif, getTrialNotif } from '../utils/notifications.js'
-import { buildNotifications, countUnread, readNotifIds, markNotifsRead } from '../utils/notificationsFeed.js'
+import { buildNotifications, countUnread, readNotifIds, markNotifsRead, isTipFresh } from '../utils/notificationsFeed.js'
+import { prefsOf } from '../utils/notifPrefs.js'
+import { usePrevMonthRecap } from '../hooks/usePrevMonthRecap.js'
 import { buildRecapSlides, maskAmounts } from '../utils/storySlides.js'
 import { readCancelFlags, cancelReminders as toReminders } from '../utils/subsCancel.js'
 import { readReminders } from '../utils/reminders.js'
@@ -32,6 +34,7 @@ const ICONS = {
   reminder: () => <Svg><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></Svg>,
   cancel: () => <Svg><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></Svg>,
   trial:  () => <Svg><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></Svg>,
+  tip:    () => <Svg><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 00-4 12.7c.7.6 1 1.4 1 2.3h6c0-.9.3-1.7 1-2.3A7 7 0 0012 2z"/></Svg>,
 }
 
 const BackIcon = () => (
@@ -61,6 +64,8 @@ export default function Notifications() {
   const [recapSlides, setRecapSlides] = useState(null)
   // Fotografia do que já estava visto quando a tela abriu — o "N novas" não zera sozinho
   // quando o efeito abaixo marca tudo como visto.
+  const prefs = prefsOf(user)
+  const prevRecapSlides = usePrevMonthRecap(prefs.stories)
   const [seenAtOpen] = useState(readNotifIds)
   const [hidden]     = useState(readHidden)
 
@@ -90,10 +95,11 @@ export default function Notifications() {
     limits: data.limits || [],
     budgets: data.budgets || [],
     salaryNotif, trialNotif, recapSlides, cancelReminders: toReminders(readCancelFlags()), reminderState: readReminders(),
+    prefs, prevRecapSlides, tipFresh: isTipFresh(Array.isArray(data.transactions) ? data.transactions : []),
   }) : []),
   // salaryNotif/trialNotif mudam só com a data/usuário — recalcular junto dos dados basta
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [data, recapSlides, user.id, user.trialEndsAt, user.isOnTrial])
+  [data, recapSlides, prevRecapSlides, user.id, user.trialEndsAt, user.isOnTrial, user.notifSalary, user.notifBudgetReminder, user.notifBudgetAlert, user.notifStories, user.notifTips])
 
   // Quantas histórias o resumo do mês tem de verdade — só pra frase do aviso ("em 6 histórias").
   const hasRecap = items.some(i => i.kind === 'recap')
@@ -120,7 +126,7 @@ export default function Notifications() {
   const open = (n) => {
     const a = n.action
     if (a.type === 'route') navigate(a.to)
-    else if (a.type === 'story') navigate('/resumo-stories', { state: { monthOffset: a.monthOffset } })
+    else if (a.type === 'story') navigate('/resumo-stories', { state: a.story ? { story: a.story } : { monthOffset: a.monthOffset } })
     else if (a.type === 'new-transaction') {
       window.dispatchEvent(new CustomEvent('nancy:new-transaction', { detail: { type: a.transactionType } }))
     }

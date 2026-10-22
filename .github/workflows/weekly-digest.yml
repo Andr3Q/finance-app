@@ -1,0 +1,44 @@
+name: Resumo Semanal por E-mail
+
+on:
+  schedule:
+    - cron: '0 11 * * 1'   # toda segunda-feira às 11h UTC (8h Brasília)
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente alvo'
+        type: choice
+        default: production
+        options: [production, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Disparar o resumo semanal
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TARGET_ENV: ${{ inputs.environment || 'production' }}
+        run: |
+          if [ "$TARGET_ENV" = "staging" ]; then
+            URL="https://finance-app-staging-vzcnezphtq-rj.a.run.app/api/cron/weekly-digest"
+          else
+            URL="https://finance-app-1042158013294.southamerica-east1.run.app/api/cron/weekly-digest"
+          fi
+
+          RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 600 \
+            -X POST "$URL" \
+            -H "x-cron-secret: $CRON_SECRET")
+
+          echo "HTTP status: $RESPONSE"
+          cat /tmp/response.json
+          echo
+
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Falha no resumo semanal: status $RESPONSE"
+            exit 1
+          fi

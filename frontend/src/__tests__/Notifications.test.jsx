@@ -26,7 +26,7 @@ const NOW = new Date(2026, 9, 28, 12)
 
 const payload = (over = {}) => ({
   summary: { unpaidBudgetIds: ['b1'], totalExpenses: 3000, totalIncome: 500 },
-  transactions: [{ id: 't1', type: 'expense', category: 'food', amount: 1170 }],
+  transactions: [{ id: 't1', type: 'expense', category: 'food', amount: 1230 }],
   limits: [{ category: 'food', amount: 1500 }],
   budgets: [{ id: 'b1', name: 'Academia', amount: 200, dueDay: 28, endDate: null }],
   ...over,
@@ -56,6 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   sessionStorage.clear()
+  localStorage.setItem('nancy:stories-seen', JSON.stringify({ 'dicas:2026-W44': Date.now() }))   // dica da semana já aberta
   getCache.mockReturnValue(null)
   getSalaryNotif.mockReturnValue(null)
   getTrialNotif.mockReturnValue(null)
@@ -72,12 +73,12 @@ describe('Notificações — lista', () => {
     expect(names).toEqual([
       'Academia vence hoje',
       'Lembrete de salário',
-      'Alimentação em 78% do limite',
+      'Alimentação em 82% do limite',
       'Resumo de outubro pronto',
     ])
     expect(screen.getByText('R$ 200,00 · conta fixa')).toBeInTheDocument()
     expect(screen.getByText('Seu salário deve cair hoje. Quer registrar?')).toBeInTheDocument()
-    expect(screen.getByText('Faltam R$ 330 até o teto do mês.')).toBeInTheDocument()
+    expect(screen.getByText('Faltam R$ 270 até o teto do mês.')).toBeInTheDocument()
   })
 
   it('cabeçalho: título, "N novas" na primeira abertura e "Nenhuma nova" na seguinte', async () => {
@@ -156,7 +157,7 @@ describe('Notificações — ações', () => {
   it('limite leva às Metas', async () => {
     const user = userEvent.setup({ advanceTimers: () => {} })
     setup()
-    await user.click(await screen.findByRole('button', { name: /Alimentação em 78% do limite/ }))
+    await user.click(await screen.findByRole('button', { name: /Alimentação em 82% do limite/ }))
     expect(screen.getByTestId('where')).toHaveTextContent('/goals')
   })
 
@@ -211,7 +212,7 @@ describe('Notificações — ações', () => {
 describe('Notificações — estados vazios', () => {
   it('sem nada pra avisar: "Tudo em dia" e "Nenhuma nova"', async () => {
     vi.setSystemTime(new Date(2026, 9, 10, 12)) // meio do mês: sem resumo, nada vencendo
-    setup({ data: payload({ budgets: [], limits: [] }) })
+    setup({ data: payload({ budgets: [], limits: [], transactions: [] }) })
     expect(await screen.findByText('Tudo em dia')).toBeInTheDocument()
     expect(screen.getByText('Nenhuma nova')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Preferências de notificação' })).toBeInTheDocument()
@@ -228,3 +229,65 @@ describe('Notificações — estados vazios', () => {
     await waitFor(() => expect(transactionsAPI.dashboard).toHaveBeenCalledTimes(2))
   })
 })
+
+// Preferências de notificação (tela "Preferências") mandam no que a lista mostra
+describe('Notificações — preferências', () => {
+  beforeEach(() => localStorage.removeItem('nancy:stories-seen'))   // aqui a dica da semana é nova
+  const setUserPrefs = (prefs) => { sessionStorage.setItem('user', JSON.stringify({ id: 'u1', ...prefs })); window.dispatchEvent(new CustomEvent('user-updated', { detail: { id: 'u1', ...prefs } })) }
+  const titles = () => Array.from(document.querySelectorAll('.ntf-name')).map(n => n.textContent)
+
+  it('tudo ligado: conta, salário, limite, dica da semana e resumo aparecem', async () => {
+    getSalaryNotif.mockReturnValue({ status: 'today', msg: 'x' })
+    setup()
+    await screen.findByText('Academia vence hoje')
+    expect(titles()).toEqual(['Academia vence hoje', 'Lembrete de salário', 'Alimentação em 82% do limite', 'Resumo de outubro pronto', 'Dica da Nancy IA'])
+  })
+
+  it.each([
+    ['notifBudgetReminder', 'Academia vence hoje'],
+    ['notifSalary', 'Lembrete de salário'],
+    ['notifBudgetAlert', 'Alimentação em 82% do limite'],
+    ['notifStories', 'Resumo de outubro pronto'],
+    ['notifTips', 'Dica da Nancy IA'],
+  ])('com %s desligado, "%s" some da lista', async (field, title) => {
+    getSalaryNotif.mockReturnValue({ status: 'today', msg: 'x' })
+    setUserPrefs({ [field]: false })
+    setup()
+    await waitFor(() => expect(transactionsAPI.dashboard).toHaveBeenCalled())
+    await waitFor(() => expect(titles().length).toBeGreaterThan(0))
+    expect(titles()).not.toContain(title)
+    expect(titles().length).toBe(4)
+  })
+
+  it('a dica da semana leva ao story de dicas e some depois de aberta (na semana)', async () => {
+    const user = userEvent.setup({ advanceTimers: () => {} })
+    setup()
+    await user.click(await screen.findByRole('button', { name: /Dica da Nancy IA/ }))
+    expect(screen.getByTestId('where')).toHaveTextContent('/resumo-stories {"story":"dicas"}')
+  })
+
+  it('dica da semana já aberta neste aparelho não aparece', async () => {
+    localStorage.setItem('nancy:stories-seen', JSON.stringify({ 'dicas:2026-W44': Date.now() }))
+    setup()
+    await screen.findByText('Academia vence hoje')
+    expect(titles()).not.toContain('Dica da Nancy IA')
+  })
+
+  it('no dia 1º aparece o resumo do mês anterior (busca o mês -1) e leva à story dele', async () => {
+    const user = userEvent.setup({ advanceTimers: () => {} })
+    vi.setSystemTime(new Date(2026, 10, 1, 12))   // 1º de novembro
+    setup({ data: payload({ budgets: [], limits: [], transactions: [] }) })
+    await user.click(await screen.findByRole('button', { name: /Resumo de outubro pronto/ }))
+    expect(transactionsAPI.monthlyRecap).toHaveBeenCalledWith(-1)
+    expect(screen.getByTestId('where')).toHaveTextContent('/resumo-stories {"monthOffset":-1}')
+  })
+
+  it('com "Resumo mensal em stories" desligado nem busca o resumo do mês anterior', async () => {
+    vi.setSystemTime(new Date(2026, 10, 1, 12))
+    setUserPrefs({ notifStories: false })
+    setup({ data: payload({ budgets: [], limits: [], transactions: [] }) })
+    await screen.findByText('Tudo em dia')
+    expect(transactionsAPI.monthlyRecap).not.toHaveBeenCalled()
+  })
+})
+

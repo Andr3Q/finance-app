@@ -427,7 +427,8 @@ router.post('/', dashboardLimiter, async (req, res) => {
           const limit = await prisma.categoryLimit.findUnique({
             where: { userId_category: { userId: req.userId, category } },
           })
-          if (limit && Number(limit.amount) > 0) {
+          // "Alerta de limite" (Preferências) desliga também o aviso por categoria; sem a preferência carregada, avisa
+          if (limit && Number(limit.amount) > 0 && user?.notifBudgetAlert !== false) {
             const catTotal = await prisma.transaction.aggregate({
               where:  { userId: req.userId, type: 'expense', category, month: currentMonth, year: currentYear, archived: false },
               _sum:   { amount: true },

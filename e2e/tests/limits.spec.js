@@ -136,8 +136,9 @@ test.describe('Limites', () => {
 
   test('os mesmos números viram avisos nas Notificações', async ({ page }) => {
     await setup(page, { goto: '/notificacoes' })
-    await expect(page.getByRole('button', { name: /Alimentação em 78% do limite/ })).toBeVisible()
     await expect(page.getByRole('button', { name: /Transporte em 96% do limite/ })).toBeVisible()
+    // Alimentação está em 78%: abaixo dos 80% em que o aviso começa
+    await expect(page.getByRole('button', { name: /Alimentação/ })).toHaveCount(0)
   })
 
   test('em Metas, o atalho "Limites" abre a tela e voltar retorna às Metas', async ({ page }) => {

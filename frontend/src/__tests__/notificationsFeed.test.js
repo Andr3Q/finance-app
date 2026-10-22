@@ -1,4 +1,5 @@
-import { buildNotifications, countUnread, readNotifIds, markNotifsRead } from '../utils/notificationsFeed.js'
+import { buildNotifications, countUnread, readNotifIds, markNotifsRead, isTipFresh, PREV_RECAP_UNTIL_DAY } from '../utils/notificationsFeed.js'
+import { prefsOf } from '../utils/notifPrefs.js'
 
 // 20/out/2026 (terça), meio-dia local
 const NOW = new Date(2026, 9, 20, 12)
@@ -121,17 +122,22 @@ describe('limites por categoria', () => {
   const tx = (category, amount) => ({ type: 'expense', category, amount })
   const limits = [{ category: 'food', amount: 1500 }]
 
-  it('perto do limite (78%): quanto falta até o teto, sem centavos quando redondo', () => {
-    const n = build({ budgets: [], limits, transactions: [tx('food', 1000), tx('food', 170)] }).find(x => x.kind === 'limit')
-    expect(n).toMatchObject({ title: 'Alimentação em 78% do limite', body: 'Faltam R$ 330 até o teto do mês.', when: 'este mês', action: { type: 'route', to: '/goals' } })
+  it('perto do limite (82%): quanto falta até o teto, sem centavos quando redondo', () => {
+    const n = build({ budgets: [], limits, transactions: [tx('food', 1000), tx('food', 230)] }).find(x => x.kind === 'limit')
+    expect(n).toMatchObject({ title: 'Alimentação em 82% do limite', body: 'Faltam R$ 270 até o teto do mês.', when: 'este mês', action: { type: 'route', to: '/goals' } })
   })
 
   it('centavos aparecem quando existem', () => {
-    const n = build({ budgets: [], limits, transactions: [tx('food', 1164.6)] }).find(x => x.kind === 'limit')
-    expect(n.body).toBe('Faltam R$ 335,40 até o teto do mês.')
+    const n = build({ budgets: [], limits, transactions: [tx('food', 1229.6)] }).find(x => x.kind === 'limit')
+    expect(n.body).toBe('Faltam R$ 270,40 até o teto do mês.')
   })
 
-  it('abaixo de 70% não avisa; só despesas da categoria contam (entrada e outras categorias não)', () => {
+  it('o aviso começa em 80% do teto (os mesmos 80% do push do servidor): 79% não avisa, 80% avisa', () => {
+    expect(build({ budgets: [], limits, transactions: [tx('food', 1185)] }).filter(x => x.kind === 'limit')).toEqual([])
+    expect(build({ budgets: [], limits, transactions: [tx('food', 1200)] }).find(x => x.kind === 'limit').title).toBe('Alimentação em 80% do limite')
+  })
+
+  it('abaixo de 80% não avisa; só despesas da categoria contam (entrada e outras categorias não)', () => {
     expect(build({ budgets: [], limits, transactions: [tx('food', 1000), tx('transport', 5000), { type: 'income', category: 'food', amount: 9999 }] }).filter(x => x.kind === 'limit')).toEqual([])
   })
 
@@ -227,5 +233,94 @@ describe('ordem e "novas"', () => {
     expect(Object.keys(readNotifIds())).toEqual(['novo'])
     localStorage.setItem('nancy:notifs-read', '{quebrado')
     expect(readNotifIds()).toEqual({})
+  })
+})
+
+// ── Preferências (tela "Preferências"): cada interruptor manda nos avisos dele ─────────────────────
+describe('preferências de notificação', () => {
+  const SALARY = { status: 'today', msg: 'Hoje é dia de salário!' }
+  const limits = [{ category: 'food', amount: 1000 }]
+  const tx = [{ type: 'expense', category: 'food', amount: 900 }]
+  const REM = { bills: {}, custom: [{ id: 'c1', name: 'IPVA', day: 28, month: null, lead: 2, on: true }] }
+  const kinds = (items) => items.map(n => n.kind)
+  const full = (over = {}) => build({
+    now: day(26), budgets: [bill({ dueDay: 26 })], salaryNotif: SALARY, limits, transactions: tx, tipFresh: true, prevRecapSlides: null,
+    reminderState: REM, ...over,
+  })
+
+  it('tudo ligado (ou sem preferências carregadas): todos os avisos aparecem', () => {
+    for (const prefs of [undefined, null, {}, prefsOf({})]) {
+      expect(kinds(full({ prefs })).sort()).toEqual(['bill', 'limit', 'recap', 'reminder', 'salary', 'tip'])
+    }
+  })
+
+  it('prefsOf: campo ausente vale o padrão (tudo ligado, só o relatório por e-mail desligado)', () => {
+    expect(prefsOf({})).toEqual({ salary: true, bills: true, limits: true, stories: true, tips: true, email: false })
+    expect(prefsOf({ notifSalary: false, notifWeeklyEmail: true, notifTips: 'x' })).toMatchObject({ salary: false, email: true, tips: true })
+    expect(prefsOf(null)).toEqual({ salary: true, bills: true, limits: true, stories: true, tips: true, email: false })
+  })
+
+  it.each([
+    ['salary', 'salary'], ['bills', 'bill'], ['limits', 'limit'], ['stories', 'recap'], ['tips', 'tip'],
+  ])('"%s" desligado tira só o aviso "%s"', (pref, kind) => {
+    const all = kinds(full({ prefs: { [pref]: true } }))
+    const off = kinds(full({ prefs: { [pref]: false } }))
+    expect(all).toContain(kind)
+    expect(off).not.toContain(kind)
+    expect(off.length).toBe(all.length - 1)
+  })
+
+  it('o lembrete avulso criado pelo usuário (tela Lembretes) não depende de "Vencimento de contas"', () => {
+    expect(kinds(full({ prefs: { bills: false } }))).toContain('reminder')
+  })
+})
+
+describe('resumo do mês anterior (todo dia 1º)', () => {
+  const prev = (d, slides = 6, prefs) => build({ now: day(d), budgets: [], prevRecapSlides: slides, prefs }).find(n => n.id === 'recap:2026-09')
+
+  it('nos primeiros dias do mês avisa "Resumo de <mês anterior> pronto" com a quantidade de histórias', () => {
+    expect(prev(1)).toMatchObject({ kind: 'recap', title: 'Resumo de setembro pronto', body: 'Veja seu mês em 6 histórias', when: 'hoje', action: { type: 'story', monthOffset: -1 } })
+    expect(prev(3)).toMatchObject({ when: 'este mês' })
+    expect(prev(1, 1).body).toBe('Veja seu mês em 1 história')
+  })
+
+  it(`some depois do dia ${PREV_RECAP_UNTIL_DAY}, sem dados do mês anterior ou com "Resumo mensal em stories" desligado`, () => {
+    expect(prev(PREV_RECAP_UNTIL_DAY)).toBeDefined()
+    expect(prev(PREV_RECAP_UNTIL_DAY + 1)).toBeUndefined()
+    expect(prev(2, null)).toBeUndefined()
+    expect(prev(2, 6, { stories: false })).toBeUndefined()
+  })
+
+  it('em janeiro o mês anterior é dezembro do ano passado', () => {
+    const jan = buildNotifications({ now: new Date(2027, 0, 2, 12), budgets: [], prevRecapSlides: 4 }).find(n => n.kind === 'recap')
+    expect(jan).toMatchObject({ id: 'recap:2026-12', title: 'Resumo de dezembro pronto' })
+  })
+
+  it('o resumo do mês corrente (fim do mês) continua aparecendo a partir do dia 25', () => {
+    const items = build({ now: day(26), budgets: [] })
+    expect(items.find(n => n.id === 'recap:2026-10')).toMatchObject({ title: 'Resumo de outubro pronto', action: { monthOffset: 0 } })
+  })
+})
+
+describe('dica da semana da Nancy IA', () => {
+  it('aparece uma vez por semana enquanto a dica não foi aberta, e leva ao story de dicas', () => {
+    const n = build({ budgets: [], tipFresh: true }).find(x => x.kind === 'tip')
+    expect(n).toMatchObject({ title: 'Dica da Nancy IA', body: 'Sua dica da semana está pronta.', when: 'esta semana', action: { type: 'story', story: 'dicas' } })
+    expect(n.id).toBe('tip:dicas:2026-W43')
+    expect(build({ now: day(21), budgets: [], tipFresh: true }).find(x => x.kind === 'tip').id).toBe('tip:dicas:2026-W43')   // mesma semana, mesmo aviso
+    expect(build({ now: day(27), budgets: [], tipFresh: true }).find(x => x.kind === 'tip').id).toBe('tip:dicas:2026-W44')   // semana seguinte volta a ser nova
+  })
+
+  it('sem dica nova ou com "Dicas da Nancy IA" desligado: nada', () => {
+    expect(build({ budgets: [], tipFresh: false }).some(x => x.kind === 'tip')).toBe(false)
+    expect(build({ budgets: [], tipFresh: true, prefs: { tips: false } }).some(x => x.kind === 'tip')).toBe(false)
+  })
+
+  it('isTipFresh: precisa de movimento no mês e da dica desta semana ainda não aberta', () => {
+    const t = [{ type: 'expense', category: 'food', amount: 10 }]
+    expect(isTipFresh(t, NOW, {})).toBe(true)
+    expect(isTipFresh([], NOW, {})).toBe(false)
+    expect(isTipFresh(t, NOW, { 'dicas:2026-W43': Date.now() })).toBe(false)
+    expect(isTipFresh(t, day(27), { 'dicas:2026-W43': Date.now() })).toBe(true)   // outra semana
   })
 })

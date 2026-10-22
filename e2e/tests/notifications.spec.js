@@ -20,7 +20,7 @@ const json = (o, status = 200) => ({ status, contentType: 'application/json', bo
 
 const payload = (dueDay, over = {}) => ({
   summary: { salary: 5000, totalIncome: 500, totalExpenses: 3000, currentBalance: 2500, totalAvailable: 5500, percentUsed: 54, unpaidBudgetIds: ['b1'] },
-  transactions: [{ id: 't1', description: 'Mercado', type: 'expense', category: 'food', amount: 1165, date: '2026-10-05T12:00:00Z', month: 10, year: 2026, archived: false }],
+  transactions: [{ id: 't1', description: 'Mercado', type: 'expense', category: 'food', amount: 1230, date: '2026-10-05T12:00:00Z', month: 10, year: 2026, archived: false }],
   limits: [{ category: 'food', amount: 1500 }],
   budgets: [{ id: 'b1', name: 'Academia', amount: 200, dueDay }],
   ...over,
@@ -33,11 +33,15 @@ const RECAP = {
   isBestOfYear: false, nextStep: null, belowAverage: null,
 }
 
-async function setup(page, { at, data, goto = '/notificacoes' }) {
+// a dica da semana (aviso que aparece até a pessoa abri-la) vem como "já aberta" nos testes que não falam dela
+const SEEN_TIPS = JSON.stringify(Object.fromEntries(['W41', 'W42', 'W43', 'W44'].map(w => [`dicas:2026-${w}`, 1])))
+
+async function setup(page, { at, data, goto = '/notificacoes', tipSeen = true, user = TEST_USER }) {
   await page.clock.setFixedTime(new Date(at))
-  await injectSession(page, TEST_USER)
+  if (tipSeen) await page.addInitScript((seen) => localStorage.setItem('nancy:stories-seen', seen), SEEN_TIPS)
+  await injectSession(page, user)
   await page.route('**/api/**', r => r.fulfill(json([])))
-  await page.route('**/api/auth/me**', r => r.fulfill(json(TEST_USER)))
+  await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
   await page.route('**/api/transactions/dashboard**', r => r.fulfill(json(data)))
   await page.route('**/api/transactions/monthly-recap**', r => r.fulfill(json(RECAP)))
   await page.goto(goto)
@@ -51,9 +55,9 @@ test.describe('Notificações', () => {
     await setup(page, { at: SALARY_DAY, data: payload(7) })
     await expect(page.getByRole('heading', { name: 'Notificações' })).toBeVisible()
     await expect(rows(page)).toHaveCount(3)
-    await expect(page.locator('.ntf-name')).toHaveText(['Academia vence hoje', 'Lembrete de salário', 'Alimentação em 78% do limite'])
+    await expect(page.locator('.ntf-name')).toHaveText(['Academia vence hoje', 'Lembrete de salário', 'Alimentação em 82% do limite'])
     await expect(page.locator('.ntf-text')).toHaveText([
-      'R$ 200,00 · conta fixa', 'Seu salário deve cair hoje. Quer registrar?', 'Faltam R$ 335 até o teto do mês.',
+      'R$ 200,00 · conta fixa', 'Seu salário deve cair hoje. Quer registrar?', 'Faltam R$ 270 até o teto do mês.',
     ])
     await expect(page.locator('.ntf-when')).toHaveText(['hoje', 'hoje', 'este mês'])
     await expect(page.locator('.ntf-sub')).toHaveText('3 novas')
@@ -97,7 +101,7 @@ test.describe('Notificações', () => {
     await row(page, /Academia vence hoje/).click()
     await expect(page).toHaveURL(/\/contas-do-mes$/)
     await page.goBack()
-    await row(page, /Alimentação em 78% do limite/).click()
+    await row(page, /Alimentação em 82% do limite/).click()
     await expect(page).toHaveURL(/\/goals$/)
   })
 
@@ -167,4 +171,24 @@ test.describe('Notificações', () => {
     expect(m.prefsColor).toBe('rgb(28, 72, 255)')
     expect(m.prefs.y).toBeGreaterThan(m.card.y + m.card.h) // o botão vem depois do cartão
   })
+
+  test('a dica da semana aparece até ser aberta e leva ao story de dicas', async ({ page }) => {
+    await setup(page, { at: SALARY_DAY, data: payload(7), tipSeen: false })
+    await expect(page.locator('.ntf-name')).toHaveText(['Academia vence hoje', 'Lembrete de salário', 'Alimentação em 82% do limite', 'Dica da Nancy IA'])
+    await row(page, /Dica da Nancy IA/).click()
+    await expect(page).toHaveURL(/\/resumo-stories$/)
+  })
+
+  test('as preferências desligadas tiram os avisos da lista e do pontinho do sino', async ({ page }) => {
+    await setup(page, {
+      at: SALARY_DAY, data: payload(7), goto: '/dashboard',
+      user: { ...TEST_USER, notifSalary: false, notifBudgetReminder: false, notifBudgetAlert: false, notifStories: false, notifTips: false },
+    })
+    await expect(page.getByRole('button', { name: 'Notificações' })).toBeVisible()
+    await expect(page.locator('.home-iconbtn .dsb-bell-dot')).toHaveCount(0)   // nada novo a avisar
+    await page.getByRole('button', { name: 'Notificações' }).click()
+    await expect(page.getByText('Tudo em dia')).toBeVisible()
+    await expect(rows(page)).toHaveCount(0)
+  })
+
 })

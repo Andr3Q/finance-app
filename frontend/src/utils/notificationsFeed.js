@@ -2,6 +2,7 @@ import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt } from './format.js'
 import { spentByCategory } from './categoryLimits.js'
 import { billSetting, nextOccurrence, daysBetween, dueText, whenText } from './reminders.js'
+import { readSeen, dicasKey } from './storiesSeen.js'
 
 // Avisos da tela "Notificações" (Nancy 2, tela 13), calculados na hora a partir dos mesmos
 // dados que o Início já carrega (GET /transactions/dashboard): nada é guardado nem
@@ -10,10 +11,15 @@ import { billSetting, nextOccurrence, daysBetween, dueText, whenText } from './r
 // hora exata que o app não registra. Função pura: o Início usa pra decidir o pontinho do
 // sino e a tela de Notificações usa pra listar, e os dois sempre concordam.
 
-// A partir de quanto do limite de uma categoria o aviso aparece.
-export const LIMIT_WARN_PCT = 70
+// A partir de quanto do limite de uma categoria o aviso aparece (os mesmos 80% do aviso por push do servidor).
+export const LIMIT_WARN_PCT = 80
 // A partir de que dia do mês o "Resumo de <mês> pronto" aparece (o mês já está quase fechado).
 export const RECAP_FROM_DAY = 25
+// Até que dia do mês o "Resumo de <mês anterior> pronto" aparece (o resumo mensal em stories chega no dia 1º).
+export const PREV_RECAP_UNTIL_DAY = 5
+
+/** A dica da semana é nova quando há movimento no mês e a dica desta semana ainda não foi aberta neste aparelho. */
+export const isTipFresh = (transactions = [], now = new Date(), seen = readSeen()) => transactions.length > 0 && !seen[dicasKey(now)]
 
 const pad      = (n) => String(n).padStart(2, '0')
 const monthKey = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
@@ -32,13 +38,18 @@ const moneyCompact = (n) => (Number.isInteger(n) ? `R$ ${n.toLocaleString('pt-BR
  * @param {object}  p.salaryNotif   getSalaryNotif() — { status: 'today'|'tomorrow'|'soon', msg } ou null
  * @param {object}  p.trialNotif    getTrialNotif(user) — { msg } ou null
  * @param {number}  p.recapSlides   quantas histórias o resumo tem (opcional; só melhora o texto)
+ * @param {object}  p.prefs         preferências de notificação (prefsOf(user)): salary, bills, limits, stories, tips
+ * @param {number}  p.prevRecapSlides  histórias do resumo do mês anterior (null = sem dados / ainda não carregou)
+ * @param {boolean} p.tipFresh      há uma dica da semana nova (isTipFresh)
  * @returns {Array<{ id, kind, title, body, when, action }>} já na ordem de importância
  */
 export function buildNotifications({
   now = new Date(), summary = null, transactions = [], limits = [], budgets = [],
   salaryNotif = null, trialNotif = null, recapSlides = null, cancelReminders = [], reminderState = null,
+  prefs = null, prevRecapSlides = null, tipFresh = false,
 } = {}) {
   const items = []
+  const wants = (k) => prefs?.[k] !== false   // sem preferência carregada, avisa (o padrão de todas é ligado)
   const today       = now.getDate()
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), today)
@@ -46,7 +57,7 @@ export function buildNotifications({
 
   // Contas fixas que vão vencer dentro da antecedência escolhida na tela Lembretes (padrão: 2 dias)
   // e ainda não foram registradas como pagas. Interruptor desligado = sem aviso daquela conta.
-  for (const b of budgets) {
+  for (const b of (wants('bills') ? budgets : [])) {
     if (!b.dueDay) continue
     const set = billSetting(reminderState, b.id)
     if (!set.on) continue
@@ -79,7 +90,7 @@ export function buildNotifications({
   }
 
   // Dia de salário (5º dia útil) — o app já calcula isso em getSalaryNotif().
-  if (salaryNotif) {
+  if (salaryNotif && wants('salary')) {
     const copy = {
       today:    { body: 'Seu salário deve cair hoje. Quer registrar?',   when: 'hoje',     rank: 1 },
       tomorrow: { body: 'Seu salário deve cair amanhã. Quer registrar?', when: 'amanhã',   rank: 7 },
@@ -104,7 +115,7 @@ export function buildNotifications({
 
   // Categorias perto de estourar (ou já estouradas) o limite do mês.
   const spentBy = spentByCategory(transactions)
-  for (const l of limits) {
+  for (const l of (wants('limits') ? limits : [])) {
     const limit = Number(l.amount)
     if (!(limit > 0)) continue
     const spent = spentBy[l.category] || 0
@@ -129,12 +140,32 @@ export function buildNotifications({
 
   // Resumo do mês, quando o mês já está acabando e teve movimento.
   const hasMovement = (summary?.totalExpenses || 0) + (summary?.totalIncome || 0) > 0
-  if (today >= RECAP_FROM_DAY && hasMovement) {
+  if (wants('stories') && today >= RECAP_FROM_DAY && hasMovement) {
     items.push({
       id: `recap:${monthKey(now)}`, kind: 'recap', rank: 5,
       title: `Resumo de ${MONTHS[now.getMonth()].toLowerCase()} pronto`,
       body:  recapSlides ? `Veja seu mês em ${recapSlides} ${recapSlides === 1 ? 'história' : 'histórias'}` : 'Veja seu mês em histórias',
       when: 'hoje', action: { type: 'story', monthOffset: 0 },
+    })
+  }
+
+  // Resumo do mês anterior, nos primeiros dias do mês ("Todo dia 1º, com o mês anterior").
+  if (wants('stories') && today <= PREV_RECAP_UNTIL_DAY && prevRecapSlides) {
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    items.push({
+      id: `recap:${monthKey(prev)}`, kind: 'recap', rank: 5,
+      title: `Resumo de ${MONTHS[prev.getMonth()].toLowerCase()} pronto`,
+      body:  `Veja seu mês em ${prevRecapSlides} ${prevRecapSlides === 1 ? 'história' : 'histórias'}`,
+      when: today === 1 ? 'hoje' : 'este mês', action: { type: 'story', monthOffset: -1 },
+    })
+  }
+
+  // Dica da semana da Nancy IA (no máximo uma por semana; some quando a pessoa abre a dica).
+  if (wants('tips') && tipFresh) {
+    items.push({
+      id: `tip:${dicasKey(now)}`, kind: 'tip', rank: 5.5,
+      title: 'Dica da Nancy IA', body: 'Sua dica da semana está pronta.',
+      when: 'esta semana', action: { type: 'story', story: 'dicas' },
     })
   }
 

@@ -14,7 +14,9 @@ import { fmt } from '../utils/format.js'
 import { monthGrowthPct, projectedBalance } from '../utils/homeMetrics.js'
 import { readSeen, resumoKey, dicasKey, metasKey } from '../utils/storiesSeen.js'
 import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notifications.js'
-import { buildNotifications, countUnread, readNotifIds } from '../utils/notificationsFeed.js'
+import { buildNotifications, countUnread, readNotifIds, isTipFresh } from '../utils/notificationsFeed.js'
+import { prefsOf } from '../utils/notifPrefs.js'
+import { usePrevMonthRecap } from '../hooks/usePrevMonthRecap.js'
 import { readCancelFlags, cancelReminders } from '../utils/subsCancel.js'
 import { readReminders } from '../utils/reminders.js'
 
@@ -170,8 +172,10 @@ export default function Dashboard() {
 
   const pct = summary?.percentUsed || 0
   const now = new Date()
+  const notifPrefs = prefsOf(user)
+  const prevRecapSlides = usePrevMonthRecap(notifPrefs.stories)
   const hasNotif = countUnread(
-    buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()), reminderState: readReminders() }),
+    buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()), reminderState: readReminders(), prefs: notifPrefs, prevRecapSlides, tipFresh: isTipFresh(transactions) }),
     seenNotifs,
   ) > 0
 

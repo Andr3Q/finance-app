@@ -3,6 +3,7 @@ const request  = require('supertest')
 const bcrypt   = require('bcryptjs')
 const jwt      = require('jsonwebtoken')
 jest.mock('../src/lib/prisma', () => require('./__mocks__/prisma'))
+jest.mock('../src/services/pushService', () => ({ sendPushToUser: jest.fn().mockResolvedValue(true) }))
 jest.mock('../src/services/emailService', () => {
   const fn = () => jest.fn().mockResolvedValue(true)
   return {
@@ -862,6 +863,86 @@ describe('PUT /api/auth/profile', () => {
       .send({ name: 'A'.repeat(101) })
 
     expect(res.status).toBe(400)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// PREFERÊNCIAS DE NOTIFICAÇÃO (tela "Preferências", Nancy 2)
+// ══════════════════════════════════════════════════════════
+describe('PUT /api/auth/notifications', () => {
+  const cookie = () => `token=${makeToken('user-123')}`
+  const put = (body) => request(app).put('/api/auth/notifications').set('Cookie', cookie()).send(body)
+  beforeEach(() => { prisma.user.findUnique.mockResolvedValue(mockUser()); prisma.user.update.mockResolvedValue({ id: 'user-123' }) })
+
+  test('salva cada preferência booleana conhecida', async () => {
+    const all = { notifBudgetAlert: false, notifBudgetReminder: false, notifSalary: false, notifStories: false, notifTips: false, notifWeeklyEmail: true }
+    const res = await put(all)
+    expect(res.status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-123' }, data: all })
+  })
+
+  test('uma preferência por vez também vale', async () => {
+    expect((await put({ notifWeeklyEmail: true })).status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-123' }, data: { notifWeeklyEmail: true } })
+  })
+
+  test('ignora o que não é preferência conhecida e o que não é booleano (nada de mexer em plano ou e-mail por aqui)', async () => {
+    const res = await put({ notifTips: false, notifSalary: 'sim', plan: 'elite', email: 'x@y.com', emailVerified: true })
+    expect(res.status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-123' }, data: { notifTips: false } })
+  })
+
+  test('sem nenhum campo válido: 400 e nada é gravado', async () => {
+    expect((await put({ notifSalary: 'sim', plan: 'elite' })).status).toBe(400)
+    expect((await put({})).status).toBe(400)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  test('sem login: 401', async () => {
+    expect((await request(app).put('/api/auth/notifications').send({ notifTips: false })).status).toBe(401)
+  })
+
+  test('/me devolve as preferências para o app (e login também)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ notifSalary: false, notifStories: true, notifTips: false, notifWeeklyEmail: true }))
+    const res = await request(app).get('/api/auth/me').set('Cookie', cookie())
+    expect(res.body).toMatchObject({ notifSalary: false, notifStories: true, notifTips: false, notifWeeklyEmail: true })
+  })
+})
+
+describe('GET /api/auth/me — lembrete de conta que vence (push), 2 dias antes', () => {
+  const { sendPushToUser } = require('../src/services/pushService')
+  const flush = () => new Promise(r => setTimeout(r, 30))
+  const inDays = (k) => { const now = new Date(); const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); return ((now.getDate() - 1 + k) % dim) + 1 }
+
+  const me = async (dueDay, over = {}) => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ notifBudgetReminder: true, budgetReminderSentAt: null, ...over }))
+    // o mesmo método também busca contas encerradas (outro aviso); aqui só a consulta por dia de vencimento devolve a conta
+    prisma.budget.findMany.mockImplementation(async ({ where }) => (where && where.dueDay ? [{ id: 'b1', name: 'Aluguel', amount: 1500, dueDay }] : []))
+    prisma.transaction.findMany.mockResolvedValue([])
+    await request(app).get('/api/auth/me').set('Cookie', `token=${makeToken('user-123')}`)
+    await flush()
+  }
+  const billPushes = () => sendPushToUser.mock.calls.filter(([, p]) => /Aluguel vence/.test(p.title))
+
+  test('conta que vence hoje, amanhã ou em 2 dias avisa, e o aviso abre as Contas do mês', async () => {
+    for (const k of [0, 1, 2]) {
+      sendPushToUser.mockClear()
+      await me(inDays(k))
+      expect(billPushes().length).toBe(1)   // em k dias: 0, 1 e 2
+      expect(billPushes()[0][1].url).toBe('/contas-do-mes')
+    }
+  })
+
+  test('conta que vence daqui a 3 dias ainda não avisa', async () => {
+    sendPushToUser.mockClear()
+    await me(inDays(3))
+    expect(billPushes()).toHaveLength(0)
+  })
+
+  test('com "Vencimento de contas" desligado, não avisa', async () => {
+    sendPushToUser.mockClear()
+    await me(inDays(1), { notifBudgetReminder: false })
+    expect(billPushes()).toHaveLength(0)
   })
 })
 

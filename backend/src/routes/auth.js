@@ -4,7 +4,7 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendWelcomeEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail, sendEmailChangeVerification, sendEmailChangeAlert } = require('../services/emailService')
+const { sendResetEmail, sendWelcomeEmail, sendReferralRewardEmail, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail, sendEmailChangeVerification, sendEmailChangeAlert } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
 const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter, avatarLimiter } = require('../middleware/rateLimiter')
 
@@ -37,7 +37,7 @@ const MAX_EMAIL_CODE_ATTEMPTS = 5
 // tanto por /me quanto por /login, pra nunca mais divergir os dois (foi
 // assim que o onboarding passou a aparecer à toa depois de um login normal:
 // /login não mandava onboardingComplete, só /me mandava).
-const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, avatarUpdatedAt: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true, pendingEmail: true }
+const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, avatarUpdatedAt: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, notifSalary: true, notifStories: true, notifTips: true, notifWeeklyEmail: true, budgetReminderSentAt: true, pendingEmail: true }
 
 // user já carregado (com ou sem `select`) → objeto raso só com os campos de
 // ME_SELECT, prontos pra ir na resposta. Number(salary) porque Prisma.Decimal
@@ -380,29 +380,10 @@ router.get('/me', authMiddleware, async (req, res) => {
     // aberto agora. Não bloqueia a resposta do /me.
     remindUserIfDue(user, now).catch(err => reportError(err, { tag: '[auth/me] remindUserIfDue', userId: req.userId }))
 
-    // Digest semanal lazy: dispara na primeira visita após 7+ dias do último envio
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    if (!user.weeklyDigestSentAt || user.weeklyDigestSentAt < sevenDaysAgo) {
-      const since = user.weeklyDigestSentAt || sevenDaysAgo
-      prisma.transaction.findMany({
-        where: { userId: req.userId, date: { gte: since }, archived: false },
-      }).then(async (txs) => {
-        if (txs.length === 0) return
-        const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
-        const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
-        const catCount = {}
-        txs.filter(t => t.type === 'expense').forEach(t => { catCount[t.category] = (catCount[t.category] || 0) + Number(t.amount) })
-        const topCategory = Object.keys(catCount).sort((a, b) => catCount[b] - catCount[a])[0] || null
-        await prisma.user.update({ where: { id: req.userId }, data: { weeklyDigestSentAt: now } })
-        sendWeeklyDigest(user.email, user.name, {
-          totalExpenses, totalIncome, topCategory,
-          transactionCount: txs.length,
-          balance: Number(user.salary || 0) + totalIncome - totalExpenses,
-        }).catch(() => {})
-      }).catch(() => {})
-    }
+    // O resumo semanal por e-mail deixou de sair daqui (na 1ª visita após 7 dias, para todos): agora é o job de
+    // segunda-feira (backend/src/jobs/weeklyDigest.js), só para quem ligou "Relatório por e-mail".
 
-    // Lembrete de contas fixas lazy: uma vez por dia, avisa sobre vencimentos em até 3 dias
+    // Lembrete de contas fixas lazy: uma vez por dia, avisa sobre vencimentos em até 2 dias (como diz a tela Preferências)
     if (user.notifBudgetReminder) {
       // "hoje" calculado no fuso de São Paulo (UTC-3) para não disparar o lembrete
       // um dia antes/depois da meia-noite local caso o servidor esteja em UTC.
@@ -425,7 +406,7 @@ router.get('/me', authMiddleware, async (req, res) => {
                   : daysInMonth - todayDay + b.dueDay
                 return { ...b, daysLeft: diff }
               })
-              .filter(b => b.daysLeft <= 3)
+              .filter(b => b.daysLeft <= 2)
             if (!upcoming.length) return
             await prisma.user.update({ where: { id: req.userId }, data: { budgetReminderSentAt: now } })
             for (const b of upcoming) {
@@ -434,7 +415,7 @@ router.get('/me', authMiddleware, async (req, res) => {
               await sendPushToUser(req.userId, {
                 title: `📅 ${b.name} ${when}`,
                 body:  `R$ ${amt} — não esqueça de pagar.`,
-                url:   '/settings',
+                url:   '/contas-do-mes',
               })
             }
           }).catch(() => {})
@@ -1204,12 +1185,14 @@ router.get('/referral-stats', authMiddleware, async (req, res) => {
 })
 
 // ── PUT /auth/notifications ──────────────────────────────
+// Preferências da tela "Preferências": só booleanos conhecidos, os demais campos são ignorados.
+const NOTIF_PREF_KEYS = ['notifBudgetAlert', 'notifBudgetReminder', 'notifSalary', 'notifStories', 'notifTips', 'notifWeeklyEmail']
 router.put('/notifications', authMiddleware, async (req, res) => {
   try {
-    const { notifBudgetAlert, notifBudgetReminder } = req.body
     const data = {}
-    if (typeof notifBudgetAlert   === 'boolean') data.notifBudgetAlert   = notifBudgetAlert
-    if (typeof notifBudgetReminder === 'boolean') data.notifBudgetReminder = notifBudgetReminder
+    for (const key of NOTIF_PREF_KEYS) {
+      if (typeof req.body?.[key] === 'boolean') data[key] = req.body[key]
+    }
     if (!Object.keys(data).length) return res.status(400).json({ error: 'Nenhum campo válido.' })
     await prisma.user.update({ where: { id: req.userId }, data })
     res.json({ ok: true })

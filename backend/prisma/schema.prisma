@@ -76,6 +76,12 @@ model User {
   planPeriod           String?   @default("monthly")
   notifBudgetAlert     Boolean   @default(true)
   notifBudgetReminder  Boolean   @default(true)
+  // Preferências da tela "Preferências" (Nancy 2). notifSalary/Stories/Tips mandam nos avisos dentro do app;
+  // notifWeeklyEmail liga o resumo semanal por e-mail (segunda-feira, job /api/cron/weekly-digest).
+  notifSalary          Boolean   @default(true)
+  notifStories         Boolean   @default(true)
+  notifTips            Boolean   @default(true)
+  notifWeeklyEmail     Boolean   @default(false)
   budgetAlertMonth     Int?
   budgetAlertYear      Int?
   budgetReminderSentAt DateTime?

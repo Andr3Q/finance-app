@@ -642,3 +642,34 @@ describe('GET /api/transactions/subscriptions', () => {
     expect(where.type).toBe('expense')
   })
 })
+
+// "Alerta de limite" (Preferências): o push por categoria é a partir de 80% do teto e some quando a preferência é desligada
+describe('POST /api/transactions — aviso de limite por categoria (push)', () => {
+  const { sendPushToUser } = require('../src/services/pushService')
+  const flush = () => new Promise(r => setTimeout(r, 30))   // o push roda em setImmediate, depois da resposta
+
+  const post = async (userOver) => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ _count: { transactions: 5 }, notifBudgetAlert: true, ...userOver }))
+    prisma.transaction.count.mockResolvedValue(5)
+    prisma.transaction.create.mockResolvedValue(mockTx())
+    prisma.transaction.aggregate.mockResolvedValue({ _sum: { amount: 85 } })      // 85 gastos na categoria
+    prisma.budget.aggregate.mockResolvedValue({ _sum: { amount: 0 } })
+    prisma.categoryLimit.findUnique.mockResolvedValue({ userId: 'user-123', category: 'food', amount: 100 })   // teto de 100 → 85%
+    const res = await request(app).post('/api/transactions').set(authHeader()).send({ description: 'Mercado', amount: 20, type: 'expense', category: 'food' })
+    await flush()
+    return res
+  }
+  const limitPushes = () => sendPushToUser.mock.calls.filter(([, p]) => /do limite de|Limite de/.test(p.title))
+
+  test('a partir de 80% do teto avisa', async () => {
+    expect((await post({})).status).toBe(201)
+    expect(limitPushes()).toHaveLength(1)
+    expect(limitPushes()[0][1].title).toMatch(/85% do limite de/)
+  })
+
+  test('com "Alerta de limite" desligado, não avisa (mas o aviso de gasto registrado continua)', async () => {
+    expect((await post({ notifBudgetAlert: false })).status).toBe(201)
+    expect(limitPushes()).toHaveLength(0)
+    expect(sendPushToUser.mock.calls.some(([, p]) => /Gasto registrado/.test(p.title))).toBe(true)
+  })
+})

@@ -11835,3 +11835,18 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .fa-date-sep { color: var(--t3); font-size: 16px; font-weight: 500; user-select: none; }
 .fa-submit { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 2px; }
 .fa-date-toggle:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   pr-* — Preferências (Nancy 2, tela 27): cartão branco com uma linha por aviso (nome, descrição e o
+   interruptor das Assinaturas) e, abaixo, a linha dos avisos push deste aparelho.
+   ═══════════════════════════════════════════════════════ */
+.pr-card { padding: 16px 16px 13px; }
+.pr-list { list-style: none; margin: 0; padding: 0; }
+.pr-row { display: flex; align-items: center; gap: 14px; padding: 14px 0 13px; border-top: 1px solid var(--bdbd); }
+.pr-text { flex: 1; min-width: 0; }
+.pr-name { font-size: 14px; font-weight: 600; line-height: 20px; letter-spacing: -.01em; color: var(--t1); }
+.pr-desc { margin-top: 3px; font-size: 12.5px; line-height: 17px; color: var(--t2); }
+.pr-desc.err { color: #D64545; }
+.pr-device { padding-top: 3px; padding-bottom: 3px; }
+.pr-device .pr-row { border-top: none; }
+.pr-row .sb-switch:disabled { opacity: .6; cursor: default; }

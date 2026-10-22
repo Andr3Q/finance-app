@@ -6,6 +6,7 @@
 const express = require('express')
 const crypto  = require('crypto')
 const { sweepPendingPlanReminders } = require('../jobs/planReminders')
+const { sweepWeeklyDigests } = require('../jobs/weeklyDigest')
 const { reportError } = require('../lib/sentry')
 
 const router = express.Router()
@@ -33,6 +34,18 @@ router.post('/plan-reminders', async (req, res) => {
   } catch (err) {
     reportError(err, { tag: '[cron] plan-reminders' })
     res.status(500).json({ error: 'Erro na varredura de lembretes.' })
+  }
+})
+
+// POST /api/cron/weekly-digest
+// Resumo semanal por e-mail (segunda-feira de manhã) — só para quem ligou "Relatório por e-mail" em Preferências.
+router.post('/weekly-digest', async (req, res) => {
+  try {
+    const result = await sweepWeeklyDigests()
+    res.json({ ts: new Date().toISOString(), ...result })
+  } catch (err) {
+    reportError(err, { tag: '[cron] weekly-digest' })
+    res.status(500).json({ error: 'Erro no envio do resumo semanal.' })
   }
 })
 

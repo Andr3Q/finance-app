@@ -26,7 +26,7 @@ const ROUTE_TITLES = {
   '/calendar':    'Calendário',
   '/settings/perfil':       'Perfil',
   '/settings/seguranca':    'Segurança',
-  '/settings/notificacoes': 'Notificações',
+  '/settings/notificacoes': 'Preferências',
   '/settings/fechamento':   'Balanço mensal',
   '/settings/indique':      'Indique e Ganhe',
   '/settings/pagamentos':   'Pagamentos',
