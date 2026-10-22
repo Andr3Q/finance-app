@@ -45,7 +45,7 @@ test.describe('Finanças', () => {
     const m = await page.evaluate(() => {
       const cs = (s) => getComputedStyle(document.querySelector(s))
       return { hero: cs('.fin-hero').backgroundColor, body: cs('.fin-body').backgroundColor, theme: document.documentElement.getAttribute('data-theme'),
-        btn: cs('.fin-btn').backgroundColor, rowIco: cs('.fin-row-ico').backgroundColor }
+        btn: cs('.fin-btn:not(.fa-submit)').backgroundColor, rowIco: cs('.fin-row-ico').backgroundColor }
     })
     expect(m).toEqual({ hero: 'rgb(28, 72, 255)', body: 'rgb(242, 246, 255)', theme: 'light', btn: 'rgb(28, 72, 255)', rowIco: 'rgb(28, 72, 255)' })
   })
@@ -76,7 +76,7 @@ test.describe('Finanças', () => {
     const calls = await setup(page)
     const input = page.getByPlaceholder('0,00').first()
     await input.fill('6000')
-    await page.locator('.fin-btn').click()
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click()
     await expect(page.getByText(/atualizado com sucesso/i)).toBeVisible()
     expect(calls.salary).toEqual([{ salary: 6000 }])
   })

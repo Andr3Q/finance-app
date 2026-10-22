@@ -240,89 +240,95 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             )}
           </div>
         )}
-        <form onSubmit={handleAdd} className="cfg-add-row">
-          <input className="cfg-inp" type="text" placeholder="Nome da conta"
+        <form onSubmit={handleAdd} className="fa-form" aria-label="Adicionar conta fixa" noValidate>
+          <input className="fa-inp" type="text" placeholder="Nome da conta" aria-label="Nome da conta"
             value={newBudget.name} onChange={e => setNewBudget(p => ({ ...p, name: e.target.value }))} />
-          <CurrencyInput className="cfg-inp cfg-inp-num" placeholder="Valor"
-            value={newBudget.amount}
-            onChange={v => setNewBudget(p => ({ ...p, amount: v }))} />
-          <input className="cfg-inp cfg-inp-num" type="number" placeholder="Dia venc." min="1" max="31"
-            value={newBudget.dueDay}
-            onChange={e => { setNewBudget(p => ({ ...p, dueDay: e.target.value })); setDueDayErr('') }} />
-          <button type="button" className="cfg-btn-ghost cfg-enddate-toggle"
+          <div className="fa-two">
+            <CurrencyInput className="fa-inp" placeholder="Valor"
+              value={newBudget.amount}
+              onChange={v => setNewBudget(p => ({ ...p, amount: v }))} />
+            <input className="fa-inp" type="number" inputMode="numeric" placeholder="Dia venc." aria-label="Dia do vencimento" min="1" max="31"
+              value={newBudget.dueDay}
+              onChange={e => { setNewBudget(p => ({ ...p, dueDay: e.target.value })); setDueDayErr('') }} />
+          </div>
+          {dueDayErr && <span className="fa-err" role="alert">{dueDayErr}</span>}
+
+          <button type="button" className={`fa-date-toggle${newBudget.hasEndDate ? ' on' : ''}`} aria-expanded={newBudget.hasEndDate}
             title={newBudget.hasEndDate ? 'Remover data de encerramento' : 'Definir data de encerramento'}
             onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: { dd: '', mm: '', aaaa: '' } }))}>
-            📅
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <span className="fa-date-text">Data de encerramento</span>
+            <span className="fa-date-hint">{newBudget.hasEndDate ? 'Remover' : 'opcional'}</span>
           </button>
-          <button type="submit" className="cfg-btn-ghost" disabled={submitting}>
+
+          {newBudget.hasEndDate && (
+            <div className="fa-date-row">
+              <label className="fa-date-label" htmlFor="fa-dd">Encerramento</label>
+              <div className="fa-date-fields">
+                <input
+                  id="fa-dd"
+                  ref={refDD}
+                  className="fa-inp fa-date-part"
+                  type="text" inputMode="numeric" placeholder="DD" maxLength={2}
+                  value={newBudget.endDate.dd}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g,'').slice(0,2)
+                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: v } }))
+                    setEndDateErr('')
+                    if (v.length === 2) refMM.current?.focus()
+                  }}
+                />
+                <span className="fa-date-sep">/</span>
+                <input
+                  ref={refMM}
+                  className="fa-inp fa-date-part"
+                  type="text" inputMode="numeric" placeholder="MM" maxLength={2} aria-label="Mês de encerramento"
+                  value={newBudget.endDate.mm}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g,'').slice(0,2)
+                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: v } }))
+                    if (v.length === 2) refAAAA.current?.focus()
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Backspace' && newBudget.endDate.mm === '') {
+                      e.preventDefault()
+                      refDD.current?.focus()
+                    }
+                  }}
+                />
+                <span className="fa-date-sep">/</span>
+                <input
+                  ref={refAAAA}
+                  className="fa-inp fa-date-part fa-date-year"
+                  type="text" inputMode="numeric" placeholder="AAAA" maxLength={4} aria-label="Ano de encerramento"
+                  value={newBudget.endDate.aaaa}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g,'').slice(0,4)
+                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, aaaa: v } }))
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Backspace' && newBudget.endDate.aaaa === '')
+                      setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: p.endDate.mm.slice(0,-1) } }))
+                  }}
+                />
+              </div>
+              {endDateErr && <span className="fa-err" role="alert">{endDateErr}</span>}
+            </div>
+          )}
+
+          <button type="submit" className="fin-btn fa-submit" disabled={submitting}>
             {submitting ? (
-              <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+              <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
             ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
             )}
             {submitting ? 'Adicionando…' : 'Adicionar'}
           </button>
         </form>
-        {dueDayErr && (
-          <span style={{ fontSize: 12, color: '#ef4444', marginTop: 4, display: 'block' }}>{dueDayErr}</span>
-        )}
-        {newBudget.hasEndDate && (
-          <div className="cfg-enddate-row">
-            <label className="cfg-enddate-label">📅 Encerramento</label>
-            <div className="cfg-date-fields">
-              <input
-                ref={refDD}
-                className="cfg-inp cfg-date-part"
-                type="text" inputMode="numeric" placeholder="DD" maxLength={2}
-                value={newBudget.endDate.dd}
-                onChange={e => {
-                  const v = e.target.value.replace(/\D/g,'').slice(0,2)
-                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: v } }))
-                  setEndDateErr('')
-                  if (v.length === 2) refMM.current?.focus()
-                }}
-              />
-              <span className="cfg-date-sep">/</span>
-              <input
-                ref={refMM}
-                className="cfg-inp cfg-date-part"
-                type="text" inputMode="numeric" placeholder="MM" maxLength={2}
-                value={newBudget.endDate.mm}
-                onChange={e => {
-                  const v = e.target.value.replace(/\D/g,'').slice(0,2)
-                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: v } }))
-                  if (v.length === 2) refAAAA.current?.focus()
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Backspace' && newBudget.endDate.mm === '') {
-                    e.preventDefault()
-                    refDD.current?.focus()
-                  }
-                }}
-              />
-              <span className="cfg-date-sep">/</span>
-              <input
-                ref={refAAAA}
-                className="cfg-inp cfg-date-part cfg-date-year"
-                type="text" inputMode="numeric" placeholder="AAAA" maxLength={4}
-                value={newBudget.endDate.aaaa}
-                onChange={e => {
-                  const v = e.target.value.replace(/\D/g,'').slice(0,4)
-                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, aaaa: v } }))
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Backspace' && newBudget.endDate.aaaa === '')
-                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: p.endDate.mm.slice(0,-1) } }))
-                }}
-              />
-            </div>
-            {endDateErr && (
-              <span style={{ fontSize: 12, color: '#ef4444', marginTop: 4, display: 'block' }}>{endDateErr}</span>
-            )}
-          </div>
-        )}
       </div>
     </section>
 
