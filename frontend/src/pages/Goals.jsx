@@ -4,14 +4,14 @@ import Navbar from '../components/layout/Navbar.jsx'
 import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 import { analytics } from '../services/analytics.js'
 import GradCard from '../components/ui/GradCard.jsx'
-import { transactionsAPI, agentAPI } from '../services/api.js'
+import { transactionsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useGoals } from '../hooks/useGoals.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
 import { getCache, setCache } from '../services/cache.js'
-import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
+import { CATEGORY_LABELS } from '../constants/index.js'
 import { fmt, fmtDate } from '../utils/format.js'
 import RemindersCard      from '../components/features/settings/RemindersCard.jsx'
 import CategoryLimitsCard from '../components/features/settings/CategoryLimitsCard.jsx'
@@ -26,7 +26,6 @@ const amountBucket = (v) => {
   return '20000+'
 }
 
-const CACHE_HISTORY = 'analytics:history'
 const CACHE_SUBS    = 'analytics:subs'
 const TTL_5MIN      = 5 * 60_000
 
@@ -40,7 +39,7 @@ const chipIcon = (d) => (
 )
 // As antigas abas viram atalhos do cabeçalho; sem nenhum ativo, a tela mostra as metas.
 const TABS = [
-  { key: 'historico',   label: 'Histórico',   icon: chipIcon(<><line x1="6" y1="20" x2="6" y2="11"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></>) },
+  { key: 'historico',   label: 'Histórico',   to: '/historico', icon: chipIcon(<><line x1="6" y1="20" x2="6" y2="11"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="14"/></>) },
   { key: 'assinaturas', label: 'Assinaturas', icon: chipIcon(<><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></>) },
   { key: 'lembretes',   label: 'Lembretes',   icon: chipIcon(<><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></>) },
   { key: 'limites',     label: 'Limites',     icon: chipIcon(<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>) },
@@ -238,46 +237,6 @@ function GoalForm({ initial, onSave, onCancel, onDelete, saving }) {
   )
 }
 
-function BarChart({ data }) {
-  const maxVal = Math.max(...data.flatMap(d => [d.income, d.expenses]), 1)
-  const barH = 100
-
-  return (
-    <div className="anl-chart-wrap">
-      <div className="anl-chart-legend">
-        <span className="anl-legend-dot" style={{ background: '#4ae2ac' }} /> Entradas
-        <span className="anl-legend-dot" style={{ background: '#ff6b6b', marginLeft: 14 }} /> Saídas
-      </div>
-      <div className="anl-chart-body">
-        <svg viewBox={`0 0 ${data.length * 52} ${barH + 28}`} className="anl-chart-svg" preserveAspectRatio="none">
-          {data.map((d, i) => {
-            const incH = (d.income   / maxVal) * barH
-            const expH = (d.expenses / maxVal) * barH
-            const x    = i * 52
-            return (
-              <g key={i}>
-                <rect x={x + 4}  y={barH - incH} width={20} height={Math.max(incH, 1)}  rx="3" fill="#4ae2ac" opacity=".85" />
-                <rect x={x + 27} y={barH - expH} width={20} height={Math.max(expH, 1)} rx="3" fill="#ff6b6b" opacity=".85" />
-                <text x={x + 26} y={barH + 18} textAnchor="middle" className="anl-chart-label">
-                  {MONTHS_SHORT[d.month - 1]}
-                </text>
-              </g>
-            )
-          })}
-        </svg>
-      </div>
-      <div className="anl-chart-vals">
-        {data.map((d, i) => (
-          <div key={i} className="anl-chart-col">
-            <span style={{ color: '#4ae2ac' }}>+{fmt(d.income)}</span>
-            <span style={{ color: '#ff6b6b' }}>-{fmt(d.expenses)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 function SubscriptionsList({ data, loading }) {
   if (loading) return (
     <div className="anl-loading">
@@ -330,17 +289,8 @@ export default function Goals() {
   const [toast,           setToast]           = useState(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
-  const [history,       setHistory]       = useState([])
   const [subs,          setSubs]          = useState([])
-  const [loadingHist,   setLoadingHist]   = useState(true)
   const [loadingSubs,   setLoadingSubs]   = useState(true)
-  const [report,        setReport]        = useState(null)
-  const [reportLoading, setReportLoading] = useState(false)
-  const now = new Date()
-  const [reportMonth, setReportMonth] = useState(now.getMonth() + 1)
-  const [reportYear,  setReportYear]  = useState(now.getFullYear())
-  const reportRef   = useRef(null)
-  const reportCache = useRef(new Map()) // cache em memória — não persiste em sessionStorage
 
   const [activeTab, setActiveTab] = useState('metas')
   const [newGoal, setNewGoal] = useState({ title: '', targetAmount: '' })
@@ -370,21 +320,6 @@ export default function Goals() {
     fetchGoals()
 
     let cancelled = false
-
-    if (isPro) {
-      const cachedHistory = getCache(CACHE_HISTORY)
-      if (cachedHistory) {
-        setHistory(cachedHistory)
-        setLoadingHist(false)
-      } else {
-        transactionsAPI.monthlyHistory(6)
-          .then(r => { if (!cancelled) { setCache(CACHE_HISTORY, r.data, TTL_5MIN); setHistory(r.data) } })
-          .catch(() => { if (!cancelled) setLoadingHist(false) })
-          .finally(() => { if (!cancelled) setLoadingHist(false) })
-      }
-    } else {
-      setLoadingHist(false)
-    }
 
     if (isElite) {
       const cachedSubs = getCache(CACHE_SUBS)
@@ -465,33 +400,6 @@ export default function Goals() {
     }
   }
 
-  const generateReport = async () => {
-    const cacheKey = `${reportMonth}-${reportYear}`
-    const cached = reportCache.current.get(cacheKey)
-    if (cached?.text && Date.now() - cached.ts < 6 * 3600 * 1000) {
-      setReport(cached.text)
-      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-      return
-    }
-
-    setReportLoading(true)
-    setReport(null)
-    try {
-      const { data } = await agentAPI.monthlyReport(reportMonth, reportYear)
-      const text = data.report || data.text || ''
-      setReport(text)
-      if (text && !text.startsWith('Nenhuma')) {
-        reportCache.current.set(cacheKey, { text, ts: Date.now() })
-        showToast('Relatório gerado com sucesso!')
-      }
-      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-    } catch (err) {
-      setReport(err.response?.data?.error || 'Erro ao gerar relatório. Tente novamente.')
-    } finally {
-      setReportLoading(false)
-    }
-  }
-
   return (
     <>
       <Navbar />
@@ -512,8 +420,8 @@ export default function Goals() {
                 <button className="ex-chip-arrow" onClick={() => scrollChips(-1)} aria-label="Atalhos anteriores"><ChipArrow dir="left" /></button>
                 <div className="ex-chips" ref={chipsRef}>
                   {TABS.map(t => (
-                    <button key={t.key} type="button" className={`ex-chip${activeTab === t.key ? ' on' : ''}`} aria-pressed={activeTab === t.key}
-                      onClick={() => setActiveTab(activeTab === t.key ? 'metas' : t.key)}>
+                    <button key={t.key} type="button" className={`ex-chip${!t.to && activeTab === t.key ? ' on' : ''}`} aria-pressed={t.to ? undefined : activeTab === t.key}
+                      onClick={() => (t.to ? navigate(t.to) : setActiveTab(activeTab === t.key ? 'metas' : t.key))}>
                       {t.icon} {t.label}
                     </button>
                   ))}
@@ -584,69 +492,6 @@ export default function Goals() {
 
             {activeTab !== 'metas' && (
             <div className="gl-panel">
-            {/* ── Histórico de Gastos (Pro+) ── */}
-            {activeTab === 'historico' && (
-              <>
-                {!isPro ? (
-                  <div className="cfg-pro-lock" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--cp)" strokeWidth="1.5" strokeLinecap="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-                    </svg>
-                    <div className="cfg-pro-lock-title">Recurso Pro</div>
-                    <div className="cfg-pro-lock-sub">Veja a evolução mensal de entradas e saídas dos últimos 6 meses</div>
-                  </div>
-                ) : (
-                  <GradCard
-                    iconBg="rgba(79,142,247,.1)" iconBorder="rgba(79,142,247,.25)"
-                    icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f8ef7" strokeWidth="2" strokeLinecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
-                    title="Evolução mensal"
-                    sub="Entradas e saídas dos últimos 6 meses"
-                  >
-                    {loadingHist ? (
-                      <div className="anl-loading"><span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /></div>
-                    ) : history.length > 0 ? (
-                      <BarChart data={history} />
-                    ) : (
-                      <div className="anl-empty"><span>Sem dados de histórico ainda</span></div>
-                    )}
-                  </GradCard>
-                )}
-
-                {/* ── Relatório IA (Elite only) ── */}
-                {isElite && (
-                <GradCard
-                  iconBg="rgba(255,140,66,.1)" iconBorder="rgba(255,140,66,.25)"
-                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ff8c42" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>}
-                  title="Relatório mensal IA"
-                  sub="Análise completa gerada por inteligência artificial"
-                >
-                  <div className="anl-report-controls">
-                    <select className="anl-report-select" value={reportMonth} onChange={e => setReportMonth(+e.target.value)}>
-                      {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                    </select>
-                    <select className="anl-report-select" value={reportYear} onChange={e => setReportYear(+e.target.value)}>
-                      {Array.from({ length: 4 }, (_, i) => new Date().getFullYear() - 2 + i).map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                    <button className="anl-report-btn" onClick={generateReport} disabled={reportLoading}>
-                      {reportLoading
-                        ? <><span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />Gerando...</>
-                        : 'Gerar relatório'
-                      }
-                    </button>
-                  </div>
-                  {reportLoading && (
-                    <div className="anl-loading">
-                      <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
-                    </div>
-                  )}
-                  {report && !reportLoading && (
-                    <div className="anl-report-text" ref={reportRef}>{report}</div>
-                  )}
-                </GradCard>
-                )}
-              </>
-            )}
-
             {/* ── Detector de Assinaturas (Elite) ── */}
             {activeTab === 'assinaturas' && (
               !isElite ? (

@@ -21,7 +21,7 @@ const { dashboardLimiter } = require('../middleware/rateLimiter')
 const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES, TRANSACTION_PLAN_LIMITS } = require('../utils/constants')
 const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
-const { buildMonthlyRecap, shiftMonth } = require('../services/monthlyRecap')
+const { buildMonthlyRecap, computeMonthMetrics, shiftMonth } = require('../services/monthlyRecap')
 
 const router = express.Router()
 
@@ -134,6 +134,10 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
 // ── GET /transactions/monthly-history ──────────────────
 // Retorna resumo de receitas e despesas dos últimos N meses
 // Query: ?months=6 (padrão 6, máx 12)
+// Inclui as transações ARQUIVADAS: o fechamento do mês arquiva as dele, e um histórico que as
+// ignorasse zeraria justamente os meses já fechados. Além de income/expenses, cada mês traz o
+// `saved` (resultado do mês) pela MESMA fórmula do resumo em stories e do cartão do Extrato
+// (salário + entradas − contas fixas não pagas − saídas), pra os números baterem entre as telas.
 router.get('/monthly-history', dashboardLimiter, async (req, res) => {
   try {
     const months = Math.min(Math.max(parseInt(req.query.months) || 6, 1), 12)
@@ -147,29 +151,32 @@ router.get('/monthly-history', dashboardLimiter, async (req, res) => {
     }
 
     const startSlot = slots[0]
-    const txs = await prisma.transaction.findMany({
-      where: {
-        userId: req.userId,
-        archived: false,
-        OR: [
-          { year: { gt: startSlot.year } },
-          { year: startSlot.year, month: { gte: startSlot.month } },
-        ],
-      },
-      select: { type: true, amount: true, month: true, year: true },
-    })
+    const [txs, budgets, user] = await Promise.all([
+      prisma.transaction.findMany({
+        where: {
+          userId: req.userId,
+          OR: [
+            { year: { gt: startSlot.year } },
+            { year: startSlot.year, month: { gte: startSlot.month } },
+          ],
+        },
+        select: { type: true, amount: true, month: true, year: true, budgetId: true, category: true },
+      }),
+      prisma.budget.findMany({ where: { userId: req.userId }, select: { id: true, amount: true } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true } }),
+    ])
 
-    const map = {}
-    slots.forEach(s => { map[`${s.year}-${s.month}`] = { ...s, income: 0, expenses: 0 } })
+    const byMonth = {}
     txs.forEach(t => {
       const key = `${t.year}-${t.month}`
-      if (map[key]) {
-        if (t.type === 'income') map[key].income   += Number(t.amount)
-        else                     map[key].expenses += Number(t.amount)
-      }
+      ;(byMonth[key] = byMonth[key] || []).push(t)
     })
 
-    res.json(Object.values(map))
+    const salary = Number(user?.salary || 0)
+    res.json(slots.map(s => {
+      const m = computeMonthMetrics({ transactions: byMonth[`${s.year}-${s.month}`] || [], budgets, salary })
+      return { ...s, income: m.totalIncome, expenses: m.totalExpenses, saved: m.balance, active: m.active }
+    }))
   } catch (err) {
     reportError(err, { tag: 'Erro no histórico mensal' })
     res.status(500).json({ error: 'Erro ao carregar histórico.' })

@@ -11552,3 +11552,31 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   .gl-blue { border-radius: 28px; padding-bottom: 8px; }
   .gl-hero { border-radius: 28px 28px 0 0; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   hs-* — Histórico (Nancy 2, tela 20): cabeçalho/corpo da Finanças (fin-*), cartão com as barras do
+   resultado de cada mês (o mês atual em verde) e o cartão com a frase de destaque.
+   ═══════════════════════════════════════════════════════ */
+.hs-state { text-align: center; padding: 28px 20px; }
+.hs-state .fin-sub { max-width: 290px; margin: 6px auto 0; }
+.hs-btn { margin-top: 16px; width: 100%; max-width: 220px; }
+.hs-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0; }
+.hs-chart { display: flex; align-items: flex-end; gap: 11px; margin-top: 24px; }
+.hs-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
+.hs-val { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-size: 10.5px; font-weight: 500; color: var(--t1); }
+.hs-bar { width: 100%; border-radius: 10px; background: #CCD9FB; }
+.hs-bar.cur { background: #19C884; }
+.hs-bar.neg { background: #FFD3D6; }
+.hs-bar.cur.neg { background: #E5484D; }
+.hs-bar.off { background: #EEF2FF; }
+.hs-mon { font-size: 11px; color: var(--t2); margin-top: 2px; }
+.hs-insight { display: flex; align-items: center; gap: 12px; }
+.hs-insight-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #19C884; color: #fff; display: flex; align-items: center; justify-content: center; }
+.hs-insight-ico.down { background: #F5A524; }
+.hs-insight-title { font-size: 14px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0; }
+.hs-insight-sub { font-size: 12px; line-height: 1.45; color: var(--t2); margin: 2px 0 0; }
+.hs-report-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.hs-select { flex: 1; min-width: 110px; height: 44px; padding: 0 12px; border: 1px solid #E6ECF7; border-radius: 14px; background: #F2F6FF; color: var(--t1); font-family: inherit; font-size: 14px; }
+.hs-gen { height: 44px; padding: 0 16px; border: none; border-radius: 14px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.hs-gen:disabled { opacity: .6; cursor: default; }
+.hs-report-text { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--bdbd); font-size: 13px; line-height: 1.6; color: var(--t1); white-space: pre-wrap; }

@@ -489,6 +489,62 @@ describe('GET /api/transactions/monthly-recap', () => {
 })
 
 // ══════════════════════════════════════════════════════════
+// HISTÓRICO MENSAL (tela Histórico)
+// ══════════════════════════════════════════════════════════
+describe('GET /api/transactions/monthly-history', () => {
+  const now = new Date()
+  const cur = { month: now.getMonth() + 1, year: now.getFullYear() }
+  const prev = (() => { const d = new Date(now.getFullYear(), now.getMonth() - 1, 1); return { month: d.getMonth() + 1, year: d.getFullYear() } })()
+
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ salary: 5000 }))
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.budget.findMany.mockResolvedValue([])
+  })
+
+  test('exige autenticação', async () => {
+    const res = await request(app).get('/api/transactions/monthly-history')
+    expect(res.status).toBe(401)
+  })
+
+  test('devolve 6 meses por padrão, do mais antigo ao atual, e no máximo 12', async () => {
+    const res6 = await request(app).get('/api/transactions/monthly-history').set(authHeader())
+    expect(res6.body).toHaveLength(6)
+    expect(res6.body.at(-1)).toMatchObject(cur)
+    const res99 = await request(app).get('/api/transactions/monthly-history').query({ months: 99 }).set(authHeader())
+    expect(res99.body).toHaveLength(12)
+  })
+
+  test('inclui transações arquivadas (meses já fechados) e escopa pelo usuário', async () => {
+    await request(app).get('/api/transactions/monthly-history').set(authHeader())
+    const where = prisma.transaction.findMany.mock.calls.at(-1)[0].where
+    expect(where.userId).toBe('user-123')
+    expect(where).not.toHaveProperty('archived')
+    expect(prisma.budget.findMany.mock.calls.at(-1)[0].where.userId).toBe('user-123')
+  })
+
+  test('cada mês traz entradas, saídas e o resultado (salário + entradas − saídas), arquivado ou não', async () => {
+    prisma.transaction.findMany.mockResolvedValue([
+      mockTx({ id: 'a', type: 'income',  amount: 1000, ...prev, archived: true }),
+      mockTx({ id: 'b', type: 'expense', amount: 400,  ...prev, archived: true }),
+      mockTx({ id: 'c', type: 'expense', amount: 250,  ...cur }),
+    ])
+    const res = await request(app).get('/api/transactions/monthly-history').set(authHeader())
+    const find = (ym) => res.body.find(m => m.month === ym.month && m.year === ym.year)
+    expect(find(prev)).toMatchObject({ income: 1000, expenses: 400, saved: 5600, active: true })
+    expect(find(cur)).toMatchObject({ income: 0, expenses: 250, saved: 4750, active: true })
+    expect(res.body.filter(m => !m.active).every(m => m.income === 0 && m.expenses === 0)).toBe(true)
+  })
+
+  test('conta fixa não paga no mês diminui o resultado (mesma regra do Extrato)', async () => {
+    prisma.budget.findMany.mockResolvedValue([{ id: 'bud-1', amount: 800 }])
+    prisma.transaction.findMany.mockResolvedValue([mockTx({ id: 'c', type: 'expense', amount: 100, ...cur })])
+    const res = await request(app).get('/api/transactions/monthly-history').set(authHeader())
+    expect(res.body.at(-1).saved).toBe(5000 - 800 - 100)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
 // ASSINATURAS (/subscriptions) — modo padrão e ?strict=1 (story Dicas IA)
 // ══════════════════════════════════════════════════════════
 describe('GET /api/transactions/subscriptions', () => {
