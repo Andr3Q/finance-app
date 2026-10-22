@@ -397,6 +397,24 @@ describe('AgentChat — Nancy IA (tela 12)', () => {
     expect(await screen.findByRole('dialog', { name: 'Nancy IA' })).toBeInTheDocument()
   })
 
+  it('o evento com uma pergunta pronta abre o chat e já envia a pergunta (Elite)', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Corte R$ 100 em delivery.' } })
+    setUser()
+    render(<MemoryRouter><AgentChat /></MemoryRouter>)
+    window.dispatchEvent(new CustomEvent('nancy:open-agent-chat', { detail: { message: 'Onde posso cortar R$ 300 este mês?' } }))
+    await waitFor(() => expect(agentAPI.chat).toHaveBeenCalledWith('Onde posso cortar R$ 300 este mês?', []))
+    expect(await screen.findByText('Corte R$ 100 em delivery.')).toBeInTheDocument()
+    expect(agentAPI.chat).toHaveBeenCalledTimes(1) // não reenvia sozinha em novas renderizações
+  })
+
+  it('quem não é Elite: a pergunta pronta é descartada (nada vai pra IA nem fica guardado pra depois)', async () => {
+    setUser({ plan: 'free' })
+    render(<MemoryRouter><AgentChat /></MemoryRouter>)
+    window.dispatchEvent(new CustomEvent('nancy:open-agent-chat', { detail: { message: 'Onde posso cortar?' } }))
+    expect(await screen.findByText(/disponível no plano Elite/)).toBeInTheDocument()
+    expect(agentAPI.chat).not.toHaveBeenCalled()
+  })
+
   it('quem não é Elite vê o convite do plano e nenhum campo de mensagem', () => {
     setup({ plan: 'free', name: 'Ana Souza' })
     expect(screen.getByText(/^Oi, Ana! A Nancy IA analisa seus gastos/)).toBeInTheDocument()

@@ -25,6 +25,7 @@ const StoriesResumo  = lazy(() => import('./pages/StoriesResumo.jsx'))
 const Notifications  = lazy(() => import('./pages/Notifications.jsx'))
 const Installments   = lazy(() => import('./pages/Installments.jsx'))
 const BillsMonth     = lazy(() => import('./pages/BillsMonth.jsx'))
+const Analysis       = lazy(() => import('./pages/Analysis.jsx'))
 const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
 const Goals          = lazy(() => import('./pages/Goals.jsx'))
 const Settings       = lazy(() => import('./pages/Settings.jsx'))
@@ -199,6 +200,7 @@ export default function App() {
             <Route path="/notificacoes"    element={<PrivateRoute><Notifications /></PrivateRoute>} />
             <Route path="/parcelados"      element={<PrivateRoute><Installments /></PrivateRoute>} />
             <Route path="/contas-do-mes"   element={<PrivateRoute><BillsMonth /></PrivateRoute>} />
+            <Route path="/analise"         element={<PrivateRoute><Analysis /></PrivateRoute>} />
             <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
             <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
             <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />

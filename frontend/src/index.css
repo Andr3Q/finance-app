@@ -11470,3 +11470,33 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .cl-ev-sub { font-size: 12px; color: var(--t2); }
 .cl-ev-amt { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; color: var(--t1); }
 .cl-ev-amt.in { color: #117953; }
+
+/* ═══════════════════════════════════════════════════════
+   an-* — Análise do mês (Nancy 2, tela 17): cabeçalho/corpo da Finanças (fin-*), cartão azul do
+   maior gasto variável, lista de gastos por categoria com barras e o convite pra Nancy.
+   ═══════════════════════════════════════════════════════ */
+.an-state { text-align: center; padding: 28px 20px; }
+.an-state .fin-sub { max-width: 280px; margin: 6px auto 0; }
+.an-retry { margin-top: 16px; width: 100%; max-width: 220px; }
+.an-top { margin-bottom: 14px; padding: 20px 18px 20px; background: #1C48FF; color: #fff; border-radius: 22px; display: flex; flex-direction: column; gap: 8px; }
+.an-top-eyebrow { font-family: var(--fin-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.72); }
+.an-top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.an-top-name { font-family: var(--fd); font-size: 26px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; min-width: 0; overflow-wrap: anywhere; }
+.an-top-val { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14.5px; }
+.an-top-pill { align-self: flex-start; margin-top: 2px; padding: 3px 10px; border-radius: 11px; background: #3DE29F; color: #0E3C2E; font-size: 11px; font-weight: 700; }
+
+.an-cats { padding: 16px 16px 14px; }
+.an-cats-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0 0 12px; }
+.an-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.an-item-line { display: flex; align-items: center; gap: 8px; }
+.an-item-ico { display: flex; flex-shrink: 0; }
+.an-item-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-item-val { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; color: var(--t1); }
+.an-item-pct { flex-shrink: 0; width: 44px; text-align: right; font-family: var(--fin-mono); font-size: 10.5px; color: var(--t3); }
+.an-bar { height: 6px; margin-top: 6px; border-radius: 6px; background: #EEF2FF; overflow: hidden; }
+.an-bar-fill { height: 100%; border-radius: 6px; }
+
+.an-ask { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; font-family: inherit; color: var(--t1); cursor: pointer; margin-bottom: 0; }
+.an-ask-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #19C884; color: #fff; display: flex; align-items: center; justify-content: center; }
+.an-ask-text { flex: 1; font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+.an-ask:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }

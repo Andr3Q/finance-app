@@ -68,8 +68,12 @@ export default function AgentChat() {
   // Permite abrir o chat de fora (ex: menu rápido do "+" na barra de
   // navegação, que fica num componente irmão — Navbar/AgentChat são montados
   // separadamente em App.jsx, sem estado compartilhado hoje).
+  // Quem abre o chat pode mandar uma pergunta pronta (detail.message), ex.: o cartão "Quer que a
+  // Nancy sugira onde cortar?" da Análise do mês. Ela é enviada sozinha — só pra quem tem o
+  // chat (Elite); pros outros o chat abre mostrando o convite pro plano e a pergunta é descartada.
+  const [pendingMsg, setPendingMsg] = useState(null)
   useEffect(() => {
-    const openChat = () => setOpen(true)
+    const openChat = (e) => { setOpen(true); setPendingMsg(e?.detail?.message || null) }
     window.addEventListener('nancy:open-agent-chat', openChat)
     return () => window.removeEventListener('nancy:open-agent-chat', openChat)
   }, [])
@@ -77,6 +81,13 @@ export default function AgentChat() {
   const isElite          = user.plan === 'elite'
   const firstName        = user.name?.split(' ')[0] || ''
   const suggestions      = buildSuggestions()
+
+  useEffect(() => {
+    if (!open || !pendingMsg) return
+    setPendingMsg(null)
+    if (isElite) send(pendingMsg)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pendingMsg, isElite])
 
   useEffect(() => {
     // MediaRecorder + getUserMedia são suportados de forma muito mais ampla e
