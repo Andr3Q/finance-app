@@ -32,6 +32,8 @@ const ROUTE_TITLES = {
   '/settings/pagamentos':   'Pagamentos',
   '/settings/dados':        'Meus dados',
   '/settings/instalar':     'Instalar app',
+  '/termos':                'Termos de uso',
+  '/privacidade':           'Privacidade',
 }
 
 function greeting() {
@@ -127,7 +129,7 @@ export default function Navbar() {
   const isPro     = user.plan === 'pro' || user.plan === 'elite'
   // "/settings" fica ativo em qualquer subtela dele (ex: /settings/seguranca)
   const isActive  = (path) => path === '/settings'
-    ? location.pathname.startsWith('/settings')
+    ? location.pathname.startsWith('/settings') || ['/termos', '/privacidade'].includes(location.pathname) // Termos/Privacidade abrem pelo Perfil
     : location.pathname === path
   // No design, Notificações e Finanças (aberta pelo "Contas do mês" do Extrato) aparecem com
   // "Extrato" aceso na barra de baixo (mobile).
