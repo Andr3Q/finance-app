@@ -710,7 +710,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
   /* Page layout */
   .page-with-nav { padding-top: calc(16px + env(safe-area-inset-top, 0px)) !important; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
-  .pwnav { margin-left: 0 !important; padding-top: env(safe-area-inset-top, 0px) !important; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
+  /* Sem faixa no topo: o cabeçalho azul de cada tela (home-hero, ex-hero, ntf-hero, fin-hero, pf-page) já soma a área
+     segura do iPhone no próprio padding e precisa começar na borda de cima, cobrindo a barra de status. Reservar essa
+     área aqui deixava uma faixa clara (fundo da página) acima do azul. */
+  .pwnav { margin-left: 0 !important; padding-top: 0 !important; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
   .page  { padding-left: 14px; padding-right: 14px; }
   .card  { padding: 16px; border-radius: var(--rmd); }
 
@@ -12062,3 +12065,4 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .nf-title { margin: 12px 0 0; font-size: 20px; line-height: 28px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
 .nf-sub { margin: 13px 0 0; font-size: 12px; line-height: 18px; color: var(--t2); }
 .nf-home { margin-top: 24px; height: 54px; padding: 0 32px; border: none; border-radius: 18px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; }
+.home-body .alc { background: #fff; border-color: #EDF2F8; border-radius: 24px; }
