@@ -12004,3 +12004,21 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .rf-share:disabled { opacity: .6; cursor: default; }
 .rf-mail { display: block; margin: 14px auto 0; padding: 4px 8px; border: none; background: none; font-family: inherit; font-size: 12.5px; color: var(--t2); text-decoration: underline; cursor: pointer; }
 .rf-mail:disabled { opacity: .5; cursor: default; }
+
+/* ── Meus dados (Nancy 2, tela 32) ── */
+.dd-export { padding-bottom: 14px; margin-bottom: 18px; }
+.dd-head { display: flex; align-items: center; gap: 14px; }
+.dd-ico { width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.dd-ico.danger { background: #FCEBEE; color: #D64545; }
+.dd-text { min-width: 0; }
+.dd-title { margin: 0; font-size: 16px; line-height: 21px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.dd-title.danger { color: #C83A4E; }
+.dd-sub { margin: 2px 0 0; font-size: 12.5px; line-height: 17px; color: var(--t2); }
+.dd-btns { display: flex; gap: 8px; margin-top: 14px; }
+.dd-fmt { flex: 1; height: 52px; border: 1.5px solid #D9E1F2; border-radius: 18px; background: #fff; color: #1C48FF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.dd-fmt:disabled { opacity: .6; cursor: default; }
+.dd-danger { box-sizing: border-box; padding: 16px; border: 1.5px solid #F3C4C9; border-radius: 24px; background: var(--bg-card); }
+.dd-delete { width: 100%; height: 49px; margin-top: 16px; border: none; border-radius: 16px; background: #D63348; color: #fff; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.dd-delete:hover { background: #C42B40; }
+.dd-json { display: block; margin: 18px auto 0; padding: 4px 8px; border: none; background: none; font-family: inherit; font-size: 12px; color: var(--t2); text-decoration: underline; cursor: pointer; }
+.dd-json:disabled { opacity: .5; cursor: default; }

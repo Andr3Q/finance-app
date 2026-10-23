@@ -115,11 +115,11 @@ const twoFALimiter = rateLimit({
   message:  { error: 'Muitas tentativas de verificação. Tente novamente em 15 minutos.' },
 })
 
-// Export de dados: 5 por hora por usuário — cada chamada faz 6 joins pesados
+// Export de dados: 10 por hora por usuário (CSV, PDF e JSON da tela "Meus dados") — cada chamada faz 6 joins pesados
 const exportLimiter = rateLimit({
   ...opts,
   windowMs:     60 * 60 * 1000,
-  max:          5,
+  max:          10,
   message:      { error: 'Limite de exportações atingido. Tente novamente em 1 hora.' },
 })
 

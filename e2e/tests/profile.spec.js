@@ -79,10 +79,11 @@ test.describe('Perfil — celular', () => {
   test('as linhas de baixo (indique, meus dados, instalar, termos, privacidade) continuam acessíveis', async ({ page }) => {
     await setup(page)
     for (const [label, url] of [['Indique e ganhe', /\/settings\/indique$/], ['Meus dados', /\/settings\/dados$/], ['Termos de uso', /\/termos$/], ['Política de privacidade', /\/privacidade$/]]) {
-      await page.getByRole('button', { name: label, exact: true }).scrollIntoViewIfNeeded()
+      // click() já rola até o botão e tenta de novo se a tela remontar (scrollIntoViewIfNeeded falhava com "not attached" sob carga)
       await page.getByRole('button', { name: label, exact: true }).click()
       await expect(page).toHaveURL(url)
       await page.goBack()
+      await expect(page).toHaveURL(/\/settings$/)
     }
   })
 

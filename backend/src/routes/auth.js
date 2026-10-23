@@ -11,6 +11,7 @@ const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimit
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
 const { computeEffectivePlan } = require('../utils/helpers')
 const { remindUserIfDue } = require('../jobs/planReminders')
+const { buildCsv, generateDataPDF } = require('../services/dataExport')
 const { reportError } = require('../lib/sentry')
 
 // Mesmo fallback usado em server.js/emailService.js/payments.js — sem ele,
@@ -1118,8 +1119,14 @@ router.post('/resend-verification', authMiddleware, verifyEmailLimiter, async (r
 })
 
 // ── GET /auth/export-data ───────────────────────────────
-// LGPD Art. 15: direito de acesso. Retorna todos os dados do usuário em JSON.
+// LGPD Art. 15: direito de acesso. Retorna todos os dados do usuário — JSON (padrão, completo, com a foto) ou,
+// com ?format=csv|pdf, o mesmo conteúdo em planilha / PDF (sem a foto) da tela "Meus dados".
+const EXPORT_FORMATS = ['json', 'csv', 'pdf']
 router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
+  const format = req.query.format === undefined ? 'json' : req.query.format
+  if (typeof format !== 'string' || !EXPORT_FORMATS.includes(format)) {
+    return res.status(400).json({ error: 'Formato inválido. Use json, csv ou pdf.' })
+  }
   try {
     const [user, transactions, budgets, goals, installments, categoryLimits, avatarRow] = await Promise.all([
       prisma.user.findUnique({
@@ -1131,7 +1138,7 @@ router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
       prisma.goal.findMany({ where: { userId: req.userId } }),
       prisma.installmentPlan.findMany({ where: { userId: req.userId } }),
       prisma.categoryLimit.findMany({ where: { userId: req.userId } }),
-      prisma.userAvatar.findUnique({ where: { userId: req.userId }, select: { image: true } }),
+      format === 'json' ? prisma.userAvatar.findUnique({ where: { userId: req.userId }, select: { image: true } }) : null,
     ])
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
@@ -1146,10 +1153,20 @@ router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
       categoryLimits,
     }
 
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.setHeader('Content-Disposition', `attachment; filename="nancy-dados-${new Date().toISOString().slice(0,10)}.json"`)
+    const stamp = new Date().toISOString().slice(0, 10)
+    res.setHeader('Content-Disposition', `attachment; filename="nancy-dados-${stamp}.${format}"`)
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
     res.setHeader('Pragma', 'no-cache')
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+      return res.send(buildCsv(exportData))
+    }
+    if (format === 'pdf') {
+      const pdf = await generateDataPDF(exportData)
+      res.setHeader('Content-Type', 'application/pdf')
+      return res.send(pdf)
+    }
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.json(exportData)
   } catch (err) {
     reportError(err, { tag: '[auth] export-data' })

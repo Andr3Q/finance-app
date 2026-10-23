@@ -1107,6 +1107,108 @@ describe('Foto de perfil — /api/auth/avatar', () => {
 })
 
 // ══════════════════════════════════════════════════════════
+// EXPORTAÇÃO DE DADOS em CSV / PDF (tela "Meus dados") — mesmo conteúdo do JSON da LGPD
+// ══════════════════════════════════════════════════════════
+describe('GET /api/auth/export-data?format=csv|pdf', () => {
+  const get = (q = '') => request(app).get(`/api/auth/export-data${q}`).set('Cookie', `token=${makeToken('user-123')}`)
+    .buffer(true).parse((res, cb) => { const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks))) })
+  const TX = (over = {}) => ({ id: 't1', description: 'Mercado', amount: 123.4, type: 'expense', category: 'food', date: new Date('2026-10-20T15:00:00Z'), archived: false, month: 10, year: 2026, ...over })
+
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ name: 'Ana', email: 'ana@x.com' }))
+    prisma.transaction.findMany.mockResolvedValue([TX()])
+    prisma.goal.findMany.mockResolvedValue([{ title: 'Viagem', targetAmount: 5000, currentAmount: 1250.5, deadline: new Date('2027-01-10T15:00:00Z'), createdAt: new Date('2026-05-01T15:00:00Z') }])
+    prisma.budget.findMany.mockResolvedValue([{ name: 'Aluguel', amount: 1800, dueDay: 5, endDate: null }])
+    prisma.installmentPlan.findMany.mockResolvedValue([{ name: 'Celular', amount: 250, paidInstallments: 3, totalInstallments: 12, startMonth: 8, startYear: 2026 }])
+    prisma.categoryLimit.findMany.mockResolvedValue([{ category: 'food', amount: 900 }])
+  })
+
+  test('CSV: BOM, ";" e vírgula decimal, uma seção por tipo de dado, anexo .csv', async () => {
+    const res = await get('?format=csv')
+    expect(res.status).toBe(200)
+    expect(res.headers['content-type']).toMatch(/^text\/csv/)
+    expect(res.headers['content-disposition']).toMatch(/^attachment; filename="nancy-dados-\d{4}-\d{2}-\d{2}\.csv"$/)
+    expect(res.headers['cache-control']).toMatch(/no-store/)
+    const csv = res.body.toString('utf8')
+    expect(csv.charCodeAt(0)).toBe(0xFEFF)
+    const lines = csv.slice(1).split('\r\n')
+    expect(lines).toContain('Transações')
+    expect(lines).toContain('Data;Descrição;Categoria;Tipo;Valor (R$);Mês fechado')
+    expect(lines).toContain('20/10/2026;Mercado;Alimentação;Gasto;123,40;Não')
+    expect(lines).toContain('Viagem;5000,00;1250,50;10/01/2027;01/05/2026')
+    expect(lines).toContain('Aluguel;1800,00;5;')
+    expect(lines).toContain('Celular;250,00;3;12;08/2026')
+    expect(lines).toContain('Alimentação;900,00')
+    expect(lines).toContain('Conta;Ana;ana@x.com')
+  })
+
+  test('CSV: descrição com ; aspas e quebra de linha vira uma célula entre aspas, sem quebrar as colunas', async () => {
+    prisma.transaction.findMany.mockResolvedValue([TX({ description: 'Bar "do Zé"; 2 chopes\nconta' })])
+    const csv = (await get('?format=csv')).body.toString('utf8')
+    expect(csv).toContain('20/10/2026;"Bar ""do Zé""; 2 chopes\nconta";Alimentação;Gasto;123,40;Não')
+  })
+
+  test('CSV: texto que começa com = + - @ ganha apóstrofo (não vira fórmula na planilha); números não', async () => {
+    prisma.transaction.findMany.mockResolvedValue([
+      TX({ description: '=HYPERLINK("http://x.test","a")' }), TX({ id: 't2', description: '+55 11 9999' }),
+      TX({ id: 't3', description: '-cmd' }), TX({ id: 't4', description: '@SOMA(A1)' }), TX({ id: 't5', description: 'normal', amount: -5 }),
+    ])
+    prisma.goal.findMany.mockResolvedValue([{ title: '=1+1', targetAmount: 10, currentAmount: 0, deadline: null, createdAt: new Date('2026-05-01T15:00:00Z') }])
+    const lines = (await get('?format=csv')).body.toString('utf8').split('\r\n')
+    expect(lines).toContain('20/10/2026;"\'=HYPERLINK(""http://x.test"",""a"")";Alimentação;Gasto;123,40;Não')
+    expect(lines).toContain("20/10/2026;'+55 11 9999;Alimentação;Gasto;123,40;Não")
+    expect(lines).toContain("20/10/2026;'-cmd;Alimentação;Gasto;123,40;Não")
+    expect(lines).toContain("20/10/2026;'@SOMA(A1);Alimentação;Gasto;123,40;Não")
+    expect(lines).toContain('20/10/2026;normal;Alimentação;Gasto;-5,00;Não')
+    expect(lines).toContain("'=1+1;10,00;0,00;;01/05/2026")
+  })
+
+  test('CSV sem dados: cada seção avisa que não há nada registrado', async () => {
+    prisma.transaction.findMany.mockResolvedValue([]); prisma.goal.findMany.mockResolvedValue([])
+    prisma.budget.findMany.mockResolvedValue([]); prisma.installmentPlan.findMany.mockResolvedValue([]); prisma.categoryLimit.findMany.mockResolvedValue([])
+    const lines = (await get('?format=csv')).body.toString('utf8').split('\r\n')
+    expect(lines.filter(l => l === '(nada registrado)')).toHaveLength(5)
+  })
+
+  test('PDF: arquivo PDF de verdade, anexo .pdf, e a lista enorme não derruba a geração', async () => {
+    prisma.transaction.findMany.mockResolvedValue(Array.from({ length: 2100 }, (_, i) => TX({ id: `t${i}`, description: `Compra ${i} 😀` })))
+    const res = await get('?format=pdf')
+    expect(res.status).toBe(200)
+    expect(res.headers['content-type']).toBe('application/pdf')
+    expect(res.headers['content-disposition']).toMatch(/\.pdf"$/)
+    expect(res.body.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(res.body.length).toBeGreaterThan(1000)
+  })
+
+  test('CSV e PDF não carregam a foto do perfil; JSON (padrão e explícito) continua completo com a foto', async () => {
+    await get('?format=csv'); await get('?format=pdf')
+    expect(prisma.userAvatar.findUnique).not.toHaveBeenCalled()
+    prisma.userAvatar.findUnique.mockResolvedValue({ image: 'data:image/jpeg;base64,AAAA' })
+    for (const q of ['', '?format=json']) {
+      const res = await request(app).get(`/api/auth/export-data${q}`).set('Cookie', `token=${makeToken('user-123')}`)
+      expect(res.status).toBe(200)
+      expect(res.headers['content-type']).toMatch(/^application\/json/)
+      expect(res.body.profile.avatar).toBe('data:image/jpeg;base64,AAAA')
+      expect(res.body.transactions).toHaveLength(1)
+    }
+  })
+
+  test('formato desconhecido ou repetido é recusado antes de buscar qualquer dado', async () => {
+    for (const q of ['?format=xml', '?format=', '?format=csv&format=pdf', '?format[a]=1', '?format=CSV']) {
+      const res = await request(app).get(`/api/auth/export-data${q}`).set('Cookie', `token=${makeToken('user-123')}`)
+      expect(res.status).toBe(400)
+    }
+    expect(prisma.transaction.findMany).not.toHaveBeenCalled()
+  })
+
+  test('sem login: 401; usuário que não existe mais: 404', async () => {
+    expect((await request(app).get('/api/auth/export-data?format=csv')).status).toBe(401)
+    prisma.user.findUnique.mockResolvedValueOnce(mockUser()).mockResolvedValueOnce(null)
+    expect((await get('?format=csv')).status).toBe(404)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
 // TROCA DE E-MAIL (login) — 2 passos: pedir (com senha) + confirmar (token
 // enviado pro e-mail NOVO). Regressão do bug onde PUT /profile recebia
 // `email` do frontend mas nunca aplicava (só lia name/reportEmail do body).
