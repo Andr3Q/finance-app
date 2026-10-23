@@ -11947,3 +11947,35 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .pl-modal-text strong { color: var(--t1); }
 .pl-modal-mail { margin: 14px 0 6px; padding: 10px 14px; border-radius: 12px; background: #FFF6E5; color: #7A5413; font-size: 12px; }
 .pl-modal .pl-cta { margin-top: 14px; }
+
+/* ═══════════════════════════════════════════════════════
+   pg-* — Pagamentos (Nancy 2, tela 30): cartão do plano atual (ícone verde, "Válido até", último valor), histórico
+   com uma linha por cobrança e o botão vazado de cancelar assinatura.
+   ═══════════════════════════════════════════════════════ */
+.pg-plan { display: flex; align-items: center; gap: 14px; margin-bottom: 13px; }
+.pg-plan-ico { width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.pg-plan-ico.paid { background: #19C884; color: #fff; }
+.pg-plan-text { flex: 1; min-width: 0; }
+.pg-plan-title { margin: 0; font-size: 16px; line-height: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.pg-plan-sub { margin: 2px 0 0; font-size: 12px; line-height: 19px; color: var(--t2); }
+.pg-plan-sub.warn { color: #B67824; }
+.pg-plan-amt { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 700; color: var(--t1); white-space: nowrap; }
+.pg-plans-link { flex-shrink: 0; border: none; background: none; padding: 0; font-family: inherit; font-size: 13px; font-weight: 600; color: #1C48FF; cursor: pointer; }
+.pg-hist-title { margin: 0; font-size: 16px; line-height: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.pg-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.pg-row { display: flex; align-items: center; gap: 13px; padding: 13px 0; border-top: 1px solid var(--bdbd); }
+.pg-row-ico { width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.pg-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pg-row-date { font-size: 14px; font-weight: 600; line-height: 19px; letter-spacing: -.01em; color: var(--t1); }
+.pg-row-sub { font-size: 12px; line-height: 16px; color: var(--t2); }
+.pg-row-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.pg-row-amt { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-size: 14.5px; font-weight: 700; line-height: 19px; color: var(--t1); white-space: nowrap; }
+.pg-row-ok { font-size: 11px; font-weight: 600; line-height: 16px; color: #117953; }
+.pg-state { margin: 10px 0 0; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--t2); display: flex; justify-content: center; }
+.pg-cancel {
+  width: 100%; height: 53px; border: 1px solid #F3C4C9; border-radius: 18px; background: #fff; color: #D64545; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 500;
+}
+.pg-cancel:hover { background: #FFF5F6; }
+.pg-cancel:focus-visible { outline: 2px solid #D64545; outline-offset: 2px; }
+.pg-cancelled { padding: 14px 16px; border-radius: 18px; background: #FFF6E5; border: 1px solid #F6DDA8; color: #7A5413; font-size: 12.5px; line-height: 1.5; }

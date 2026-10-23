@@ -242,6 +242,36 @@ describe('POST /api/payments/webhook', () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(1)
   })
 
+  describe('detalhes do pagamento guardados (tela Pagamentos)', () => {
+    const run = async (extra) => {
+      mockPaymentGet({ ...VALID_PAYMENT, ...extra })
+      const create = jest.fn().mockResolvedValue({})
+      prisma.$transaction.mockImplementation(async (fn) => fn({
+        processedPayment: { create },
+        user: { findUnique: jest.fn().mockResolvedValueOnce({ planExpiresAt: null }).mockResolvedValueOnce({ email: 'u@t.com', name: 'U', planExpiresAt: new Date(Date.now() + 31 * 24 * 3600 * 1000) }), updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      }))
+      await signedWebhookPost()
+      await flushAsync()
+      return create.mock.calls[0][0].data
+    }
+
+    test('cartão: guarda valor, forma e os 4 últimos dígitos', async () => {
+      expect(await run({ payment_type_id: 'credit_card', payment_method_id: 'visa', card: { last_four_digits: '4021' } }))
+        .toMatchObject({ paymentId: 'pay_123', plan: 'pro', period: 'monthly', amount: 9.9, method: 'card', cardLast4: '4021' })
+    })
+
+    test('PIX: forma "pix", sem final de cartão', async () => {
+      expect(await run({ payment_type_id: 'bank_transfer', payment_method_id: 'pix', card: { last_four_digits: '4021' } }))
+        .toMatchObject({ method: 'pix', cardLast4: null })
+    })
+
+    test('forma desconhecida ou final fora do formato: nada é guardado além do valor (nunca o número do cartão)', async () => {
+      expect(await run({ payment_type_id: 'ticket', payment_method_id: 'bolbradesco' })).toMatchObject({ amount: 9.9, method: null, cardLast4: null })
+      expect(await run({ payment_type_id: 'credit_card', card: { last_four_digits: '4111111111111111' } })).toMatchObject({ method: 'card', cardLast4: null })
+      expect(await run({ payment_type_id: 'debit_card', card: {} })).toMatchObject({ method: 'card', cardLast4: null })
+    })
+  })
+
   test('envia e-mail de ativação após aprovação', async () => {
     mockPaymentGet()
     const user = mockTransaction()
@@ -519,6 +549,25 @@ describe('GET /api/payments/history', () => {
     expect(res.body).toHaveLength(2)
     expect(res.body[0]).toMatchObject({ paymentId: 'p1', plan: 'pro', period: 'monthly' })
     expect(res.body[1]).toMatchObject({ paymentId: 'p2', plan: 'elite', period: 'annual' })
+  })
+
+  test('devolve valor, forma e final do cartão; pagamentos antigos (sem esses dados) usam o preço de tabela e omitem forma/cartão', async () => {
+    prisma.processedPayment.findMany.mockResolvedValue([
+      { paymentId: 'p1', plan: 'elite', period: 'monthly', processedAt: new Date('2026-10-20'), amount: '34.90', method: 'card', cardLast4: '4021' },
+      { paymentId: 'p2', plan: 'pro',   period: 'annual',  processedAt: new Date('2026-07-20'), amount: null, method: null, cardLast4: null },
+      { paymentId: 'p3', plan: 'elite', period: 'annual',  processedAt: new Date('2026-06-20'), amount: 334.8, method: 'pix', cardLast4: null },
+    ])
+    const res = await request(app).get(ENDPOINT).set('Authorization', `Bearer ${makeToken()}`)
+    expect(res.status).toBe(200)
+    expect(res.body[0]).toMatchObject({ amount: 34.9, method: 'card', cardLast4: '4021' })
+    expect(res.body[1]).toMatchObject({ amount: 99, method: null, cardLast4: null })
+    expect(res.body[2]).toMatchObject({ amount: 334.8, method: 'pix', cardLast4: null })
+  })
+
+  test('só expõe os campos combinados (nada de userId nem id interno)', async () => {
+    prisma.processedPayment.findMany.mockResolvedValue([{ paymentId: 'p1', plan: 'pro', period: 'monthly', processedAt: new Date(), userId: 'x', id: 'y', amount: null, method: null, cardLast4: null }])
+    const res = await request(app).get(ENDPOINT).set('Authorization', `Bearer ${makeToken()}`)
+    expect(Object.keys(res.body[0]).sort()).toEqual(['amount', 'cardLast4', 'method', 'paymentId', 'period', 'plan', 'processedAt'])
   })
 
   test('filtra por userId do token (não expõe dados de outros usuários)', async () => {

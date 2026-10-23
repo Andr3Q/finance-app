@@ -53,50 +53,15 @@ export default function CancelPlanCard({ onMessage }) {
 
   return (
     <>
-      <div className="cfg-card">
-        <div className="cfg-card-head">
-          <div className="cfg-ch-ico">
-            {isCancelledWithAccess ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/>
-                <line x1="9" y1="9" x2="15" y2="15"/>
-              </svg>
-            )}
-          </div>
-          <div style={{ flex:1 }}>
-            {isCancelledWithAccess ? (
-              <>
-                <div className="cfg-ch-title">Assinatura cancelada</div>
-                <div className="cfg-ch-sub" style={{ color:'#f59e0b' }}>
-                  Acesso premium garantido até {expiryFormatted}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="cfg-ch-title">Cancelar plano {planLabel}</div>
-                <div className="cfg-ch-sub">Cancela a renovação automática; acesso premium mantido até o fim do período pago.</div>
-              </>
-            )}
-          </div>
+      {isCancelledWithAccess ? (
+        <div className="pg-cancelled" role="status">
+          <strong>Assinatura cancelada.</strong> Acesso premium garantido até {expiryFormatted}.
         </div>
-        {!isCancelledWithAccess && (
-          <div className="cfg-card-body" style={{ paddingTop: 0 }}>
-            <button
-              className="cfg-btn-danger"
-              onClick={openModal}
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              Cancelar plano
-            </button>
-          </div>
-        )}
-      </div>
+      ) : (
+        <button type="button" className="pg-cancel" onClick={openModal}>
+          Cancelar assinatura
+        </button>
+      )}
 
       {modal && createPortal(
         <div className="gls-modal-overlay" onClick={closeModal}>

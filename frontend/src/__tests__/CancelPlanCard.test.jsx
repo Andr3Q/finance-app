@@ -45,27 +45,27 @@ describe('CancelPlanCard — visibilidade', () => {
 
   it('renderiza para usuário Pro pago', () => {
     setup({ plan: 'pro', isOnTrial: false })
-    expect(screen.getByText(/cancelar plano pro/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar assinatura' })).toBeInTheDocument()
   })
 
   it('renderiza para usuário Elite pago', () => {
     setup({ plan: 'elite', isOnTrial: false })
-    expect(screen.getByText(/cancelar plano elite/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar assinatura' })).toBeInTheDocument()
   })
 })
 
 // ── Modal de confirmação ─────────────────────────────────────────
 
 describe('CancelPlanCard — modal de confirmação', () => {
-  it('abre o modal ao clicar em "Cancelar plano"', () => {
+  it('abre o modal ao clicar em "Cancelar assinatura"', () => {
     setup()
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     expect(screen.getByText(/confirmar cancelamento/i)).toBeInTheDocument()
   })
 
   it('fecha o modal ao clicar em "Voltar"', () => {
     setup()
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     fireEvent.click(screen.getByRole('button', { name: /voltar/i }))
     expect(screen.queryByText(/confirmar cancelamento/i)).not.toBeInTheDocument()
   })
@@ -81,7 +81,7 @@ describe('CancelPlanCard — cancelamento', () => {
   it('chama authAPI.downgradeFree ao confirmar', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
     const { onMessage } = setup()
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => expect(authAPI.downgradeFree).toHaveBeenCalledTimes(1))
@@ -89,14 +89,14 @@ describe('CancelPlanCard — cancelamento', () => {
 
   it('botão de confirmar fica desabilitado com senha vazia', () => {
     setup()
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     expect(screen.getByRole('button', { name: /sim, cancelar plano/i })).toBeDisabled()
   })
 
   it('marca subscriptionCancelled no sessionStorage após cancelamento (mantém plano para acesso)', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
     setup({ plan: 'pro' })
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
@@ -109,7 +109,7 @@ describe('CancelPlanCard — cancelamento', () => {
   it('dispara analytics.track("plan_cancelled") após cancelamento', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
     setup({ plan: 'pro' })
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
@@ -120,7 +120,7 @@ describe('CancelPlanCard — cancelamento', () => {
   it('chama onMessage informando que acesso premium continua até o fim do período', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
     const { onMessage } = setup()
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
@@ -144,7 +144,7 @@ describe('CancelPlanCard — cancelamento', () => {
 
     expect(screen.getByTestId('salary-probe').textContent).toBe('5000')
 
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
 
@@ -157,7 +157,7 @@ describe('CancelPlanCard — cancelamento', () => {
       response: { data: { error: 'Erro interno' } },
     })
     const { onMessage } = setup()
-    fireEvent.click(screen.getByRole('button', { name: /cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
     fillPassword()
     fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
     await waitFor(() => {
@@ -165,3 +165,12 @@ describe('CancelPlanCard — cancelamento', () => {
     })
   })
 })
+
+describe('CancelPlanCard — assinatura já cancelada', () => {
+  it('com acesso até uma data futura: mostra o aviso e esconde o botão de cancelar', () => {
+    setup({ plan: 'pro', isOnTrial: false, subscriptionCancelled: true, planExpiresAt: new Date(Date.now() + 5 * 86400000).toISOString() })
+    expect(screen.getByRole('status')).toHaveTextContent(/assinatura cancelada\. acesso premium garantido até/i)
+    expect(screen.queryByRole('button', { name: 'Cancelar assinatura' })).not.toBeInTheDocument()
+  })
+})
+

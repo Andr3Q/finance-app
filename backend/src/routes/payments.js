@@ -44,6 +44,21 @@ const PRICES = {
   elite: { monthly: 34.90, annual: 334.80 },
 }
 
+// O que guardar do pagamento aprovado para a tela "Pagamentos": valor, forma e final do cartão. Só valores conhecidos
+// e no formato esperado (forma 'card'/'pix'; final = exatamente 4 dígitos) — qualquer outra coisa vira null.
+function paymentDetails(payment) {
+  const type   = payment.payment_type_id
+  const method = payment.payment_method_id === 'pix' ? 'pix'
+    : ['credit_card', 'debit_card', 'prepaid_card'].includes(type) ? 'card'
+    : null
+  const last4 = payment.card?.last_four_digits
+  return {
+    amount:    typeof payment.transaction_amount === 'number' ? payment.transaction_amount : null,
+    method,
+    cardLast4: method === 'card' && /^\d{4}$/.test(String(last4 ?? '')) ? String(last4) : null,
+  }
+}
+
 const TITLES = {
   pro:   { monthly: 'Nancy Pro — Mensal',  annual: 'Nancy Pro — Anual'  },
   elite: { monthly: 'Nancy Elite — Mensal', annual: 'Nancy Elite — Anual' },
@@ -186,7 +201,7 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
     try {
       activatedUser = await prisma.$transaction(async (tx) => {
         await tx.processedPayment.create({
-          data: { paymentId: String(dataId), userId, plan, period },
+          data: { paymentId: String(dataId), userId, plan, period, ...paymentDetails(payment) },
         })
 
         // A-03: acumula dias restantes — renovação antecipada não perde dias já pagos.
@@ -239,9 +254,16 @@ router.get('/history', authMiddleware, async (req, res) => {
       where:   { userId: req.userId },
       orderBy: { processedAt: 'desc' },
       take:    20,
-      select:  { paymentId: true, plan: true, period: true, processedAt: true },
+      select:  { paymentId: true, plan: true, period: true, processedAt: true, amount: true, method: true, cardLast4: true },
     })
-    res.json(payments)
+    // Valor: o que foi guardado no webhook; nos pagamentos antigos (sem valor guardado) é o preço de tabela do plano
+    // — o webhook só aprova pagamento com exatamente esse valor, então bate.
+    res.json(payments.map(p => ({
+      paymentId: p.paymentId, plan: p.plan, period: p.period, processedAt: p.processedAt,
+      amount:    p.amount != null ? Number(p.amount) : (PRICES[p.plan]?.[p.period] ?? null),
+      method:    p.method ?? null,
+      cardLast4: p.cardLast4 ?? null,
+    })))
   } catch {
     res.status(500).json({ error: 'Erro ao buscar histórico de pagamentos.' })
   }

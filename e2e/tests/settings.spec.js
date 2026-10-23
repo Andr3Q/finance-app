@@ -117,47 +117,50 @@ test.describe('Configurações — Alterar senha', () => {
 })
 
 test.describe('Configurações — Cancelar plano', () => {
-  test('card "Cancelar plano Pro" visível para usuário Pro pago', async ({ page }) => {
+  test('botão "Cancelar assinatura" visível para usuário Pro pago', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await expect(page.getByText(/cancelar plano pro/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancelar assinatura' })).toBeVisible()
   })
 
-  test('card "Cancelar plano" NÃO aparece para usuário Free', async ({ page }) => {
+  test('botão de cancelar NÃO aparece para usuário Free', async ({ page }) => {
     await setupSettings(page, FREE_USER)
     await page.goto('/settings/pagamentos')
-    await expect(page.getByText(/cancelar plano/i)).not.toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Plano Grátis' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cancelar assinatura' })).toHaveCount(0)
   })
 
-  test('abre modal de confirmação ao clicar em "Cancelar plano"', async ({ page }) => {
+  test('abre modal de confirmação ao clicar em "Cancelar assinatura"', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: /cancelar plano/i }).click()
+    await page.getByRole('button', { name: 'Cancelar assinatura' }).click()
     await expect(page.getByText(/confirmar cancelamento/i)).toBeVisible()
   })
 
   test('fecha modal ao clicar em "Voltar"', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: /cancelar plano/i }).click()
-    // exact:true evita colidir com o link "Voltar para Mais" da casca da subtela
-    await page.getByRole('button', { name: 'Voltar', exact: true }).click()
+    await page.getByRole('button', { name: 'Cancelar assinatura' }).click()
+    // dentro do modal: o "Voltar" do cabeçalho da tela é outro botão
+    await page.locator('.gls-modal').getByRole('button', { name: 'Voltar', exact: true }).click()
     await expect(page.getByText(/confirmar cancelamento/i)).not.toBeVisible()
   })
 
-  test('cancela plano com sucesso e exibe toast', async ({ page }) => {
-    await setupSettings(page, { ...TEST_USER, isOnTrial: false })
+  test('cancela plano com sucesso e troca o botão pelo aviso de acesso garantido', async ({ page }) => {
+    await setupSettings(page, { ...TEST_USER, isOnTrial: false, planExpiresAt: '2030-01-20T15:00:00Z' })
     page.route('**/api/auth/downgrade**', (route) => {
       if (route.request().method() !== 'POST') return route.continue()
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: 'Plano cancelado.' }) })
     })
 
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: /cancelar plano/i }).click()
+    await page.getByRole('button', { name: 'Cancelar assinatura' }).click()
     await page.getByPlaceholder('Sua senha atual').fill('minhasenha')
     await page.getByRole('button', { name: /sim, cancelar/i }).click()
 
-    await expect(page.getByText(/assinatura cancelada/i)).toBeVisible()
+    await expect(page.locator('.toast')).toContainText('Assinatura cancelada.')
+    await expect(page.locator('.pg-cancelled')).toContainText('Acesso premium garantido até')
+    await expect(page.getByRole('button', { name: 'Cancelar assinatura' })).toHaveCount(0)
   })
 })
 
@@ -195,22 +198,61 @@ test.describe('Configurações — Fechar mês (Balanço mensal)', () => {
 })
 
 test.describe('Configurações — Histórico de pagamentos', () => {
-  test('exibe histórico para Pro com pagamentos anteriores', async ({ page }) => {
+  const PAYMENTS = [
+    { paymentId: 'pay_4', plan: 'elite', period: 'monthly', processedAt: '2026-10-20T15:00:00Z', amount: 34.9, method: 'card', cardLast4: '4021' },
+    { paymentId: 'pay_3', plan: 'elite', period: 'monthly', processedAt: '2026-09-20T15:00:00Z', amount: 34.9, method: 'card', cardLast4: '4021' },
+    { paymentId: 'pay_2', plan: 'elite', period: 'monthly', processedAt: '2026-08-20T15:00:00Z', amount: 34.9, method: 'pix', cardLast4: null },
+    { paymentId: 'pay_1', plan: 'pro',   period: 'monthly', processedAt: '2026-07-20T15:00:00Z', amount: 9.9,  method: null, cardLast4: null },
+  ]
+
+  test('layout do design: cartão do plano com o último valor e o histórico com uma linha por pagamento', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-10-21T15:00:00Z'))
+    await page.setViewportSize({ width: 393, height: 852 })
+    await setupSettings(page, { ...TEST_USER, plan: 'elite', planExpiresAt: '2026-11-20T15:00:00Z' })
+    page.route('**/api/payments/history**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PAYMENTS) }))
+    await page.goto('/settings/pagamentos')
+    await expect(page.locator('.fin-hero-sub')).toHaveText('Histórico e cancelamento')
+    await expect(page.locator('.pg-plan-title')).toHaveText('Plano Elite')
+    await expect(page.locator('.pg-plan-sub')).toHaveText('Válido até 20 nov 2026 · cartão •••• 4021')
+    await expect(page.locator('.pg-plan-amt')).toHaveText('R$ 34,90')
+    await expect(page.locator('.pg-row-date')).toHaveText(['20 out 2026', '20 set 2026', '20 ago 2026', '20 jul 2026'])
+    await expect(page.locator('.pg-row-sub')).toHaveText(['Elite · cartão', 'Elite · cartão', 'Elite · PIX', 'Pro · mensal'])
+    await expect(page.locator('.pg-row-amt')).toHaveText(['R$ 34,90', 'R$ 34,90', 'R$ 34,90', 'R$ 9,90'])
+    await expect(page.locator('.pg-row-ok')).toHaveCount(4)
+    await expect(page.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Perfil')
+    const m = await page.evaluate(() => {
+      const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.left), Math.round(b.width), Math.round(b.height)] }
+      const cs = (s) => getComputedStyle(document.querySelector(s))
+      return { plan: r('.pg-plan'), hist: r('.pg-hist'), cancel: r('.pg-cancel'), ico: cs('.pg-plan-ico').backgroundColor, cancelColor: cs('.pg-cancel').color, theme: document.documentElement.getAttribute('data-theme') }
+    })
+    expect(m.plan.slice(0, 2)).toEqual([18, 357]) // 393 - 2 × 18 de margem
+    expect(m.hist.slice(0, 2)).toEqual([18, 357])
+    expect(m.cancel).toEqual([18, 357, 53])
+    expect(m.ico).toBe('rgb(25, 200, 132)')
+    expect(m.cancelColor).toBe('rgb(214, 69, 69)')
+    expect(m.theme).toBe('light')
+  })
+
+  test('exibe histórico para Pro com pagamentos anteriores (sem a forma de pagamento, mostra o período)', async ({ page }) => {
     await setupSettings(page)
     page.route('**/api/payments/history**', (route) => {
       route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify([{ paymentId: 'pay_abc123456', plan: 'pro', period: 'monthly', processedAt: new Date('2026-03-15').toISOString() }]),
+        body: JSON.stringify([{ paymentId: 'pay_abc123456', plan: 'pro', period: 'monthly', processedAt: new Date('2026-03-15T15:00:00Z').toISOString(), amount: 9.9 }]),
       })
     })
     await page.goto('/settings/pagamentos')
-    await expect(page.getByText(/histórico de pagamentos/i)).toBeVisible()
-    await expect(page.getByText(/plano pro — mensal/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Histórico' })).toBeVisible()
+    await expect(page.locator('.pg-row-sub')).toHaveText('Pro · mensal')
+    await expect(page.locator('.pg-row-amt')).toHaveText('R$ 9,90')
   })
 
-  test('não exibe card para Free sem pagamentos', async ({ page }) => {
+  test('Free sem pagamentos: sem histórico, só o convite pros planos', async ({ page }) => {
     await setupSettings(page, FREE_USER)
     await page.goto('/settings/pagamentos')
-    await expect(page.getByText(/histórico de pagamentos/i)).not.toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Plano Grátis' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Histórico' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Ver planos' }).click()
+    await expect(page).toHaveURL(/\/planos$/)
   })
 })

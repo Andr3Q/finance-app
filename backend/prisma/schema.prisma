@@ -250,6 +250,11 @@ model ProcessedPayment {
   plan        String
   period      String
   processedAt DateTime @default(now())
+  // Detalhes vindos do webhook do Mercado Pago (nulos nos pagamentos antigos): valor cobrado, forma ('card' | 'pix')
+  // e final do cartão (4 dígitos, nunca o número).
+  amount      Decimal? @db.Decimal(10, 2)
+  method      String?
+  cardLast4   String?
 
   @@index([userId])
   @@map("processed_payments")
