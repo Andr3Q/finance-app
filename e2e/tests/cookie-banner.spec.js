@@ -18,6 +18,12 @@ async function safeArea(page, context) {
   try { await cdp.send('Emulation.setSafeAreaInsetsOverride', { insets: { top: 47, bottom: 34, left: 0, right: 0 } }) } catch { /* sem emulação: o resto do teste vale igual */ }
 }
 // espera a animação de entrada do cartão (desliza 12px) terminar antes de medir, senão a posição vem 12px fora
+// A splash (vídeo de ~4s) cobre a tela a cada carregamento e as telas entram com animação: só mede depois que a splash saiu e as
+// animações finitas terminaram (no CI, mais lento, medir antes dava posições fora do lugar).
+async function ready(page) {
+  await expect(page.locator('#app-splash')).toBeHidden({ timeout: 20000 })
+  await page.evaluate(() => Promise.all(document.getAnimations().filter(a => a.effect && a.effect.getComputedTiming().iterations !== Infinity).map(a => a.finished.catch(() => {}))))
+}
 const box = (page, sel) => page.evaluate(async (s) => {
   const el = document.querySelector(s)
   await Promise.all(el.getAnimations().map(a => a.finished))
@@ -32,6 +38,7 @@ test.describe('Aviso de cookies', () => {
     await page.goto('/')
     const banner = page.getByRole('region', { name: 'Aviso de cookies' })
     await expect(banner).toBeVisible({ timeout: 15000 })
+    await ready(page)
     const style = await page.evaluate(() => { const cs = getComputedStyle(document.querySelector('.ck-banner')); return { bg: cs.backgroundColor, radius: cs.borderTopLeftRadius, pad: getComputedStyle(document.documentElement).getPropertyValue('--ck-pad') } })
     expect(style.bg).toBe('rgb(255, 255, 255)') // antes: transparente (var(--s1) não existe)
     expect(style.radius).toBe('22px')
@@ -44,13 +51,12 @@ test.describe('Aviso de cookies', () => {
     const j = await jaTenho.first().evaluate(e => Math.round(e.getBoundingClientRect().bottom))
     expect(j).toBeLessThanOrEqual(b.top + 1)
 
-    // rolando até o fim, o último texto da página fica acima do cartão (o respiro de baixo existe)
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
-    const last = await page.evaluate(() => {
+    // rolando até o fim (sem a rolagem suave do CSS), o último texto da página fica acima do cartão: o respiro de baixo existe
+    await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }))
+    await expect.poll(() => page.evaluate(() => {
       const els = [...document.querySelectorAll('.lw-page *')].filter(e => e.children.length === 0 && e.textContent.trim())
-      return Math.round(Math.max(...els.map(e => e.getBoundingClientRect().bottom)))
-    })
-    expect(last).toBeLessThanOrEqual((await box(page, '.ck-banner')).top)
+      return Math.round(Math.max(...els.map(e => e.getBoundingClientRect().bottom))) - Math.round(document.querySelector('.ck-banner').getBoundingClientRect().top)
+    })).toBeLessThanOrEqual(0)
   })
 
   test('Aceitar guarda a decisão, tira o aviso e o respiro, e ele não volta ao recarregar; o aviso de instalar o app espera a decisão', async ({ page }) => {
@@ -89,6 +95,7 @@ test.describe('Aviso de cookies', () => {
     await page.goto('/dashboard')
     await expect(page.getByRole('region', { name: 'Aviso de cookies' })).toBeVisible({ timeout: 15000 })
     await expect(page.locator('.dsb-mobile-nav')).toBeVisible()
+    await ready(page)
     const b = await box(page, '.ck-banner'); const n = await box(page, '.dsb-mobile-nav')
     expect(b.bottom).toBeLessThanOrEqual(n.top)
     // o respiro: com o aviso aberto, o padding de baixo da tela é maior que o normal (80px + área segura)
@@ -107,6 +114,7 @@ test.describe('Aviso de cookies', () => {
       await page.route('**/api/auth/me**', r => r.fulfill(json(USER)))
       await page.goto('/dashboard')
       await expect(page.getByRole('region', { name: 'Aviso de cookies' })).toBeVisible({ timeout: 15000 })
+      await ready(page)
       const b = await box(page, '.ck-banner')
       expect(b.width).toBeLessThanOrEqual(560)
       expect(Math.abs((b.left + b.width / 2) - 640)).toBeLessThanOrEqual(1) // centralizado
