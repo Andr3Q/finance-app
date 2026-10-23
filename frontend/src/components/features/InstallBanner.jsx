@@ -95,7 +95,7 @@ export default function InstallBanner() {
   const props = { hasPrompt: hasNativePrompt, installing, platform, isDesktop, onInstall: handleInstall, onClose: handleClose }
 
   return (
-    <div style={isMobile ? posMobile : posDesktop}>
+    <div className="ib-wrap" style={isMobile ? posMobile : posDesktop}>
       <div style={anim}>
         {isMobile ? <MobileBanner {...props} /> : <DesktopBanner {...props} />}
       </div>
