@@ -22,6 +22,7 @@ const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES, TRANSACTION_P
 const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
 const { buildMonthlyRecap, computeMonthMetrics, shiftMonth } = require('../services/monthlyRecap')
+const { buildImportRows, MAX_CSV_ROWS } = require('../utils/csvImport')
 const { HISTORY_DAYS, DAY_MS, computeWeeklyTipStats } = require('../services/weeklyTip')
 
 const router = express.Router()
@@ -663,28 +664,6 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
 // ── POST /transactions/import ───────────────────────────
 // Importa transações de um arquivo CSV (ex: extrato bancário)
 
-// Detecta o separador decimal em vez de assumir sempre pt-BR — um CSV com
-// decimal americano ("1234.56") teria o ponto removido pela lógica antiga
-// e o valor virava 100x maior (123456), silenciosamente, sem erro.
-function parseCsvAmount(raw) {
-  let s = raw.toString().replace('R$', '').trim()
-  const lastComma = s.lastIndexOf(',')
-  const lastDot   = s.lastIndexOf('.')
-
-  if (lastComma === -1 && lastDot === -1) return parseFloat(s)
-
-  if (lastComma > lastDot) {
-    // ',' é o separador mais à direita → decimal pt-BR ("1.234,56"). '.' = milhar.
-    s = s.replace(/\./g, '').replace(',', '.')
-  } else {
-    // '.' é o separador mais à direita (ou único). 3 dígitos após ele = milhar
-    // pt-BR sem decimais ("1.234" → 1234); qualquer outra contagem = decimal ("1234.56").
-    const digitsAfter = s.length - lastDot - 1
-    s = digitsAfter === 3 ? s.replace(/\./g, '') : s.replace(/,/g, '')
-  }
-  return parseFloat(s)
-}
-
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 },
@@ -697,12 +676,23 @@ const upload = multer({
   }
 })
 
-router.post('/import', dashboardLimiter, upload.single('file'), async (req, res) => {
+// Erro do upload (arquivo que não é CSV, grande demais) é erro do CLIENTE: 400 com mensagem clara. Antes caía no handler
+// global e virava 500 "Erro interno do servidor".
+const csvUpload = (req, res, next) => upload.single('file')(req, res, (err) => {
+  if (!err) return next()
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'O arquivo é grande demais (máximo 2 MB).' })
+  return res.status(400).json({ error: 'Envie um arquivo CSV (.csv).' })
+})
+
+router.post('/import', dashboardLimiter, csvUpload, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
     }
 
+    if (req.file.buffer.includes(0)) { // byte nulo: é imagem/PDF/planilha binária, não texto
+      return res.status(400).json({ error: 'O arquivo não parece ser um CSV. Exporte o extrato em CSV (texto) e tente de novo.' })
+    }
     const fileContent  = req.file.buffer.toString('utf-8')
     const now          = new Date()
     const currentMonth = now.getMonth() + 1
@@ -738,48 +728,34 @@ router.post('/import', dashboardLimiter, upload.single('file'), async (req, res)
         columns:          true,
         skip_empty_lines: true,
         delimiter:        [',', ';'],
+        bom:              true, // o CSV que o próprio app exporta começa com BOM; sem isso o 1º cabeçalho ("Data") não é reconhecido
+        relax_column_count: true,
       })
     } catch {
       return res.status(400).json({ error: 'Erro ao processar o arquivo CSV.' })
     }
 
-    const MAX_CSV_ROWS = 500
     if (records.length > MAX_CSV_ROWS) {
       return res.status(400).json({ error: `O arquivo CSV deve ter no máximo ${MAX_CSV_ROWS} transações.` })
     }
 
-    const transactions = []
-    for (const record of records) {
-      if (importLimit !== null && transactions.length >= importLimit) break
-
-      const description = (
-        record['Descrição'] || record['Historico'] || record['description'] ||
-        record['HISTÓRICO'] || record['Detalhes'] || 'Importação'
-      )
-      const amountRaw = record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0'
-      const amount    = parseCsvAmount(amountRaw)
-
-      if (!isNaN(amount) && amount !== 0 && Math.abs(amount) <= MAX_AMOUNT) {
-        transactions.push({
-          description: String(description).replace(/[\x00-\x1F\x7F]/g, ' ').trim().substring(0, 255) || 'Importação',
-          amount:      Math.abs(amount),
-          type:        amount > 0 ? 'income' : 'expense',
-          category:    'other',
-          month:       currentMonth,
-          year:        currentYear,
-          userId:      req.userId,
-        })
-      }
+    const { rows, skipped, hasAmountColumn } = buildImportRows(records, { now, limit: importLimit })
+    if (!hasAmountColumn) {
+      return res.status(400).json({ error: 'Não encontrei a coluna de valor no arquivo. Use o CSV exportado pelo Nancy ou um extrato com uma coluna "Valor".' })
     }
+    const transactions = rows.map(r => ({ ...r, userId: req.userId }))
 
     if (transactions.length === 0) {
       return res.status(400).json({ error: 'Nenhuma transação válida encontrada no arquivo.' })
     }
 
     await prisma.transaction.createMany({ data: transactions })
+    const n = transactions.length
+    const ignoradas = skipped > 0 ? ` ${skipped} ${skipped === 1 ? 'linha foi ignorada' : 'linhas foram ignoradas'} (valor ou data inválidos).` : ''
     res.json({
-      message: `✅ ${transactions.length} transações importadas com sucesso!`,
-      count:   transactions.length,
+      message: `${n === 1 ? '1 transação importada' : `${n} transações importadas`} com sucesso.${ignoradas}`,
+      count:   n,
+      skipped,
     })
 
   } catch (error) {

@@ -17,7 +17,7 @@ permissions:
 jobs:
   digest:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - name: Disparar o resumo semanal
         env:
@@ -30,15 +30,26 @@ jobs:
             URL="https://finance-app-1042158013294.southamerica-east1.run.app/api/cron/weekly-digest"
           fi
 
-          RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 600 \
-            -X POST "$URL" \
-            -H "x-cron-secret: $CRON_SECRET")
+          # Cada chamada tem um orçamento de ~4 min (o Cloud Run corta a requisição em 300s) e devolve "done": false quando ainda
+          # há gente na fila — chama de novo até terminar (quem já recebeu não entra de novo). Falha em série (cota da Resend,
+          # chave inválida) também devolve done=false: depois de 10 chamadas o workflow falha e o GitHub avisa.
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 330 \
+              -X POST "$URL" \
+              -H "x-cron-secret: $CRON_SECRET")
 
-          echo "HTTP status: $RESPONSE"
-          cat /tmp/response.json
-          echo
+            echo "Chamada $i — HTTP status: $STATUS"
+            cat /tmp/response.json
+            echo
 
-          if [ "$RESPONSE" != "200" ]; then
-            echo "Falha no resumo semanal: status $RESPONSE"
-            exit 1
-          fi
+            if [ "$STATUS" != "200" ]; then
+              echo "Falha no resumo semanal: status $STATUS"
+              exit 1
+            fi
+            if [ "$(jq -r '.done' /tmp/response.json)" = "true" ]; then
+              echo "Resumo semanal concluído."
+              exit 0
+            fi
+          done
+          echo "O resumo semanal não terminou depois de 10 chamadas (fila grande demais ou falha em série)."
+          exit 1

@@ -360,6 +360,99 @@ describe('POST /api/transactions/import', () => {
   })
 })
 
+describe('POST /api/transactions/import — formatos e erros', () => {
+  const post = (buf, name = 'extrato.csv', type) => {
+    const r = request(app).post('/api/transactions/import').set(authHeader())
+    return type ? r.attach('file', buf, { filename: name, contentType: type }) : r.attach('file', buf, name)
+  }
+  const created = () => prisma.transaction.createMany.mock.calls.at(-1)[0].data
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', _count: { transactions: 0 } }))
+    prisma.transaction.createMany.mockResolvedValue({ count: 1 })
+  })
+
+  test('o CSV que o próprio app exporta (BOM, cabeçalhos em português, dd/mm/aaaa, valor negativo) é aceito de volta', async () => {
+    const csv = '﻿Data,Descrição,Categoria,Tipo,Valor (R$)\r\n"10/01/2026","Dividendos","Entrada Extra","Entrada","1800,00"\r\n"12/01/2026","Conta de luz","Contas fixas","Saída","-380,00"\r\n'
+    const res = await post(Buffer.from(csv, 'utf8'), 'transacoes-2026-01.csv')
+    expect(res.status).toBe(200)
+    expect(res.body.message).toBe('2 transações importadas com sucesso.')
+    expect(created().map(t => [t.description, t.amount, t.type, t.category, t.month, t.year, t.userId])).toEqual([
+      ['Dividendos', 1800, 'income', 'income', 1, 2026, 'user-123'],
+      ['Conta de luz', 380, 'expense', 'fixed', 1, 2026, 'user-123'],
+    ])
+    expect(created()[0].date.toISOString()).toBe('2026-01-10T03:00:00.000Z')
+  })
+
+  test('respeita o tipo e a data do arquivo (antes: despesa virava entrada e a data virava "hoje")', async () => {
+    const res = await post(Buffer.from('date,description,category,type,amount\n2026-01-22,Cafe QA Import,food,expense,12.34\n'))
+    expect(res.status).toBe(200)
+    expect(res.body.message).toBe('1 transação importada com sucesso.')
+    expect(created()[0]).toMatchObject({ description: 'Cafe QA Import', amount: 12.34, type: 'expense', category: 'food', month: 1, year: 2026 })
+    expect(created()[0].date.toISOString()).toBe('2026-01-22T03:00:00.000Z')
+  })
+
+  test('sem coluna de data, entra no mês atual (extrato de banco só com descrição e valor)', async () => {
+    const res = await post(Buffer.from('Histórico;Valor\nMercado;-50,00\n'))
+    expect(res.status).toBe(200)
+    const now = new Date()
+    expect(created()[0]).toMatchObject({ type: 'expense', category: 'other', month: now.getMonth() + 1, year: now.getFullYear() })
+  })
+
+  test('linhas com data inválida ou futura são ignoradas e a resposta avisa quantas', async () => {
+    const res = await post(Buffer.from('date,description,amount\n2026-01-10,ok,10\n31/02/2026,data ruim,10\n2031-01-01,futuro,10\n'))
+    expect(res.status).toBe(200)
+    expect(created()).toHaveLength(1)
+    expect(res.body.skipped).toBe(2)
+    expect(res.body.message).toBe('1 transação importada com sucesso. 2 linhas foram ignoradas (valor ou data inválidos).')
+  })
+
+  test('se nenhuma linha vale, 400 com a mensagem de sempre', async () => {
+    const res = await post(Buffer.from('date,description,amount\n31/02/2026,ruim,10\n'))
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Nenhuma transação válida encontrada no arquivo.')
+    expect(prisma.transaction.createMany).not.toHaveBeenCalled()
+  })
+
+  test('arquivo que não é CSV (imagem) volta 400 com mensagem clara — antes era 500 "Erro interno do servidor"', async () => {
+    const res = await post(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01]), 'foto.png', 'image/png')
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('Envie um arquivo CSV (.csv).')
+  })
+
+  test('arquivo binário com nome .csv também é recusado (byte nulo), sem tentar processar', async () => {
+    const res = await post(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00, 0x08, 0x00]), 'planilha.csv')
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/não parece ser um CSV/)
+    expect(prisma.transaction.createMany).not.toHaveBeenCalled()
+  })
+
+  test('arquivo maior que 2 MB: 400 explicando o limite', async () => {
+    const res = await post(Buffer.alloc(2 * 1024 * 1024 + 10, 'a'), 'grande.csv')
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/máximo 2 MB/)
+  })
+
+  test('sem coluna de valor: 400 dizendo o que falta', async () => {
+    const res = await post(Buffer.from('foo,bar\nx,y\n'))
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/coluna de valor/)
+  })
+
+  test('mais de 500 linhas: 400', async () => {
+    const csv = 'description,amount\n' + Array.from({ length: 501 }, (_, i) => `l${i},1`).join('\n')
+    const res = await post(Buffer.from(csv))
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/no máximo 500/)
+  })
+
+  test('plano Grátis: importa só até o limite do mês (19 de 20 já usados → 1 linha)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free', _count: { transactions: 19 } }))
+    const res = await request(app).post('/api/transactions/import').set(authHeader()).attach('file', Buffer.from('description,amount\na,1\nb,2\nc,3\n'), 'x.csv')
+    expect(res.status).toBe(200)
+    expect(created()).toHaveLength(1)
+  })
+})
+
 // ══════════════════════════════════════════════════════════
 // AUTO-LANÇAMENTO DE CONTAS FIXAS — pula as já pagas individualmente
 // ══════════════════════════════════════════════════════════
