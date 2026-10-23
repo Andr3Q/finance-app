@@ -12055,3 +12055,10 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .lg-foot .lg-link { color: inherit; text-decoration: underline; }
 .lg-box .lg-p { margin: 0 0 4px; }
 .lg-box .lg-p:last-child { margin-bottom: 0; }
+
+/* ── Erro 404 (Nancy 2, tela 36) ── */
+.nf-body { display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 69px; }
+.nf-code { font-family: var(--fd); font-size: 98px; line-height: 98px; font-weight: 700; letter-spacing: -.08em; color: #1C48FF; user-select: none; }
+.nf-title { margin: 12px 0 0; font-size: 20px; line-height: 28px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.nf-sub { margin: 13px 0 0; font-size: 12px; line-height: 18px; color: var(--t2); }
+.nf-home { margin-top: 24px; height: 54px; padding: 0 32px; border: none; border-radius: 18px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; }
