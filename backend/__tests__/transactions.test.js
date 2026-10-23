@@ -478,6 +478,12 @@ describe('GET /api/transactions/monthly-recap', () => {
     expect(res.body.hasData).toBe(false)
   })
 
+  test('devolve o salário do usuário: as telas somam salário + lançamentos pra mostrar "Entradas" (Início, Extrato e Balanço mensal iguais)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ salary: 4200 }))
+    const res = await request(app).get('/api/transactions/monthly-recap').set(authHeader())
+    expect(res.body.salary).toBe(4200)
+  })
+
   test('escopa todas as consultas pelo usuário e não filtra archived', async () => {
     await request(app).get('/api/transactions/monthly-recap').query({ offset: -1 }).set(authHeader())
     const where = prisma.transaction.findMany.mock.calls.at(-1)[0].where
@@ -547,6 +553,47 @@ describe('GET /api/transactions/monthly-history', () => {
 // ══════════════════════════════════════════════════════════
 // ASSINATURAS (/subscriptions) — modo padrão e ?strict=1 (story Dicas IA)
 // ══════════════════════════════════════════════════════════
+describe('GET /api/transactions/weekly-tip-available', () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const daysAgo = (n) => new Date(Date.now() - n * DAY)
+  const exp = (n, category, amount) => ({ category, amount, date: daysAgo(n) })
+
+  test('exige autenticação', async () => {
+    expect((await request(app).get('/api/transactions/weekly-tip-available')).status).toBe(401)
+  })
+
+  test('sem histórico de comparação (só gasto recente) não há dica: available=false', async () => {
+    prisma.transaction.findMany.mockResolvedValue([exp(3, 'food', 900), exp(10, 'food', 200)])
+    const res = await request(app).get('/api/transactions/weekly-tip-available').set(authHeader())
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ available: false })
+  })
+
+  test('com gasto recente E um período anterior mais baixo, a dica existe: available=true', async () => {
+    prisma.transaction.findMany.mockResolvedValue([exp(5, 'food', 1200), exp(40, 'food', 500), exp(70, 'food', 500)])
+    const res = await request(app).get('/api/transactions/weekly-tip-available').set(authHeader())
+    expect(res.body).toEqual({ available: true })
+  })
+
+  test('só olha as despesas do próprio usuário nos últimos 120 dias e não chama IA nem devolve a frase', async () => {
+    prisma.transaction.findMany.mockResolvedValue([])
+    const res = await request(app).get('/api/transactions/weekly-tip-available').set(authHeader())
+    const q = prisma.transaction.findMany.mock.calls.at(-1)[0]
+    expect(q.where.userId).toBe('user-123')
+    expect(q.where.type).toBe('expense')
+    expect(Date.now() - q.where.date.gte.getTime()).toBeGreaterThan(119 * DAY)
+    expect(Date.now() - q.where.date.gte.getTime()).toBeLessThan(121 * DAY)
+    expect(Object.keys(res.body)).toEqual(['available'])
+  })
+
+  test('falha no banco: 500 com mensagem, sem vazar o erro', async () => {
+    prisma.transaction.findMany.mockRejectedValue(new Error('boom'))
+    const res = await request(app).get('/api/transactions/weekly-tip-available').set(authHeader())
+    expect(res.status).toBe(500)
+    expect(JSON.stringify(res.body)).not.toMatch(/boom/)
+  })
+})
+
 describe('GET /api/transactions/subscriptions', () => {
   const row = (description, amount, month, extra = {}) => ({
     description, amount, category: 'leisure', month, year: 2026,

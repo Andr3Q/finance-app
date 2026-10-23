@@ -137,6 +137,9 @@ function buildMonthlyRecap({ target, transactions, budgets, goals, salary }) {
     month: target.month,
     year:  target.year,
     hasData: current.active,
+    // Salário usado na conta do saldo: as telas somam salário + totalIncome pra mostrar "Entradas" (como o Início), senão o
+    // cartão do Extrato / Balanço mensal não fecha (Entradas − Saídas ≠ Resultado) e diverge do Início.
+    salary: Number(salary) || 0,
     saved: current.balance,
     savedDeltaPct: prev.active ? pctChange(current.balance, prev.balance) : null,
     prevMonth: prev.active ? prevYm.month : null,

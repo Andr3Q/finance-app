@@ -1,5 +1,6 @@
 // @ts-nocheck
 const { test, expect } = require('@playwright/test')
+const { injectSession, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
 // Dados de mock — completos para o contrato atual da API
@@ -58,6 +59,7 @@ async function goDashboard(page) {
   await page.route('**/api/budget**',              r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard.budgets) }))
   await page.route('**/api/budget/category-limits**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
   await page.route('**/api/goals**',               r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+  await page.route('**/api/transactions/weekly-tip-available**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ available: true }) })) // há base pra dica: o anel do story aparece
   await page.route('**/api/installments**',        r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
   await page.route('**/api/agent/predict**',       r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ prediction: 'Sem dados suficientes.' }) }))
   await page.route('**/health**',                  r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok', db_ms: 5 }) }))
@@ -274,6 +276,15 @@ test.describe('Dashboard — Stories (círculos de resumo)', () => {
     await expect(page.locator('.home-story.is-seen')).toHaveCount(1)
   })
 
+  test('sem base pra dica da semana, o círculo "Dicas IA" fica sem anel (não anuncia algo que não existe)', async ({ page }) => {
+    await goDashboard(page)
+    await page.route('**/api/transactions/weekly-tip-available**', r => r.fulfill(json({ available: false })))
+    await page.reload()
+    await expect(page.locator('.home-story')).toHaveCount(4, { timeout: 20000 })
+    await expect(page.locator('button.home-story-light')).toHaveClass(/is-seen/)
+    await expect(page.locator('button.home-story-blue')).not.toHaveClass(/is-seen/) // os outros continuam com anel
+  })
+
   test('story vazia ou com erro não conta como vista', async ({ page }) => {
     await goDashboard(page)
     await mockStories(page)
@@ -431,4 +442,32 @@ test.describe('Dashboard — Isolamento de mocks (LIFO / paralelo)', () => {
     await page2.close()
   })
 
+})
+
+// ─────────────────────────────────────────────────────────────────
+// Falha ao carregar o Início: antes, sem rede (e sem nada guardado), a tela mostrava saldo R$ 0,00, "Saúde financeira —" e
+// "Nenhuma transação" como se fossem reais depois que o aviso sumia — o cliente achava que estava sem dinheiro.
+// ─────────────────────────────────────────────────────────────────
+test.describe('Início — falha ao carregar', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
+
+  test('sem conexão e sem nada guardado: avisa, não mostra R$ 0,00, e "Tentar de novo" carrega os dados', async ({ page }) => {
+    await injectSession(page, { ...TEST_USER, plan: 'elite' })
+    let fail = true
+    await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+    await page.route('**/api/auth/me**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_USER) }))
+    await page.route('**/api/transactions/dashboard**', r => fail
+      ? r.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"fora do ar"}' })
+      : r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard) }))
+    await page.goto('/dashboard')
+    const err = page.locator('.home-error')
+    await expect(err).toContainText('Não foi possível carregar suas finanças.', { timeout: 20000 })
+    await expect(page.locator('.home-balance-val')).toHaveText('—')
+    await expect(page.getByText('R$ 0,00')).toHaveCount(0)
+    await expect(page.locator('.home-stat')).toHaveCount(0) // sem cartões de Entradas/Saídas zerados
+    fail = false
+    await page.getByRole('button', { name: 'Tentar de novo' }).click()
+    await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
+    await expect(page.locator('.home-error')).toHaveCount(0)
+  })
 })

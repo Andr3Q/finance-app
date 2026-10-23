@@ -22,6 +22,7 @@ const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES, TRANSACTION_P
 const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
 const { buildMonthlyRecap, computeMonthMetrics, shiftMonth } = require('../services/monthlyRecap')
+const { HISTORY_DAYS, DAY_MS, computeWeeklyTipStats } = require('../services/weeklyTip')
 
 const router = express.Router()
 
@@ -283,6 +284,25 @@ router.get('/monthly-recap', dashboardLimiter, async (req, res) => {
   } catch (err) {
     reportError(err, { tag: 'Erro no resumo mensal' })
     res.status(500).json({ error: 'Erro ao montar o resumo.' })
+  }
+})
+
+// ── GET /transactions/weekly-tip-available ─────────────
+// A "Dica da Nancy IA" só existe quando há base de comparação (gasto nos últimos 30 dias E em algum dos 3 períodos anteriores,
+// com alguma categoria passando dos limites). O Início e as Notificações usam isto pra só anunciar a dica (anel do story, aviso)
+// quando ela existe — antes anunciavam sempre e o story abria vazio ("Ainda sem dicas por aqui"). Só a conta, sem IA e sem
+// passar pelo limite de mensagens do chat (GET /agent/weekly-tip faz parte dele).
+router.get('/weekly-tip-available', dashboardLimiter, async (req, res) => {
+  try {
+    const now = new Date()
+    const expenses = await prisma.transaction.findMany({
+      where:  { userId: req.userId, type: 'expense', date: { gte: new Date(now.getTime() - HISTORY_DAYS * DAY_MS) } },
+      select: { category: true, amount: true, date: true },
+    })
+    res.json({ available: computeWeeklyTipStats(expenses, now) !== null })
+  } catch (err) {
+    reportError(err, { tag: 'Erro na disponibilidade da dica' })
+    res.status(500).json({ error: 'Erro ao verificar a dica.' })
   }
 })
 

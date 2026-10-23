@@ -215,13 +215,14 @@ export default function Transactions() {
   const totalExpenses = monthTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const totalIncome   = monthTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
 
-  // O resultado inclui o salário e reserva as contas fixas ainda não pagas (igual
-  // ao saldo do Início e à story "Você guardou"); Entradas/Saídas são só os
-  // lançamentos. Sem o recap (carregando/falhou) ou num mês sem lançamentos, o
-  // resultado vira "—" — não inventa um valor — e os totais usam as transações.
+  // O resultado inclui o salário e reserva as contas fixas ainda não pagas (igual ao saldo do Início e à
+  // story "Você guardou"), e "Entradas" também soma o salário — a mesma conta do Início e do Balanço mensal —
+  // pra o cartão fechar (Entradas − Saídas = Resultado). A lista de baixo mostra só lançamentos, o salário não é um.
+  // Sem o recap (carregando/falhou) ou num mês sem lançamentos, o resultado vira "—" — não inventa um valor —
+  // e os totais usam só as transações.
   const resultKnown   = !!recap && recap.hasData
   const resultPos     = !resultKnown || recap.saved >= 0
-  const shownIncome   = recap?.totalIncome   ?? totalIncome
+  const shownIncome   = resultKnown ? (recap.salary || 0) + recap.totalIncome : (recap?.totalIncome ?? totalIncome)
   const shownExpenses = recap?.totalExpenses ?? totalExpenses
 
   const HIDDEN = 'R$ ••••'

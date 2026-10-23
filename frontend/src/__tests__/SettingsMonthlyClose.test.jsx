@@ -14,7 +14,8 @@ vi.mock('../utils/txCache.js', () => ({ currentBrasiliaMonthYear: () => ({ month
 import { reportsAPI, transactionsAPI } from '../services/api.js'
 import { invalidateCache } from '../services/cache.js'
 
-const RECAP = { hasData: true, saved: 9500, totalIncome: 16800, totalExpenses: 7300 }
+// como o servidor manda: salário (15.000) e lançamentos de entrada (1.800) separados; "Entradas" é a soma, igual ao Início
+const RECAP = { hasData: true, saved: 9500, salary: 15000, totalIncome: 1800, totalExpenses: 7300 }
 const HISTORY = [{ month: 9, year: 2026 }, { month: 8, year: 2026 }, { month: 7, year: 2026 }]
 
 function Where() { const l = useLocation(); return <div data-testid="where">{l.pathname}</div> }
@@ -58,7 +59,7 @@ describe('Balanço mensal', () => {
   })
 
   it('resultado negativo vem com sinal de menos; sem lançamentos ou sem resposta vira "—" e zeros', async () => {
-    transactionsAPI.monthlyRecap.mockResolvedValueOnce({ data: { ...RECAP, saved: -250, totalIncome: 100, totalExpenses: 350 } })
+    transactionsAPI.monthlyRecap.mockResolvedValueOnce({ data: { ...RECAP, saved: -250, salary: 0, totalIncome: 100, totalExpenses: 350 } })
     const { unmount } = renderPage()
     expect(await screen.findByText('−R$ 250,00')).toBeInTheDocument()
     unmount()

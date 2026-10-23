@@ -104,6 +104,7 @@ export const transactionsAPI = {
   importCSV:      (formData)   => api.post('/transactions/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   monthlyHistory: (months = 6) => api.get('/transactions/monthly-history', { params: { months } }),
   subscriptions:  (params)     => api.get('/transactions/subscriptions', { params }),
+  weeklyTipAvailable: ()       => api.get('/transactions/weekly-tip-available'),
   monthlyRecap:   (offset = 0) => api.get('/transactions/monthly-recap', { params: { offset } }),
 }
 

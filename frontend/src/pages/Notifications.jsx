@@ -10,6 +10,7 @@ import { getSalaryNotif, getTrialNotif } from '../utils/notifications.js'
 import { buildNotifications, countUnread, readNotifIds, markNotifsRead, isTipFresh } from '../utils/notificationsFeed.js'
 import { prefsOf } from '../utils/notifPrefs.js'
 import { usePrevMonthRecap } from '../hooks/usePrevMonthRecap.js'
+import { useTipAvailable } from '../hooks/useTipAvailable.js'
 import { buildRecapSlides, maskAmounts } from '../utils/storySlides.js'
 import { readCancelFlags, cancelReminders as toReminders } from '../utils/subsCancel.js'
 import { readReminders } from '../utils/reminders.js'
@@ -66,6 +67,7 @@ export default function Notifications() {
   // quando o efeito abaixo marca tudo como visto.
   const prefs = prefsOf(user)
   const prevRecapSlides = usePrevMonthRecap(prefs.stories)
+  const tipAvailable = useTipAvailable(user.id) // só avisa da dica quando ela existe
   const [seenAtOpen] = useState(readNotifIds)
   const [hidden]     = useState(readHidden)
 
@@ -95,11 +97,11 @@ export default function Notifications() {
     limits: data.limits || [],
     budgets: data.budgets || [],
     salaryNotif, trialNotif, recapSlides, cancelReminders: toReminders(readCancelFlags()), reminderState: readReminders(),
-    prefs, prevRecapSlides, tipFresh: isTipFresh(Array.isArray(data.transactions) ? data.transactions : []),
+    prefs, prevRecapSlides, tipFresh: tipAvailable === true && isTipFresh(Array.isArray(data.transactions) ? data.transactions : []),
   }) : []),
   // salaryNotif/trialNotif mudam só com a data/usuário — recalcular junto dos dados basta
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [data, recapSlides, prevRecapSlides, user.id, user.trialEndsAt, user.isOnTrial, user.notifSalary, user.notifBudgetReminder, user.notifBudgetAlert, user.notifStories, user.notifTips])
+  [data, recapSlides, prevRecapSlides, tipAvailable, user.id, user.trialEndsAt, user.isOnTrial, user.notifSalary, user.notifBudgetReminder, user.notifBudgetAlert, user.notifStories, user.notifTips])
 
   // Quantas histórias o resumo do mês tem de verdade — só pra frase do aviso ("em 6 histórias").
   const hasRecap = items.some(i => i.kind === 'recap')

@@ -46,6 +46,26 @@ async function main() {
   ])
   console.log('  ✓ Banco limpo\n')
 
+  // ── Datas e atalhos ──────────────────────────────
+  // Mês/ano e datas no fuso de Brasília. O container roda em UTC: `new Date(year,
+  // month-1, dia)` aqui dava meia-noite UTC, que em Brasília ainda é o dia
+  // anterior — um lançamento do dia 1º aparecia em 31 do mês passado.
+  const { month, year, day: today } = nowBrasilia()
+  const brt = (y, m, d) => parseDateInput(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`)
+  // Mês de n meses atrás (n = 0 é o atual).
+  const ym = (n) => { const d = new Date(Date.UTC(year, month - 1 - n, 1)); return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1 } }
+  // Lançamentos do mês atual nunca ficam no futuro (a dica da semana, o ritmo e o calendário ignoram data futura):
+  // o dia pedido vira no máximo "hoje". Meses anteriores usam o dia pedido.
+  const dayOf = (n, d) => (n === 0 ? Math.min(d, today) : d)
+  const tx = (userId, n, d, description, amount, type, category, extra = {}) => {
+    const { y, m } = ym(n)
+    return { userId, description, amount, type, category, date: brt(y, m, dayOf(n, d)), month: m, year: y, archived: false, ...extra }
+  }
+
+  // O SALÁRIO entra pelo campo `salary` do usuário (o app soma sozinho em todo mês). NÃO crie aqui um lançamento
+  // "Salário": ele seria contado em dobro no saldo e nas Entradas. Categorias: só as que o app oferece
+  // (food, shopping, transport, health, leisure, education, home, fixed, income, other).
+
   // ── Usuário 1: Alice (free) ──────────────────────
   const alice = await prisma.user.create({
     data: {
@@ -56,49 +76,40 @@ async function main() {
       plan:            'free',
       emailVerified:   true,
       onboardingComplete: true,
-      autoLaunchMonth: nowBrasilia().month,
-      autoLaunchYear:  nowBrasilia().year,
+      autoLaunchMonth: month,
+      autoLaunchYear:  year,
     },
   })
   console.log('  ✓ Alice (free):', alice.id)
 
-  // Transações de Alice
-  // Mês/ano e datas no fuso de Brasília. O container roda em UTC: `new Date(year,
-  // month-1, dia)` aqui dava meia-noite UTC, que em Brasília ainda é o dia
-  // anterior — o "Salário" do dia 1º aparecia em 31 do mês passado.
-  const { month, year } = nowBrasilia()
-  const brt = (y, m, d) => parseDateInput(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`)
+  // Contas fixas de Alice: Aluguel, Plano de celular e Academia já pagos neste mês (lançamento ligado à conta, como o app
+  // faz ao "Marcar como paga"); Internet (dia 20) fica pendente pra testar o pagamento.
+  const aBud = {}
+  for (const [key, name, amount, dueDay] of [['rent', 'Aluguel', 1200, 10], ['phone', 'Plano de celular', 60, 12], ['gym', 'Academia', 90, 15], ['net', 'Internet', 120, 20]]) {
+    aBud[key] = await prisma.budget.create({ data: { userId: alice.id, name, amount, dueDay } })
+  }
+  const aliceTx = []
+  for (const n of [2, 1, 0]) {
+    aliceTx.push(
+      tx(alice.id, n, 10, 'Aluguel',          1200, 'expense', 'fixed', { budgetId: aBud.rent.id }),
+      tx(alice.id, n, 12, 'Plano de celular',   60, 'expense', 'fixed', { budgetId: aBud.phone.id }),
+      tx(alice.id, n, 15, 'Academia',           90, 'expense', 'fixed', { budgetId: aBud.gym.id }),
+      tx(alice.id, n, 12, 'Supermercado',     [450, 410, 380][n], 'expense', 'food'),
+      tx(alice.id, n, 18, 'Conta de luz',     [180, 170, 165][n], 'expense', 'home'),
+      tx(alice.id, n, 22, 'Restaurante',      [85, 60, 70][n],    'expense', 'food'),
+    )
+    if (n > 0) aliceTx.push(tx(alice.id, n, 20, 'Internet', 120, 'expense', 'fixed', { budgetId: aBud.net.id }))
+  }
+  aliceTx.push(tx(alice.id, 0, 15, 'Freelance extra', 1500, 'income', 'income'), tx(alice.id, 1, 15, 'Freelance extra', 800, 'income', 'income'))
+  await prisma.transaction.createMany({ data: aliceTx })
 
-  await prisma.transaction.createMany({
-    data: [
-      { userId: alice.id, description: 'Salário',          amount: 5000, type: 'income',  category: 'salary',   date: brt(year, month, 5),  month, year, archived: false },
-      { userId: alice.id, description: 'Aluguel',           amount: 1200, type: 'expense', category: 'fixed',    date: brt(year, month, 10), month, year, archived: false },
-      { userId: alice.id, description: 'Plano de celular',  amount:   60, type: 'expense', category: 'fixed',    date: brt(year, month, 12), month, year, archived: false },
-      { userId: alice.id, description: 'Academia',          amount:   90, type: 'expense', category: 'fixed',    date: brt(year, month, 15), month, year, archived: false },
-      { userId: alice.id, description: 'Supermercado',      amount:  450, type: 'expense', category: 'food',     date: brt(year, month, 12), month, year, archived: false },
-      { userId: alice.id, description: 'Freelance extra',   amount: 1500, type: 'income',  category: 'freelance',date: brt(year, month, 15), month, year, archived: false },
-      { userId: alice.id, description: 'Conta de luz',      amount:  180, type: 'expense', category: 'utilities',date: brt(year, month, 18), month, year, archived: false },
-      { userId: alice.id, description: 'Internet',          amount:  120, type: 'expense', category: 'utilities',date: brt(year, month, 20), month, year, archived: false },
-      { userId: alice.id, description: 'Restaurante',       amount:   85, type: 'expense', category: 'food',     date: brt(year, month, 22), month, year, archived: false },
-    ],
-  })
-
-  // Metas de Alice
   await prisma.goal.createMany({
     data: [
-      { userId: alice.id, title: 'Reserva de emergência', targetAmount: 15000, currentAmount: 3200, color: '#4ac46e', deadline: brt(year+1, 12, 31) },
+      { userId: alice.id, title: 'Reserva de emergência', targetAmount: 15000, currentAmount: 3200, color: '#4ac46e', deadline: brt(year + 1, 12, 31) },
       { userId: alice.id, title: 'Viagem ao exterior',     targetAmount:  8000, currentAmount:  500, color: '#007e8a' },
     ],
   })
-
-  // Contas fixas de Alice
-  await prisma.budget.createMany({
-    data: [
-      { userId: alice.id, name: 'Aluguel',   amount: 1200, dueDay: 10 },
-      { userId: alice.id, name: 'Internet',  amount:  120, dueDay: 20 },
-      { userId: alice.id, name: 'Academia',  amount:   90, dueDay: 15 },
-    ],
-  })
+  await prisma.categoryLimit.createMany({ data: [{ userId: alice.id, category: 'food', amount: 500 }] }) // 535 gastos: já estourou
   console.log('  ✓ Dados de Alice criados\n')
 
   // ── Usuário 2: Bob (pro) ─────────────────────────
@@ -120,19 +131,25 @@ async function main() {
   })
   console.log('  ✓ Bob (pro):', bob.id)
 
-  await prisma.transaction.createMany({
-    data: [
-      { userId: bob.id, description: 'Salário empresa',  amount: 8500, type: 'income',  category: 'salary',   date: brt(year, month, 1),  month, year, archived: false },
-      { userId: bob.id, description: 'Financiamento',    amount: 2100, type: 'expense', category: 'fixed',    date: brt(year, month, 5),  month, year, archived: false },
-      { userId: bob.id, description: 'Plano de saúde',   amount:  520, type: 'expense', category: 'fixed',    date: brt(year, month, 8),  month, year, archived: false },
-      { userId: bob.id, description: 'Netflix',          amount:   45, type: 'expense', category: 'fixed',    date: brt(year, month, 10), month, year, archived: false },
-      { userId: bob.id, description: 'Seguro do carro',  amount:  280, type: 'expense', category: 'fixed',    date: brt(year, month, 25), month, year, archived: false },
-      { userId: bob.id, description: 'Combustível',      amount:  350, type: 'expense', category: 'transport',date: brt(year, month, 8),  month, year, archived: false },
-      { userId: bob.id, description: 'Bônus trimestral', amount: 2000, type: 'income',  category: 'bonus',    date: brt(year, month, 12),  month, year, archived: false },
-      { userId: bob.id, description: 'Supermercado',     amount:  680, type: 'expense', category: 'food',     date: brt(year, month, 14), month, year, archived: false },
-      { userId: bob.id, description: 'Farmácia',         amount:   95, type: 'expense', category: 'health',   date: brt(year, month, 17), month, year, archived: false },
-    ],
-  })
+  // Contas fixas de Bob: as quatro primeiras pagas neste mês; Seguro do carro e IPTU pendentes.
+  const bBud = {}
+  for (const [key, name, amount, dueDay] of [['fin', 'Financiamento', 2100, 5], ['health', 'Plano de saúde', 520, 8], ['nflx', 'Netflix', 45, 10], ['car', 'Seguro do carro', 280, 25], ['iptu', 'IPTU', 150, 28]]) {
+    bBud[key] = await prisma.budget.create({ data: { userId: bob.id, name, amount, dueDay } })
+  }
+  const bobTx = []
+  for (const n of [2, 1, 0]) {
+    bobTx.push(
+      tx(bob.id, n, 5,  'Financiamento',  2100, 'expense', 'fixed', { budgetId: bBud.fin.id }),
+      tx(bob.id, n, 8,  'Plano de saúde',  520, 'expense', 'fixed', { budgetId: bBud.health.id }),
+      tx(bob.id, n, 10, 'Netflix',          45, 'expense', 'fixed', { budgetId: bBud.nflx.id }),
+      tx(bob.id, n, 8,  'Combustível',  [350, 320, 300][n], 'expense', 'transport'),
+      tx(bob.id, n, 14, 'Supermercado', [680, 540, 520][n], 'expense', 'food'),
+      tx(bob.id, n, 17, 'Farmácia',     [95, 60, 60][n],    'expense', 'health'),
+    )
+    if (n > 0) bobTx.push(tx(bob.id, n, 25, 'Seguro do carro', 280, 'expense', 'fixed', { budgetId: bBud.car.id }))
+  }
+  bobTx.push(tx(bob.id, 0, 12, 'Bônus trimestral', 2000, 'income', 'income'))
+  await prisma.transaction.createMany({ data: bobTx })
 
   // Parcelamento de Bob
   await prisma.installmentPlan.create({
@@ -146,6 +163,7 @@ async function main() {
       startYear:         month - 3 > 0 ? year : year - 1,
     },
   })
+  await prisma.categoryLimit.createMany({ data: [{ userId: bob.id, category: 'health', amount: 100 }] }) // 95: perto do limite
   console.log('  ✓ Dados de Bob criados\n')
 
   // ── Usuário 3: Admin (elite) ─────────────────────
@@ -166,24 +184,49 @@ async function main() {
   })
   console.log('  ✓ Admin (elite):', elite.id)
 
-  await prisma.transaction.createMany({
+  // Contas fixas de Admin: cinco pagas neste mês; Condomínio (dia 28) pendente.
+  const eBud = {}
+  for (const [key, name, amount, dueDay] of [['rent', 'Aluguel', 3500, 5], ['health', 'Plano de saúde', 850, 8], ['net', 'Internet fibra', 150, 15], ['gym', 'Academia premium', 200, 20], ['light', 'Conta de luz', 380, 22], ['condo', 'Condomínio', 600, 28]]) {
+    eBud[key] = await prisma.budget.create({ data: { userId: elite.id, name, amount, dueDay } })
+  }
+  const eliteTx = []
+  for (const n of [2, 1, 0]) {
+    eliteTx.push(
+      tx(elite.id, n, 5,  'Aluguel',           3500, 'expense', 'fixed', { budgetId: eBud.rent.id }),
+      tx(elite.id, n, 8,  'Plano de saúde',     850, 'expense', 'fixed', { budgetId: eBud.health.id }),
+      tx(elite.id, n, 15, 'Internet fibra',     150, 'expense', 'fixed', { budgetId: eBud.net.id }),
+      tx(elite.id, n, 20, 'Academia premium',   200, 'expense', 'fixed', { budgetId: eBud.gym.id }),
+      tx(elite.id, n, 22, 'Conta de luz',       380, 'expense', 'fixed', { budgetId: eBud.light.id }),
+      tx(elite.id, n, 10, 'Supermercado',  [920, 700, 650][n], 'expense', 'food'),
+      tx(elite.id, n, 14, 'Restaurante sushi', [245, 150, 120][n], 'expense', 'food'),
+      tx(elite.id, n, 12, 'Combustível',   [480, 450, 430][n], 'expense', 'transport'),
+      tx(elite.id, n, 18, 'Uber',          [95, 80, 70][n],    'expense', 'transport'),
+      tx(elite.id, n, 16, 'Farmácia',      [130, 90, 100][n],  'expense', 'health'),
+      // assinaturas: mesmo nome e valor todo mês (o Elite as detecta na tela Assinaturas)
+      tx(elite.id, n, 3,  'Netflix',            55.9, 'expense', 'leisure'),
+      tx(elite.id, n, 4,  'Spotify',            21.9, 'expense', 'leisure'),
+    )
+  }
+  eliteTx.push(
+    tx(elite.id, 0, 20, 'Roupa', 350, 'expense', 'shopping'),
+    tx(elite.id, 0, 25, 'Dividendos', 1800, 'income', 'income'),
+    tx(elite.id, 1, 25, 'Dividendos', 1500, 'income', 'income'),
+  )
+  await prisma.transaction.createMany({ data: eliteTx })
+  await prisma.goal.createMany({
     data: [
-      { userId: elite.id, description: 'Salário',           amount: 15000, type: 'income',  category: 'salary',   date: brt(year, month, 5),  month, year, archived: false },
-      { userId: elite.id, description: 'Aluguel',            amount:  3500, type: 'expense', category: 'fixed',    date: brt(year, month, 5),  month, year, archived: false },
-      { userId: elite.id, description: 'Plano de saúde',     amount:   850, type: 'expense', category: 'fixed',    date: brt(year, month, 8),  month, year, archived: false },
-      { userId: elite.id, description: 'Internet fibra',     amount:   150, type: 'expense', category: 'fixed',    date: brt(year, month, 15), month, year, archived: false },
-      { userId: elite.id, description: 'Academia premium',   amount:   200, type: 'expense', category: 'fixed',    date: brt(year, month, 20), month, year, archived: false },
-      { userId: elite.id, description: 'Conta de luz',       amount:   380, type: 'expense', category: 'fixed',    date: brt(year, month, 22), month, year, archived: false },
-      { userId: elite.id, description: 'Supermercado',       amount:   920, type: 'expense', category: 'food',     date: brt(year, month, 10), month, year, archived: false },
-      { userId: elite.id, description: 'Restaurante sushi',  amount:   245, type: 'expense', category: 'food',     date: brt(year, month, 14), month, year, archived: false },
-      { userId: elite.id, description: 'Combustível',        amount:   480, type: 'expense', category: 'transport',date: brt(year, month, 12), month, year, archived: false },
-      { userId: elite.id, description: 'Uber',               amount:    95, type: 'expense', category: 'transport',date: brt(year, month, 18), month, year, archived: false },
-      { userId: elite.id, description: 'Farmácia',           amount:   130, type: 'expense', category: 'health',   date: brt(year, month, 16), month, year, archived: false },
-      { userId: elite.id, description: 'Roupa',              amount:   350, type: 'expense', category: 'shopping', date: brt(year, month, 20), month, year, archived: false },
-      { userId: elite.id, description: 'Dividendos',         amount:  1800, type: 'income',  category: 'bonus',    date: brt(year, month, 25), month, year, archived: false },
+      { userId: elite.id, title: 'Reserva de emergência', targetAmount: 60000, currentAmount: 24000, color: '#4ac46e', deadline: brt(year + 1, 6, 30) },
+      { userId: elite.id, title: 'Viagem de férias',      targetAmount: 12000, currentAmount:  1500, color: '#4f8ef7' },
     ],
   })
-  console.log('  ✓ Transações de Admin criadas\n')
+  await prisma.categoryLimit.createMany({
+    data: [
+      { userId: elite.id, category: 'food',      amount: 1000 }, // 1.165 gastos: estourou
+      { userId: elite.id, category: 'transport', amount:  600 }, // 575: perto do limite
+      { userId: elite.id, category: 'shopping',  amount:  800 }, // 350: folga
+    ],
+  })
+  console.log('  ✓ Dados de Admin criados\n')
 
   // ── Login audits (simula histórico) ─────────────
   await prisma.loginAudit.createMany({

@@ -17,6 +17,7 @@ import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notificat
 import { buildNotifications, countUnread, readNotifIds, isTipFresh } from '../utils/notificationsFeed.js'
 import { prefsOf } from '../utils/notifPrefs.js'
 import { usePrevMonthRecap } from '../hooks/usePrevMonthRecap.js'
+import { useTipAvailable } from '../hooks/useTipAvailable.js'
 import { readCancelFlags, cancelReminders } from '../utils/subsCancel.js'
 import { readReminders } from '../utils/reminders.js'
 
@@ -69,6 +70,8 @@ export default function Dashboard() {
   const [limits,       setLimits]       = useState([])
   const [budgets,      setBudgets]      = useState([])
   const [loading,      setLoading]      = useState(true)
+  // A primeira carga falhou e não há nada guardado: em vez de mostrar R$ 0,00 e listas vazias como se fossem reais, a tela avisa e oferece tentar de novo.
+  const [loadFailed,   setLoadFailed]   = useState(false)
   const [showForm,     setShowForm]     = useState(false)
   const [quickAddType, setQuickAddType] = useState(null) // 'income' | 'expense' | null
   const [toast,        setToast]        = useState(null)
@@ -111,8 +114,9 @@ export default function Dashboard() {
       setLimits(data.limits || [])
       setBudgets(data.budgets || [])
       setCache('dashboard', data)
+      setLoadFailed(false)
     } catch {
-      if (!cached) showToast('Erro ao carregar dados.', false)
+      if (!cached) setLoadFailed(true) // com dados em cache, mostra eles mesmo sem rede (a atualização é que falhou)
     } finally {
       setLoading(false)
     }
@@ -174,8 +178,10 @@ export default function Dashboard() {
   const now = new Date()
   const notifPrefs = prefsOf(user)
   const prevRecapSlides = usePrevMonthRecap(notifPrefs.stories)
+  // Só anuncia a dica (anel do story e aviso do sino) quando ela existe; senão o story abre vazio ("Ainda sem dicas por aqui").
+  const tipAvailable = useTipAvailable(user.id)
   const hasNotif = countUnread(
-    buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()), reminderState: readReminders(), prefs: notifPrefs, prevRecapSlides, tipFresh: isTipFresh(transactions) }),
+    buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()), reminderState: readReminders(), prefs: notifPrefs, prevRecapSlides, tipFresh: tipAvailable === true && isTipFresh(transactions) }),
     seenNotifs,
   ) > 0
 
@@ -282,7 +288,7 @@ export default function Dashboard() {
 
             <div className="home-balance-lbl">Saldo disponível</div>
             <div className="home-balance-val">
-              {hideBalance ? 'R$ ••••••' : `R$ ${fmt(summary?.currentBalance)}`}
+              {hideBalance ? 'R$ ••••••' : loadFailed ? '—' : `R$ ${fmt(summary?.currentBalance)}`}
             </div>
             {monthGrowth !== null && (
               <span className={`home-badge${monthGrowth < 0 ? ' neg' : ''}`}>
@@ -307,6 +313,13 @@ export default function Dashboard() {
           </div>
 
           <div className="home-body">
+            {loadFailed ? (
+              <section className="home-error" role="alert">
+                <strong>Não foi possível carregar suas finanças.</strong>
+                <p>Confira sua conexão e tente de novo. Seus dados continuam salvos.</p>
+                <button type="button" className="home-error-btn" onClick={() => { setLoading(true); fetchData(true) }}>Tentar de novo</button>
+              </section>
+            ) : (<>
             {/* dentro do corpo, abaixo do cabeçalho azul: acima dele, o aviso empurrava o azul pra baixo e deixava uma faixa clara sob a barra de status */}
             <AutoLaunchPrompt autoLaunched={summary?.autoLaunched} onLaunched={() => fetchData()} />
 
@@ -320,7 +333,7 @@ export default function Dashboard() {
                 <span>{MONTHS[now.getMonth()].slice(0, 3).toUpperCase()}</span>
                 <small>{MONTHS[now.getMonth()]}</small>
               </button>
-              <button className={`home-story home-story-light${seenCls(dicasKey())}`} onClick={() => navigate('/resumo-stories', { state: { story: 'dicas' } })}>
+              <button className={`home-story home-story-light${tipAvailable === true ? seenCls(dicasKey()) : ' is-seen'}`} onClick={() => navigate('/resumo-stories', { state: { story: 'dicas' } })}>
                 <span><IconSparkle /></span>
                 <small>Dicas IA</small>
               </button>
@@ -415,6 +428,7 @@ export default function Dashboard() {
                 )
               })}
             </div>
+            </>)}
           </div>
         </div>
       </div>

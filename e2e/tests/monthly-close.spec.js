@@ -10,7 +10,7 @@ test.use({ viewport: { width: 393, height: 852 } })
 
 const json = (o, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(o) })
 const USER = { ...TEST_USER, plan: 'pro' }
-const RECAP = { hasData: true, saved: 9500, totalIncome: 16800, totalExpenses: 7300 }
+const RECAP = { hasData: true, saved: 9500, salary: 15000, totalIncome: 1800, totalExpenses: 7300 } // Entradas = salário + lançamentos = 16.800
 const HISTORY = [{ month: 9, year: 2026 }, { month: 8, year: 2026 }, { month: 7, year: 2026 }]
 
 async function setup(page, user = USER) {

@@ -125,7 +125,7 @@ export default function SettingsMonthlyClose() {
               <div className="bm-label">{MONTHS[month - 1]} {year}</div>
               <div className="bm-value">{known ? signed(recap.saved) : '—'}</div>
               <div className="bm-sub">
-                <div className="bm-box"><span className="bm-box-lbl">Entradas</span><span className="bm-box-val in">{money(recap?.totalIncome ?? 0)}</span></div>
+                <div className="bm-box"><span className="bm-box-lbl">Entradas</span><span className="bm-box-val in">{money(known ? (recap.salary || 0) + recap.totalIncome : (recap?.totalIncome ?? 0))}</span></div>
                 <div className="bm-box"><span className="bm-box-lbl">Saídas</span><span className="bm-box-val">{money(recap?.totalExpenses ?? 0)}</span></div>
               </div>
               <button type="button" className="bm-close" onClick={close} disabled={closing}>

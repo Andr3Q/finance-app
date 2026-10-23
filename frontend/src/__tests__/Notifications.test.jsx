@@ -4,7 +4,7 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import Notifications from '../pages/Notifications.jsx'
 
 vi.mock('../services/api.js', () => ({
-  transactionsAPI: { dashboard: vi.fn(), monthlyRecap: vi.fn() },
+  transactionsAPI: { dashboard: vi.fn(), monthlyRecap: vi.fn(), weeklyTipAvailable: vi.fn() },
 }))
 vi.mock('../services/cache.js', () => ({ getCache: vi.fn(() => null), setCache: vi.fn(), invalidateCache: vi.fn() }))
 vi.mock('../components/layout/Navbar.jsx', () => ({ default: () => null }))
@@ -20,6 +20,7 @@ vi.mock('../utils/storySlides.js', async (importOriginal) => ({
 import { transactionsAPI } from '../services/api.js'
 import { getCache, setCache } from '../services/cache.js'
 import { getSalaryNotif, getTrialNotif } from '../utils/notifications.js'
+import { resetTipAvailableCache } from '../hooks/useTipAvailable.js'
 
 // 28/out/2026 (quarta), meio-dia local: mês quase fechado → o resumo já aparece.
 const NOW = new Date(2026, 9, 28, 12)
@@ -56,6 +57,9 @@ beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
   sessionStorage.clear()
+  sessionStorage.setItem('user', JSON.stringify({ id: 'u1' })) // logado: a consulta da dica precisa do usuário
+  resetTipAvailableCache()
+  transactionsAPI.weeklyTipAvailable.mockResolvedValue({ data: { available: true } }) // há base pra dica (padrão dos testes)
   localStorage.setItem('nancy:stories-seen', JSON.stringify({ 'dicas:2026-W44': Date.now() }))   // dica da semana já aberta
   getCache.mockReturnValue(null)
   getSalaryNotif.mockReturnValue(null)
@@ -240,7 +244,27 @@ describe('Notificações — preferências', () => {
     getSalaryNotif.mockReturnValue({ status: 'today', msg: 'x' })
     setup()
     await screen.findByText('Academia vence hoje')
+    await screen.findByText('Dica da Nancy IA') // chega depois da consulta ao servidor
     expect(titles()).toEqual(['Academia vence hoje', 'Lembrete de salário', 'Alimentação em 82% do limite', 'Resumo de outubro pronto', 'Dica da Nancy IA'])
+  })
+
+  it('SEM base pra dica (o servidor diz que não há), o aviso "sua dica está pronta" NÃO aparece — antes prometia e o story abria vazio', async () => {
+    transactionsAPI.weeklyTipAvailable.mockResolvedValue({ data: { available: false } })
+    setup()
+    await screen.findByText('Academia vence hoje')
+    await waitFor(() => expect(transactionsAPI.weeklyTipAvailable).toHaveBeenCalled())
+    await act(async () => {})
+    expect(titles()).not.toContain('Dica da Nancy IA')
+    expect(titles()).toEqual(['Academia vence hoje', 'Alimentação em 82% do limite', 'Resumo de outubro pronto']) // os demais avisos seguem
+  })
+
+  it('se a consulta da dica falhar, também não promete a dica', async () => {
+    transactionsAPI.weeklyTipAvailable.mockRejectedValue(new Error('fora do ar'))
+    setup()
+    await screen.findByText('Academia vence hoje')
+    await waitFor(() => expect(transactionsAPI.weeklyTipAvailable).toHaveBeenCalled())
+    await act(async () => {})
+    expect(titles()).not.toContain('Dica da Nancy IA')
   })
 
   it.each([
@@ -255,6 +279,7 @@ describe('Notificações — preferências', () => {
     setup()
     await waitFor(() => expect(transactionsAPI.dashboard).toHaveBeenCalled())
     await waitFor(() => expect(titles().length).toBeGreaterThan(0))
+    if (title !== 'Dica da Nancy IA') await screen.findByText('Dica da Nancy IA') // a dica chega depois da consulta ao servidor
     expect(titles()).not.toContain(title)
     expect(titles().length).toBe(4)
   })

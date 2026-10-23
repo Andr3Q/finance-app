@@ -33,7 +33,8 @@ const txs = [
   tx({ id: 'b', description: 'Roupa', amount: 350, category: 'shopping' }),
   tx({ id: 'c', description: 'Dividendos', amount: 1800, type: 'income', category: 'income', date: otherDay.toISOString() }),
 ]
-const recap = { hasData: true, saved: 9500, totalIncome: 10800, totalExpenses: 7300 }
+// salário 6.000 + lançamentos de entrada 10.800 = Entradas 16.800; 16.800 − 7.300 = Resultado 9.500 (o cartão fecha)
+const recap = { hasData: true, saved: 9500, salary: 6000, totalIncome: 10800, totalExpenses: 7300 }
 
 function setup({ list = txs, recapRes = recap } = {}) {
   transactionsAPI.list.mockResolvedValue({ data: { data: list } })
@@ -62,7 +63,9 @@ describe('Extrato — cartão do resultado do mês', () => {
     setup()
     expect(await screen.findByText(`Resultado de ${MONTHS_PT[now.getMonth()]}`)).toBeInTheDocument()
     expect(await screen.findByText('+R$ 9.500,00')).toBeInTheDocument()
-    expect(screen.getByText('R$ 10.800,00')).toBeInTheDocument()
+    // "Entradas" soma o salário (como o Início e o Balanço mensal): 6.000 + 10.800 — assim Entradas − Saídas = Resultado
+    expect(screen.getByText('R$ 16.800,00')).toBeInTheDocument()
+    expect(screen.queryByText('R$ 10.800,00')).not.toBeInTheDocument()
     expect(screen.getByText('R$ 7.300,00')).toBeInTheDocument()
     expect(transactionsAPI.monthlyRecap).toHaveBeenCalledWith(0)
   })

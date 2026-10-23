@@ -61,7 +61,10 @@ describe('buildMonthlyRecap', () => {
   test('maiores gastos ordenados e fatia das contas fixas', () => {
     const r = recap()
     expect(r.topExpenses.map(e => e.category)).toEqual(['food', 'fixed'])
-    expect(r.totalIncome).toBe(1000)   // Entradas do Extrato (só lançamentos de entrada, sem o salário)
+    expect(r.totalIncome).toBe(1000)   // só os lançamentos de entrada; as telas somam o salário (r.salary) pra mostrar "Entradas"
+    expect(r.salary).toBe(6000)
+    expect(r.salary + r.totalIncome - r.totalExpenses).toBe(5000) // fecha com o resultado quando não há conta fixa pendente (aqui as 2 estão pagas)
+    expect(r.saved).toBe(5000)
     expect(r.totalExpenses).toBe(2000)
     expect(r.fixedSharePct).toBe(50)
   })
