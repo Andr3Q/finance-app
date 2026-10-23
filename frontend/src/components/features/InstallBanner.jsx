@@ -71,7 +71,7 @@ export default function InstallBanner() {
     }
   }
 
-  // Configurações → Instalar já oferece a mesma ação (InstallCard) — mostrar
+  // Configurações → Instalar app já oferece a mesma ação — mostrar
   // os dois ao mesmo tempo é redundante e confuso (dois botões "Instalar").
   // Nas telas de autenticação o banner (ancorado embaixo) fica por cima do
   // campo de senha e do botão de entrar em viewports de celular, bloqueando

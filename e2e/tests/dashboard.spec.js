@@ -323,32 +323,32 @@ test.describe('Dashboard — Últimas transações', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────
-// Nancy 2 é desenhado só no claro: o Início ignora o tema escuro salvo, sem
-// apagar a preferência (as telas antigas continuam no tema escolhido).
+// Nancy 2 é desenhado só no claro: as telas ignoram o tema escuro salvo, sem
+// apagar a preferência (ela só volta a valer se alguma tela deixar de forçar o claro).
 // ─────────────────────────────────────────────────────────────────
 test.describe('Dashboard — tema claro imposto e barra de baixo', () => {
   test.use({ viewport: { width: 393, height: 852 } })
 
-  test('com o tema escuro salvo, o Início sai claro e a preferência escura volta nas telas antigas', async ({ page }) => {
+  test('com o tema escuro salvo, as telas saem claras e a preferência escura continua guardada', async ({ page }) => {
     await goDashboard(page)
     expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
     const bg = await page.evaluate(() => getComputedStyle(document.querySelector('.home-body')).backgroundColor)
     expect(bg).toBe('rgb(242, 246, 255)') // #F2F6FF do design
 
-    // o Perfil já é Nancy 2 (claro); "Meus dados" ainda é tela antiga e volta ao tema salvo
-    // (quando ela for redesenhada, troque por a próxima tela antiga que sobrar)
+    // todas as telas logadas já são Nancy 2: Perfil → Meus dados continua claro, sem apagar a preferência salva
     await page.locator('.dsb-mobile-nav').getByRole('button', { name: 'Perfil' }).click()
     await page.waitForURL(/\/settings$/)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
-    await page.getByRole('button', { name: 'Meus dados', exact: true }).scrollIntoViewIfNeeded()
     await page.getByRole('button', { name: 'Meus dados', exact: true }).click()
     await page.waitForURL(/\/settings\/dados/)
-    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
 
     await page.locator('.dsb-mobile-nav').getByRole('button', { name: 'Início' }).click()
     await page.waitForURL(/\/dashboard/)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
   })
 
   test('barra de baixo: Início · Extrato · + · Metas · Perfil, com o item atual em destaque', async ({ page }) => {
