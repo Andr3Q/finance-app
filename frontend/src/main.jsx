@@ -6,6 +6,7 @@ import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 import { initAnalytics } from './services/analytics.js'
 import { hasConsent } from './components/features/CookieBanner.jsx'
 import { SPLASH_MIN_MS } from './splashConfig.js'
+import { reloadOnceForNewVersion } from './utils/lazyWithReload.js'
 import './index.css'
 
 // ── Sentry — rastreamento de erros JavaScript no browser ────────────
@@ -20,6 +21,9 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     integrations:     [Sentry.browserTracingIntegration()],
   })
 }
+
+// Vite avisa quando o pré-carregamento de um arquivo de tela falha (aba aberta antes de um deploy): recarrega uma vez pra pegar a versão nova.
+window.addEventListener('vite:preloadError', (e) => { if (reloadOnceForNewVersion()) e.preventDefault() })
 
 // Só inicializa analytics se o usuário já deu consentimento (LGPD Art. 5º)
 if (hasConsent()) initAnalytics()

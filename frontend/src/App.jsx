@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, createContext, useContext } from 'react'
+import { Suspense, useEffect, useState, createContext, useContext } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
@@ -11,42 +11,43 @@ import { authAPI } from './services/api.js'
 import { saveUser } from './hooks/useUser.js'
 import { analytics } from './services/analytics.js'
 import { SPLASH_MIN_MS } from './splashConfig.js'
+import { lazyWithReload } from './utils/lazyWithReload.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
-const Landing        = lazy(() => import('./pages/Landing.jsx'))
-const Login          = lazy(() => import('./pages/Login.jsx'))
-const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'))
-const ResetPassword  = lazy(() => import('./pages/ResetPassword.jsx'))
-const VerifyEmail    = lazy(() => import('./pages/VerifyEmail.jsx'))
-const ConfirmEmailChange = lazy(() => import('./pages/ConfirmEmailChange.jsx'))
-const UnlockAccount  = lazy(() => import('./pages/UnlockAccount.jsx'))
-const Dashboard      = lazy(() => import('./pages/Dashboard.jsx'))
-const StoriesResumo  = lazy(() => import('./pages/StoriesResumo.jsx'))
-const Notifications  = lazy(() => import('./pages/Notifications.jsx'))
-const Installments   = lazy(() => import('./pages/Installments.jsx'))
-const BillsMonth     = lazy(() => import('./pages/BillsMonth.jsx'))
-const Analysis       = lazy(() => import('./pages/Analysis.jsx'))
-const History        = lazy(() => import('./pages/History.jsx'))
-const Subscriptions  = lazy(() => import('./pages/Subscriptions.jsx'))
-const Reminders      = lazy(() => import('./pages/Reminders.jsx'))
-const Limits         = lazy(() => import('./pages/Limits.jsx'))
-const Transactions   = lazy(() => import('./pages/Transactions.jsx'))
-const Goals          = lazy(() => import('./pages/Goals.jsx'))
-const Settings       = lazy(() => import('./pages/Settings.jsx'))
-const SettingsProfile       = lazy(() => import('./pages/SettingsProfile.jsx'))
-const SettingsSecurity      = lazy(() => import('./pages/SettingsSecurity.jsx'))
-const SettingsNotifications = lazy(() => import('./pages/SettingsNotifications.jsx'))
-const SettingsMonthlyClose  = lazy(() => import('./pages/SettingsMonthlyClose.jsx'))
-const SettingsReferral      = lazy(() => import('./pages/SettingsReferral.jsx'))
-const SettingsPayments      = lazy(() => import('./pages/SettingsPayments.jsx'))
-const SettingsData          = lazy(() => import('./pages/SettingsData.jsx'))
-const SettingsInstall       = lazy(() => import('./pages/SettingsInstall.jsx'))
-const Planos         = lazy(() => import('./pages/Planos.jsx'))
-const Calendar       = lazy(() => import('./pages/Calendar.jsx'))
-const Finance        = lazy(() => import('./pages/Finance.jsx'))
-const PrivacyPolicy  = lazy(() => import('./pages/PrivacyPolicy.jsx'))
-const TermsOfUse     = lazy(() => import('./pages/TermsOfUse.jsx'))
-const NotFound       = lazy(() => import('./pages/NotFound.jsx'))
+const Landing        = lazyWithReload(() => import('./pages/Landing.jsx'))
+const Login          = lazyWithReload(() => import('./pages/Login.jsx'))
+const ForgotPassword = lazyWithReload(() => import('./pages/ForgotPassword.jsx'))
+const ResetPassword  = lazyWithReload(() => import('./pages/ResetPassword.jsx'))
+const VerifyEmail    = lazyWithReload(() => import('./pages/VerifyEmail.jsx'))
+const ConfirmEmailChange = lazyWithReload(() => import('./pages/ConfirmEmailChange.jsx'))
+const UnlockAccount  = lazyWithReload(() => import('./pages/UnlockAccount.jsx'))
+const Dashboard      = lazyWithReload(() => import('./pages/Dashboard.jsx'))
+const StoriesResumo  = lazyWithReload(() => import('./pages/StoriesResumo.jsx'))
+const Notifications  = lazyWithReload(() => import('./pages/Notifications.jsx'))
+const Installments   = lazyWithReload(() => import('./pages/Installments.jsx'))
+const BillsMonth     = lazyWithReload(() => import('./pages/BillsMonth.jsx'))
+const Analysis       = lazyWithReload(() => import('./pages/Analysis.jsx'))
+const History        = lazyWithReload(() => import('./pages/History.jsx'))
+const Subscriptions  = lazyWithReload(() => import('./pages/Subscriptions.jsx'))
+const Reminders      = lazyWithReload(() => import('./pages/Reminders.jsx'))
+const Limits         = lazyWithReload(() => import('./pages/Limits.jsx'))
+const Transactions   = lazyWithReload(() => import('./pages/Transactions.jsx'))
+const Goals          = lazyWithReload(() => import('./pages/Goals.jsx'))
+const Settings       = lazyWithReload(() => import('./pages/Settings.jsx'))
+const SettingsProfile       = lazyWithReload(() => import('./pages/SettingsProfile.jsx'))
+const SettingsSecurity      = lazyWithReload(() => import('./pages/SettingsSecurity.jsx'))
+const SettingsNotifications = lazyWithReload(() => import('./pages/SettingsNotifications.jsx'))
+const SettingsMonthlyClose  = lazyWithReload(() => import('./pages/SettingsMonthlyClose.jsx'))
+const SettingsReferral      = lazyWithReload(() => import('./pages/SettingsReferral.jsx'))
+const SettingsPayments      = lazyWithReload(() => import('./pages/SettingsPayments.jsx'))
+const SettingsData          = lazyWithReload(() => import('./pages/SettingsData.jsx'))
+const SettingsInstall       = lazyWithReload(() => import('./pages/SettingsInstall.jsx'))
+const Planos         = lazyWithReload(() => import('./pages/Planos.jsx'))
+const Calendar       = lazyWithReload(() => import('./pages/Calendar.jsx'))
+const Finance        = lazyWithReload(() => import('./pages/Finance.jsx'))
+const PrivacyPolicy  = lazyWithReload(() => import('./pages/PrivacyPolicy.jsx'))
+const TermsOfUse     = lazyWithReload(() => import('./pages/TermsOfUse.jsx'))
+const NotFound       = lazyWithReload(() => import('./pages/NotFound.jsx'))
 
 function isLoggedIn() {
   try { return !!JSON.parse(sessionStorage.getItem('user') || 'null') } catch { return false }
