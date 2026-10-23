@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate as useRouterNavigate } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
 import { txCacheKey, currentBrasiliaMonthYear } from '../utils/txCache.js'
+import { scrollChipsBy } from '../utils/chipScroll.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
@@ -114,7 +115,7 @@ export default function Transactions() {
   const goToPrev = () => { if (!isOldestMonth)  setSelDate(new Date(selDate.getFullYear(), selDate.getMonth() - 1, 1)) }
   const goToNext = () => { if (!isCurrentMonth) setSelDate(new Date(selDate.getFullYear(), selDate.getMonth() + 1, 1)) }
 
-  const scrollChips = (dir) => chipsRef.current?.scrollBy?.({ left: dir * 140, behavior: 'smooth' })
+  const scrollChips = (dir) => scrollChipsBy(chipsRef.current, dir, 140)
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })

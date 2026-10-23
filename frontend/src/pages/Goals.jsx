@@ -9,6 +9,7 @@ import { useGoals } from '../hooks/useGoals.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
 import { fmt, fmtDate } from '../utils/format.js'
+import { scrollChipsBy } from '../utils/chipScroll.js'
 const amountBucket = (v) => {
   const n = Number(v)
   if (!n || n <= 0)      return '0'
@@ -243,7 +244,7 @@ export default function Goals() {
 
   const [newGoal, setNewGoal] = useState({ title: '', targetAmount: '' })
   const chipsRef = useRef(null)
-  const scrollChips = (dir) => chipsRef.current?.scrollBy({ left: dir * 150, behavior: 'smooth' })
+  const scrollChips = (dir) => scrollChipsBy(chipsRef.current, dir)
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const plan    = user?.plan ?? null
