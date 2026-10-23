@@ -12053,3 +12053,5 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .lg-foot { margin-top: 8px; text-align: center; }
 .lg-foot-line { margin: 0 0 4px; font-size: 12px; line-height: 17px; color: #99A5BE; }
 .lg-foot .lg-link { color: inherit; text-decoration: underline; }
+.lg-box .lg-p { margin: 0 0 4px; }
+.lg-box .lg-p:last-child { margin-bottom: 0; }
