@@ -119,6 +119,7 @@ test.describe('Limites', () => {
   test('o X remove o teto, e a categoria some da lista', async ({ page }) => {
     const state = await setup(page)
     await page.getByRole('button', { name: 'Remover limite de Shopping' }).click()
+    await page.getByRole('dialog', { name: 'Remover limite' }).getByRole('button', { name: 'Sim, remover' }).click()
     await expect(page.locator('.lm-name')).toHaveText(['Alimentação', 'Transporte'])
     expect(state.calls).toEqual([['DELETE', 'shopping']])
     await page.reload()

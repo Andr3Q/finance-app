@@ -127,12 +127,56 @@ describe('Limites', () => {
     expect(screen.getByPlaceholderText('Teto (R$)')).toHaveValue('999,00')
   })
 
-  it('o X remove o teto da categoria e recarrega', async () => {
+  it('o X pede confirmação (com a categoria e o teto); só "Sim, remover" remove o teto e recarrega', async () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: 'Remover limite de Shopping' }))
+    const dialog = screen.getByRole('dialog', { name: 'Remover limite' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(dialog).toHaveTextContent('Shopping · teto R$ 500,00')
+    expect(budgetAPI.removeLimit).not.toHaveBeenCalled() // nada some antes de confirmar
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Sim, remover' }))
     await waitFor(() => expect(budgetAPI.removeLimit).toHaveBeenCalledWith('shopping'))
     expect(invalidateCache).toHaveBeenCalledWith('dashboard')
-    expect(transactionsAPI.dashboard).toHaveBeenCalledTimes(2)
+    await waitFor(() => expect(transactionsAPI.dashboard).toHaveBeenCalledTimes(2))
+  })
+
+  it('Cancelar e Esc na confirmação não removem nada', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover limite de Shopping' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Remover limite' })).getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog', { name: 'Remover limite' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Remover limite de Shopping' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Remover limite' })).not.toBeInTheDocument()
+    expect(budgetAPI.removeLimit).not.toHaveBeenCalled()
+    expect(names()).toContain('Shopping')
+  })
+
+  it('confirmado, a linha some NA HORA (sem esperar o servidor); se o servidor recusar, a lista volta e o aviso explica', async () => {
+    let finish
+    budgetAPI.removeLimit.mockReturnValue(new Promise((res, rej) => { finish = rej }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover limite de Shopping' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Remover limite' })).getByRole('button', { name: 'Sim, remover' }))
+    await waitFor(() => expect(names()).toEqual(['Alimentação', 'Transporte'])) // já saiu, e o servidor ainda não respondeu
+    finish(new Error('off'))
+    expect(await screen.findByText('Erro ao remover limite.')).toBeInTheDocument()
+    await waitFor(() => expect(names()).toContain('Shopping')) // recarregou: voltou
+  })
+
+  it('salvar atualiza a linha NA HORA (a recarga do resumo leva segundos) e o botão não fica preso esperando', async () => {
+    let reload
+    renderPage()
+    await screen.findByText('Novo limite')
+    transactionsAPI.dashboard.mockReturnValue(new Promise(res => { reload = res })) // a recarga depois de salvar demora
+    fireEvent.click(screen.getByRole('radio', { name: 'Alimentação' }))
+    type(screen.getByPlaceholderText('Teto (R$)'), '2000')
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
+    await waitFor(() => expect(budgetAPI.setLimit).toHaveBeenCalledWith({ category: 'food', amount: 2000 }))
+    expect(await screen.findByText('Limite salvo!')).toBeInTheDocument()
+    await waitFor(() => expect(Array.from(document.querySelectorAll('.lm-amt')).map(n => n.textContent)).toContain('R$ 1.165,00 / R$ 2.000,00'))
+    expect(screen.getByRole('button', { name: 'Salvar' })).toBeEnabled() // não ficou esperando a recarga
+    reload({ data: DASH })
   })
 
   it('sem nenhum teto: mensagem vazia e o formulário continua disponível', async () => {

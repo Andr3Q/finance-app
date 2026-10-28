@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI, budgetAPI } from '../services/api.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CATEGORY_LABELS } from '../constants/index.js'
@@ -58,6 +60,8 @@ export default function Limits() {
   const [saving,  setSaving]  = useState(false)
   const [msg,     setMsg]     = useState(null)   // { text, ok }
   const [more,    setMore]    = useState(false)
+  const [confirmRow, setConfirmRow] = useState(null)   // limite que está sendo confirmado para remover
+  useEscapeKey(() => setConfirmRow(null), !!confirmRow)
 
   const load = useCallback(async () => {
     setFailed(false)
@@ -114,9 +118,11 @@ export default function Limits() {
     setSaving(true); setMsg(null)
     try {
       await budgetAPI.setLimit({ category: selected, amount })
+      // a linha muda NA HORA (a recarga do resumo leva segundos): sem isso a pessoa via "Limite salvo!" e a lista igual
+      setData(d => (d ? { ...d, limits: [...(Array.isArray(d.limits) ? d.limits.filter(l => l.category !== selected) : []), { category: selected, amount: Number(amount) }] } : d))
       setAmount(''); setCat(null)
       setMsg({ text: 'Limite salvo!', ok: true })
-      await changed()
+      changed() // atualiza o resto (Início, avisos) e confere com o servidor em segundo plano
     } catch (err) {
       setMsg({ text: err.response?.data?.error || 'Erro ao salvar limite.', ok: false })
     } finally {
@@ -126,11 +132,15 @@ export default function Limits() {
 
   const remove = async (row) => {
     setMsg(null)
+    setConfirmRow(null)
+    // some NA HORA; se o servidor recusar, a lista é recarregada (volta) e o aviso explica
+    setData(d => (d ? { ...d, limits: (Array.isArray(d.limits) ? d.limits : []).filter(l => l.category !== row.category) } : d))
     try {
       await budgetAPI.removeLimit(row.category)
-      await changed()
+      changed()
     } catch {
       setMsg({ text: 'Erro ao remover limite.', ok: false })
+      load()
     }
   }
 
@@ -190,7 +200,7 @@ export default function Limits() {
                               <span className="lm-cat"><Svg size={16} sw={2}>{CAT_ICONS[r.category] || CAT_ICONS.other}</Svg></span>
                               <span className="lm-name">{r.label}</span>
                               <span className="lm-amt">{money(r.spent)} / {money(r.limit)}</span>
-                              <button type="button" className="lm-del" aria-label={`Remover limite de ${r.label}`} onClick={() => remove(r)}>
+                              <button type="button" className="lm-del" aria-label={`Remover limite de ${r.label}`} onClick={() => setConfirmRow(r)}>
                                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden="true"><line x1="2" y1="2" x2="12" y2="12"/><line x1="12" y1="2" x2="2" y2="12"/></svg>
                               </button>
                             </div>
@@ -228,6 +238,26 @@ export default function Limits() {
           </div>
         </div>
       </div>
+
+      {confirmRow && createPortal(
+        <div className="gls-modal-overlay" onClick={() => setConfirmRow(null)}>
+          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="lm-del-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head"><span id="lm-del-title">Remover limite</span></div>
+            <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--t1)', marginBottom: 8 }}>Tem certeza?</div>
+              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+                <div style={{ fontWeight: 600, color: 'var(--t1)' }}>{confirmRow.label} · teto {money(confirmRow.limit)}</div>
+                O limite será removido e a Nancy deixa de avisar sobre essa categoria. Você pode definir outro depois.
+              </div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirmRow(null)}>Cancelar</button>
+              <button className="gls-btn-save" style={{ background: '#ef4444' }} onClick={() => remove(confirmRow)}>Sim, remover</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   )
 }

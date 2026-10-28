@@ -40,7 +40,9 @@ export default function Reminders() {
   const [state,   setState]   = useState(() => readReminders())
   const [sheet,   setSheet]   = useState(null)    // { kind: 'bill'|'custom', id }
   const [adding,  setAdding]  = useState(false)
-  useEscapeKey(() => setSheet(null), !!sheet)
+  const [confirmRemove, setConfirmRemove] = useState(null) // lembrete avulso que está sendo confirmado para remover
+  useEscapeKey(() => setConfirmRemove(null), !!confirmRemove)
+  useEscapeKey(() => setSheet(null), !!sheet && !confirmRemove) // com a confirmação por cima, o Esc é dela (volta pra janela de antecedência)
   useEscapeKey(() => setAdding(false), adding)
   const [form,    setForm]    = useState(EMPTY_NEW)
   const [formErr, setFormErr] = useState('')
@@ -76,7 +78,7 @@ export default function Reminders() {
     if (row.kind === 'bill') update({ ...state, bills: { ...state.bills, [row.id]: { on: row.on, lead } } })
     else update({ ...state, custom: state.custom.map(c => (c.id === row.id ? { ...c, lead } : c)) })
   }
-  const remove = (row) => { update({ ...state, custom: state.custom.filter(c => c.id !== row.id) }); setSheet(null) }
+  const remove = (row) => { update({ ...state, custom: state.custom.filter(c => c.id !== row.id) }); setConfirmRemove(null); setSheet(null) }
 
   const create = (e) => {
     e.preventDefault()
@@ -163,10 +165,30 @@ export default function Reminders() {
                 ))}
               </div>
               {sheetRow.kind === 'custom' && (
-                <button type="button" className="gls-remove-link" onClick={() => remove(sheetRow)}>Remover lembrete</button>
+                <button type="button" className="gls-remove-link" onClick={() => setConfirmRemove(sheetRow)}>Remover lembrete</button>
               )}
             </div>
             <div className="gls-modal-foot"><button className="gls-btn-save" onClick={() => setSheet(null)}>Pronto</button></div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {confirmRemove && createPortal(
+        <div className="gls-modal-overlay" onClick={() => setConfirmRemove(null)}>
+          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="rm-del-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head"><span id="rm-del-title">Remover lembrete</span></div>
+            <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--t1)', marginBottom: 8 }}>Tem certeza?</div>
+              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+                <div style={{ fontWeight: 600, color: 'var(--t1)' }}>{confirmRemove.name}</div>
+                O lembrete será removido e a Nancy deixa de avisar sobre ele.
+              </div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirmRemove(null)}>Cancelar</button>
+              <button className="gls-btn-save" style={{ background: '#ef4444' }} onClick={() => remove(confirmRemove)}>Sim, remover</button>
+            </div>
           </div>
         </div>,
         document.body

@@ -97,6 +97,7 @@ test.describe('Lembretes', () => {
 
     await page.getByRole('button', { name: /Antecedência do lembrete de IPVA 2027/ }).click()
     await page.getByRole('button', { name: 'Remover lembrete' }).click()
+    await page.getByRole('dialog', { name: 'Remover lembrete' }).getByRole('button', { name: 'Sim, remover' }).click()
     await expect(page.getByText('IPVA 2027')).toHaveCount(0)
     await page.reload()
     await expect(page.getByText('IPVA 2027')).toHaveCount(0)

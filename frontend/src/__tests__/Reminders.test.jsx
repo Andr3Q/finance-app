@@ -107,8 +107,30 @@ describe('Lembretes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Antecedência do lembrete de IPVA 2027/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Remover lembrete' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Remover lembrete' })).getByRole('button', { name: 'Sim, remover' }))
     expect(screen.queryByText('IPVA 2027')).not.toBeInTheDocument()
     expect(saved().custom).toEqual([])
+  })
+
+  it('remover lembrete avulso pede confirmação (com o nome): Cancelar e Esc voltam sem remover; Esc não fecha a janela de antecedência de uma vez', async () => {
+    localStorage.setItem('nancy:reminders', JSON.stringify({ bills: {}, custom: [{ id: 'c1', name: 'IPVA 2027', day: 15, month: 1, lead: 7, on: true }] }))
+    renderPage({ data: [] })
+    fireEvent.click(await screen.findByRole('button', { name: /Antecedência do lembrete de IPVA 2027/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remover lembrete' }))
+    const confirm = screen.getByRole('dialog', { name: 'Remover lembrete' })
+    expect(confirm).toHaveTextContent('IPVA 2027')
+    expect(confirm).toHaveAttribute('aria-modal', 'true')
+    expect(saved().custom).toHaveLength(1) // nada some antes de confirmar
+
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog', { name: 'Remover lembrete' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: /Lembrete de IPVA 2027/ })).toBeInTheDocument() // a janela de antecedência continua
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remover lembrete' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Remover lembrete' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: /Lembrete de IPVA 2027/ })).toBeInTheDocument() // 1º Esc só fecha a confirmação
+    expect(saved().custom).toHaveLength(1)
   })
 
   it('lembrete avulso mensal mostra "Dia N"', async () => {

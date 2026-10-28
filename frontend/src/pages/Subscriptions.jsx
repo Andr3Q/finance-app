@@ -131,7 +131,7 @@ export default function Subscriptions() {
                             {money(s.amount)}{since ? ` · cobrada ${since.text}` : ''}
                           </span>
                         </span>
-                        <button type="button" role="switch" aria-checked={keep} aria-label={`${s.description}: lembrar de cancelar ${keep ? 'desligado' : 'ligado'}`}
+                        <button type="button" role="switch" aria-checked={keep} aria-label={`Manter ${s.description}`}
                           className={`sb-switch${keep ? ' on' : ''}`} onClick={() => toggle(s)}>
                           <span className="sb-knob" />
                         </button>

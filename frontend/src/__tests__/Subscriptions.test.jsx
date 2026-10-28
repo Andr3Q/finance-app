@@ -58,6 +58,18 @@ describe('Assinaturas', () => {
     expect(screen.getByText(/cobrada há 2 dias/).className).not.toContain('stale')
   })
 
+  it('o nome acessível do interruptor é estável ("Manter <assinatura>"): o estado vai em aria-checked, não dentro do nome', async () => {
+    renderPage()
+    const sw = await screen.findAllByRole('switch')
+    const nomes = Array.from(document.querySelectorAll('.sb-name')).map(n => n.textContent)
+    expect(nomes).toHaveLength(3)
+    expect(sw.map(s => s.getAttribute('aria-label'))).toEqual(nomes.map(n => `Manter ${n}`))
+    fireEvent.click(sw[0])
+    expect(sw[0]).toHaveAttribute('aria-checked', 'false')
+    expect(sw[0]).toHaveAttribute('aria-label', `Manter ${nomes[0]}`) // mudou o estado, o nome continua o mesmo
+    expect(screen.getByRole('switch', { name: `Manter ${nomes[0]}` })).toBe(sw[0])
+  })
+
   it('interruptores começam ligados (mantida); desligar guarda o lembrete e ligar de novo remove', async () => {
     renderPage()
     const sw = await screen.findAllByRole('switch')
