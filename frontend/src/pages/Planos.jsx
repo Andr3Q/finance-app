@@ -117,7 +117,7 @@ export default function Planos() {
     if (status === 'pending') showToast('Pagamento pendente. Você receberá confirmação em breve.', 'warn')
     if (status === 'failure') showToast('Pagamento não aprovado. Tente novamente.', 'error')
     if (status === 'success') {
-      showToast('Pagamento aprovado! Seu plano foi ativado. 🎉', 'success')
+      showToast('Pagamento aprovado! Seu plano foi ativado.', 'success')
       analytics.track('payment_completed')
       // Polling: verifica se o plano foi atualizado (webhook pode demorar alguns segundos)
       const initialPlan = user.plan

@@ -155,19 +155,19 @@ router.patch('/:id', async (req, res) => {
 
       if (prevPct < 0.5 && newPct >= 0.5 && newPct < 1) {
         sendPushToUser(req.userId, {
-          title: '🎯 Metade do caminho!',
+          title: 'Metade do caminho!',
           body:  `Você já chegou a 50% da meta "${title}". Continue assim!`,
           url:   '/goals',
         }).catch(() => {})
       } else if (prevPct < 0.75 && newPct >= 0.75 && newPct < 1) {
         sendPushToUser(req.userId, {
-          title: '🚀 Quase lá!',
+          title: 'Quase lá!',
           body:  `Falta pouco! Você atingiu 75% da meta "${title}".`,
           url:   '/goals',
         }).catch(() => {})
       } else if (prevPct < 1 && newPct >= 1) {
         sendPushToUser(req.userId, {
-          title: '🏆 Meta concluída!',
+          title: 'Meta concluída!',
           body:  `Parabéns! Você atingiu sua meta "${title}".`,
           url:   '/goals',
         }).catch(() => {})

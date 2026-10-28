@@ -414,7 +414,7 @@ router.get('/me', authMiddleware, async (req, res) => {
               const when = b.daysLeft === 0 ? 'vence hoje' : b.daysLeft === 1 ? 'vence amanhã' : `vence em ${b.daysLeft} dias`
               const amt  = Number(b.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
               await sendPushToUser(req.userId, {
-                title: `📅 ${b.name} ${when}`,
+                title: `${b.name} ${when}`,
                 body:  `R$ ${amt} — não esqueça de pagar.`,
                 url:   '/contas-do-mes',
               })
@@ -433,7 +433,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       }).then(async expiradas => {
         for (const b of expiradas) {
           await sendPushToUser(req.userId, {
-            title: `📅 ${b.name} encerrou`,
+            title: `${b.name} encerrou`,
             body:  `Essa conta fixa chegou ao fim. Você pode removê-la agora.`,
             url:   '/settings',
           })

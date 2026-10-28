@@ -204,7 +204,7 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
             {codesCount !== null && (
               <span className={`sc-2fa-count${codesCount <= 2 ? ' low' : ''}`}>
                 {codesCount === 0
-                  ? '⚠ Sem códigos de recuperação disponíveis'
+                  ? 'Sem códigos de recuperação disponíveis'
                   : `${codesCount} código${codesCount === 1 ? '' : 's'} de recuperação disponíve${codesCount === 1 ? 'l' : 'is'}`}
               </span>
             )}

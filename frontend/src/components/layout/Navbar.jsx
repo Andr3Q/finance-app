@@ -283,8 +283,8 @@ export default function Navbar() {
               <div className="dsb-s-user-role">
                 {user.isOnTrial
                   ? `Trial Pro — ${Math.max(0, Math.ceil((new Date(user.trialEndsAt) - Date.now()) / 86400000))} dias`
-                  : user.plan === 'elite' ? 'Plano Elite ⚡'
-                  : isPro ? 'Plano Pro ✨'
+                  : user.plan === 'elite' ? 'Plano Elite'
+                  : isPro ? 'Plano Pro'
                   : 'Plano Grátis'}
               </div>
             </div>
@@ -314,8 +314,8 @@ export default function Navbar() {
               </span>
             )
             : isPro
-              ? <span className="dsb-topbar-pro" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>PRO ✨</span>
-              : <button className="dsb-topbar-upgrade" onClick={() => navigate('/planos')}>⚡ Upgrade</button>
+              ? <span className="dsb-topbar-pro" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>PRO</span>
+              : <button className="dsb-topbar-upgrade" onClick={() => navigate('/planos')}>Upgrade</button>
           }
 
           {/* Toggle dark/light — escondido nas telas do Nancy 2 (sempre claras) */}

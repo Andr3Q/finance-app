@@ -100,11 +100,11 @@ class GoalService {
     const title   = updated.title
 
     if      (prevPct < 0.5 && newPct >= 0.5 && newPct < 1)
-      await sendPushToUser(userId, { title: '🎯 Metade do caminho!', body: `Você já chegou a 50% da meta "${title}". Continue assim!`, url: '/goals' })
+      await sendPushToUser(userId, { title: 'Metade do caminho!', body: `Você já chegou a 50% da meta "${title}". Continue assim!`, url: '/goals' })
     else if (prevPct < 0.75 && newPct >= 0.75 && newPct < 1)
-      await sendPushToUser(userId, { title: '🚀 Quase lá!', body: `Falta pouco! Você atingiu 75% da meta "${title}".`, url: '/goals' })
+      await sendPushToUser(userId, { title: 'Quase lá!', body: `Falta pouco! Você atingiu 75% da meta "${title}".`, url: '/goals' })
     else if (prevPct < 1 && newPct >= 1)
-      await sendPushToUser(userId, { title: '🏆 Meta concluída!', body: `Parabéns! Você atingiu sua meta "${title}".`, url: '/goals' })
+      await sendPushToUser(userId, { title: 'Meta concluída!', body: `Parabéns! Você atingiu sua meta "${title}".`, url: '/goals' })
   }
 }
 

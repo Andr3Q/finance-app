@@ -442,7 +442,7 @@ router.post('/', dashboardLimiter, async (req, res) => {
         const descLabel      = description ? ` — ${description}` : ''
 
         await sendPushToUser(req.userId, {
-          title: type === 'income' ? '💰 Entrada registrada' : '💸 Gasto registrado',
+          title: type === 'income' ? 'Entrada registrada' : 'Gasto registrado',
           body:  `${type === 'income' ? '+' : '−'}R$ ${amountFmt} em ${catLabel}${descLabel}\nSaldo: R$ ${balanceFmt}`,
           url:   '/dashboard',
         })
@@ -466,14 +466,14 @@ router.post('/', dashboardLimiter, async (req, res) => {
 
             if (pct >= 1) {
               await sendPushToUser(req.userId, {
-                title: `🚨 Limite de ${catLabel} atingido`,
+                title: `Limite de ${catLabel} atingido`,
                 body:  `Você gastou R$ ${spentFmt} de R$ ${limitFmt} (100%).`,
                 url:   '/transactions',
               })
             } else if (pct >= 0.8) {
               const pctLabel = Math.round(pct * 100)
               await sendPushToUser(req.userId, {
-                title: `⚠️ ${pctLabel}% do limite de ${catLabel}`,
+                title: `${pctLabel}% do limite de ${catLabel}`,
                 body:  `R$ ${spentFmt} gastos de R$ ${limitFmt} neste mês.`,
                 url:   '/transactions',
               })
@@ -493,7 +493,7 @@ router.post('/', dashboardLimiter, async (req, res) => {
                 const pct      = Math.round((totalExpenses / monthlyIncome) * 100)
                 const expFmt   = totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
                 await sendPushToUser(req.userId, {
-                  title: `⚠️ ${pct}% do orçamento mensal usado`,
+                  title: `${pct}% do orçamento mensal usado`,
                   body:  `Você gastou R$ ${expFmt} este mês. Fique de olho!`,
                   url:   '/dashboard',
                 })
@@ -655,7 +655,7 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
     })
 
     res.json({
-      message:         `✅ ${result.count} ${result.count === 1 ? 'conta fixa lançada' : 'contas fixas lançadas'} com sucesso!`,
+      message:         `${result.count} ${result.count === 1 ? 'conta fixa lançada' : 'contas fixas lançadas'} com sucesso!`,
       count:           result.count,
       alreadyLaunched: false,
     })
