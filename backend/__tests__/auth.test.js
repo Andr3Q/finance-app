@@ -418,7 +418,28 @@ describe('PUT /api/auth/password', () => {
     expect(res.status).toBe(200)
   })
 
-  test('senha atual errada retorna 401', async () => {
+  test('depois da troca, ESTE aparelho continua logado: o cookie novo traz o tokenVersion novo (os JWTs antigos morrem, os outros aparelhos caem)', async () => {
+    const user = mockUser()
+    prisma.user.findUnique.mockResolvedValue(user)
+    prisma.user.update.mockResolvedValue({ id: 'user-123', tokenVersion: 5 })
+
+    const res = await request(app)
+      .put('/api/auth/password')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+      .send({ currentPassword: 'Password123', newPassword: 'NewPassword456' })
+
+    expect(res.status).toBe(200)
+    const update = prisma.user.update.mock.calls.at(-1)[0]
+    expect(update.data.tokenVersion).toEqual({ increment: 1 }) // a invalidação dos outros aparelhos continua
+    const cookie = (res.headers['set-cookie'] || []).find(c => c.startsWith('token='))
+    expect(cookie).toBeTruthy()
+    expect(cookie).toMatch(/HttpOnly/i)
+    const jwt = require('jsonwebtoken')
+    const decoded = jwt.verify(cookie.split(';')[0].replace('token=', ''), process.env.JWT_SECRET)
+    expect(decoded).toMatchObject({ userId: 'user-123', tokenVersion: 5 })
+  })
+
+  test('senha atual errada retorna 401 e NÃO emite cookie novo', async () => {
     const user = mockUser()
     prisma.user.findUnique.mockResolvedValue(user)
 
@@ -428,6 +449,7 @@ describe('PUT /api/auth/password', () => {
       .send({ currentPassword: 'WrongPass123', newPassword: 'NewPassword456' })
 
     expect(res.status).toBe(401)
+    expect(res.headers['set-cookie']).toBeUndefined()
   })
 
   test('nova senha fraca retorna 400', async () => {

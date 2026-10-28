@@ -928,7 +928,16 @@ router.put('/password', authMiddleware, async (req, res) => {
     sendPasswordChangedAlert(user.email, user.name).catch(() => {})
 
     const hashed = await bcrypt.hash(newPassword, 12)
-    await prisma.user.update({ where: { id: req.userId }, data: { password: hashed, tokenVersion: { increment: 1 } } })
+    const updated = await prisma.user.update({
+      where:  { id: req.userId },
+      data:   { password: hashed, tokenVersion: { increment: 1 } },
+      select: { id: true, tokenVersion: true },
+    })
+
+    // O tokenVersion novo invalida TODOS os JWTs antigos — de propósito, pra derrubar os outros aparelhos. Mas quem acabou
+    // de provar a senha atual não pode ser jogado pra fora do app sem aviso: emite um JWT novo só para este aparelho.
+    const token = jwt.sign({ userId: updated.id ?? req.userId, tokenVersion: updated.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: '24h' })
+    setAuthCookie(res, token)
 
     res.json({ ok: true })
   } catch (err) {
