@@ -36,7 +36,7 @@ const RECAP = {
 // a dica da semana (aviso que aparece até a pessoa abri-la) vem como "já aberta" nos testes que não falam dela
 const SEEN_TIPS = JSON.stringify(Object.fromEntries(['W41', 'W42', 'W43', 'W44'].map(w => [`dicas:2026-${w}`, 1])))
 
-async function setup(page, { at, data, goto = '/notificacoes', tipSeen = true, user = TEST_USER }) {
+async function setup(page, { at, data, goto = '/notificacoes', tipSeen = true, tipAvailable = true, user = TEST_USER }) {
   await page.clock.setFixedTime(new Date(at))
   if (tipSeen) await page.addInitScript((seen) => localStorage.setItem('nancy:stories-seen', seen), SEEN_TIPS)
   await injectSession(page, user)
@@ -44,6 +44,8 @@ async function setup(page, { at, data, goto = '/notificacoes', tipSeen = true, u
   await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
   await page.route('**/api/transactions/dashboard**', r => r.fulfill(json(data)))
   await page.route('**/api/transactions/monthly-recap**', r => r.fulfill(json(RECAP)))
+  // só há "Dica da Nancy IA" quando existe base de comparação (a consulta leve, sem gastar o limite do chat)
+  await page.route('**/api/transactions/weekly-tip-available**', r => r.fulfill(json({ available: tipAvailable })))
   await page.goto(goto)
 }
 
@@ -177,6 +179,11 @@ test.describe('Notificações', () => {
     await expect(page.locator('.ntf-name')).toHaveText(['Academia vence hoje', 'Lembrete de salário', 'Alimentação em 82% do limite', 'Dica da Nancy IA'])
     await row(page, /Dica da Nancy IA/).click()
     await expect(page).toHaveURL(/\/resumo-stories$/)
+  })
+
+  test('sem base de comparação não há dica da semana na lista, mesmo sem ter aberto', async ({ page }) => {
+    await setup(page, { at: SALARY_DAY, data: payload(7), tipSeen: false, tipAvailable: false })
+    await expect(page.locator('.ntf-name')).toHaveText(['Academia vence hoje', 'Lembrete de salário', 'Alimentação em 82% do limite'])
   })
 
   test('as preferências desligadas tiram os avisos da lista e do pontinho do sino', async ({ page }) => {
