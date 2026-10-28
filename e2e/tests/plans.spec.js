@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { test, expect }     = require('@playwright/test')
+const { test, expect }     = require('../helpers/test')
 const { createMock }       = require('../helpers/mockApi')
 const { injectSession, TEST_USER, FREE_USER } = require('../helpers/session')
 

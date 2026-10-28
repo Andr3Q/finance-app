@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { test, expect } = require('@playwright/test')
+const { test, expect } = require('../helpers/test')
 const { injectSession, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
@@ -52,7 +52,9 @@ test('quem já informou o salário no cadastro não é perguntado de novo: o onb
   await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
   await page.goto('/dashboard')
 
-  await expect(page.getByRole('heading', { name: 'Contas fixas' })).toBeVisible()
+  // dentro da janela do onboarding: o Início por trás também tem um "Contas fixas" (aparece conforme os dados carregam)
+  const ob = page.locator('.ob-shell')
+  await expect(ob.getByRole('heading', { name: 'Contas fixas' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Vamos começar' })).toHaveCount(0)
   await expect(page.getByText('Quanto você ganha por mês?')).toHaveCount(0)
 })

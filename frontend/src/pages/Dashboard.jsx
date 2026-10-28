@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { transactionsAPI, goalsAPI } from '../services/api.js'
+import { transactionsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
-import { prefetchStoriesWhenIdle } from '../services/storiesData.js'
+import { prefetchStoriesWhenIdle, loadStory } from '../services/storiesData.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import GradCard from '../components/ui/GradCard.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
@@ -152,13 +152,16 @@ export default function Dashboard() {
     return () => window.removeEventListener('budget-updated', handler)
   }, [fetchData])
 
+  // As metas do Início e o story "Suas metas" são a MESMA lista: uma busca só, compartilhada (services/storiesData.js), em
+  // qualquer ordem — se o pré-carregamento dos stories já pediu, o Início usa a resposta dele (e vice-versa).
   useEffect(() => {
+    if (!user.id) return undefined
     let cancelled = false
-    goalsAPI.list()
-      .then(({ data }) => { if (!cancelled) setGoals(Array.isArray(data) ? data.slice(0, 3) : []) })
+    loadStory(user.id, 'metas')
+      .then(data => { if (!cancelled) setGoals(Array.isArray(data) ? data.slice(0, 3) : []) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [])
+  }, [user.id])
 
   useEffect(() => {
     const dismiss = () => setTrialBellDismissed(true)

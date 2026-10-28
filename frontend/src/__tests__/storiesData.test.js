@@ -146,6 +146,27 @@ describe('storiesData — mudou algum dado', () => {
   })
 })
 
+describe('storiesData — metas compartilhadas entre o Início e o story', () => {
+  it('o Início pede as metas e DEPOIS o pré-carregamento roda: uma busca só', async () => {
+    const dashboard = loadStory('u1', 'metas') // o que o Início faz ao montar
+    await prefetchStories('u1', { tip: false })
+    await dashboard
+    expect(goalsAPI.list).toHaveBeenCalledTimes(1)
+  })
+
+  it('o pré-carregamento já está buscando e o Início pede em seguida: junta-se à mesma busca', async () => {
+    const d = deferred()
+    goalsAPI.list.mockReturnValue(d.promise)
+    const run = prefetchStories('u1', { tip: false })
+    await flush()
+    const dashboard = loadStory('u1', 'metas')
+    d.resolve({ data: [{ title: 'Viagem' }] })
+    await Promise.all([run, dashboard])
+    expect(goalsAPI.list).toHaveBeenCalledTimes(1)
+    await expect(dashboard).resolves.toEqual([{ title: 'Viagem' }])
+  })
+})
+
 describe('storiesData — pré-carregamento', () => {
   it('busca o que os círculos abrem: mês atual, metas, mês anterior e (com tip) a dica', async () => {
     await prefetchStories('u1', { tip: true })

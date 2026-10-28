@@ -60,3 +60,22 @@ A produção é estável. O atrito está no caminho até ela: testes frágeis e 
 - Mudança em algo compartilhado (hook, componente comum, CSS global): procurar todos os usos e rodar os testes deles **antes** do commit.
 - Um assunto por push; push só com a bateria completa local verde; conferir a CI depois do push, antes de dizer "pronto".
 - Teste que falha sem motivo: corrigir a causa (espera por estado, não por tempo); nunca só repetir.
+
+## 6. Rodada de teste limpa — o fluxo padrão (vale para toda rodada)
+
+**Regra:** cada rodada de teste deixa o caminho limpo para a próxima. Nada de lixo, sobra ou coisa antiga acumulando
+(imagens, containers, relatórios, capturas, arquivos soltos). A única coisa que fica é a ferramenta.
+
+| Rodada | Como rodar | O que ela mesma limpa |
+|---|---|---|
+| **E2E (igual à CI)** | `scripts/e2e-ci.sh [filtros]` — container oficial do Playwright, `CI=true` | **Antes:** remove container e resultados da rodada anterior; com <2 GB livres limpa o que não está em uso. **Depois:** remove o container sempre (até com Ctrl-C ou erro); se passou, apaga `test-results/` e `playwright-report/`; se falhou, mantém só o necessário para diagnosticar (a próxima rodada limpa). Reprova também teste **instável** (passou só na repetição). |
+| **QA (agente)** | `npm run qa` em `nancy-qa-agent` | No início e no fim de cada rodada apaga os instantâneos de página e os logs de console (material de trabalho que acumulava centenas); capturas e vídeos das evidências ficam 3 dias; relatórios `.md` ficam sempre. |
+| **Espaço em disco** | `scripts/limpar-espaco.sh` (simula) / `--aplicar` | Imagens do Docker sem container, caches (npm, Chrome, Electron, Gradle), `dist/`, resultados do Playwright, evidências de QA antigas e instaladores com mais de 60 dias. **Nunca** toca em containers, volumes, documentos ou código. |
+| **Arquivos temporários de quem testa** | pasta temporária da sessão (ou `mktemp -d` com `trap 'rm -rf …' EXIT`) | Nunca soltar `.bak`/logs em `/tmp`. Backup de arquivo para "quebrar de propósito" (mutação) é restaurado e apagado no mesmo comando. |
+
+**Por que o E2E roda em container:** este computador usa Ubuntu 26.04, que o Chromium do Playwright ainda não suporta — o E2E
+"local" usava o Chrome do sistema, outro navegador que a CI, e o mesmo texto cabia numa linha aqui e quebrava lá. No container o
+resultado é o da CI. Os fluxos do GitHub ficam fixados em `ubuntu-24.04` (o `ubuntu-latest` está migrando para o 26.04).
+
+**Padrão de estabilidade antes de um push grande:** `scripts/e2e-ci.sh` completo, três vezes seguidas, com zero falha e zero
+instável. Só então push, CI e homologação.

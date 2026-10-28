@@ -28,7 +28,7 @@ permissions:
 jobs:
   build:
     name: 📱 Build AAB · Play Store
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout

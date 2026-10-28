@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { test, expect } = require('@playwright/test')
+const { test, expect } = require('../helpers/test')
 const { injectSession, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ test.describe('Stories prontos antes do toque', () => {
     await page.goto('/dashboard')
     // o pré-carregamento acontece sozinho, em segundo plano: mês atual e mês anterior
     await expect.poll(() => calls.recapDone, { timeout: 25000 }).toBe(2)
-    expect(calls.goals).toBeGreaterThanOrEqual(1)
+    expect(calls.goals).toBe(1) // o Início e o story "Suas metas" compartilham UMA busca de metas (antes eram duas)
 
     await page.locator('button.home-story-blue').click()
     await expect(page).toHaveURL(/\/resumo-stories$/)

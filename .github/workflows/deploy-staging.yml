@@ -37,7 +37,7 @@ jobs:
   # ── 1. Testes Backend ────────────────────────────────────────
   test-backend:
     name: 🧪 Backend · Jest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -56,7 +56,7 @@ jobs:
   # ── 2. Testes Frontend ───────────────────────────────────────
   test-frontend:
     name: 🧪 Frontend · Vitest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -73,7 +73,7 @@ jobs:
   # ── 3. Build ─────────────────────────────────────────────────
   build-check:
     name: 🏗️ Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -90,7 +90,7 @@ jobs:
   # ── 4. Testes E2E ────────────────────────────────────────────
   test-e2e:
     name: 🎭 E2E · Playwright
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-backend, test-frontend, build-check]
     steps:
       - uses: actions/checkout@v4
@@ -127,7 +127,7 @@ jobs:
   # ── 5. Migration no Supabase Staging ─────────────────────────
   migrate-staging:
     name: 🗄️ Migration · Staging
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-backend, test-frontend, test-e2e]
     defaults:
       run:
@@ -149,7 +149,7 @@ jobs:
   # ── 6. Deploy no Cloud Run Staging ───────────────────────────
   deploy-staging:
     name: 🚀 Deploy · Staging
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [migrate-staging]
     env:
       PROJECT:    financaspro-2024

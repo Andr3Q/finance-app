@@ -85,7 +85,7 @@ export default function ChangePasswordCard({ onMessage }) {
         <span className="fin-ico"><LockGlyph /></span>
         <div className="fin-head-text">
           <h2 className="sc-title">Alterar senha</h2>
-          <p className="sc-sub">Mín. 8 com maiúscula, minúscula e número</p>
+          <p className="sc-sub">8+ com maiúscula, minúscula e número</p>
         </div>
       </div>
 

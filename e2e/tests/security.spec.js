@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { test, expect } = require('@playwright/test')
+const { test, expect } = require('../helpers/test')
 const { injectSession, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
@@ -33,7 +33,7 @@ test.describe('Segurança', () => {
     await expect(page.getByRole('heading', { name: 'Segurança', exact: true })).toBeVisible()
     await expect(page.locator('.fin-hero-sub')).toHaveText('Senha e duas etapas')
     await expect(page.getByRole('heading', { name: 'Alterar senha' })).toBeVisible()
-    await expect(page.getByText('Mín. 8 com maiúscula, minúscula e número')).toBeVisible()
+    await expect(page.getByText('8+ com maiúscula, minúscula e número')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Atualizar senha' })).toBeVisible()
     await expect(page.getByRole('switch', { name: 'Autenticação em duas etapas' })).toHaveAttribute('aria-checked', 'false')
     await expect(page.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Perfil')
