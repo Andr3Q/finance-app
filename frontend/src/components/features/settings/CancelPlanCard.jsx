@@ -47,7 +47,10 @@ export default function CancelPlanCard({ onMessage }) {
           : 'Assinatura cancelada. Seu acesso premium continua até o fim do período pago.'
       )
     } catch (err) {
-      onMessage(err.response?.data?.error || 'Erro ao cancelar plano.', 'error')
+      const msg = err.response?.data?.error || 'Erro ao cancelar plano.'
+      // senha errada: o erro aparece EMBAIXO do campo (não numa faixa atrás da janela) e o campo esvazia pra redigitar direto
+      if (err.response?.status === 401) { setPwdErr(msg); setConfirmPwd('') }
+      else onMessage(msg, 'error')
     } finally {
       setLoading(false)
     }

@@ -256,8 +256,12 @@ export default function Transactions() {
   // Mês sem lançamentos: no passado não faz sentido mandar "registrar a primeira transação" (a nova é sempre de hoje).
   const filtering  = !!search || filter !== 'all'
   const monthLabel = `${MONTHS[selDate.getMonth()].toLowerCase()}${selYear !== today.getFullYear() ? ` de ${selYear}` : ''}`
-  const emptyTitle = !filtering && !isCurrentMonth ? `Nenhuma transação em ${monthLabel}` : 'Nenhuma transação encontrada'
-  const emptySub   = filtering ? 'Ajuste os filtros de busca.' : isCurrentMonth ? 'Registre sua primeira transação.' : 'Use as setas para ver outros meses.'
+  // Mês com resultado mas sem lançamentos abertos = mês FECHADO (o fechamento arquiva os lançamentos; o resultado do cartão continua
+  // valendo, vem do resumo). Sem esta explicação a tela se contradizia: totais de verdade em cima e "Registre sua primeira transação".
+  const closedMonth = !filtering && resultKnown && monthTxs.length === 0
+  const emptyTitle = closedMonth ? 'Mês fechado' : !filtering && !isCurrentMonth ? `Nenhuma transação em ${monthLabel}` : 'Nenhuma transação encontrada'
+  const emptySub   = closedMonth ? `Os lançamentos de ${monthLabel} foram arquivados no relatório do fechamento.`
+    : filtering ? 'Ajuste os filtros de busca.' : isCurrentMonth ? 'Registre sua primeira transação.' : 'Use as setas para ver outros meses.'
 
   const FILTER_PILLS = [
     { value: 'all',     label: 'Todas',    },
@@ -350,6 +354,10 @@ export default function Transactions() {
                   <span className="ex-mono ex-out">{totalLabel(shownExpenses)}</span>
                 </div>
               </div>
+              {/* O resultado desconta as contas fixas ainda não pagas; sem esta linha Entradas − Saídas não fechava com o Resultado. */}
+              {resultKnown && recap.unpaidFixedCosts > 0 && (
+                <p className="ex-result-note">Já desconta {brl(recap.unpaidFixedCosts)} de contas fixas a pagar.</p>
+              )}
             </div>
           </div>
 
@@ -394,6 +402,7 @@ export default function Transactions() {
               <div className="ex-empty">
                 <div className="ex-empty-title">{emptyTitle}</div>
                 <div className="ex-empty-sub">{emptySub}</div>
+                {closedMonth && <button type="button" className="ex-empty-link" onClick={() => routerNavigate('/settings/fechamento')}>Ver relatórios</button>}
               </div>
             ) : grouped.map(g => (
               <div key={g.key} className="ex-day">

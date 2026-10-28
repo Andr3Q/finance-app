@@ -114,6 +114,27 @@ describe('CancelPlanCard — cancelamento', () => {
     })
   })
 
+  it('senha errada (401): o erro aparece EMBAIXO do campo, a janela continua aberta, o campo esvazia e nenhum aviso vai pro topo', async () => {
+    authAPI.downgradeFree.mockRejectedValue({ response: { status: 401, data: { error: 'Senha incorreta.' } } })
+    const { onMessage } = setup({ plan: 'pro' })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
+    fillPassword()
+    fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
+    expect(await screen.findByText('Senha incorreta.')).toBeInTheDocument()
+    expect(screen.getByText(/confirmar cancelamento/i)).toBeInTheDocument()
+    expect(onMessage).not.toHaveBeenCalled()
+    expect(screen.getByPlaceholderText(/senha/i)).toHaveValue('')
+  })
+
+  it('outro erro do servidor continua indo para o aviso do topo', async () => {
+    authAPI.downgradeFree.mockRejectedValue({ response: { status: 500, data: { error: 'Erro ao atualizar plano.' } } })
+    const { onMessage } = setup({ plan: 'pro' })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
+    fillPassword()
+    fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
+    await waitFor(() => expect(onMessage).toHaveBeenCalledWith('Erro ao atualizar plano.', 'error'))
+  })
+
   it('dispara analytics.track("plan_cancelled") após cancelamento', async () => {
     authAPI.downgradeFree.mockResolvedValue({})
     setup({ plan: 'pro' })

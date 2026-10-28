@@ -174,9 +174,12 @@ export default function Planos() {
         if (parsed.protocol !== 'https:' || parsed.hostname !== 'www.mercadopago.com.br') throw new Error()
       } catch { throw new Error('URL inválida') }
       win.location.href = data.checkoutUrl
-    } catch {
+    } catch (err) {
       win.close()
-      showToast('Erro ao iniciar pagamento. Tente novamente.', 'error')
+      // 503 = pagamentos fora do ar: pedir pra "tentar novamente" não ajuda
+      showToast(err?.response?.status === 503
+        ? 'Pagamentos indisponíveis no momento. Tente mais tarde ou fale com o suporte.'
+        : 'Erro ao iniciar pagamento. Tente novamente.', 'error')
     } finally {
       setLoading(null)
     }
@@ -248,7 +251,7 @@ export default function Planos() {
               {plan === 'free' ? (
                 <button type="button" className="pl-cta pl-cta-ghost" disabled>Plano básico</button>
               ) : (
-                <button type="button" className="pl-cta pl-cta-ghost" onClick={() => showToast('Para cancelar sua assinatura, acesse o Mercado Pago ou envie um e-mail para suporte@finance.com.br', 'warn')}>
+                <button type="button" className="pl-cta pl-cta-ghost" onClick={() => navigate('/settings/pagamentos')}>
                   Cancelar assinatura
                 </button>
               )}

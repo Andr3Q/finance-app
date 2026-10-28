@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import UpgradeModal from '../components/ui/UpgradeModal.jsx'
@@ -6,6 +7,7 @@ import { reportsAPI, transactionsAPI } from '../services/api.js'
 import { invalidateCache } from '../services/cache.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import { currentBrasiliaMonthYear } from '../utils/txCache.js'
 import { MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
@@ -36,6 +38,8 @@ export default function SettingsMonthlyClose() {
   const [history,   setHistory]   = useState(null)        // null = carregando/indisponível
   const [closing,   setClosing]   = useState(false)
   const [busyKey,   setBusyKey]   = useState(null)        // "mês-ano" do PDF sendo baixado
+  const [openCount, setOpenCount] = useState(undefined)   // lançamentos ABERTOS (não arquivados) do mês; undefined = não sei
+  const [confirming, setConfirming] = useState(false)     // janela "Fechar o mês?"
   const [upgrade,   setUpgrade]   = useState(null)
   const [msg,       setMsg]       = useState('')
   const [msgType,   setMsgType]   = useState('success')
@@ -50,9 +54,14 @@ export default function SettingsMonthlyClose() {
   }
 
   const load = useCallback(async () => {
-    const [r, h] = await Promise.allSettled([transactionsAPI.monthlyRecap(0), reportsAPI.history()])
+    const now = currentBrasiliaMonthYear()
+    const [r, h, o] = await Promise.allSettled([
+      transactionsAPI.monthlyRecap(0), reportsAPI.history(), transactionsAPI.list({ month: now.month, year: now.year, limit: 1 }),
+    ])
     setRecap(r.status === 'fulfilled' ? (r.value.data || null) : null)
     setHistory(h.status === 'fulfilled' && Array.isArray(h.value.data) ? h.value.data : null)
+    const total = o.status === 'fulfilled' ? o.value.data?.total : undefined
+    setOpenCount(Number.isFinite(total) ? total : undefined)
   }, [])
   useEffect(() => { load() }, [load])
 
@@ -63,9 +72,17 @@ export default function SettingsMonthlyClose() {
   const { month, year } = currentBrasiliaMonthYear()
   const known = !!recap && recap.hasData
 
-  const close = async () => {
+  // Mês sem lançamentos abertos: ou já foi fechado (o resultado vem do resumo, que inclui os arquivados) ou não teve movimento.
+  const nothingToClose = openCount === 0
+  useEscapeKey(() => setConfirming(false), confirming)
+
+  const askClose = () => {
     if (!isPro) { setUpgrade('O relatório PDF mensal é exclusivo do plano Pro.'); return }
-    if (!window.confirm('Isso vai gerar o PDF, enviar para o seu e-mail e zerar os gastos do mês.\n\nDeseja continuar?')) return
+    setConfirming(true)
+  }
+
+  const close = async () => {
+    setConfirming(false)
     setClosing(true)
     try {
       const res = await reportsAPI.monthlyClose()
@@ -76,6 +93,7 @@ export default function SettingsMonthlyClose() {
     } catch (err) {
       if (err.response?.data?.limitReached) setUpgrade('O relatório PDF mensal é exclusivo do plano Pro.')
       else showMsg(err.response?.data?.error || 'Erro ao fechar o mês.', 'error')
+      if (err.response?.data?.alreadyClosed !== undefined) load() // o servidor diz que não há o que fechar: atualiza a tela
     } finally {
       setClosing(false)
     }
@@ -128,9 +146,20 @@ export default function SettingsMonthlyClose() {
                 <div className="bm-box"><span className="bm-box-lbl">Entradas</span><span className="bm-box-val in">{money(known ? (recap.salary || 0) + recap.totalIncome : (recap?.totalIncome ?? 0))}</span></div>
                 <div className="bm-box"><span className="bm-box-lbl">Saídas</span><span className="bm-box-val">{money(recap?.totalExpenses ?? 0)}</span></div>
               </div>
-              <button type="button" className="bm-close" onClick={close} disabled={closing}>
-                {closing ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório…</> : <><ScaleIcon /> Fechar mês e gerar PDF</>}
-              </button>
+              {/* O resultado já desconta as contas fixas ainda não pagas; sem esta linha Entradas − Saídas não fechava com ele. */}
+              {known && recap.unpaidFixedCosts > 0 && (
+                <p className="bm-note">Já desconta {money(recap.unpaidFixedCosts)} de contas fixas a pagar.</p>
+              )}
+              {nothingToClose ? (
+                <>
+                  <button type="button" className="bm-close" disabled>{known ? 'Mês já fechado' : 'Nada para fechar'}</button>
+                  {known && <p className="bm-note">Os lançamentos de {MONTHS[month - 1].toLowerCase()} estão no relatório abaixo.</p>}
+                </>
+              ) : (
+                <button type="button" className="bm-close" onClick={askClose} disabled={closing}>
+                  {closing ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório…</> : <><ScaleIcon /> Fechar mês e gerar PDF</>}
+                </button>
+              )}
             </section>
 
             <section className="fin-card bm-list-card" aria-label="Relatórios anteriores">
@@ -159,6 +188,24 @@ export default function SettingsMonthlyClose() {
         </div>
       </div>
       {upgrade && <UpgradeModal reason={upgrade} onClose={() => setUpgrade(null)} />}
+
+      {confirming && createPortal(
+        <div className="gls-modal-overlay" onClick={() => setConfirming(false)}>
+          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="bm-close-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head"><span id="bm-close-title">Fechar o mês?</span></div>
+            <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
+              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+                Isso vai gerar o PDF, enviar para o seu e-mail e zerar os gastos do mês: os lançamentos de {MONTHS[month - 1].toLowerCase()} serão arquivados no relatório. Não dá para desfazer.
+              </div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirming(false)}>Voltar</button>
+              <button className="gls-btn-save" onClick={close}>Fechar mês</button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   )
 }

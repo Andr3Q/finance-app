@@ -47,6 +47,7 @@ function setup({ list = txs, recapRes = recap } = {}) {
         <Route path="/transactions" element={<Transactions />} />
         <Route path="/contas-do-mes" element={<div>Página Contas do mês</div>} />
         <Route path="/parcelados" element={<div>Página Parcelados</div>} />
+        <Route path="/settings/fechamento" element={<div>Página Balanço mensal</div>} />
       </Routes>
     </MemoryRouter>
   )
@@ -245,6 +246,38 @@ describe('Extrato — remover transação', () => {
   })
 })
 
+describe('Extrato — conta que fecha e mês fechado', () => {
+  it('o resultado explica as contas fixas a pagar que já desconta; sem contas a pagar a linha não aparece', async () => {
+    const { unmount } = setup({ recapRes: { ...recap, unpaidFixedCosts: 430 } })
+    expect(await screen.findByText('Já desconta R$ 430,00 de contas fixas a pagar.')).toBeInTheDocument()
+    unmount()
+    setup()
+    await screen.findByText('Roupa')
+    expect(screen.queryByText(/Já desconta/)).not.toBeInTheDocument()
+  })
+
+  it('com "ocultar valores" a nota das contas a pagar também não mostra o valor', async () => {
+    localStorage.setItem('hide-balance', '1')
+    setup({ recapRes: { ...recap, unpaidFixedCosts: 430 } })
+    expect(await screen.findByText('Já desconta R$ •••• de contas fixas a pagar.')).toBeInTheDocument()
+  })
+
+  it('mês FECHADO (tem resultado, mas os lançamentos foram arquivados): diz "Mês fechado" e leva ao relatório — não manda "registrar a primeira transação"', async () => {
+    setup({ list: [] })
+    expect(await screen.findByText('Mês fechado')).toBeInTheDocument()
+    expect(screen.getByText(/foram arquivados no relatório do fechamento/)).toBeInTheDocument()
+    expect(screen.queryByText('Registre sua primeira transação.')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Ver relatórios' }))
+    expect(await screen.findByText('Página Balanço mensal')).toBeInTheDocument()
+  })
+
+  it('mês sem resultado e sem lançamentos continua sendo o vazio de sempre (não é "fechado")', async () => {
+    setup({ list: [], recapRes: { hasData: false } })
+    expect(await screen.findByText('Nenhuma transação encontrada')).toBeInTheDocument()
+    expect(screen.queryByText('Mês fechado')).not.toBeInTheDocument()
+  })
+})
+
 describe('Extrato — mês sem lançamentos', () => {
   it('no mês atual vazio, convida a registrar a primeira transação', async () => {
     setup({ list: [], recapRes: { hasData: false } })
@@ -257,6 +290,8 @@ describe('Extrato — mês sem lançamentos', () => {
       data: { data: month === now.getMonth() + 1 && year === now.getFullYear() ? txs : [] },
     }))
     setup()
+    // o mês passado não teve movimento nenhum (sem resultado): é o vazio de sempre, não um mês "fechado"
+    transactionsAPI.monthlyRecap.mockImplementation((offset) => Promise.resolve({ data: offset === 0 ? recap : { hasData: false } }))
     await screen.findByText('Roupa')
     await userEvent.click(screen.getByLabelText('Mês anterior'))
     const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)

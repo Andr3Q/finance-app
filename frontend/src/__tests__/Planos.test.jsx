@@ -30,6 +30,7 @@ function renderPlanos(search = '') {
       <Routes>
         <Route path="/planos"   element={<Planos />} />
         <Route path="/register" element={<div>Tela de Registro</div>} />
+        <Route path="/settings/pagamentos" element={<div>Tela de Pagamentos</div>} />
       </Routes>
     </MemoryRouter>
   )
@@ -75,6 +76,27 @@ describe('Planos — renderização', () => {
     expect(screen.queryByRole('button', { name: /^assinar pro/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /fazer upgrade para elite/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /cancelar assinatura/i })).toBeInTheDocument()   // no card Grátis
+  })
+
+  it('"Cancelar assinatura" leva ao cancelamento do app (Pagamentos), não manda ir ao Mercado Pago nem escrever pro suporte', async () => {
+    setUser({ plan: 'pro' })
+    renderPlanos()
+    await userEvent.click(screen.getByRole('button', { name: /cancelar assinatura/i }))
+    expect(await screen.findByText('Tela de Pagamentos')).toBeInTheDocument()
+    expect(screen.queryByText(/Mercado Pago ou envie um e-mail/)).not.toBeInTheDocument()
+  })
+
+  it('pagamento indisponível (503): diz isso, sem pedir "tente novamente"; falha comum continua pedindo para tentar de novo', async () => {
+    setUser({ plan: 'pro' })
+    window.open = vi.fn(() => ({ close: vi.fn(), location: {} }))
+    renderPlanos()
+    paymentsAPI.createPreference.mockRejectedValueOnce({ response: { status: 503 } })
+    await userEvent.click(screen.getByRole('button', { name: /fazer upgrade para elite/i }))
+    expect(await screen.findByText('Pagamentos indisponíveis no momento. Tente mais tarde ou fale com o suporte.')).toBeInTheDocument()
+
+    paymentsAPI.createPreference.mockRejectedValueOnce(new Error('rede'))
+    await userEvent.click(screen.getByRole('button', { name: /fazer upgrade para elite/i }))
+    expect(await screen.findByText('Erro ao iniciar pagamento. Tente novamente.')).toBeInTheDocument()
   })
 
   it('usuário Elite: Elite é o atual; "Mudar para Pro" explica o rebaixamento em vez de cobrar', async () => {

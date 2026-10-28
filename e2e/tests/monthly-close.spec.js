@@ -16,7 +16,6 @@ const HISTORY = [{ month: 9, year: 2026 }, { month: 8, year: 2026 }, { month: 7,
 async function setup(page, user = USER) {
   const calls = []
   await page.clock.setFixedTime(new Date('2026-10-21T15:00:00Z'))
-  await page.addInitScript(() => { window.confirm = () => true })
   await injectSession(page, user)
   await page.route('**/api/**', r => r.fulfill(json([])))
   await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
@@ -64,11 +63,24 @@ test.describe('Balanço mensal', () => {
     expect(m.overflowX).toBe(0)
   })
 
-  test('fechar o mês pede confirmação, avisa e recarrega', async ({ page }) => {
+  test('fechar o mês pede confirmação (janela do app, não a do navegador), avisa e recarrega', async ({ page }) => {
     const calls = await setup(page)
     await page.getByRole('button', { name: /Fechar mês e gerar PDF/ }).click()
+    const dialog = page.getByRole('dialog', { name: 'Fechar o mês?' })
+    await expect(dialog).toContainText('zerar os gastos do mês')
+    expect(calls).toEqual([]) // nada é fechado antes de confirmar
+    await dialog.getByRole('button', { name: 'Fechar mês' }).click()
     await expect(page.getByText('Mês fechado com sucesso! Relatório enviado para ana@x.com')).toBeVisible()
     expect(calls).toEqual([['POST close']])
+  })
+
+  test('Esc na confirmação desiste do fechamento', async ({ page }) => {
+    const calls = await setup(page)
+    await page.getByRole('button', { name: /Fechar mês e gerar PDF/ }).click()
+    await expect(page.getByRole('dialog', { name: 'Fechar o mês?' })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog', { name: 'Fechar o mês?' })).toHaveCount(0)
+    expect(calls).toEqual([])
   })
 
   test('baixar o relatório de um mês fechado entrega o PDF daquele mês', async ({ page }) => {

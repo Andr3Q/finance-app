@@ -1,10 +1,10 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import SettingsMonthlyClose from '../pages/SettingsMonthlyClose.jsx'
 
 vi.mock('../services/api.js', () => ({
   reportsAPI: { monthlyClose: vi.fn(), history: vi.fn(), pdf: vi.fn() },
-  transactionsAPI: { monthlyRecap: vi.fn() },
+  transactionsAPI: { monthlyRecap: vi.fn(), list: vi.fn() },
 }))
 vi.mock('../services/cache.js', () => ({ invalidateCache: vi.fn() }))
 vi.mock('../components/layout/Navbar.jsx', () => ({ default: () => null }))
@@ -34,14 +34,16 @@ function renderPage(user = {}, entries = ['/settings/fechamento'], index) {
   )
 }
 const closeBtn = () => screen.getByRole('button', { name: /Fechar mês e gerar PDF/ })
+const confirmClose = () => fireEvent.click(within(screen.getByRole('dialog', { name: 'Fechar o mês?' })).getByRole('button', { name: 'Fechar mês' }))
 
 beforeEach(() => {
   vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear()
   transactionsAPI.monthlyRecap.mockResolvedValue({ data: RECAP })
+  transactionsAPI.list.mockResolvedValue({ data: { data: [{ id: 't1' }], total: 12 } }) // o mês tem lançamentos abertos
   reportsAPI.history.mockResolvedValue({ data: HISTORY })
   reportsAPI.monthlyClose.mockResolvedValue({ data: { message: 'Mês fechado com sucesso! Relatório enviado para ana@x.com' } })
   reportsAPI.pdf.mockResolvedValue({ data: new Blob(['%PDF'], { type: 'application/pdf' }) })
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
+  vi.spyOn(window, 'confirm').mockReturnValue(true) // não deve mais ser usado: a confirmação é uma janela do app
   URL.createObjectURL = vi.fn(() => 'blob:x'); URL.revokeObjectURL = vi.fn()
 })
 afterEach(() => { vi.restoreAllMocks() })
@@ -87,7 +89,12 @@ describe('Balanço mensal', () => {
     renderPage()
     await screen.findByText('+R$ 9.500,00')
     fireEvent.click(closeBtn())
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('zerar os gastos do mês'))
+    const dialog = screen.getByRole('dialog', { name: 'Fechar o mês?' })
+    expect(dialog).toHaveTextContent('zerar os gastos do mês')
+    expect(dialog).toHaveTextContent('Não dá para desfazer')
+    expect(window.confirm).not.toHaveBeenCalled() // janela do app, não a caixa nativa do navegador
+    expect(reportsAPI.monthlyClose).not.toHaveBeenCalled() // nada é fechado antes de confirmar
+    confirmClose()
     await waitFor(() => expect(reportsAPI.monthlyClose).toHaveBeenCalledTimes(1))
     expect(await screen.findByText('Mês fechado com sucesso! Relatório enviado para ana@x.com')).toBeInTheDocument()
     expect(invalidateCache).toHaveBeenCalledWith('dashboard')
@@ -95,11 +102,15 @@ describe('Balanço mensal', () => {
     expect(transactionsAPI.monthlyRecap).toHaveBeenCalledTimes(2)
   })
 
-  it('cancelar a confirmação não fecha nada', async () => {
-    window.confirm.mockReturnValue(false)
+  it('"Voltar" e Esc na confirmação não fecham nada', async () => {
     renderPage()
     await screen.findByText('+R$ 9.500,00')
     fireEvent.click(closeBtn())
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Fechar o mês?' })).getByRole('button', { name: 'Voltar' }))
+    expect(screen.queryByRole('dialog', { name: 'Fechar o mês?' })).not.toBeInTheDocument()
+    fireEvent.click(closeBtn())
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Fechar o mês?' })).not.toBeInTheDocument()
     expect(reportsAPI.monthlyClose).not.toHaveBeenCalled()
   })
 
@@ -108,6 +119,7 @@ describe('Balanço mensal', () => {
     renderPage()
     await screen.findByText('+R$ 9.500,00')
     fireEvent.click(closeBtn())
+    confirmClose()
     expect(await screen.findByText('Erro ao fechar o mês. Tente novamente.')).toBeInTheDocument()
     expect(closeBtn()).toBeEnabled()
   })
@@ -117,7 +129,7 @@ describe('Balanço mensal', () => {
     await screen.findByText('+R$ 9.500,00')
     fireEvent.click(closeBtn())
     expect(screen.getByRole('dialog', { name: 'Convite ao Pro' })).toHaveTextContent('exclusivo do plano Pro')
-    expect(window.confirm).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog', { name: 'Fechar o mês?' })).not.toBeInTheDocument()
     expect(reportsAPI.monthlyClose).not.toHaveBeenCalled()
   })
 
@@ -126,7 +138,56 @@ describe('Balanço mensal', () => {
     renderPage()
     await screen.findByText('+R$ 9.500,00')
     fireEvent.click(closeBtn())
+    confirmClose()
     expect(await screen.findByRole('dialog', { name: 'Convite ao Pro' })).toBeInTheDocument()
+  })
+})
+
+describe('Balanço mensal — mês já fechado e conta que fecha', () => {
+  it('mês sem lançamentos abertos que tem resultado = FECHADO: o botão vira "Mês já fechado" (desligado) e aponta para o relatório', async () => {
+    transactionsAPI.list.mockResolvedValue({ data: { data: [], total: 0 } })
+    renderPage()
+    await screen.findByText('+R$ 9.500,00')
+    const btn = await screen.findByRole('button', { name: 'Mês já fechado' })
+    expect(btn).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /Fechar mês e gerar PDF/ })).not.toBeInTheDocument()
+    expect(screen.getByText('Os lançamentos de outubro estão no relatório abaixo.')).toBeInTheDocument()
+  })
+
+  it('mês sem nenhum lançamento: "Nada para fechar"', async () => {
+    transactionsAPI.list.mockResolvedValue({ data: { data: [], total: 0 } })
+    transactionsAPI.monthlyRecap.mockResolvedValue({ data: { hasData: false } })
+    renderPage()
+    expect(await screen.findByRole('button', { name: 'Nada para fechar' })).toBeDisabled()
+  })
+
+  it('se não der pra saber quantos lançamentos estão abertos (falha na consulta), o botão de fechar continua disponível', async () => {
+    transactionsAPI.list.mockRejectedValue(new Error('off'))
+    renderPage()
+    await screen.findByText('+R$ 9.500,00')
+    expect(closeBtn()).toBeEnabled()
+  })
+
+  it('o resultado explica as contas fixas a pagar que já desconta (Entradas − Saídas − a pagar = Resultado)', async () => {
+    transactionsAPI.monthlyRecap.mockResolvedValue({ data: { ...RECAP, unpaidFixedCosts: 430 } })
+    renderPage()
+    expect(await screen.findByText('Já desconta R$ 430,00 de contas fixas a pagar.')).toBeInTheDocument()
+  })
+
+  it('sem contas a pagar, a linha não aparece', async () => {
+    renderPage()
+    await screen.findByText('+R$ 9.500,00')
+    expect(screen.queryByText(/Já desconta/)).not.toBeInTheDocument()
+  })
+
+  it('o servidor recusa por mês já fechado (409): avisa e atualiza a tela', async () => {
+    reportsAPI.monthlyClose.mockRejectedValue({ response: { status: 409, data: { error: 'Este mês já foi fechado. Os lançamentos estão no relatório de "Relatórios anteriores".', alreadyClosed: true } } })
+    renderPage()
+    await screen.findByText('+R$ 9.500,00')
+    fireEvent.click(closeBtn())
+    confirmClose()
+    expect(await screen.findByText(/Este mês já foi fechado/)).toBeInTheDocument()
+    await waitFor(() => expect(transactionsAPI.list).toHaveBeenCalledTimes(2)) // recarregou
   })
 })
 
