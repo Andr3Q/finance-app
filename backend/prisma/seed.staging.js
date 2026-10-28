@@ -76,8 +76,6 @@ async function main() {
       plan:            'free',
       emailVerified:   true,
       onboardingComplete: true,
-      autoLaunchMonth: month,
-      autoLaunchYear:  year,
     },
   })
   console.log('  ✓ Alice (free):', alice.id)
@@ -125,8 +123,6 @@ async function main() {
       planPeriod:      'monthly',
       emailVerified:   true,
       onboardingComplete: true,
-      autoLaunchMonth: month,
-      autoLaunchYear:  year,
     },
   })
   console.log('  ✓ Bob (pro):', bob.id)
@@ -178,8 +174,6 @@ async function main() {
       planPeriod:      'annual',
       emailVerified:   true,
       onboardingComplete: true,
-      autoLaunchMonth: month,
-      autoLaunchYear:  year,
     },
   })
   console.log('  ✓ Admin (elite):', elite.id)

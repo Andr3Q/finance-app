@@ -577,6 +577,21 @@ describe('GET /api/transactions/monthly-recap', () => {
     expect(res.body.salary).toBe(4200)
   })
 
+  test('usuário com a flag antiga de "já lançadas" neste mês: o resumo não desconta a conta pendente, igual ao saldo do Início (antes divergiam em R$ da conta)', async () => {
+    const { nowBrasilia } = require('../src/utils/helpers')
+    const { month, year } = nowBrasilia()
+    prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: 1000, category: 'food', month, year, budgetId: null }])
+    prisma.budget.findMany.mockResolvedValue([{ id: 'b1', amount: 300 }])
+
+    prisma.user.findUnique.mockResolvedValue(mockUser({ salary: 5000, autoLaunchMonth: month, autoLaunchYear: year }))
+    const withFlag = await request(app).get('/api/transactions/monthly-recap').set(authHeader())
+    expect(withFlag.body.saved).toBe(5000 - 1000)
+
+    prisma.user.findUnique.mockResolvedValue(mockUser({ salary: 5000, autoLaunchMonth: null, autoLaunchYear: null }))
+    const withoutFlag = await request(app).get('/api/transactions/monthly-recap').set(authHeader())
+    expect(withoutFlag.body.saved).toBe(5000 - 300 - 1000)
+  })
+
   test('escopa todas as consultas pelo usuário e não filtra archived', async () => {
     await request(app).get('/api/transactions/monthly-recap').query({ offset: -1 }).set(authHeader())
     const where = prisma.transaction.findMany.mock.calls.at(-1)[0].where
@@ -640,6 +655,19 @@ describe('GET /api/transactions/monthly-history', () => {
     prisma.transaction.findMany.mockResolvedValue([mockTx({ id: 'c', type: 'expense', amount: 100, ...cur })])
     const res = await request(app).get('/api/transactions/monthly-history').set(authHeader())
     expect(res.body.at(-1).saved).toBe(5000 - 800 - 100)
+  })
+
+  test('usuário com a flag antiga de "já lançadas" NESTE mês: a conta pendente não é descontada (igual ao Início); nos outros meses continua descontando', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ salary: 5000, autoLaunchMonth: cur.month, autoLaunchYear: cur.year }))
+    prisma.budget.findMany.mockResolvedValue([{ id: 'bud-1', amount: 800 }])
+    prisma.transaction.findMany.mockResolvedValue([
+      mockTx({ id: 'c', type: 'expense', amount: 100, ...cur }),
+      mockTx({ id: 'p', type: 'expense', amount: 100, ...prev }),
+    ])
+    const res = await request(app).get('/api/transactions/monthly-history').set(authHeader())
+    const find = (ym) => res.body.find(m => m.month === ym.month && m.year === ym.year)
+    expect(find(cur).saved).toBe(5000 - 100)        // flag: nada pendente descontado
+    expect(find(prev).saved).toBe(5000 - 800 - 100) // a flag só vale no mês dela
   })
 })
 

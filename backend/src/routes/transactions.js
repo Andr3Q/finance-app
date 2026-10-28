@@ -165,7 +165,7 @@ router.get('/monthly-history', dashboardLimiter, async (req, res) => {
         select: { type: true, amount: true, month: true, year: true, budgetId: true, category: true },
       }),
       prisma.budget.findMany({ where: { userId: req.userId }, select: { id: true, amount: true } }),
-      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, autoLaunchMonth: true, autoLaunchYear: true } }),
     ])
 
     const byMonth = {}
@@ -176,7 +176,8 @@ router.get('/monthly-history', dashboardLimiter, async (req, res) => {
 
     const salary = Number(user?.salary || 0)
     res.json(slots.map(s => {
-      const m = computeMonthMetrics({ transactions: byMonth[`${s.year}-${s.month}`] || [], budgets, salary })
+      const legacyAllLaunched = user?.autoLaunchMonth === s.month && user?.autoLaunchYear === s.year // mesma regra do Início
+      const m = computeMonthMetrics({ transactions: byMonth[`${s.year}-${s.month}`] || [], budgets, salary, legacyAllLaunched })
       return { ...s, income: m.totalIncome, expenses: m.totalExpenses, saved: m.balance, active: m.active }
     }))
   } catch (err) {
@@ -277,11 +278,14 @@ router.get('/monthly-recap', dashboardLimiter, async (req, res) => {
       }),
       prisma.budget.findMany({ where: { userId: req.userId }, select: { id: true, amount: true } }),
       prisma.goal.findMany({ where: { userId: req.userId }, select: { title: true, targetAmount: true, currentAmount: true } }),
-      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, autoLaunchMonth: true, autoLaunchYear: true } }),
     ])
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
-    res.json(buildMonthlyRecap({ target, transactions, budgets, goals, salary: Number(user.salary) }))
+    res.json(buildMonthlyRecap({
+      target, transactions, budgets, goals, salary: Number(user.salary),
+      autoLaunch: { month: user.autoLaunchMonth, year: user.autoLaunchYear }, // mesma regra do Início
+    }))
   } catch (err) {
     reportError(err, { tag: 'Erro no resumo mensal' })
     res.status(500).json({ error: 'Erro ao montar o resumo.' })

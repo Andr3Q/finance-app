@@ -28,12 +28,13 @@ function computeScore({ totalAvailable, totalExpenses, balance }) {
 }
 
 // Métricas de um único mês a partir das transações dele.
-function computeMonthMetrics({ transactions, budgets, salary }) {
+// legacyAllLaunched: mesma regra do Início (ver computeFixedCostsStatus) — só vale no mês em que a flag antiga do usuário bate.
+function computeMonthMetrics({ transactions, budgets, salary, legacyAllLaunched = false }) {
   const expenses = transactions.filter(t => t.type === 'expense')
   const totalIncome   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
   const totalExpenses = expenses.reduce((s, t) => s + Number(t.amount), 0)
 
-  const { unpaidFixedCosts } = computeFixedCostsStatus({ budgets, transactions })
+  const { unpaidFixedCosts } = computeFixedCostsStatus({ budgets, transactions, legacyAllLaunched })
   const totalAvailable = salary + totalIncome - unpaidFixedCosts
   const balance = totalAvailable - totalExpenses
 
@@ -99,11 +100,14 @@ function nextGoalStep(goals) {
  * @param {Array}    p.budgets       contas fixas atuais
  * @param {Array}    p.goals         metas atuais
  * @param {number}   p.salary
+ * @param {{month:number,year:number}|null} [p.autoLaunch]  flag antiga do usuário (autoLaunchMonth/Year): no mês em que bate,
+ *   as contas fixas contam como já lançadas — igual ao Início, senão o resumo discorda do saldo da tela inicial
  */
-function buildMonthlyRecap({ target, transactions, budgets, goals, salary }) {
+function buildMonthlyRecap({ target, transactions, budgets, goals, salary, autoLaunch = null }) {
   const byMonth = {}
   for (const t of transactions) (byMonth[key(t.year, t.month)] ||= []).push(t)
-  const metricsOf = (ym) => computeMonthMetrics({ transactions: byMonth[key(ym.year, ym.month)] || [], budgets, salary })
+  const legacyOf  = (ym) => !!autoLaunch && autoLaunch.month === ym.month && autoLaunch.year === ym.year
+  const metricsOf = (ym) => computeMonthMetrics({ transactions: byMonth[key(ym.year, ym.month)] || [], budgets, salary, legacyAllLaunched: legacyOf(ym) })
 
   const current = metricsOf(target)
   const prevYm  = shiftMonth(target, -1)

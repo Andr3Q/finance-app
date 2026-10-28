@@ -46,6 +46,17 @@ describe('buildMonthlyRecap', () => {
     expect(r.prevMonth).toBe(9)
   })
 
+  test('flag antiga de "já lançadas" (autoLaunch) vale só no mês dela, como no Início: sem ela o resumo descontava contas que o Início não desconta', () => {
+    // out: só b1 foi paga; b2 (500) está pendente. Sem a flag: 6000 + 1000 − 500 pendente − 1500 gastos = 5000.
+    const onlyB1 = base.filter(t => !(t.month === 10 && t.budgetId === 'b2'))
+    expect(recap(onlyB1).saved).toBe(5000)            // (flag ausente = comportamento de sempre)
+    const legacy = recap(onlyB1, { autoLaunch: { month: 10, year: 2026 } })
+    expect(legacy.saved).toBe(5500)                   // contas contam como lançadas: nada pendente descontado
+    // a flag de outro mês não muda este
+    expect(recap(onlyB1, { autoLaunch: { month: 9, year: 2026 } }).saved).toBe(recap(onlyB1).saved)
+    expect(recap(onlyB1, { autoLaunch: { month: null, year: null } }).saved).toBe(recap(onlyB1).saved)
+  })
+
   test('não é melhor mês quando outro mês do ano foi maior', () => {
     const r = recap([...base, tx(3, 'income', 20000)])
     expect(r.isBestOfYear).toBe(false)
