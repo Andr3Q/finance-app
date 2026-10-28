@@ -39,6 +39,11 @@ const settle = (page) => expect.poll(() => page.evaluate(() => {
   return last ? Math.abs(c.scrollLeft - last.left) <= 1 : true
 }), { timeout: 10000 }).toBe(true)
 
+// Onde o carrossel está AGORA (leitura da posição, não do botão): o botão só apaga um instante depois da rolagem terminar
+// (o estado atualiza no evento de scroll). Decidir o próximo clique por "botão ativo" lia ativo, e ele apagava antes do clique.
+const atEnd   = (page) => page.evaluate(() => { const c = document.querySelector('.ex-chips'); return c.scrollLeft >= c.scrollWidth - c.clientWidth - 1 })
+const atStart = (page) => page.evaluate(() => document.querySelector('.ex-chips').scrollLeft <= 1)
+
 const measure = (page) => page.evaluate(() => {
   const c = document.querySelector('.ex-chips'); const cr = c.getBoundingClientRect()
   const chips = [...c.querySelectorAll('.ex-chip')].map(e => e.getBoundingClientRect())
@@ -59,7 +64,7 @@ for (const [path, label] of [['/goals', 'Metas'], ['/transactions', 'Extrato']])
 
     // direita até a seta apagar: cada clique pede no máximo o fim, e no fim o último atalho encosta na borda
     let clicks = 0
-    for (let i = 0; i < 8 && await next.isEnabled(); i++) { await next.click(); clicks++; await settle(page) }
+    for (let i = 0; i < 8 && !(await atEnd(page)); i++) { await next.click(); clicks++; await settle(page) }
     await expect(next).toBeDisabled()
     await expect(prev).toBeEnabled()
     const end = await measure(page)
@@ -67,7 +72,7 @@ for (const [path, label] of [['/goals', 'Metas'], ['/transactions', 'Extrato']])
     expect(end.lastRight).toBe(0) // sem vazio depois do último atalho
 
     // esquerda até a seta apagar
-    for (let i = 0; i < 8 && await prev.isEnabled(); i++) { await prev.click(); clicks++; await settle(page) }
+    for (let i = 0; i < 8 && !(await atStart(page)); i++) { await prev.click(); clicks++; await settle(page) }
     await expect(prev).toBeDisabled()
     await expect(next).toBeEnabled()
     const back = await measure(page)

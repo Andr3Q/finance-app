@@ -214,6 +214,9 @@ test.describe('Dashboard — Stories (círculos de resumo)', () => {
     await page.route('**/api/goals**', r => r.fulfill(json([
       { id: 'g1', title: 'Reserva de emergência', targetAmount: 29500, currentAmount: 17900, createdAt: '2026-01-01T12:00:00Z', deadline: null },
     ])))
+    // O Início já pré-carregou os stories com as respostas genéricas do goDashboard (estes mocks ainda não existiam). Avisa que os dados
+    // mudaram — o mesmo 'budget-updated' que todo ponto do app dispara — pra o guardado ser descartado e os stories usarem estes mocks.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('budget-updated')))
   }
 
   test('círculo do mês atual abre o resumo completo (6 histórias)', async ({ page }) => {
