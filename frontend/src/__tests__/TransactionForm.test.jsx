@@ -152,6 +152,43 @@ describe('TransactionForm — fechar e descartar', () => {
   })
 })
 
+describe('TransactionForm — tecla Esc', () => {
+  it('Esc fecha a folha quando nada foi digitado', () => {
+    setup()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(defaultProps.onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('com dados digitados, Esc pergunta antes de descartar; Esc de novo volta a editar; só "Descartar" fecha', () => {
+    setup()
+    fireEvent.change(screen.getByPlaceholderText('Descrição (ex.: Mercado)'), { target: { value: 'rascunho' } })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(defaultProps.onClose).not.toHaveBeenCalled()
+    expect(screen.getByText('Descartar alterações?')).toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByText('Descartar alterações?')).not.toBeInTheDocument()
+    expect(defaultProps.onClose).not.toHaveBeenCalled()
+    expect(screen.getByPlaceholderText('Descrição (ex.: Mercado)')).toHaveValue('rascunho')
+  })
+
+  it('outras teclas não fecham, e depois de desmontar o Esc não faz mais nada', () => {
+    const { unmount } = setup()
+    fireEvent.keyDown(document, { key: 'Enter' })
+    expect(defaultProps.onClose).not.toHaveBeenCalled()
+    unmount()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(defaultProps.onClose).not.toHaveBeenCalled()
+  })
+
+  it('a pergunta de descartar também é um diálogo', () => {
+    setup()
+    fireEvent.change(screen.getByPlaceholderText('Descrição (ex.: Mercado)'), { target: { value: 'x' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+    expect(screen.getByRole('dialog', { name: 'Descartar alterações?' })).toHaveAttribute('aria-modal', 'true')
+  })
+})
+
 describe('TransactionForm — modo edição', () => {
   const editProps = {
     editingId:   '42',
@@ -182,6 +219,14 @@ describe('TransactionForm — modo edição', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }))
     await waitFor(() => expect(transactionsAPI.update).toHaveBeenCalledWith('42', expect.any(Object)))
     expect(transactionsAPI.create).not.toHaveBeenCalled()
+  })
+
+  it('data apagada no campo: avisa em português na hora e NÃO manda pro servidor (antes vinha "Use o formato YYYY-MM-DD")', async () => {
+    setup(editProps)
+    fireEvent.change(screen.getByLabelText('Data'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar alterações' }))
+    expect(await screen.findByText('Informe uma data válida (dd/mm/aaaa).')).toBeInTheDocument()
+    expect(transactionsAPI.update).not.toHaveBeenCalled()
   })
 
   it('regressão: transação lançada às 23h58 (Brasília) mantém o dia correto ao editar, não pula pro dia seguinte via UTC', async () => {

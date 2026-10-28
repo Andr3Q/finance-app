@@ -4,6 +4,8 @@ import { useNavigate as useRouterNavigate } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
 import { txCacheKey, currentBrasiliaMonthYear } from '../utils/txCache.js'
 import { scrollChipsBy } from '../utils/chipScroll.js'
+import { useChipEdges } from '../hooks/useChipEdges.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
@@ -116,6 +118,8 @@ export default function Transactions() {
   const goToNext = () => { if (!isCurrentMonth) setSelDate(new Date(selDate.getFullYear(), selDate.getMonth() + 1, 1)) }
 
   const scrollChips = (dir) => scrollChipsBy(chipsRef.current, dir, 140)
+  const chipEdges = useChipEdges(chipsRef)
+  useEscapeKey(() => setConfirmDeleteTx(null), !!confirmDeleteTx)
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -193,13 +197,16 @@ export default function Transactions() {
     e.target.value = null
   }
 
-  const handleDelete = async (id) => {
+  // A linha some na hora; se o servidor recusar (depois de 3 tentativas), a lista é recarregada — a linha volta — e
+  // o aviso explica. Também recarrega no fim com sucesso pra os totais do mês acompanharem.
+  const handleDelete = async (tx) => {
     setConfirmDeleteTx(null)
+    setTransactions(list => list.filter(t => t.id !== tx.id))
+    invalidateCache(txCacheKey(selMonth, selYear))
     let lastErr
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        await transactionsAPI.remove(id)
-        invalidateCache(txCacheKey(selMonth, selYear))
+        await transactionsAPI.remove(tx.id)
         fetchTransactions(true)
         return
       } catch (err) {
@@ -208,6 +215,7 @@ export default function Transactions() {
         if (attempt < 3) await new Promise(r => setTimeout(r, 600 * attempt))
       }
     }
+    fetchTransactions(true)
     showToast(lastErr?.response?.data?.error || 'Erro ao remover. Tente novamente.', false)
   }
 
@@ -237,6 +245,12 @@ export default function Transactions() {
     const matchFilter = filter === 'all' || t.type === filter
     return matchMonth && matchSearch && matchFilter
   })
+
+  // Mês sem lançamentos: no passado não faz sentido mandar "registrar a primeira transação" (a nova é sempre de hoje).
+  const filtering  = !!search || filter !== 'all'
+  const monthLabel = `${MONTHS[selDate.getMonth()].toLowerCase()}${selYear !== today.getFullYear() ? ` de ${selYear}` : ''}`
+  const emptyTitle = !filtering && !isCurrentMonth ? `Nenhuma transação em ${monthLabel}` : 'Nenhuma transação encontrada'
+  const emptySub   = filtering ? 'Ajuste os filtros de busca.' : isCurrentMonth ? 'Registre sua primeira transação.' : 'Use as setas para ver outros meses.'
 
   const FILTER_PILLS = [
     { value: 'all',     label: 'Todas',    },
@@ -286,7 +300,7 @@ export default function Transactions() {
             <h1 className="ex-title">Extrato</h1>
 
             <div className="ex-chips-row">
-              <button className="ex-chip-arrow" onClick={() => scrollChips(-1)} aria-label="Atalhos anteriores">
+              <button className="ex-chip-arrow" onClick={() => scrollChips(-1)} disabled={chipEdges.prevDisabled} aria-label="Atalhos anteriores">
                 <IconChevron dir="left" />
               </button>
               <div className="ex-chips" ref={chipsRef}>
@@ -303,7 +317,7 @@ export default function Transactions() {
                   <IconChart /> Análise do mês
                 </button>
               </div>
-              <button className="ex-chip-arrow" onClick={() => scrollChips(1)} aria-label="Próximos atalhos">
+              <button className="ex-chip-arrow" onClick={() => scrollChips(1)} disabled={chipEdges.nextDisabled} aria-label="Próximos atalhos">
                 <IconChevron dir="right" />
               </button>
             </div>
@@ -371,8 +385,8 @@ export default function Transactions() {
               <div className="ex-empty"><div className="dsb-loader-ring" style={{ margin:'0 auto' }} /></div>
             ) : filtered.length === 0 ? (
               <div className="ex-empty">
-                <div className="ex-empty-title">Nenhuma transação encontrada</div>
-                <div className="ex-empty-sub">{search || filter !== 'all' ? 'Ajuste os filtros de busca.' : 'Registre sua primeira transação.'}</div>
+                <div className="ex-empty-title">{emptyTitle}</div>
+                <div className="ex-empty-sub">{emptySub}</div>
               </div>
             ) : grouped.map(g => (
               <div key={g.key} className="ex-day">
@@ -395,7 +409,7 @@ export default function Transactions() {
                         </span>
                         <span className={`ex-row-val ${isInc ? 'inc' : 'exp'}`}>{hideValues ? HIDDEN : `${isInc ? '+' : '−'}R$ ${fmt(t.amount)}`}</span>
                       </button>
-                      <button className="ex-del" onClick={() => setConfirmDeleteTx(t.id)} title="Remover" aria-label="Remover transação">
+                      <button className="ex-del" onClick={() => setConfirmDeleteTx(t)} title="Remover" aria-label="Remover transação">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
@@ -453,9 +467,9 @@ export default function Transactions() {
 
       {confirmDeleteTx && createPortal(
         <div className="gls-modal-overlay" onClick={() => setConfirmDeleteTx(null)}>
-          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+          <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="ex-del-title" onClick={e => e.stopPropagation()}>
             <div className="gls-modal-head">
-              <span>Remover transação</span>
+              <span id="ex-del-title">Remover transação</span>
               <button className="gls-modal-close" onClick={() => setConfirmDeleteTx(null)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -470,7 +484,11 @@ export default function Transactions() {
                 </svg>
               </div>
               <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
-              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Esta transação será removida permanentemente.</div>
+              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+                <div style={{ fontWeight:600, color:'var(--t1)' }}>{confirmDeleteTx.description || CATEGORY_LABELS[confirmDeleteTx.category] || confirmDeleteTx.category}</div>
+                <div>{hideValues ? HIDDEN : `${confirmDeleteTx.type === 'income' ? '+' : '−'}R$ ${fmt(confirmDeleteTx.amount)}`} · {new Date(confirmDeleteTx.date).toLocaleDateString('pt-BR')}</div>
+                <div style={{ marginTop:6 }}>Esta transação será removida permanentemente.</div>
+              </div>
             </div>
             <div className="gls-modal-foot">
               <button className="gls-btn-ghost" onClick={() => setConfirmDeleteTx(null)}>Cancelar</button>

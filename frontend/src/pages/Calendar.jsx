@@ -233,7 +233,7 @@ function CalEvent({ ev, money }) {
     icon   = <CategoryIcon category={ev.tx.category} size={20} />
     name   = ev.tx.description || (isInc ? 'Entrada' : 'Gasto')
     sub    = CATEGORY_LABELS[ev.tx.category] || ev.tx.category
-    amount = `${isInc ? '+' : '-'}${money(ev.tx.amount)}`
+    amount = `${isInc ? '+' : '−'}${money(ev.tx.amount)}` // sinal de menos tipográfico, igual ao Extrato e ao Início
     cls    = isInc ? 'in' : ''
   } else if (ev.kind === 'budget') {
     icon = <ReceiptGlyph />; name = ev.budget.name; sub = 'Vencimento'; amount = money(ev.budget.amount)

@@ -29,7 +29,9 @@ function process(raw) {
 function toDisplay(v) {
   if (v === '' || v == null) return ''
   const n = Number(v)
-  if (!n && n !== 0) return ''
+  // Zero some (aparece o placeholder "0,00"): com "0,00" escrito de verdade os dígitos digitados caíam nos centavos
+  // e eram descartados, e o campo parecia travado. É o mesmo que o blur já faz com zero.
+  if (!n) return ''
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 

@@ -58,7 +58,7 @@ describe('Calendário — mês e dias', () => {
     expect(await screen.findByText('20 de outubro · hoje')).toBeInTheDocument()
     expect(day(20)).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('Roupa')).toBeInTheDocument()
-    expect(screen.getByText('-R$ 350,00')).toBeInTheDocument()
+    expect(screen.getByText('−R$ 350,00')).toBeInTheDocument()
     expect(screen.getByText('Academia')).toBeInTheDocument()
     expect(screen.getByText('Shopping')).toBeInTheDocument()
   })
@@ -121,7 +121,7 @@ describe('Calendário — mês e dias', () => {
   it('ocultar valores (preferência do Início) esconde os R$ da lista', async () => {
     localStorage.setItem('hide-balance', '1')
     setup({ txs: [tx('a', 20, 'expense', 'shopping', 'Roupa', 350)] })
-    expect(await screen.findByText('-R$ ••••')).toBeInTheDocument()
+    expect(await screen.findByText('−R$ ••••')).toBeInTheDocument()
     expect(screen.queryByText(/350/)).not.toBeInTheDocument()
   })
 })

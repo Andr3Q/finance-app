@@ -158,7 +158,7 @@ export default function BillsMonth() {
                   ))}
                 </ul>
 
-                <p className="cm-hint">Toque numa conta para marcar como paga.</p>
+                {pendingCount > 0 && <p className="cm-hint">Toque numa conta para marcar como paga.</p>}
               </>
             )}
           </div>

@@ -10,6 +10,7 @@ import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import DateInput from '../components/ui/DateInput.jsx'
 import { fmt, fmtDate } from '../utils/format.js'
 import { scrollChipsBy } from '../utils/chipScroll.js'
+import { useChipEdges } from '../hooks/useChipEdges.js'
 const amountBucket = (v) => {
   const n = Number(v)
   if (!n || n <= 0)      return '0'
@@ -245,6 +246,7 @@ export default function Goals() {
   const [newGoal, setNewGoal] = useState({ title: '', targetAmount: '' })
   const chipsRef = useRef(null)
   const scrollChips = (dir) => scrollChipsBy(chipsRef.current, dir)
+  const chipEdges = useChipEdges(chipsRef)
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const plan    = user?.plan ?? null
@@ -337,7 +339,7 @@ export default function Goals() {
             <header className="ex-hero gl-hero">
               <h1 className="ex-title">Metas</h1>
               <div className="ex-chips-row">
-                <button className="ex-chip-arrow" onClick={() => scrollChips(-1)} aria-label="Atalhos anteriores"><ChipArrow dir="left" /></button>
+                <button className="ex-chip-arrow" onClick={() => scrollChips(-1)} disabled={chipEdges.prevDisabled} aria-label="Atalhos anteriores"><ChipArrow dir="left" /></button>
                 <div className="ex-chips" ref={chipsRef}>
                   {TABS.map(t => (
                     <button key={t.key} type="button" className="ex-chip" onClick={() => navigate(t.to)}>
@@ -345,7 +347,7 @@ export default function Goals() {
                     </button>
                   ))}
                 </div>
-                <button className="ex-chip-arrow" onClick={() => scrollChips(1)} aria-label="Próximos atalhos"><ChipArrow dir="right" /></button>
+                <button className="ex-chip-arrow" onClick={() => scrollChips(1)} disabled={chipEdges.nextDisabled} aria-label="Próximos atalhos"><ChipArrow dir="right" /></button>
               </div>
             </header>
 

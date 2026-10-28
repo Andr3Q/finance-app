@@ -10789,6 +10789,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   width: 34px; height: 34px; border-radius: 50%; border: none; background: #fff; color: #1C48FF;
   display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
 }
+.ex-chip-arrow:disabled { opacity: .35; cursor: default; }
 .ex-chips { flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
 .ex-chips::-webkit-scrollbar { display: none; }
 .ex-chip {

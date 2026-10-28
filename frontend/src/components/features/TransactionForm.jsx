@@ -4,6 +4,7 @@ import { transactionsAPI } from '../../services/api.js'
 import { CATEGORY_LABELS } from '../../constants/index.js'
 import CurrencyInput from '../ui/CurrencyInput.jsx'
 import { CategoryIcon } from '../ui/icons.jsx'
+import { useEscapeKey } from '../../hooks/useEscapeKey.js'
 
 // Ordem do design (Alimentação, Transporte, Shopping, Saúde, Contas fixas) e, depois,
 // as categorias que o app tem e o design não mostra — nenhuma delas pode sumir da
@@ -50,6 +51,9 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
 
   const handleClose = () => isDirty ? setShowDiscardConfirm(true) : onClose()
 
+  // Esc: com a pergunta "Descartar alterações?" aberta ela é que fecha (continua editando); senão fecha a folha.
+  useEscapeKey(() => (showDiscardConfirm ? setShowDiscardConfirm(false) : handleClose()))
+
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
   const handleSubmit = async e => {
@@ -60,6 +64,12 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
     }
     if (parseFloat(form.amount) > 99999999) {
       setError('O valor máximo permitido por transação é de R$ 99.999.999,00.')
+      return
+    }
+    // Campo de data vazio/incompleto (o navegador entrega ''): avisa aqui em vez de mandar pro servidor,
+    // que responderia com o texto técnico "Use o formato YYYY-MM-DD".
+    if (isEdit && !/^\d{4}-\d{2}-\d{2}$/.test(form.date)) {
+      setError('Informe uma data válida (dd/mm/aaaa).')
       return
     }
     setLoading(true)
@@ -181,9 +191,9 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
 
     {showDiscardConfirm && createPortal(
       <div className="gls-modal-overlay" onClick={() => setShowDiscardConfirm(false)}>
-        <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+        <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="ntx-discard-title" onClick={e => e.stopPropagation()}>
           <div className="gls-modal-head">
-            <span>Descartar alterações?</span>
+            <span id="ntx-discard-title">Descartar alterações?</span>
             <button className="gls-modal-close" onClick={() => setShowDiscardConfirm(false)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

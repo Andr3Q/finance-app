@@ -56,6 +56,17 @@ describe('Contas do mês — resumo e lista', () => {
     expect(await screen.findByText('Tudo pago')).toBeInTheDocument()
   })
 
+  it('a dica "Toque numa conta para marcar como paga" some quando está tudo pago (não há mais o que marcar)', async () => {
+    const { unmount } = renderPage()
+    await screen.findByText('Aluguel')
+    expect(screen.getByText('Toque numa conta para marcar como paga.')).toBeInTheDocument()
+    unmount()
+
+    renderPage({ bills: [bill({ paidThisMonth: true })] })
+    await screen.findByText('Tudo pago')
+    expect(screen.queryByText('Toque numa conta para marcar como paga.')).not.toBeInTheDocument()
+  })
+
   it('uma conta pendente aparece como "1 pendente" (singular)', async () => {
     renderPage({ bills: [bill(), bill({ id: 'z', name: 'Luz', paidThisMonth: true })] })
     expect(await screen.findByText('1 pendente')).toBeInTheDocument()

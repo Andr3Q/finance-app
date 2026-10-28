@@ -7,6 +7,7 @@ import CurrencyInput from '../../ui/CurrencyInput.jsx'
 import { analytics } from '../../../services/analytics.js'
 import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
 import { ReceiptGlyph, CloseGlyph } from '../../ui/NancyGlyphs.jsx'
+import { useEscapeKey } from '../../../hooks/useEscapeKey.js'
 
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
@@ -109,8 +110,8 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       } else {
         onMessage(`✓ ${data.count} ${data.count === 1 ? 'conta fixa lançada' : 'contas fixas lançadas'} como transações!`)
       }
-      fetchBudgets()
       notifyBudgetChanged()
+      await fetchBudgets() // o botão fica em "Lançando..." até a lista mostrar "paga" — não convida a tocar de novo
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao lançar contas fixas.', 'error')
     } finally {
@@ -123,14 +124,17 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     try {
       await budgetAPI.pay(budget.id)
       onMessage(`${budget.name} marcada como paga!`)
-      fetchBudgets()
       notifyBudgetChanged()
+      await fetchBudgets()
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao marcar conta como paga.', 'error')
     } finally {
       setPayingId(null)
     }
   }
+
+  const deleting = budgets.find(b => b.id === deleteConfirmId) || null
+  useEscapeKey(() => setDeleteConfirmId(null), !!deleteConfirmId)
 
   const confirmDelete = async () => {
     if (!deleteConfirmId) return
@@ -334,9 +338,9 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
 
     {deleteConfirmId && createPortal(
       <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
-        <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+        <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="fx-del-title" onClick={e => e.stopPropagation()}>
           <div className="gls-modal-head">
-            <span>Excluir conta fixa</span>
+            <span id="fx-del-title">Excluir conta fixa</span>
             <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -353,7 +357,10 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
               </svg>
             </div>
             <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
-            <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Esta conta fixa será removida permanentemente.</div>
+            <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+              {deleting && <div style={{ fontWeight:600, color:'var(--t1)' }}>{deleting.name} · R$ {deleting.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>}
+              <div>Esta conta fixa será removida permanentemente.</div>
+            </div>
           </div>
           <div className="gls-modal-foot">
             <button className="gls-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</button>

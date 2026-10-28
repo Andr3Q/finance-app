@@ -167,6 +167,99 @@ describe('Extrato — lista por dia', () => {
   })
 })
 
+describe('Extrato — remover transação', () => {
+  const openDelete = async (name) => {
+    await screen.findByText(name)
+    const row = screen.getByText(name).closest('.ex-row')
+    await userEvent.click(within(row).getByLabelText('Remover transação'))
+    return row
+  }
+
+  it('a confirmação é um diálogo e diz QUAL transação vai sumir (descrição, valor e data)', async () => {
+    setup()
+    await openDelete('Roupa')
+    const dialog = screen.getByRole('dialog', { name: 'Remover transação' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(within(dialog).getByText('Roupa')).toBeInTheDocument()
+    expect(within(dialog).getByText(`−R$ 350,00 · ${now.toLocaleDateString('pt-BR')}`)).toBeInTheDocument()
+    expect(within(dialog).getByText('Esta transação será removida permanentemente.')).toBeInTheDocument()
+  })
+
+  it('com "ocultar valores" ligado a confirmação também não mostra o valor', async () => {
+    localStorage.setItem('hide-balance', '1')
+    setup()
+    await openDelete('Roupa')
+    const dialog = screen.getByRole('dialog', { name: 'Remover transação' })
+    expect(within(dialog).queryByText(/350/)).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/R\$ ••••/)).toBeInTheDocument()
+  })
+
+  it('Esc fecha a confirmação sem remover nada', async () => {
+    setup()
+    await openDelete('Roupa')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Remover transação' })).not.toBeInTheDocument()
+    expect(transactionsAPI.remove).not.toHaveBeenCalled()
+    expect(screen.getByText('Roupa')).toBeInTheDocument()
+  })
+
+  it('ao confirmar a linha some NA HORA, sem esperar o servidor responder', async () => {
+    let finish
+    transactionsAPI.remove.mockReturnValue(new Promise(r => { finish = r }))
+    setup()
+    await openDelete('Roupa')
+    await userEvent.click(screen.getByRole('button', { name: /sim, excluir/i }))
+    expect(screen.queryByText('Roupa')).not.toBeInTheDocument() // a requisição ainda está no ar
+    expect(screen.getByText('Academia')).toBeInTheDocument()
+    finish({})
+    await waitFor(() => expect(transactionsAPI.remove).toHaveBeenCalledWith('b'))
+  })
+
+  it('se o servidor recusar, a lista é recarregada (a linha volta) e o aviso explica', async () => {
+    transactionsAPI.remove.mockRejectedValue({ response: { status: 403, data: { error: 'Sem permissão.' } } })
+    setup()
+    await openDelete('Roupa')
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      await userEvent.click(screen.getByRole('button', { name: /sim, excluir/i }))
+      await vi.advanceTimersByTimeAsync(5000) // 3 tentativas com espera entre elas
+    } finally { vi.useRealTimers() }
+    expect(await screen.findByText('Sem permissão.')).toBeInTheDocument()
+    expect(transactionsAPI.remove).toHaveBeenCalledTimes(3)
+    expect(await screen.findByText('Roupa')).toBeInTheDocument() // o servidor ainda tem a transação: a lista recarregada traz de volta
+  })
+})
+
+describe('Extrato — mês sem lançamentos', () => {
+  it('no mês atual vazio, convida a registrar a primeira transação', async () => {
+    setup({ list: [], recapRes: { hasData: false } })
+    expect(await screen.findByText('Nenhuma transação encontrada')).toBeInTheDocument()
+    expect(screen.getByText('Registre sua primeira transação.')).toBeInTheDocument()
+  })
+
+  it('num mês passado vazio diz o mês e não manda "registrar a primeira transação"', async () => {
+    transactionsAPI.list.mockImplementation(({ month, year }) => Promise.resolve({
+      data: { data: month === now.getMonth() + 1 && year === now.getFullYear() ? txs : [] },
+    }))
+    setup()
+    await screen.findByText('Roupa')
+    await userEvent.click(screen.getByLabelText('Mês anterior'))
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const yearSuffix = prev.getFullYear() !== now.getFullYear() ? ` de ${prev.getFullYear()}` : ''
+    expect(await screen.findByText(`Nenhuma transação em ${MONTHS_PT[prev.getMonth()]}${yearSuffix}`)).toBeInTheDocument()
+    expect(screen.getByText('Use as setas para ver outros meses.')).toBeInTheDocument()
+    expect(screen.queryByText('Registre sua primeira transação.')).not.toBeInTheDocument()
+  })
+
+  it('com busca/filtro ativo, o texto continua sendo o dos filtros', async () => {
+    setup()
+    await screen.findByText('Roupa')
+    await userEvent.type(screen.getByPlaceholderText('Buscar no extrato'), 'zzzz')
+    expect(screen.getByText('Nenhuma transação encontrada')).toBeInTheDocument()
+    expect(screen.getByText('Ajuste os filtros de busca.')).toBeInTheDocument()
+  })
+})
+
 describe('Extrato — atalhos do cabeçalho', () => {
   it('"Contas do mês" leva para a tela das contas do mês (/contas-do-mes)', async () => {
     setup()

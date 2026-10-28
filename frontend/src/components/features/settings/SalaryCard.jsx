@@ -15,11 +15,16 @@ export default function SalaryCard({ user, onMessage }) {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    // Campo vazio não é "salário zero": sem valor não salva (antes zerava o salário calado e ainda dizia "sucesso").
+    if (!(Number(salary) > 0)) {
+      onMessage('Informe o valor do salário para salvar.', 'error')
+      return
+    }
     setSaving(true)
     try {
-      await budgetAPI.updateSalary(salary || 0)
+      await budgetAPI.updateSalary(salary)
       const stored = JSON.parse(sessionStorage.getItem('user') || '{}')
-      saveUser({ ...stored, salary: salary || 0 })
+      saveUser({ ...stored, salary })
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
       onMessage('Salário atualizado com sucesso!')

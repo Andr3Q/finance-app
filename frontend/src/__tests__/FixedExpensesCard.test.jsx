@@ -163,6 +163,62 @@ test('adicionar conta nova não tenta criar transação automaticamente (fluxo u
   expect(transactionsAPI.create).not.toHaveBeenCalled()
 })
 
+test('"Lançar": o botão fica em "Lançando..." até a lista mostrar as contas pagas (não convida a tocar de novo)', async () => {
+  let finishList
+  budgetAPI.list
+    .mockResolvedValueOnce({ data: [{ id: 'b2', name: 'Claro', amount: 49, paidThisMonth: false }] })
+    .mockReturnValueOnce(new Promise(r => { finishList = r }))
+  transactionsAPI.autoLaunch.mockResolvedValue({ data: { count: 1, alreadyLaunched: false } })
+
+  renderCard()
+  await screen.findByText('Claro')
+  fireEvent.click(screen.getByRole('button', { name: /lançar/i }))
+  await waitFor(() => expect(budgetAPI.list).toHaveBeenCalledTimes(2)) // a lista nova está a caminho
+  expect(screen.getByRole('button', { name: /lançando/i })).toBeDisabled()
+
+  finishList({ data: [{ id: 'b2', name: 'Claro', amount: 49, paidThisMonth: true }] })
+  expect(await screen.findByText(/todas as contas fixas pagas este mês/i)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /lançando/i })).not.toBeInTheDocument()
+})
+
+describe('excluir conta fixa', () => {
+  const two = { data: [
+    { id: 'b1', name: 'Internet', amount: 89, paidThisMonth: false },
+    { id: 'b2', name: 'Claro',    amount: 49.9, paidThisMonth: false },
+  ] }
+
+  test('a confirmação é um diálogo e diz QUAL conta (nome e valor) será removida', async () => {
+    budgetAPI.list.mockResolvedValue(two)
+    renderCard()
+    await screen.findByText('Claro')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remover' })[1])
+    const dialog = screen.getByRole('dialog', { name: 'Excluir conta fixa' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(dialog).toHaveTextContent('Claro · R$ 49,90')
+    expect(dialog).toHaveTextContent('Esta conta fixa será removida permanentemente.')
+  })
+
+  test('Esc fecha a confirmação sem remover', async () => {
+    budgetAPI.list.mockResolvedValue(two)
+    renderCard()
+    await screen.findByText('Claro')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remover' })[0])
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Excluir conta fixa' })).not.toBeInTheDocument()
+    expect(budgetAPI.remove).not.toHaveBeenCalled()
+  })
+
+  test('"Sim, excluir" remove exatamente a conta mostrada na confirmação', async () => {
+    budgetAPI.list.mockResolvedValue(two)
+    budgetAPI.remove.mockResolvedValue({ data: {} })
+    renderCard()
+    await screen.findByText('Claro')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remover' })[1])
+    fireEvent.click(screen.getByRole('button', { name: /sim, excluir/i }))
+    await waitFor(() => expect(budgetAPI.remove).toHaveBeenCalledWith('b2'))
+  })
+})
+
 // Formulário "Adicionar conta fixa" no padrão Nancy 2 (sem emoji, data de encerramento opcional)
 describe('formulário de adicionar', () => {
   const dateToggle = () => screen.getByRole('button', { name: /data de encerramento/i })

@@ -18,6 +18,15 @@ describe('CurrencyInput', () => {
     expect(input.value).toBe('1.500,00')
   })
 
+  it('valor 0 não escreve "0,00" no campo (mostra o placeholder), pra dígitos digitados não caírem nos centavos', async () => {
+    const onChange = vi.fn()
+    const { input } = setup(0, onChange)
+    expect(input.value).toBe('')
+    await userEvent.type(input, '5000')
+    expect(input.value).toBe('5.000')
+    expect(onChange).toHaveBeenLastCalledWith(5000)
+  })
+
   it('formata digitação de inteiro sem vírgula', async () => {
     const onChange = vi.fn()
     const { input } = setup('', onChange)

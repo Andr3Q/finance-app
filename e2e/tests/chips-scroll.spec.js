@@ -40,26 +40,36 @@ const measure = (page) => page.evaluate(() => {
 })
 
 for (const [path, label] of [['/goals', 'Metas'], ['/transactions', 'Extrato']]) {
-  test(`${label}: as setas pedem destinos dentro do alcance e não sobra vazio ao lado do último atalho`, async ({ page }) => {
+  test(`${label}: as setas pedem destinos dentro do alcance, não sobra vazio e apagam na ponta`, async ({ page }) => {
     await setup(page, path)
+    const prev = page.getByRole('button', { name: 'Atalhos anteriores' })
+    const next = page.getByRole('button', { name: 'Próximos atalhos' })
     const start = await measure(page)
     expect(start.max).toBeGreaterThan(0) // os atalhos não cabem de uma vez: é isso que as setas resolvem
     expect(start.firstLeft).toBe(0)
+    await expect(prev).toBeDisabled() // no começo não há pra onde voltar
+    await expect(next).toBeEnabled()
 
-    // direita até passar do fim: cada clique pede no máximo o fim, e no fim o último atalho encosta na borda
-    for (let i = 0; i < 4; i++) { await page.getByRole('button', { name: 'Próximos atalhos' }).click(); await page.waitForTimeout(700) }
+    // direita até a seta apagar: cada clique pede no máximo o fim, e no fim o último atalho encosta na borda
+    let clicks = 0
+    for (let i = 0; i < 8 && await next.isEnabled(); i++) { await next.click(); clicks++; await page.waitForTimeout(700) }
+    await expect(next).toBeDisabled()
+    await expect(prev).toBeEnabled()
     const end = await measure(page)
     expect(end.scrollLeft).toBe(end.max)
     expect(end.lastRight).toBe(0) // sem vazio depois do último atalho
 
-    // esquerda até passar do começo
-    for (let i = 0; i < 4; i++) { await page.getByRole('button', { name: 'Atalhos anteriores' }).click(); await page.waitForTimeout(700) }
+    // esquerda até a seta apagar
+    for (let i = 0; i < 8 && await prev.isEnabled(); i++) { await prev.click(); clicks++; await page.waitForTimeout(700) }
+    await expect(prev).toBeDisabled()
+    await expect(next).toBeEnabled()
     const back = await measure(page)
     expect(back.scrollLeft).toBe(0)
     expect(back.firstLeft).toBe(0) // sem vazio antes do primeiro atalho
 
     const calls = await page.evaluate(() => window.__chipCalls)
-    expect(calls.length).toBe(8)
+    expect(clicks).toBeGreaterThanOrEqual(2)
+    expect(calls.length).toBe(clicks)
     expect(calls.every(c => c.name === 'scrollTo')).toBe(true) // nada de scrollBy solto, que podia passar do limite
     for (const c of calls) { expect(c.left).toBeGreaterThanOrEqual(0); expect(c.left).toBeLessThanOrEqual(start.max) }
   })

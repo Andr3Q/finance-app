@@ -31,7 +31,7 @@ test.describe('Calendário', () => {
     await expect(page.locator('.cl-legend')).toContainText('Saída')
     await expect(page.getByText('20 de outubro · hoje')).toBeVisible()
     await expect(page.locator('.cl-ev-name')).toHaveText(['Roupa', 'Academia'])
-    await expect(page.locator('.cl-ev-amt')).toHaveText(['-R$ 350,00', '-R$ 200,00'])
+    await expect(page.locator('.cl-ev-amt')).toHaveText(['−R$ 350,00', '−R$ 200,00'])
     await expect(page.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Extrato')
     const m = await page.evaluate(() => {
       const cs = (s) => getComputedStyle(document.querySelector(s))
