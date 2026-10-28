@@ -174,7 +174,7 @@ describe('Dados pessoais — foto', () => {
 
   it.each([
     ['not-image', 'Escolha uma imagem (JPG, PNG ou WebP).'],
-    ['too-big', 'Essa imagem é grande demais. Escolha outra.'],
+    ['too-big', 'Essa imagem é grande demais (máximo 12 MB). Escolha outra.'],
     ['bad image', 'Não foi possível usar essa imagem.'],
   ])('imagem recusada (%s) avisa e não envia', async (code, msg) => {
     resizeToAvatar.mockRejectedValue(new Error(code))

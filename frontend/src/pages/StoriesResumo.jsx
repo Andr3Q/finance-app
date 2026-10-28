@@ -77,7 +77,8 @@ export default function StoriesResumo() {
     markSeen(story === 'dicas' ? dicasKey() : story === 'metas' ? metasKey() : resumoKey(offset))
   }, [status, slides.length, story, offset])
 
-  const close = () => navigate('/dashboard')
+  // Volta pra tela de onde os stories foram abertos (Início, Perfil, Notificações); aberto direto pela URL, vai pro Início.
+  const close = () => (location.key !== 'default' ? navigate(-1) : navigate('/dashboard'))
 
   const goTo = (i) => {
     if (i < 0) return // já no primeiro — tocar na esquerda não faz nada

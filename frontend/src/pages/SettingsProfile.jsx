@@ -73,7 +73,7 @@ export default function SettingsProfile() {
     } catch (err) {
       if (err?.response) flash(apiError(err, 'Erro ao salvar a foto.'), false)
       else if (err?.message === 'not-image') flash('Escolha uma imagem (JPG, PNG ou WebP).', false)
-      else if (err?.message === 'too-big') flash('Essa imagem é grande demais. Escolha outra.', false)
+      else if (err?.message === 'too-big') flash('Essa imagem é grande demais (máximo 12 MB). Escolha outra.', false)
       else flash('Não foi possível usar essa imagem.', false)
     } finally {
       setPhotoBusy(false)

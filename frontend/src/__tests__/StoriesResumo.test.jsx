@@ -221,6 +221,18 @@ describe('StoriesResumo — estados e navegação', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
   })
 
+  it('aberto a partir de outra tela (Perfil, Notificações...), fechar VOLTA para ela em vez de ir sempre ao Início', async () => {
+    render(
+      <MemoryRouter initialEntries={['/settings', { pathname: '/resumo-stories', state: { monthOffset: 0 } }]} initialIndex={1}>
+        <StoriesResumo />
+      </MemoryRouter>
+    )
+    await screen.findByText('Resumo do mês')
+    await userEvent.click(screen.getByRole('button', { name: 'Fechar' }))
+    expect(mockNavigate).toHaveBeenCalledWith(-1)
+    expect(mockNavigate).not.toHaveBeenCalledWith('/dashboard')
+  })
+
   it('tocar na esquerda no primeiro slide não navega pra lugar nenhum', async () => {
     setup(0)
     await screen.findByText('Resumo do mês')
