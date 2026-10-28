@@ -125,6 +125,18 @@ describe('Metas — editar e remover', () => {
   })
 })
 
+describe('Metas — o depósito não mexe no saldo (e a janela diz isso)', () => {
+  it('a janela de depósito avisa que guardar na meta não desconta do saldo, antes e depois de digitar o valor', async () => {
+    renderGoals()
+    fireEvent.click(await screen.findByRole('button', { name: /depositar na meta reserva de emergência/i }))
+    const dialog = await screen.findByRole('dialog', { name: 'Depositar na meta' })
+    expect(dialog).toHaveTextContent('Guardar na meta não desconta do seu saldo.')
+    await userEvent.clear(within(dialog).getByPlaceholderText('0,00'))
+    await userEvent.type(within(dialog).getByPlaceholderText('0,00'), '100')
+    expect(dialog).toHaveTextContent('Guardar na meta não desconta do seu saldo.')
+  })
+})
+
 describe('Metas — depositar não pisca a tela', () => {
   const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
 

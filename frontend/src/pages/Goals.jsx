@@ -102,6 +102,10 @@ function DepositModal({ goal, onConfirm, onCancel, saving, initialAmount = '' })
               Novo total: <strong style={{ color: goal.color }}>R$ {fmt(newTotal)}</strong>
             </div>
           )}
+          {/* O depósito só anota o que já foi guardado na meta: não é uma saída e não mexe no saldo do Início. */}
+          <p className="gls-dep-note" style={{ marginTop:10, marginBottom:0, fontSize:12, lineHeight:1.5, color:'var(--t3)' }}>
+            Guardar na meta não desconta do seu saldo.
+          </p>
           {willComplete && (
             <div style={{ marginTop:8, padding:'10px 12px', borderRadius:10, background:'rgba(74,226,172,.1)', border:'1px solid rgba(74,226,172,.25)', display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#4ae2ac', fontWeight:600 }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2.5" strokeLinecap="round">
