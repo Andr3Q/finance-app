@@ -11,6 +11,7 @@ import DateInput from '../components/ui/DateInput.jsx'
 import { fmt, fmtDate } from '../utils/format.js'
 import { scrollChipsBy } from '../utils/chipScroll.js'
 import { useChipEdges } from '../hooks/useChipEdges.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 const amountBucket = (v) => {
   const n = Number(v)
   if (!n || n <= 0)      return '0'
@@ -57,10 +58,11 @@ function DepositModal({ goal, onConfirm, onCancel, saving, initialAmount = '' })
   const depositValue = Number(amount) || 0
   const newTotal     = currentAmt + depositValue
   const willComplete = remaining > 0 && depositValue >= remaining
+  useEscapeKey(onCancel)
 
   return (
     <div className="gls-modal-overlay" onClick={e => e.target === e.currentTarget && onCancel()}>
-      <div className="gls-modal" style={{ maxWidth: 380 }}>
+      <div className="gls-modal" role="dialog" aria-modal="true" aria-label="Depositar na meta" style={{ maxWidth: 380 }}>
         <div className="gls-modal-head">
           <span>Depositar na meta</span>
           <button className="gls-modal-close" onClick={onCancel}>
@@ -120,7 +122,7 @@ function DepositModal({ goal, onConfirm, onCancel, saving, initialAmount = '' })
             {saving
               ? <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />
               : null}
-            {willComplete ? '🎯 Concluir meta' : 'Depositar'}
+            {willComplete ? 'Concluir meta' : 'Depositar'}
           </button>
         </div>
       </div>
@@ -166,10 +168,11 @@ function GoalForm({ initial, onSave, onCancel, onDelete, saving }) {
     if (isNew) sessionStorage.removeItem(DRAFT_KEY)
     onCancel()
   }
+  useEscapeKey(handleCancel)
 
   return (
     <div className="gls-modal-overlay" onClick={e => e.target === e.currentTarget && handleCancel()}>
-      <div className="gls-modal">
+      <div className="gls-modal" role="dialog" aria-modal="true" aria-label={initial?.id ? 'Editar meta' : 'Nova meta'}>
         <div className="gls-modal-head">
           <span>{initial?.id ? 'Editar meta' : 'Nova meta'}</span>
           <button className="gls-modal-close" onClick={handleCancel}>
@@ -310,6 +313,7 @@ export default function Goals() {
   }
 
   const handleDelete = (id) => setDeleteConfirmId(id)
+  useEscapeKey(() => setDeleteConfirmId(null), !!deleteConfirmId)
 
   const confirmDelete = async () => {
     const id = deleteConfirmId
@@ -433,9 +437,9 @@ export default function Goals() {
 
       {deleteConfirmId && (
         <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
-          <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="gl-del-title" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
             <div className="gls-modal-head">
-              <span>Remover meta</span>
+              <span id="gl-del-title">Remover meta</span>
               <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { useUser, saveUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import { paymentsAPI, authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
 
@@ -100,6 +101,7 @@ export default function Planos() {
   const [toast,             setToast]            = useState(null)
   const [loading,           setLoading]          = useState(null) // 'pro_monthly' | 'pro_annual' | etc.
   const [showDowngradeModal,setShowDowngradeModal] = useState(false)
+  useEscapeKey(() => setShowDowngradeModal(false), showDowngradeModal)
 
   const user     = useUser()
   const plan     = user.plan || 'free'

@@ -69,6 +69,14 @@ describe('CancelPlanCard — modal de confirmação', () => {
     fireEvent.click(screen.getByRole('button', { name: /voltar/i }))
     expect(screen.queryByText(/confirmar cancelamento/i)).not.toBeInTheDocument()
   })
+
+  it('Esc fecha o modal sem cancelar nada', () => {
+    setup()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar assinatura' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByText(/confirmar cancelamento/i)).not.toBeInTheDocument()
+    expect(authAPI.downgradeFree).not.toHaveBeenCalled()
+  })
 })
 
 // ── Cancelamento bem-sucedido ────────────────────────────────────

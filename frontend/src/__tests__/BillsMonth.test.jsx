@@ -129,6 +129,17 @@ describe('Contas do mês — marcar como paga', () => {
   })
 })
 
+describe('Contas do mês — tecla Esc', () => {
+  it('Esc fecha a confirmação de pagamento sem pagar', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /academia, pendente/i }))
+    expect(await screen.findByRole('dialog', { name: 'Marcar como paga' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Marcar como paga' })).not.toBeInTheDocument()
+    expect(budgetAPI.pay).not.toHaveBeenCalled()
+  })
+})
+
 describe('Contas do mês — navegação', () => {
   it('voltar retorna à tela anterior; aberta direto pela URL vai pro Extrato', async () => {
     const first = renderPage({ entries: ['/dashboard', '/contas-do-mes'], index: 1 })

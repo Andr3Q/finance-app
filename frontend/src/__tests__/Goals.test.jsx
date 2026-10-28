@@ -125,6 +125,56 @@ describe('Metas — editar e remover', () => {
   })
 })
 
+describe('Metas — tecla Esc e botão de concluir', () => {
+  const esc = () => fireEvent.keyDown(document, { key: 'Escape' })
+
+  it('Esc fecha o depósito sem depositar', async () => {
+    renderGoals()
+    fireEvent.click(await screen.findByRole('button', { name: /depositar na meta reserva de emergência/i }))
+    expect(await screen.findByRole('dialog', { name: 'Depositar na meta' })).toBeInTheDocument()
+    esc()
+    expect(screen.queryByRole('dialog', { name: 'Depositar na meta' })).not.toBeInTheDocument()
+    expect(goalsAPI.update).not.toHaveBeenCalled()
+  })
+
+  it('Esc fecha a edição da meta sem salvar', async () => {
+    renderGoals()
+    fireEvent.click(await screen.findByRole('button', { name: /editar meta reserva de emergência/i }))
+    expect(await screen.findByRole('dialog', { name: 'Editar meta' })).toBeInTheDocument()
+    esc()
+    expect(screen.queryByRole('dialog', { name: 'Editar meta' })).not.toBeInTheDocument()
+    expect(goalsAPI.update).not.toHaveBeenCalled()
+  })
+
+  it('Esc fecha a confirmação de remover sem remover', async () => {
+    renderGoals()
+    fireEvent.click(await screen.findByRole('button', { name: /editar meta reserva de emergência/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover meta' }))
+    expect(await screen.findByRole('dialog', { name: 'Remover meta' })).toBeInTheDocument()
+    esc()
+    expect(screen.queryByRole('dialog', { name: 'Remover meta' })).not.toBeInTheDocument()
+    expect(goalsAPI.remove).not.toHaveBeenCalled()
+  })
+
+  it('o botão que conclui a meta não tem emoji (o design não usa)', async () => {
+    renderGoals([goal({ targetAmount: 1000, currentAmount: 900 })])
+    fireEvent.click(await screen.findByRole('button', { name: /depositar na meta reserva de emergência/i }))
+    expect(await screen.findByRole('button', { name: 'Concluir meta' })).toBeInTheDocument()
+    expect(screen.queryByText(/🎯/)).not.toBeInTheDocument()
+  })
+
+  it('criar a meta com Enter (foco ainda no valor) limpa também o campo do valor alvo', async () => {
+    renderGoals([])
+    await userEvent.type(await screen.findByPlaceholderText('Ex.: Carro novo'), 'Casa')
+    const target = screen.getByPlaceholderText('Valor alvo (R$)')
+    await userEvent.type(target, '9000{Enter}')
+    await waitFor(() => expect(goalsAPI.create).toHaveBeenCalled())
+    await screen.findByText('Meta criada!')
+    expect(screen.getByPlaceholderText('Ex.: Carro novo')).toHaveValue('')
+    expect(screen.getByPlaceholderText('Valor alvo (R$)')).toHaveValue('')
+  })
+})
+
 describe('Metas — atalhos do cabeçalho (antigas abas)', () => {
   it('"Histórico", "Assinaturas" e "Lembretes" abrem as telas próprias (não trocam o conteúdo)', async () => {
     setUser('elite')

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { agentAPI } from '../../services/api.js'
 import { useUser } from '../../hooks/useUser.js'
+import { useEscapeKey } from '../../hooks/useEscapeKey.js'
 import { analytics } from '../../services/analytics.js'
 import { invalidateCache } from '../../services/cache.js'
 import { MONTHS } from '../../constants/index.js'
@@ -46,6 +47,7 @@ function getMicHelpText() {
 
 export default function AgentChat() {
   const [open,         setOpen]         = useState(false)
+  useEscapeKey(() => setOpen(false), open)
   const [input,        setInput]        = useState('')
   const [loading,      setLoading]      = useState(false)
   const [history,      setHistory]      = useState([])

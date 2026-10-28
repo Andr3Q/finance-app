@@ -99,6 +99,15 @@ describe('Meus dados — excluir conta', () => {
     expect(authAPI.deleteAccount).not.toHaveBeenCalled()
   })
 
+  it('Esc fecha a confirmação sem excluir a conta', () => {
+    renderPage()
+    openModal()
+    expect(screen.getByText('Excluir conta permanentemente')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByText('Excluir conta permanentemente')).not.toBeInTheDocument()
+    expect(authAPI.deleteAccount).not.toHaveBeenCalled()
+  })
+
   it('confirmando: manda a senha, limpa a sessão e vai pro login', async () => {
     authAPI.deleteAccount.mockResolvedValue({})
     sessionStorage.setItem('user', '{"id":"u1"}'); sessionStorage.setItem('token', 't')

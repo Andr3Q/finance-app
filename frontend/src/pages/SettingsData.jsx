@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { authAPI } from '../services/api.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 
 const Svg = ({ size = 18, sw = 1.9, children }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -24,6 +25,7 @@ export default function SettingsData() {
   const [deletePass, setDeletePass] = useState('')
   const [deleteErr, setDeleteErr] = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
+  useEscapeKey(() => { if (!deleteLoading) setDeleteModal(false) }, deleteModal)
   const timer = useRef(null)
   useEffect(() => () => clearTimeout(timer.current), [])
 

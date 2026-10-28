@@ -20,7 +20,7 @@ async function setup(page, path) {
     for (const name of ['scrollTo', 'scrollBy']) {
       const orig = Element.prototype[name]
       Element.prototype[name] = function (...args) {
-        if (isChips(this)) window.__chipCalls.push({ name, left: args[0] && typeof args[0] === 'object' ? args[0].left : args[0], from: this.scrollLeft })
+        if (isChips(this)) window.__chipCalls.push({ name, left: args[0] && typeof args[0] === 'object' ? args[0].left : args[0], from: this.scrollLeft, max: this.scrollWidth - this.clientWidth })
         return orig.apply(this, args)
       }
     }
@@ -31,6 +31,13 @@ async function setup(page, path) {
   await page.goto(path)
   await expect(page.locator('.ex-chips')).toBeVisible({ timeout: 15000 })
 }
+
+// Espera a rolagem suave CHEGAR ao destino que o app pediu (último scrollTo), em vez de um tempo fixo: com o computador
+// ocupado a animação demora mais e uma espera de 700 ms media a posição no meio do caminho (falha só sob carga).
+const settle = (page) => expect.poll(() => page.evaluate(() => {
+  const c = document.querySelector('.ex-chips'); const last = window.__chipCalls[window.__chipCalls.length - 1]
+  return last ? Math.abs(c.scrollLeft - last.left) <= 1 : true
+}), { timeout: 10000 }).toBe(true)
 
 const measure = (page) => page.evaluate(() => {
   const c = document.querySelector('.ex-chips'); const cr = c.getBoundingClientRect()
@@ -52,7 +59,7 @@ for (const [path, label] of [['/goals', 'Metas'], ['/transactions', 'Extrato']])
 
     // direita até a seta apagar: cada clique pede no máximo o fim, e no fim o último atalho encosta na borda
     let clicks = 0
-    for (let i = 0; i < 8 && await next.isEnabled(); i++) { await next.click(); clicks++; await page.waitForTimeout(700) }
+    for (let i = 0; i < 8 && await next.isEnabled(); i++) { await next.click(); clicks++; await settle(page) }
     await expect(next).toBeDisabled()
     await expect(prev).toBeEnabled()
     const end = await measure(page)
@@ -60,7 +67,7 @@ for (const [path, label] of [['/goals', 'Metas'], ['/transactions', 'Extrato']])
     expect(end.lastRight).toBe(0) // sem vazio depois do último atalho
 
     // esquerda até a seta apagar
-    for (let i = 0; i < 8 && await prev.isEnabled(); i++) { await prev.click(); clicks++; await page.waitForTimeout(700) }
+    for (let i = 0; i < 8 && await prev.isEnabled(); i++) { await prev.click(); clicks++; await settle(page) }
     await expect(prev).toBeDisabled()
     await expect(next).toBeEnabled()
     const back = await measure(page)
@@ -71,6 +78,7 @@ for (const [path, label] of [['/goals', 'Metas'], ['/transactions', 'Extrato']])
     expect(clicks).toBeGreaterThanOrEqual(2)
     expect(calls.length).toBe(clicks)
     expect(calls.every(c => c.name === 'scrollTo')).toBe(true) // nada de scrollBy solto, que podia passar do limite
-    for (const c of calls) { expect(c.left).toBeGreaterThanOrEqual(0); expect(c.left).toBeLessThanOrEqual(start.max) }
+    // o alcance é o de CADA momento: com a fonte carregando (computador ocupado) os atalhos alargam e o máximo cresce depois do início
+    for (const c of calls) { expect(c.left).toBeGreaterThanOrEqual(0); expect(c.left).toBeLessThanOrEqual(c.max) }
   })
 }

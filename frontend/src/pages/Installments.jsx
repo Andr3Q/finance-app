@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { installmentsAPI } from '../services/api.js'
 import { invalidateCache } from '../services/cache.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { LayersGlyph, PlusGlyph } from '../components/ui/NancyGlyphs.jsx'
@@ -32,6 +33,7 @@ export default function Installments() {
   const [payingId,   setPayingId]   = useState(null)
   const [unpayingId, setUnpayingId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  useEscapeKey(() => setConfirmDelete(null), !!confirmDelete)
   const [form,     setForm]     = useState({ name: '', total: '', count: '' })
   const [saving,   setSaving]   = useState(false)
   const nameRef = useRef(null)
@@ -265,9 +267,9 @@ export default function Installments() {
 
       {confirmDelete && createPortal(
         <div className="gls-modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="gls-modal" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="inst-del-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
             <div className="gls-modal-head">
-              <span>Remover parcelamento</span>
+              <span id="inst-del-title">Remover parcelamento</span>
               <button className="gls-modal-close" onClick={() => setConfirmDelete(null)} aria-label="Fechar">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

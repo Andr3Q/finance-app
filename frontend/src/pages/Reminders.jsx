@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { budgetAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import { MONTHS } from '../constants/index.js'
 import { readReminders, saveReminders, billSetting, leadLabel, LEAD_OPTIONS, DEFAULT_LEAD } from '../utils/reminders.js'
@@ -39,6 +40,8 @@ export default function Reminders() {
   const [state,   setState]   = useState(() => readReminders())
   const [sheet,   setSheet]   = useState(null)    // { kind: 'bill'|'custom', id }
   const [adding,  setAdding]  = useState(false)
+  useEscapeKey(() => setSheet(null), !!sheet)
+  useEscapeKey(() => setAdding(false), adding)
   const [form,    setForm]    = useState(EMPTY_NEW)
   const [formErr, setFormErr] = useState('')
 

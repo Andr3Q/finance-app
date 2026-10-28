@@ -380,6 +380,13 @@ describe('AgentChat — Nancy IA (tela 12)', () => {
     expect(screen.queryByRole('dialog', { name: 'Nancy IA' })).not.toBeInTheDocument()
   })
 
+  it('Esc fecha o chat', () => {
+    setup()
+    expect(screen.getByRole('dialog', { name: 'Nancy IA' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Nancy IA' })).not.toBeInTheDocument()
+  })
+
   it('fechar pelo X durante a gravação também para o microfone', async () => {
     stubMic()
     setup()

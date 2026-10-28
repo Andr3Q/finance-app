@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useUser, saveUser } from '../../../hooks/useUser.js'
+import { useEscapeKey } from '../../../hooks/useEscapeKey.js'
 import { authAPI } from '../../../services/api.js'
 import { analytics } from '../../../services/analytics.js'
 
@@ -18,6 +19,7 @@ export default function CancelPlanCard({ onMessage }) {
 
   const openModal  = () => { setModal(true); setConfirmPwd(''); setPwdErr('') }
   const closeModal = () => { setModal(false); setConfirmPwd(''); setPwdErr('') }
+  useEscapeKey(closeModal, modal)
 
   if (!isPaid) return null
 

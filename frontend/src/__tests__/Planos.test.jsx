@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from '@testing-library/react'
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import Planos from '../pages/Planos.jsx'
@@ -85,6 +85,15 @@ describe('Planos — renderização', () => {
     expect(screen.getByRole('dialog', { name: /downgrade de plano/i })).toHaveTextContent('aguarde o fim do seu ciclo de faturamento')
     expect(paymentsAPI.createPreference).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: 'Entendido' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('Esc fecha o aviso de rebaixamento de plano', async () => {
+    setUser({ plan: 'elite' })
+    renderPlanos()
+    await userEvent.click(screen.getByRole('button', { name: /mudar para pro/i }))
+    expect(screen.getByRole('dialog', { name: /downgrade de plano/i })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 

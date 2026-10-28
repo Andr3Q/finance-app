@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { budgetAPI } from '../services/api.js'
 import { invalidateCache } from '../services/cache.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import { MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
@@ -65,6 +66,7 @@ export default function BillsMonth() {
   )
   const paidCount    = bills.filter(b => b.paidThisMonth).length
   const pendingCount = bills.length - paidCount
+  useEscapeKey(() => { if (!paying) setConfirm(null) }, !!confirm) // não fecha no meio do pagamento
   const total        = bills.reduce((s, b) => s + b.amount, 0)
   const money = (n) => (hidden ? HIDDEN : `R$ ${fmt(n)}`)
   const monthName = MONTHS[new Date().getMonth()].toLowerCase()

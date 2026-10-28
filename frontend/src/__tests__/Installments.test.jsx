@@ -136,6 +136,18 @@ describe('Parcelados — remover', () => {
   })
 })
 
+describe('Parcelados — tecla Esc', () => {
+  it('Esc fecha a confirmação de remover sem remover (e ela é um diálogo)', async () => {
+    renderPage({ plans: [mkPlan()] })
+    fireEvent.click(await screen.findByRole('button', { name: /iphone 15/i }))
+    fireEvent.click(screen.getByTitle('Remover'))
+    expect(await screen.findByRole('dialog', { name: 'Remover parcelamento' })).toHaveAttribute('aria-modal', 'true')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Remover parcelamento' })).not.toBeInTheDocument()
+    expect(installmentsAPI.remove).not.toHaveBeenCalled()
+  })
+})
+
 describe('Parcelados — nova compra parcelada', () => {
   beforeEach(() => { installmentsAPI.create.mockResolvedValue({}) })
 

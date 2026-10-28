@@ -72,6 +72,19 @@ describe('Lembretes', () => {
     expect(screen.queryByRole('button', { name: 'Remover lembrete' })).not.toBeInTheDocument()
   })
 
+  it('Esc fecha a janela de novo lembrete e a de antecedência, sem criar nem mudar nada', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: '+ Novo lembrete' }))
+    expect(screen.getByRole('dialog', { name: 'Novo lembrete' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Antecedência do lembrete de Aluguel/ }))
+    expect(screen.getByRole('dialog', { name: /Lembrete de Aluguel/ })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('"+ Novo lembrete": valida nome e dia, cria um avulso anual ("Janeiro · 7 dias antes") e dá pra remover', async () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: '+ Novo lembrete' }))
