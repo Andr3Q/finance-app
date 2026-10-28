@@ -166,6 +166,26 @@ describe('Parcelados — nova compra parcelada', () => {
     await waitFor(() => expect(installmentsAPI.create).toHaveBeenCalledWith(expect.objectContaining({ amount: 333.33, totalInstallments: 3 })))
   })
 
+  it('quando o arredondamento muda o total, mostra quanto fica (1.000 em 3x = 999,99); sem diferença não mostra nada', async () => {
+    renderPage()
+    await screen.findByText(/nenhuma compra/i)
+    await fill('1000', '3')
+    expect(screen.getByText('Total das parcelas: R$ 999,99 (arredondamento)')).toBeInTheDocument()
+    await userEvent.clear(screen.getByPlaceholderText('Parcelas'))
+    await userEvent.type(screen.getByPlaceholderText('Parcelas'), '4')
+    expect(screen.getByText('4 parcelas de R$ 250,00')).toBeInTheDocument()
+    expect(screen.queryByText(/Total das parcelas/)).not.toBeInTheDocument()
+  })
+
+  it.each(['0', '1', '361'])('%s parcelas: não chama a API e o app avisa o intervalo aceito (antes o botão parecia não fazer nada)', async (count) => {
+    renderPage()
+    await screen.findByText(/nenhuma compra/i)
+    await fill('500', count, 'Teste')
+    fireEvent.click(screen.getByRole('button', { name: /adicionar parcela/i }))
+    expect(installmentsAPI.create).not.toHaveBeenCalled()
+    expect(await screen.findByText('O número de parcelas deve ser de 2 a 360.')).toBeInTheDocument()
+  })
+
   it('campos vazios não chamam a API e avisam', async () => {
     renderPage()
     await screen.findByText(/nenhuma compra/i)

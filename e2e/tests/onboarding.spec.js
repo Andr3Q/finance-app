@@ -13,7 +13,7 @@ test.use({ viewport: { width: 393, height: 852 } })
 const json = (o, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(o) })
 
 test('onboarding no celular: tela cheia, título branco, voltar translúcido sem borda e "Pular por agora"', async ({ page }) => {
-  const user = { ...TEST_USER, onboardingComplete: false }
+  const user = { ...TEST_USER, onboardingComplete: false, salary: 0 } // sem salário informado: abre perguntando quanto ganha
   await injectSession(page, user)
   await page.route('**/api/**', r => r.fulfill(json([])))
   await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
@@ -43,6 +43,18 @@ test('onboarding no celular: tela cheia, título branco, voltar translúcido sem
   expect(m.shell.slice(0, 2)).toEqual([0, 393])        // largura total
   expect(m.shell[2]).toBeGreaterThanOrEqual(852)        // altura total da tela
   expect(m.sheetRadius).toBe('26px')
+})
+
+test('quem já informou o salário no cadastro não é perguntado de novo: o onboarding abre em "Contas fixas"', async ({ page }) => {
+  const user = { ...TEST_USER, onboardingComplete: false, salary: 5000 }
+  await injectSession(page, user)
+  await page.route('**/api/**', r => r.fulfill(json([])))
+  await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
+  await page.goto('/dashboard')
+
+  await expect(page.getByRole('heading', { name: 'Contas fixas' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Vamos começar' })).toHaveCount(0)
+  await expect(page.getByText('Quanto você ganha por mês?')).toHaveCount(0)
 })
 
 test('quem salvou o tema claro vê o título das telas de auth em branco sobre o azul', async ({ page }) => {

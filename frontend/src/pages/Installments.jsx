@@ -129,6 +129,11 @@ export default function Installments() {
       showToast('Preencha nome, valor e número de parcelas.', false)
       return
     }
+    // aviso do app (não a bolha do navegador, que some em alguns celulares): a API só aceita de 2 a 360 parcelas
+    if (!(count >= 2 && count <= 360)) {
+      showToast('O número de parcelas deve ser de 2 a 360.', false)
+      return
+    }
     setSaving(true)
     try {
       await installmentsAPI.create({ name: form.name, amount: perParcel ?? total, totalInstallments: count })
@@ -230,7 +235,7 @@ export default function Installments() {
 
             <section className="fin-card inst-new">
               <h2 className="inst-new-title">Nova compra parcelada</h2>
-              <form onSubmit={handleCreate} className="inst-form">
+              <form onSubmit={handleCreate} className="inst-form" noValidate>
                 <input
                   ref={nameRef} className="inst-inp" placeholder="O que você comprou?" maxLength={100}
                   value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
@@ -244,6 +249,10 @@ export default function Installments() {
                 </div>
                 {perParcel !== null && (
                   <p className="inst-calc">{count} parcelas de R$ {fmt(perParcel)}</p>
+                )}
+                {/* a parcela é arredondada em centavos: quando isso muda o total, diz quanto fica (ex.: 1.000 em 3x = 999,99) */}
+                {perParcel !== null && Math.abs(perParcel * count - total) >= 0.005 && (
+                  <p className="inst-calc">Total das parcelas: R$ {fmt(perParcel * count)} (arredondamento)</p>
                 )}
                 <button type="submit" className="inst-add" disabled={saving}>
                   {saving ? 'Adicionando…' : <><PlusGlyph /> Adicionar parcela</>}
