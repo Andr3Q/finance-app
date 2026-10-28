@@ -33,7 +33,7 @@ test.describe('Segurança', () => {
     await expect(page.getByRole('heading', { name: 'Segurança', exact: true })).toBeVisible()
     await expect(page.locator('.fin-hero-sub')).toHaveText('Senha e duas etapas')
     await expect(page.getByRole('heading', { name: 'Alterar senha' })).toBeVisible()
-    await expect(page.getByText('Use 8+ caracteres com maiúscula, minúscula e número')).toBeVisible()
+    await expect(page.getByText('Mín. 8 com maiúscula, minúscula e número')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Atualizar senha' })).toBeVisible()
     await expect(page.getByRole('switch', { name: 'Autenticação em duas etapas' })).toHaveAttribute('aria-checked', 'false')
     await expect(page.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Perfil')

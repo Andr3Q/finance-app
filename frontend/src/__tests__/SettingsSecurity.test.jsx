@@ -50,7 +50,7 @@ describe('Segurança — senha', () => {
     expect(screen.getByRole('heading', { name: 'Segurança' })).toBeInTheDocument()
     expect(screen.getByText('Senha e duas etapas')).toBeInTheDocument()
     expect(screen.getByText('Alterar senha')).toBeInTheDocument()
-    expect(screen.getByText('Use 8+ caracteres com maiúscula, minúscula e número')).toBeInTheDocument() // a dica é a regra real (antes dizia "número e símbolo" e a regra exige maiúscula)
+    expect(screen.getByText('Mín. 8 com maiúscula, minúscula e número')).toBeInTheDocument() // a dica é a regra real e cabe numa linha (antes dizia "número e símbolo" e a regra exige maiúscula)
     for (const p of ['Senha atual', 'Nova senha', 'Confirmar nova senha']) expect(screen.getByPlaceholderText(p)).toHaveAttribute('type', 'password')
     expect(screen.getByRole('button', { name: 'Atualizar senha' })).toBeInTheDocument()
     expect(screen.getByRole('progressbar', { name: 'Força da nova senha' })).toHaveAttribute('aria-valuenow', '0')

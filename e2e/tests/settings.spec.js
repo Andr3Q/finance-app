@@ -189,9 +189,10 @@ test.describe('Configurações — Fechar mês (Balanço mensal)', () => {
       })
     })
 
-    await page.addInitScript(() => { window.confirm = () => true })
     await page.goto('/settings/fechamento')
     await page.getByRole('button', { name: /fechar mês e gerar pdf/i }).click()
+    // a confirmação é uma janela do app (não a caixa nativa do navegador)
+    await page.getByRole('dialog', { name: 'Fechar o mês?' }).getByRole('button', { name: 'Fechar mês' }).click()
 
     await expect(page.getByText(/mês fechado com sucesso/i)).toBeVisible()
   })
