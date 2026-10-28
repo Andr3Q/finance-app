@@ -57,6 +57,14 @@ describe('buildMonthlyRecap', () => {
     expect(recap(onlyB1, { autoLaunch: { month: null, year: null } }).saved).toBe(recap(onlyB1).saved)
   })
 
+  test('devolve unpaidFixedCosts (o que o resultado já desconta), pra as telas fecharem a conta Entradas − Saídas − a pagar', () => {
+    // out: b1 paga, b2 (500) pendente → desconta 500; com a flag antiga não desconta nada
+    const onlyB1 = base.filter(t => !(t.month === 10 && t.budgetId === 'b2'))
+    expect(recap(onlyB1).unpaidFixedCosts).toBe(500)
+    expect(recap(base).unpaidFixedCosts).toBe(0)
+    expect(recap(onlyB1, { autoLaunch: { month: 10, year: 2026 } }).unpaidFixedCosts).toBe(0)
+  })
+
   test('não é melhor mês quando outro mês do ano foi maior', () => {
     const r = recap([...base, tx(3, 'income', 20000)])
     expect(r.isBestOfYear).toBe(false)

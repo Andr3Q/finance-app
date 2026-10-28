@@ -69,6 +69,18 @@ router.post('/monthly-close', reportLimiter, async (req, res) => {
       })
     }
 
+    // Nada aberto neste mês: não há o que fechar. Gerar PDF e e-mail de um mês vazio (ou já fechado) só gasta a cota de
+    // fechamentos e confunde ("Mês fechado com sucesso!" outra vez, sem nenhuma transação).
+    if (transactions.length === 0) {
+      const alreadyClosed = await prisma.transaction.count({ where: { userId: req.userId, month, year, archived: true } }) > 0
+      return res.status(alreadyClosed ? 409 : 400).json({
+        error: alreadyClosed
+          ? 'Este mês já foi fechado. Os lançamentos estão no relatório de "Relatórios anteriores".'
+          : 'Não há lançamentos neste mês para fechar.',
+        alreadyClosed,
+      })
+    }
+
     // Calcula resumo
     const summary = buildSummary(user, budgets, transactions, month, year)
 

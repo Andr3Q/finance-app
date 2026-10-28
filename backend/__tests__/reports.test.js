@@ -125,6 +125,30 @@ describe('POST /api/reports/monthly-close', () => {
     expect(summary.currentBalance).toBe(3830)
   })
 
+  test('mês sem lançamentos abertos que JÁ foi fechado: 409, sem PDF, sem e-mail e sem arquivar de novo', async () => {
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.transaction.count = jest.fn().mockResolvedValue(7) // o mês tem transações arquivadas
+    const res = await request(app)
+      .post(ENDPOINT)
+      .set('Authorization', `Bearer ${makeToken()}`)
+    expect(res.status).toBe(409)
+    expect(res.body.alreadyClosed).toBe(true)
+    expect(res.body.error).toMatch(/já foi fechado/i)
+    expect(prisma.transaction.updateMany).not.toHaveBeenCalled()
+  })
+
+  test('mês sem nenhum lançamento (nem arquivado): 400 "não há lançamentos", sem PDF nem e-mail', async () => {
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.transaction.count = jest.fn().mockResolvedValue(0)
+    const res = await request(app)
+      .post(ENDPOINT)
+      .set('Authorization', `Bearer ${makeToken()}`)
+    expect(res.status).toBe(400)
+    expect(res.body.alreadyClosed).toBe(false)
+    expect(res.body.error).toMatch(/não há lançamentos/i)
+    expect(prisma.transaction.updateMany).not.toHaveBeenCalled()
+  })
+
   test('desconta só a conta fixa ainda não paga quando a outra já tem transação vinculada (budgetId)', async () => {
     // b1 (1200) já paga (transação com budgetId: 'b1'); b2 (120) ainda pendente
     // unpaidFixedCosts = 120 -> totalAvailable = 5000 + 500 - 120 = 5380
@@ -251,9 +275,9 @@ describe('POST /api/reports/monthly-close', () => {
     prisma.user.findUnique.mockResolvedValue(
       mockProUser({ salary: 0 })
     )
-    // income=500, fixedCosts=1320 → totalAvailable = 0 + 500 - 1320 = -820 → percentUsed calculado
-    // mas o teste real é salary=0, income=0, fixedCosts=0 → totalAvailable=0
-    prisma.transaction.findMany.mockResolvedValue([])
+    // salary=0, nenhuma entrada, nenhuma conta fixa → totalAvailable=0. O mês precisa ter ao menos um lançamento aberto
+    // (mês vazio não fecha), então fica só uma saída.
+    prisma.transaction.findMany.mockResolvedValue(mockTransactions.filter(t => t.type === 'expense').slice(0, 1))
     prisma.budget.findMany.mockResolvedValue([])
     const res = await request(app)
       .post(ENDPOINT)

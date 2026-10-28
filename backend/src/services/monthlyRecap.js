@@ -47,6 +47,7 @@ function computeMonthMetrics({ transactions, budgets, salary, legacyAllLaunched 
   return {
     active: transactions.length > 0,
     totalIncome, totalExpenses, balance, totalAvailable, byCategory,
+    unpaidFixedCosts, // o resultado já desconta isto: as telas mostram pra o cartão "Entradas − Saídas = Resultado" fechar
     fixedPaid, fixedTotal: budgets.length,
     score: computeScore({ totalAvailable, totalExpenses, balance }),
   }
@@ -152,6 +153,7 @@ function buildMonthlyRecap({ target, transactions, budgets, goals, salary, autoL
     topExpenses,
     totalIncome:   current.totalIncome,
     totalExpenses: current.totalExpenses,
+    unpaidFixedCosts: current.unpaidFixedCosts,
     fixedSharePct: current.totalExpenses > 0 ? Math.round((fixedAmount / current.totalExpenses) * 100) : 0,
     fixedPaid:  current.fixedPaid,
     fixedTotal: current.fixedTotal,
