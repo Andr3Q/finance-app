@@ -318,7 +318,7 @@ export default function AgentChat() {
             <NancyMark size={42} />
             <div className="nia-head-txt">
               <div className="nia-name">Nancy IA</div>
-              <div className="nia-status"><span className="nia-dot" />online</div>
+              <div className="nia-status">{isElite ? <><span className="nia-dot" />online</> : 'disponível no Elite'}</div>
             </div>
             <button type="button" className="nia-close" onClick={() => setOpen(false)} aria-label="Fechar chat">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">

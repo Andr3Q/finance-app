@@ -426,6 +426,11 @@ describe('AgentChat — Nancy IA (tela 12)', () => {
     setup({ plan: 'free', name: 'Ana Souza' })
     expect(screen.getByText(/^Oi, Ana! A Nancy IA analisa seus gastos/)).toBeInTheDocument()
     expect(screen.getByText(/disponível no plano Elite/)).toBeInTheDocument()
+    // o cabeçalho não diz "online" (isso sugeria que o chat funciona): diz que é do Elite, sem o pontinho verde
+    const status = screen.getByRole('dialog', { name: 'Nancy IA' }).querySelector('.nia-status')
+    expect(status).toHaveTextContent('disponível no Elite')
+    expect(status).not.toHaveTextContent('online')
+    expect(status.querySelector('.nia-dot')).toBeNull()
     expect(screen.queryByPlaceholderText('Pergunte à Nancy…')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Enviar')).not.toBeInTheDocument()
     expect(document.querySelectorAll('.nia-suggestion')).toHaveLength(0)

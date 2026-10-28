@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import Notifications from '../pages/Notifications.jsx'
 
+import { resetStoriesCache } from '../services/storiesData.js'
 vi.mock('../services/api.js', () => ({
   transactionsAPI: { dashboard: vi.fn(), monthlyRecap: vi.fn(), weeklyTipAvailable: vi.fn() },
 }))
@@ -54,6 +55,7 @@ function setup({ data = payload(), entries = ['/notificacoes'], index } = {}) {
 }
 
 beforeEach(() => {
+  resetStoriesCache() // os dados dos stories ficam guardados em memória: cada teste começa do zero
   vi.clearAllMocks()
   localStorage.clear()
   sessionStorage.clear()

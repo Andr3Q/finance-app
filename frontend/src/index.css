@@ -10312,9 +10312,9 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   font-size: 11px;
   color: var(--t3);
   font-weight: 400;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  /* quebra em até 2 linhas em vez de cortar com "…" (a frase é o convite do plano; cortada perde o sentido) */
+  overflow-wrap: anywhere;
 }
 .pub-btn {
   flex-shrink: 0;

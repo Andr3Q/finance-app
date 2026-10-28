@@ -34,6 +34,7 @@ export default function Installments() {
   const [unpayingId, setUnpayingId] = useState(null)
   const [confirmDelete, setConfirmDelete] = useState(null)
   useEscapeKey(() => setConfirmDelete(null), !!confirmDelete)
+  const deleting = plans.find(p => p.id === confirmDelete) || null
   const [form,     setForm]     = useState({ name: '', total: '', count: '' })
   const [saving,   setSaving]   = useState(false)
   const nameRef = useRef(null)
@@ -123,6 +124,9 @@ export default function Installments() {
   const count    = parseInt(form.count, 10)
   const total    = Number(form.total)
   const perParcel = total > 0 && count >= 2 ? Math.round((total / count) * 100) / 100 : null
+  // A parcela é arredondada em centavos, então as parcelas podem somar um pouco a mais OU a menos que a compra (20 em 3x = 20,01).
+  const roundedTotal  = perParcel !== null ? Math.round(perParcel * count * 100) / 100 : 0
+  const roundingDiff  = perParcel !== null ? Math.round((roundedTotal - total) * 100) / 100 : 0
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -253,8 +257,8 @@ export default function Installments() {
                   <p className="inst-calc">{count} parcelas de R$ {fmt(perParcel)}</p>
                 )}
                 {/* a parcela é arredondada em centavos: quando isso muda o total, diz quanto fica (ex.: 1.000 em 3x = 999,99) */}
-                {perParcel !== null && Math.abs(perParcel * count - total) >= 0.005 && (
-                  <p className="inst-calc">Total das parcelas: R$ {fmt(perParcel * count)} (arredondamento)</p>
+                {perParcel !== null && roundingDiff !== 0 && (
+                  <p className="inst-calc">Total das parcelas: R$ {fmt(roundedTotal)} (R$ {fmt(Math.abs(roundingDiff))} {roundingDiff > 0 ? 'a mais' : 'a menos'} que o valor da compra, por causa do arredondamento)</p>
                 )}
                 <button type="submit" className="inst-add" disabled={saving}>
                   {saving ? 'Adicionando…' : <><PlusGlyph /> Adicionar parcela</>}
@@ -278,7 +282,18 @@ export default function Installments() {
             </div>
             <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
               <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--t1)', marginBottom: 8 }}>Tem certeza?</div>
-              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>Todas as parcelas restantes serão removidas permanentemente.</div>
+              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+                {deleting && (
+                  <div style={{ fontWeight: 600, color: 'var(--t1)' }}>
+                    {deleting.name} · {deleting.totalInstallments}x R$ {fmt(deleting.amount)}
+                    <div style={{ fontWeight: 400, color: 'var(--t2)' }}>{deleting.paidInstallments} de {deleting.totalInstallments} parcelas pagas</div>
+                  </div>
+                )}
+                <div style={{ marginTop: 6 }}>Todas as parcelas restantes serão removidas permanentemente.</div>
+                {deleting && deleting.paidInstallments > 0 && (
+                  <div>As parcelas já pagas continuam no Extrato.</div>
+                )}
+              </div>
             </div>
             <div className="gls-modal-foot">
               <button className="gls-btn-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button>

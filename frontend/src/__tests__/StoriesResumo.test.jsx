@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import StoriesResumo from '../pages/StoriesResumo.jsx'
 
 const mockNavigate = vi.fn()
+import { resetStoriesCache, loadStory, invalidateStories } from '../services/storiesData.js'
 vi.mock('react-router-dom', async (importActual) => {
   const actual = await importActual()
   return { ...actual, useNavigate: () => mockNavigate }
@@ -50,6 +51,7 @@ async function advance(times) {
 }
 
 beforeEach(() => {
+  resetStoriesCache() // os dados dos stories ficam guardados em memória: cada teste começa do zero
   vi.clearAllMocks()
   localStorage.clear()
   mockRecap.mockResolvedValue({ data: baseRecap() })
@@ -422,6 +424,7 @@ describe('StoriesResumo — marca a story como vista (anel apagado no Início)',
     expect(seenKeys()).toEqual([])
     unmount()
 
+    resetStoriesCache() // reabrir usa o que ficou guardado; aqui queremos uma abertura "a frio" que falha
     mockRecap.mockRejectedValue(new Error('x'))
     setup(0)
     await screen.findByText(/Não foi possível carregar o resumo/)
@@ -474,3 +477,63 @@ describe('StoriesResumo — ocultar valores (mesma preferência do Início)', ()
     expect(screen.getByText('R$ 9.500,00')).toBeInTheDocument()
   })
 })
+
+describe('StoriesResumo — dados já prontos (pré-carregados pelo Início)', () => {
+  beforeEach(() => { sessionStorage.setItem('user', JSON.stringify({ id: 'u1' })) })
+  afterEach(() => { sessionStorage.clear() })
+
+  it('com o resumo já guardado, abre PRONTO: sem "Montando seu resumo…" e sem nova chamada', async () => {
+    await loadStory('u1', 'resumo', 0) // o que o Início faz em segundo plano
+    expect(mockRecap).toHaveBeenCalledTimes(1)
+    setup(0)
+    expect(screen.queryByText('Montando seu resumo…')).not.toBeInTheDocument()
+    expect(screen.getByText('Resumo do mês')).toBeInTheDocument() // já na primeira pintura
+    expect(mockRecap).toHaveBeenCalledTimes(1)
+  })
+
+  it('a busca ainda está no ar: mostra "Montando…" e termina com a MESMA chamada (não repete)', async () => {
+    let finish
+    mockRecap.mockReturnValue(new Promise(r => { finish = r }))
+    const pending = loadStory('u1', 'resumo', 0)
+    setup(0)
+    expect(screen.getByText('Montando seu resumo…')).toBeInTheDocument()
+    finish({ data: baseRecap() })
+    await pending
+    expect(await screen.findByText('Resumo do mês')).toBeInTheDocument()
+    expect(mockRecap).toHaveBeenCalledTimes(1)
+  })
+
+  it('o resumo do mês anterior e as metas também abrem prontos', async () => {
+    mockGoals.mockResolvedValue({ data: [{ title: 'R', targetAmount: 1000, currentAmount: 100, createdAt: new Date().toISOString(), deadline: null }] })
+    await loadStory('u1', 'resumo', -1)
+    await loadStory('u1', 'metas')
+    const { unmount } = setup(-1)
+    expect(screen.queryByText('Montando seu resumo…')).not.toBeInTheDocument()
+    expect(screen.getByText('Você guardou')).toBeInTheDocument()
+    unmount()
+    setup({ story: 'metas' })
+    expect(screen.queryByText('Montando seu resumo…')).not.toBeInTheDocument()
+    expect(screen.getByText(/Faltam/)).toBeInTheDocument()
+    expect(mockRecap).toHaveBeenCalledTimes(1)
+    expect(mockGoals).toHaveBeenCalledTimes(1)
+  })
+
+  it('mudou algum dado: o guardado é descartado e o story abre buscando o número novo', async () => {
+    await loadStory('u1', 'resumo', 0)
+    invalidateStories()
+    mockRecap.mockResolvedValue({ data: baseRecap({ saved: 1234 }) })
+    setup(0)
+    expect(screen.getByText('Montando seu resumo…')).toBeInTheDocument()
+    expect(await screen.findByText('Resumo do mês')).toBeInTheDocument()
+    expect(mockRecap).toHaveBeenCalledTimes(2)
+  })
+
+  it('story pré-carregado de OUTRA pessoa nunca aparece (cada conta tem o seu)', async () => {
+    await loadStory('outra-pessoa', 'resumo', 0)
+    setup(0)
+    expect(screen.getByText('Montando seu resumo…')).toBeInTheDocument()
+    await screen.findByText('Resumo do mês')
+    expect(mockRecap).toHaveBeenCalledTimes(2)
+  })
+})
+

@@ -130,7 +130,7 @@ function DepositModal({ goal, onConfirm, onCancel, saving, initialAmount = '' })
   )
 }
 
-function GoalForm({ initial, onSave, onCancel, onDelete, saving }) {
+function GoalForm({ initial, onSave, onCancel, onDelete, saving, escDisabled = false }) {
   const isNew = !initial?.id
   const [form, setForm] = useState(() => {
     if (isNew) {
@@ -168,7 +168,7 @@ function GoalForm({ initial, onSave, onCancel, onDelete, saving }) {
     if (isNew) sessionStorage.removeItem(DRAFT_KEY)
     onCancel()
   }
-  useEscapeKey(handleCancel)
+  useEscapeKey(handleCancel, !escDisabled) // com a confirmação de remover aberta por cima, o Esc é dela (volta pra edição)
 
   return (
     <div className="gls-modal-overlay" onClick={e => e.target === e.currentTarget && handleCancel()}>
@@ -242,6 +242,7 @@ export default function Goals() {
   const [modal,           setModal]           = useState(null)
   const [depositGoal,     setDepositGoal]     = useState(null)
   const [saving,          setSaving]          = useState(false)
+  const [creating,        setCreating]        = useState(false) // só o formulário "Nova meta" mostra "Criando…" (não depósito nem edição)
   const [toast,           setToast]           = useState(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
 
@@ -268,6 +269,7 @@ export default function Goals() {
     if (!form.title.trim()) { showToast('Informe o nome da meta.', false); return false }
     if (!form.targetAmount || form.targetAmount <= 0) { showToast('Informe um valor-alvo válido.', false); return false }
     setSaving(true)
+    if (!modal?.id) setCreating(true)
     try {
       if (modal?.id) {
         await updateGoal(modal.id, form)
@@ -291,6 +293,7 @@ export default function Goals() {
       return false
     } finally {
       setSaving(false)
+      setCreating(false)
     }
   }
 
@@ -315,9 +318,12 @@ export default function Goals() {
   const handleDelete = (id) => setDeleteConfirmId(id)
   useEscapeKey(() => setDeleteConfirmId(null), !!deleteConfirmId)
 
+  const deletingGoal = goals.find(g => g.id === deleteConfirmId) || null
+
   const confirmDelete = async () => {
     const id = deleteConfirmId
     setDeleteConfirmId(null)
+    setModal(null)
     try {
       await deleteGoal(id)
       showToast('Meta removida.')
@@ -405,7 +411,7 @@ export default function Goals() {
                         value={newGoal.targetAmount} onChange={v => setNewGoal(g => ({ ...g, targetAmount: v }))} />
                     </div>
                     <button type="submit" className="gl-create" disabled={saving || !newGoal.title.trim() || !(Number(newGoal.targetAmount) > 0) || atGoalLimit}>
-                      {saving ? 'Criando…' : 'Criar meta'}
+                      {creating ? 'Criando…' : 'Criar meta'}
                     </button>
                     {atGoalLimit && <p className="gl-limit">Você atingiu o limite de metas do seu plano.</p>}
                   </form>
@@ -420,8 +426,9 @@ export default function Goals() {
           initial={modal}
           onSave={handleSave}
           onCancel={() => setModal(null)}
-          onDelete={() => { const id = modal.id; setModal(null); handleDelete(id) }}
+          onDelete={() => handleDelete(modal.id)} // a edição continua aberta por baixo: desistir da exclusão volta pra ela
           saving={saving}
+          escDisabled={!!deleteConfirmId}
         />
       )}
 
@@ -456,6 +463,11 @@ export default function Goals() {
               </div>
               <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
               <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+                {deletingGoal && (
+                  <div style={{ fontWeight:600, color:'var(--t1)', marginBottom:4 }}>
+                    {deletingGoal.title} · R$ {fmt(Number(deletingGoal.currentAmount) || 0)} guardados
+                  </div>
+                )}
                 Esta meta e todo o progresso acumulado serão removidos permanentemente.
               </div>
             </div>

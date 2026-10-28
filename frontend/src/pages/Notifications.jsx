@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
+import { loadStory } from '../services/storiesData.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { getCache, setCache } from '../services/cache.js'
@@ -108,11 +109,11 @@ export default function Notifications() {
   useEffect(() => {
     if (!hasRecap) return
     let cancelled = false
-    transactionsAPI.monthlyRecap(0)
-      .then(r => { if (!cancelled && r.data?.hasData) setRecapSlides(buildRecapSlides(r.data, 0).length) })
+    loadStory(user.id, 'resumo', 0)
+      .then(d => { if (!cancelled && d?.hasData) setRecapSlides(buildRecapSlides(d, 0).length) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [hasRecap])
+  }, [hasRecap, user.id])
 
   // Tudo que está na tela agora conta como visto.
   const idsKey = items.map(i => i.id).join('|')

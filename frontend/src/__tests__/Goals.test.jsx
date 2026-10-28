@@ -125,6 +125,53 @@ describe('Metas — editar e remover', () => {
   })
 })
 
+describe('Metas — depositar não pisca a tela', () => {
+  const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r }); return { promise, resolve } }
+
+  it('durante o depósito a lista de metas continua na tela (sem trocar por spinner) e o valor novo entra no lugar', async () => {
+    renderGoals()
+    fireEvent.click(await screen.findByRole('button', { name: /depositar na meta reserva de emergência/i }))
+    await screen.findByRole('dialog', { name: 'Depositar na meta' })
+
+    const reload = deferred()
+    goalsAPI.list.mockReturnValue(reload.promise) // a recarga depois do depósito demora
+    fireEvent.click(screen.getAllByRole('button', { name: /^depositar$/i }).at(-1))
+    await waitFor(() => expect(goalsAPI.update).toHaveBeenCalled())
+    await waitFor(() => expect(goalsAPI.list).toHaveBeenCalledTimes(2)) // a recarga está no ar
+
+    expect(screen.getAllByText('Reserva de emergência').length).toBeGreaterThan(0) // a meta não sumiu
+    expect(document.querySelector('.gl-loading')).toBeNull()
+
+    reload.resolve({ data: [goal({ currentAmount: 18900 })] })
+    expect(await screen.findByText('R$ 18.900,00 / R$ 30.000,00')).toBeInTheDocument() // o valor novo entra no cartão
+  })
+
+  it('o botão "Criar meta" só vira "Criando…" quando a meta NOVA está sendo criada, não durante depósito', async () => {
+    renderGoals()
+    fireEvent.click(await screen.findByRole('button', { name: /depositar na meta reserva de emergência/i }))
+    await screen.findByRole('dialog', { name: 'Depositar na meta' })
+    const pending = deferred()
+    goalsAPI.update.mockReturnValue(pending.promise) // o depósito fica "salvando"
+    fireEvent.click(screen.getAllByRole('button', { name: /^depositar$/i }).at(-1))
+    await waitFor(() => expect(goalsAPI.update).toHaveBeenCalled())
+    expect(screen.queryByRole('button', { name: 'Criando…' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Criar meta' })).toBeInTheDocument()
+    pending.resolve({ data: {} })
+  })
+
+  it('criando uma meta nova o botão mostra "Criando…" até terminar', async () => {
+    renderGoals([])
+    const pending = deferred()
+    goalsAPI.create.mockReturnValue(pending.promise)
+    await userEvent.type(await screen.findByPlaceholderText('Ex.: Carro novo'), 'Casa')
+    await userEvent.type(screen.getByPlaceholderText('Valor alvo (R$)'), '9000')
+    fireEvent.click(screen.getByRole('button', { name: 'Criar meta' }))
+    expect(await screen.findByRole('button', { name: 'Criando…' })).toBeDisabled()
+    pending.resolve({ data: {} })
+    expect(await screen.findByRole('button', { name: 'Criar meta' })).toBeInTheDocument()
+  })
+})
+
 describe('Metas — tecla Esc e botão de concluir', () => {
   const esc = () => fireEvent.keyDown(document, { key: 'Escape' })
 
@@ -146,14 +193,28 @@ describe('Metas — tecla Esc e botão de concluir', () => {
     expect(goalsAPI.update).not.toHaveBeenCalled()
   })
 
-  it('Esc fecha a confirmação de remover sem remover', async () => {
+  it('Esc fecha a confirmação de remover sem remover — e VOLTA para a edição (só o segundo Esc fecha a edição)', async () => {
     renderGoals()
     fireEvent.click(await screen.findByRole('button', { name: /editar meta reserva de emergência/i }))
     fireEvent.click(await screen.findByRole('button', { name: 'Remover meta' }))
     expect(await screen.findByRole('dialog', { name: 'Remover meta' })).toBeInTheDocument()
     esc()
     expect(screen.queryByRole('dialog', { name: 'Remover meta' })).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Editar meta' })).toBeInTheDocument() // a edição continua aberta
     expect(goalsAPI.remove).not.toHaveBeenCalled()
+    esc()
+    expect(screen.queryByRole('dialog', { name: 'Editar meta' })).not.toBeInTheDocument()
+  })
+
+  it('a confirmação de remover diz QUAL meta (nome e quanto já foi guardado); "Sim, excluir" remove e fecha a edição', async () => {
+    renderGoals()
+    fireEvent.click(await screen.findByRole('button', { name: /editar meta reserva de emergência/i }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Remover meta' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Remover meta' })
+    expect(dialog).toHaveTextContent('Reserva de emergência · R$ 18.400,00 guardados')
+    fireEvent.click(within(dialog).getByRole('button', { name: /sim, excluir/i }))
+    await waitFor(() => expect(goalsAPI.remove).toHaveBeenCalledWith('g1'))
+    expect(screen.queryByRole('dialog', { name: 'Editar meta' })).not.toBeInTheDocument()
   })
 
   it('o botão que conclui a meta não tem emoji (o design não usa)', async () => {

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { transactionsAPI, goalsAPI, agentAPI } from '../services/api.js'
+import { goalsAPI } from '../services/api.js'
+import { useUser } from '../hooks/useUser.js'
+import { peekStory, loadStory, invalidateStories, LOADERS } from '../services/storiesData.js'
 import { monthName, money, maskSlides, HIDDEN_AMOUNT, buildRecapSlides, buildTipSlides, buildGoalSlides } from '../utils/storySlides.js'
 import { resumoKey, dicasKey, metasKey, markSeen } from '../utils/storiesSeen.js'
 import NancyMark from '../components/ui/NancyMark.jsx'
@@ -21,30 +23,21 @@ const IconClose = () => (
 
 // Resumo em stories (tela 09). Os círculos do Início abrem esta mesma rota com
 // state.story: 'resumo' (padrão, com state.monthOffset 0 ou -1), 'dicas' ou
-// 'metas'. Cada fluxo busca os próprios dados reais; a construção dos slides
+// 'metas'. Cada fluxo usa os próprios dados reais; a construção dos slides
 // fica em utils/storySlides.js (ver lá a regra de omitir o que não tem dado).
-const LOADERS = {
-  resumo: (offset) => transactionsAPI.monthlyRecap(offset).then(r => r.data),
-  // As duas fontes são independentes: se uma falhar, o outro slide ainda vale.
-  dicas: async () => {
-    const [tip, subs] = await Promise.allSettled([agentAPI.weeklyTip(), transactionsAPI.subscriptions({ strict: 1 })])
-    if (tip.status === 'rejected' && subs.status === 'rejected') throw tip.reason
-    return {
-      tip:  tip.status  === 'fulfilled' ? tip.value.data  : null,
-      subs: subs.status === 'fulfilled' ? subs.value.data : [],
-    }
-  },
-  metas: () => goalsAPI.list().then(r => r.data),
-}
-
+// Os dados já costumam estar prontos: o Início os busca em segundo plano
+// (services/storiesData.js) — aqui só se abre com o que está guardado.
 export default function StoriesResumo() {
   const navigate = useNavigate()
   const location = useLocation()
   const story    = LOADERS[location.state?.story] ? location.state.story : 'resumo'
   const offset   = story === 'resumo' ? Math.min(0, Math.max(-11, Number(location.state?.monthOffset) || 0)) : 0
 
-  const [data,   setData]   = useState(null)
-  const [status, setStatus] = useState('loading') // loading | ready | error
+  const user = useUser()
+  // Já guardado pelo pré-carregamento do Início? Abre pronto, sem "Montando seu resumo…".
+  const [warm]   = useState(() => peekStory(user.id, story, offset))
+  const [data,   setData]   = useState(warm ?? null)
+  const [status, setStatus] = useState(warm !== undefined ? 'ready' : 'loading') // loading | ready | error
   const [index,    setIndex]    = useState(0)
   const [paused,   setPaused]   = useState(false)
   const [progress, setProgress] = useState(0) // 0-1 dentro do slide atual
@@ -56,12 +49,13 @@ export default function StoriesResumo() {
   const pausedAtRef = useRef(0)
 
   useEffect(() => {
+    if (warm !== undefined) return undefined // já veio pronto; se a busca estiver no ar, loadStory se junta a ela
     let cancelled = false
-    LOADERS[story](offset)
+    loadStory(user.id, story, offset)
       .then(d => { if (!cancelled) { setData(d); setStatus('ready') } })
       .catch(() => { if (!cancelled) setStatus('error') })
     return () => { cancelled = true }
-  }, [story, offset])
+  }, [story, offset, user.id, warm])
 
   // Mesma preferência "ocultar valores" do Início — lida uma vez ao abrir.
   const [hideValues] = useState(() => {
@@ -143,6 +137,7 @@ export default function StoriesResumo() {
         targetAmount: cta.amount,
         deadline: `${cta.nextYm.year}-${mm}-${String(lastDay).padStart(2, '0')}`,
       })
+      invalidateStories()
       navigate('/goals')
     } catch (err) {
       showToast(err.response?.data?.error || 'Não foi possível criar a meta.', false)

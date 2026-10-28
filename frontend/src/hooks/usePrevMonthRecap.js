@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { transactionsAPI } from '../services/api.js'
+import { useUser } from './useUser.js'
+import { loadStory } from '../services/storiesData.js'
 import { buildRecapSlides } from '../utils/storySlides.js'
 import { PREV_RECAP_UNTIL_DAY } from '../utils/notificationsFeed.js'
 
@@ -9,17 +10,18 @@ import { PREV_RECAP_UNTIL_DAY } from '../utils/notificationsFeed.js'
  * O Início (sino) e as Notificações usam o mesmo hook, então concordam.
  */
 export function usePrevMonthRecap(enabled, now = new Date()) {
+  const user = useUser()
   const [slides, setSlides] = useState(null)
   const active = !!enabled && now.getDate() <= PREV_RECAP_UNTIL_DAY
 
   useEffect(() => {
     if (!active) { setSlides(null); return undefined }
     let cancelled = false
-    transactionsAPI.monthlyRecap(-1)
-      .then(r => { if (!cancelled) setSlides(r.data?.hasData ? buildRecapSlides(r.data, -1).length : null) })
+    loadStory(user.id, 'resumo', -1) // o mesmo que o Início pré-carrega pro story: uma busca só
+      .then(d => { if (!cancelled) setSlides(d?.hasData ? buildRecapSlides(d, -1).length : null) })
       .catch(() => {})
     return () => { cancelled = true }
-  }, [active])
+  }, [active, user.id])
 
   return active ? slides : null
 }

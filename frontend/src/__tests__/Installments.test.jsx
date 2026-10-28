@@ -136,6 +136,29 @@ describe('Parcelados — remover', () => {
   })
 })
 
+describe('Parcelados — a confirmação diz o que será removido', () => {
+  it('mostra nome, valor e quantas parcelas já foram pagas, e avisa que as pagas continuam no Extrato', async () => {
+    renderPage({ plans: [mkPlan({ paidInstallments: 4 })] })
+    fireEvent.click(await screen.findByRole('button', { name: /iphone 15/i }))
+    fireEvent.click(screen.getByTitle('Remover'))
+    const dialog = await screen.findByRole('dialog', { name: 'Remover parcelamento' })
+    expect(dialog).toHaveTextContent(/iphone 15/i)
+    expect(dialog).toHaveTextContent(/\d+x R\$ /)
+    expect(dialog).toHaveTextContent('12x R$ 500,00')
+    expect(dialog).toHaveTextContent('4 de 12 parcelas pagas')
+    expect(dialog).toHaveTextContent('Todas as parcelas restantes serão removidas permanentemente.')
+    expect(dialog).toHaveTextContent('As parcelas já pagas continuam no Extrato.')
+  })
+
+  it('compra sem parcela paga não fala do Extrato', async () => {
+    renderPage({ plans: [mkPlan({ paidInstallments: 0 })] })
+    fireEvent.click(await screen.findByRole('button', { name: /iphone 15/i }))
+    fireEvent.click(screen.getByTitle('Remover'))
+    const dialog = await screen.findByRole('dialog', { name: 'Remover parcelamento' })
+    expect(dialog).not.toHaveTextContent('continuam no Extrato')
+  })
+})
+
 describe('Parcelados — tecla Esc', () => {
   it('Esc fecha a confirmação de remover sem remover (e ela é um diálogo)', async () => {
     renderPage({ plans: [mkPlan()] })
@@ -182,11 +205,19 @@ describe('Parcelados — nova compra parcelada', () => {
     renderPage()
     await screen.findByText(/nenhuma compra/i)
     await fill('1000', '3')
-    expect(screen.getByText('Total das parcelas: R$ 999,99 (arredondamento)')).toBeInTheDocument()
+    expect(screen.getByText('Total das parcelas: R$ 999,99 (R$ 0,01 a menos que o valor da compra, por causa do arredondamento)')).toBeInTheDocument()
     await userEvent.clear(screen.getByPlaceholderText('Parcelas'))
     await userEvent.type(screen.getByPlaceholderText('Parcelas'), '4')
     expect(screen.getByText('4 parcelas de R$ 250,00')).toBeInTheDocument()
     expect(screen.queryByText(/Total das parcelas/)).not.toBeInTheDocument()
+  })
+
+  it('quando as parcelas somam MAIS que a compra (20 em 3x = 20,01), diz "a mais"', async () => {
+    renderPage()
+    await screen.findByText(/nenhuma compra/i)
+    await fill('20', '3')
+    expect(screen.getByText('3 parcelas de R$ 6,67')).toBeInTheDocument()
+    expect(screen.getByText('Total das parcelas: R$ 20,01 (R$ 0,01 a mais que o valor da compra, por causa do arredondamento)')).toBeInTheDocument()
   })
 
   it.each(['0', '1', '361'])('%s parcelas: não chama a API e o app avisa o intervalo aceito (antes o botão parecia não fazer nada)', async (count) => {

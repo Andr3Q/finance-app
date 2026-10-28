@@ -4,6 +4,7 @@ import { transactionsAPI, goalsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
+import { prefetchStoriesWhenIdle } from '../services/storiesData.js'
 import Navbar from '../components/layout/Navbar.jsx'
 import GradCard from '../components/ui/GradCard.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
@@ -180,6 +181,13 @@ export default function Dashboard() {
   const prevRecapSlides = usePrevMonthRecap(notifPrefs.stories)
   // Só anuncia a dica (anel do story e aviso do sino) quando ela existe; senão o story abre vazio ("Ainda sem dicas por aqui").
   const tipAvailable = useTipAvailable(user.id)
+
+  // Stories prontos antes do toque: com o Início carregado (e só então, pra não disputar com ele), busca em segundo plano o que os
+  // círculos abrem — resumo do mês e do mês anterior, metas e (com base de comparação) a dica. O story abre na hora.
+  useEffect(() => {
+    if (loading || loadFailed || !user.id) return undefined
+    return prefetchStoriesWhenIdle(user.id, { tip: tipAvailable === true })
+  }, [loading, loadFailed, user.id, tipAvailable])
   const hasNotif = countUnread(
     buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()), reminderState: readReminders(), prefs: notifPrefs, prevRecapSlides, tipFresh: tipAvailable === true && isTipFresh(transactions) }),
     seenNotifs,

@@ -70,6 +70,21 @@ describe('Extrato — cartão do resultado do mês', () => {
     expect(transactionsAPI.monthlyRecap).toHaveBeenCalledWith(0)
   })
 
+  it('enquanto o mês carrega, Entradas e Saídas mostram "—" (não R$ 0,00, que parecia mês sem movimento)', async () => {
+    transactionsAPI.list.mockReturnValue(new Promise(() => {}))        // a lista nunca chega (carregando)
+    transactionsAPI.monthlyRecap.mockReturnValue(new Promise(() => {}))
+    installmentsAPI.list.mockResolvedValue({ data: [] })
+    render(
+      <MemoryRouter initialEntries={['/transactions']}>
+        <Routes><Route path="/transactions" element={<Transactions />} /></Routes>
+      </MemoryRouter>
+    )
+    expect(await screen.findByText('Entradas', { selector: '.ex-result-sub-lbl' })).toBeInTheDocument()
+    expect(screen.queryByText('R$ 0,00')).not.toBeInTheDocument()
+    expect(document.querySelectorAll('.ex-mono')[0]).toHaveTextContent('—')
+    expect(document.querySelectorAll('.ex-mono')[1]).toHaveTextContent('—')
+  })
+
   it('resultado negativo aparece com sinal de menos e estilo de alerta', async () => {
     setup({ recapRes: { hasData: true, saved: -300, totalIncome: 0, totalExpenses: 300 } })
     const val = await screen.findByText('−R$ 300,00')

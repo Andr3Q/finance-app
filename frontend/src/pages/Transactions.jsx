@@ -5,6 +5,7 @@ import { transactionsAPI } from '../services/api.js'
 import { txCacheKey, currentBrasiliaMonthYear } from '../utils/txCache.js'
 import { scrollChipsBy } from '../utils/chipScroll.js'
 import { useChipEdges } from '../hooks/useChipEdges.js'
+import { invalidateStories } from '../services/storiesData.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
@@ -189,6 +190,7 @@ export default function Transactions() {
       const res = await transactionsAPI.importCSV(formData)
       showToast(res.data.message)
       invalidateCache(txCacheKey(selMonth, selYear))
+      invalidateStories()
       fetchTransactions(true)
     } catch (err) {
       showToast(err.response?.data?.error || 'Erro ao importar CSV.', false)
@@ -203,6 +205,7 @@ export default function Transactions() {
     setConfirmDeleteTx(null)
     setTransactions(list => list.filter(t => t.id !== tx.id))
     invalidateCache(txCacheKey(selMonth, selYear))
+    invalidateStories()
     let lastErr
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
@@ -235,6 +238,10 @@ export default function Transactions() {
 
   const HIDDEN = 'R$ ••••'
   const brl    = (n) => (hideValues ? HIDDEN : `R$ ${fmt(n)}`)
+  // Enquanto o mês ainda carrega, Entradas e Saídas mostram "—" (como o Resultado) em vez de R$ 0,00 de mentira,
+  // que parecia "mês sem movimento" por vários segundos.
+  const pendingTotals = loading && !recap
+  const totalLabel    = (n) => (pendingTotals ? '—' : brl(n))
   const signed = (n) => (hideValues ? HIDDEN : n > 0 ? `+R$ ${fmt(n)}` : n < 0 ? `−R$ ${fmt(-n)}` : `R$ ${fmt(0)}`)
 
   const filtered = transactions.filter(t => {
@@ -336,11 +343,11 @@ export default function Transactions() {
               <div className="ex-result-sub">
                 <div>
                   <span className="ex-result-sub-lbl">Entradas</span>
-                  <span className="ex-mono ex-in">{brl(shownIncome)}</span>
+                  <span className="ex-mono ex-in">{totalLabel(shownIncome)}</span>
                 </div>
                 <div>
                   <span className="ex-result-sub-lbl">Saídas</span>
-                  <span className="ex-mono ex-out">{brl(shownExpenses)}</span>
+                  <span className="ex-mono ex-out">{totalLabel(shownExpenses)}</span>
                 </div>
               </div>
             </div>
@@ -452,7 +459,7 @@ export default function Transactions() {
       {showForm && (
         <TransactionForm
           onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); invalidateCache(txCacheKey(selMonth, selYear)); fetchTransactions(true) }}
+          onSuccess={() => { setShowForm(false); invalidateCache(txCacheKey(selMonth, selYear)); invalidateStories(); fetchTransactions(true) }}
         />
       )}
 
@@ -461,7 +468,7 @@ export default function Transactions() {
           initialData={editingTx}
           editingId={editingTx.id}
           onClose={() => setEditingTx(null)}
-          onSuccess={() => { setEditingTx(null); invalidateCache(txCacheKey(selMonth, selYear)); fetchTransactions(true) }}
+          onSuccess={() => { setEditingTx(null); invalidateCache(txCacheKey(selMonth, selYear)); invalidateStories(); fetchTransactions(true) }}
         />
       )}
 
