@@ -577,6 +577,35 @@ describe('Ferramenta get_goals (via /api/agent/chat)', () => {
 })
 
 // O texto que o usuário lê não depende de o modelo obedecer ao prompt: o servidor tira emoji e acerta o dinheiro.
+// Achado N2-7 rodada 3: depois de ~20 trocas de mensagem o app mandava mais de 40 mensagens de histórico e o servidor
+// respondia "Histórico inválido." (400) a TUDO — o chat só voltava recarregando a página.
+describe('Histórico da conversa (POST /api/agent/chat)', () => {
+  const hist = (n) => Array.from({ length: n }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `mensagem ${i}` }))
+
+  test('conversa longa (mais de 40 mensagens) NÃO é recusada: o modelo recebe só as 10 últimas', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValueOnce(simpleReply('oi'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'e agora?', history: hist(60) })
+
+    expect(res.status).toBe(200)
+    const sent = mockCreate.mock.calls[0][0].messages
+    expect(sent).toHaveLength(12) // sistema + 10 do histórico + a pergunta
+    expect(sent[1].content).toBe('mensagem 50')
+    expect(sent.at(-1)).toEqual({ role: 'user', content: 'e agora?' })
+  })
+
+  test('lixo continua recusado: não é lista ou passa de 100 itens', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    for (const bad of ['texto', { a: 1 }, 5, hist(101)]) {
+      const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'oi', history: bad })
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('Histórico inválido.')
+    }
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+})
+
 describe('Resposta da IA — limpeza determinística', () => {
   test('sem emoji e com dinheiro no padrão brasileiro', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
@@ -600,6 +629,9 @@ describe('Resposta da IA — limpeza determinística', () => {
     expect(system).toMatch(/Entradas = salário \+ receitas do mês/)
     expect(system).toMatch(/nunca peça "confirma\?" por texto/)
     expect(system).toMatch(/get_goals/)
+    // fatos do produto (a IA mandava "definir um teto diário" e "evitar juros nas metas", que não existem no app)
+    expect(system).toMatch(/Limites são tetos MENSAIS por categoria \(não existe teto diário\)/)
+    expect(system).toMatch(/Metas são valores a guardar e não têm juros/)
     const toolNames = mockCreate.mock.calls[0][0].tools.map(t => t.function.name)
     expect(toolNames).toEqual(expect.arrayContaining(['get_goals', 'get_summary', 'get_transactions', 'update_transaction', 'delete_transaction']))
   })

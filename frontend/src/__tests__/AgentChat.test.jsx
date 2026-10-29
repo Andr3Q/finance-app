@@ -890,3 +890,54 @@ describe('AgentChat — foco do teclado no celular (tela cheia)', () => {
     expect(prevented).toBe(false)
   })
 })
+
+// Achado N2-7 rodada 3: depois de ~20 trocas o app mandava >40 mensagens e o servidor respondia "Histórico inválido." a tudo.
+describe('AgentChat — contexto enviado à IA', () => {
+  it('conversa longa: só as últimas 10 mensagens vão como contexto (o chat nunca trava por tamanho)', async () => {
+    let n = 0
+    agentAPI.chat.mockImplementation(async () => ({ data: { reply: `resposta ${++n}` } }))
+    setup()
+    for (let i = 1; i <= 25; i++) {
+      typeAndSend(`pergunta ${i}`)
+      await screen.findByText(`resposta ${i}`)
+    }
+    for (const [, history] of agentAPI.chat.mock.calls) expect(history.length).toBeLessThanOrEqual(10)
+    const last = agentAPI.chat.mock.calls.at(-1)[1]
+    expect(last).toHaveLength(10)
+    expect(last.at(-1)).toEqual({ role: 'assistant', content: 'resposta 24' })
+    expect(last[0]).toEqual({ role: 'user', content: 'pergunta 20' }) // as 10 mais recentes, em ordem
+  })
+
+  it('turno que falhou (pergunta sem resposta) não vai como contexto da próxima mensagem', async () => {
+    agentAPI.chat
+      .mockRejectedValueOnce({ response: { status: 429, data: { error: 'Serviço de IA sobrecarregado. Aguarde alguns segundos e tente novamente.' }, headers: {} } })
+      .mockResolvedValueOnce({ data: { reply: 'resposta B' } })
+      .mockResolvedValueOnce({ data: { reply: 'resposta C' } })
+    setup()
+    typeAndSend('pergunta A')
+    await screen.findByText(/sobrecarregado/)
+    typeAndSend('pergunta B')
+    await screen.findByText('resposta B')
+    typeAndSend('pergunta C')
+    await screen.findByText('resposta C')
+
+    expect(agentAPI.chat.mock.calls[1][1]).toEqual([])   // A falhou: não é contexto de B
+    expect(agentAPI.chat.mock.calls[2][1]).toEqual([{ role: 'user', content: 'pergunta B' }, { role: 'assistant', content: 'resposta B' }])
+  })
+
+  it('erro do servidor no meio da conversa não "gruda": as mensagens seguintes continuam funcionando', async () => {
+    agentAPI.chat
+      .mockResolvedValueOnce({ data: { reply: 'r1' } })
+      .mockRejectedValueOnce({ response: { status: 500, data: { error: 'internal' } } })
+      .mockRejectedValueOnce({ response: { status: 500, data: { error: 'internal' } } })
+      .mockResolvedValueOnce({ data: { reply: 'r4' } })
+    setup()
+    typeAndSend('p1'); await screen.findByText('r1')
+    typeAndSend('p2'); await screen.findAllByText('Não consegui falar com a Nancy agora. Tente de novo em instantes.')
+    typeAndSend('p3'); await waitFor(() => expect(screen.getAllByText('Não consegui falar com a Nancy agora. Tente de novo em instantes.')).toHaveLength(2))
+    typeAndSend('p4')
+
+    expect(await screen.findByText('r4')).toBeInTheDocument()
+    expect(agentAPI.chat.mock.calls[3][1]).toEqual([{ role: 'user', content: 'p1' }, { role: 'assistant', content: 'r1' }])
+  })
+})

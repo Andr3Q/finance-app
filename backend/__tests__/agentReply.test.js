@@ -62,6 +62,9 @@ describe('sanitizeReply', () => {
     ['Você gastou 71 % da renda e 40 % do limite', 'Você gastou 71% da renda e 40% do limite'],
     ['Já está em 26%', 'Já está em 26%'],
     ['Cresceu 0,5 % no mês', 'Cresceu 0,5% no mês'],
+    ['Reserva de emergência – 40\u202f%', 'Reserva de emergência – 40%'], // espaço fino sem quebra, como o modelo escreve
+    ['Viagem de férias – 13\u00a0%', 'Viagem de férias – 13%'],
+    ['70,1\u2009% dos gastos', '70,1% dos gastos'],
   ])('porcentagem sem espaço, como o resto do app: %s', (input, expected) => expect(sanitizeReply(input)).toBe(expected))
 
   test('linhas em branco sobrando e espaço na ponta', () => {

@@ -187,9 +187,12 @@ export default function AgentChat() {
     setLoading(true)
 
     try {
+      // Contexto da conversa: só as últimas 10 mensagens (é o que o servidor usa — mandar tudo travava o chat com "Histórico
+      // inválido." depois de uns 20 turnos) e sem os turnos que falharam (pergunta que ficou sem resposta não é contexto).
       const apiHistory = base
-        .filter(m => m.role && m.content && !m.error)
+        .filter((m, i) => m.role && m.content && !m.error && !(m.role === 'user' && base[i + 1]?.error))
         .map(m => ({ role: m.role, content: m.content }))
+        .slice(-10)
       const res = await agentAPI.chat(text, apiHistory)
       const { reply, pendingAction, dataChanged } = res.data
       // pendingAction: a IA preparou uma edição/exclusão e NADA foi feito ainda — os botões Confirmar/Cancelar

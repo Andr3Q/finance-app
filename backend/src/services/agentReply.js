@@ -36,7 +36,7 @@ function fixMoney(text) {
     .replace(THOUSANDS_WITH_CENTS, dots)
     .replace(THOUSANDS_AFTER_SYMBOL, (_, symbol, group) => symbol + dots(group))
     .replace(AMOUNT_BEFORE_SYMBOL, 'R$ $1')
-    .replace(/(\d) %/g, '$1%') // o app escreve "26%", sem espaço
+    .replace(/(\d)[\u00A0\u202F\u2009 ]%/g, '$1%') // o app escreve "26%", sem espaço (o modelo usa espaço comum ou fino sem quebra)
 }
 
 // O que sai pro usuário: sem emoji, dinheiro no padrão brasileiro, sem linhas em branco sobrando nem espaço na ponta.
