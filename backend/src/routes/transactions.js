@@ -22,6 +22,7 @@ const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES, TRANSACTION_P
 const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
 const { buildMonthlyRecap, computeMonthMetrics, shiftMonth } = require('../services/monthlyRecap')
+const { getStoriesBundle } = require('../services/storiesBundle')
 const { buildImportRows, MAX_CSV_ROWS } = require('../utils/csvImport')
 const { HISTORY_DAYS, DAY_MS, computeWeeklyTipStats } = require('../services/weeklyTip')
 
@@ -289,6 +290,21 @@ router.get('/monthly-recap', dashboardLimiter, async (req, res) => {
   } catch (err) {
     reportError(err, { tag: 'Erro no resumo mensal' })
     res.status(500).json({ error: 'Erro ao montar o resumo.' })
+  }
+})
+
+// ── GET /transactions/stories-bundle ───────────────────
+// Resumo do mês, resumo do mês anterior e metas — o que os círculos do Início abrem — numa resposta só e com uma ida ao
+// banco (ver services/storiesBundle.js). O app pede isto assim que abre, durante a splash, para o story já estar pronto
+// quando a pessoa tocar. Mesmos números de monthly-recap (offset 0 e -1) e de GET /goals.
+router.get('/stories-bundle', dashboardLimiter, async (req, res) => {
+  try {
+    const bundle = await getStoriesBundle(prisma, req.userId)
+    if (!bundle) return res.status(404).json({ error: 'Usuário não encontrado.' })
+    res.json(bundle)
+  } catch (err) {
+    reportError(err, { tag: 'Erro no pacote dos stories' })
+    res.status(500).json({ error: 'Erro ao montar os resumos.' })
   }
 })
 

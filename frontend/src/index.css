@@ -10698,7 +10698,12 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 
 .stories-progress-row { display: flex; gap: 4px; margin-bottom: 14px; flex-shrink: 0; }
 .stories-progress-track { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,.3); overflow: hidden; }
-.stories-progress-fill { height: 100%; background: #fff; border-radius: 3px; }
+/* A barra anda por animação de transform (compositor), sem re-render do React: ver StoriesResumo.jsx */
+.stories-progress-fill { height: 100%; width: 100%; background: #fff; border-radius: 3px; transform: scaleX(0); transform-origin: left center; }
+.stories-progress-fill.is-done { transform: scaleX(1); }
+.stories-progress-fill.is-active { will-change: transform; animation: storiesFill var(--story-ms, 5000ms) linear forwards; }
+.stories-progress-fill.is-paused { animation-play-state: paused; }
+@keyframes storiesFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
 .stories-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
 .stories-header-user { display: flex; align-items: center; gap: 10px; }

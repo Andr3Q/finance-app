@@ -40,13 +40,12 @@ export default function StoriesResumo() {
   const [status, setStatus] = useState(warm !== undefined ? 'ready' : 'loading') // loading | ready | error
   const [index,    setIndex]    = useState(0)
   const [paused,   setPaused]   = useState(false)
-  const [progress, setProgress] = useState(0) // 0-1 dentro do slide atual
+  const [away,     setAway]     = useState(false) // o app foi para o segundo plano: o story espera, como se estivesse pausado
   const [busy,  setBusy]  = useState(false)
   const [toast, setToast] = useState(null)
 
-  const rafRef      = useRef(null)
-  const startRef    = useRef(null)
-  const pausedAtRef = useRef(0)
+  // Relógio do slide atual: quanto já passou antes da última pausa e quando a rodada atual começou.
+  const clockRef = useRef({ elapsed: 0, startedAt: 0 })
 
   useEffect(() => {
     if (warm !== undefined) return undefined // já veio pronto; se a busca estiver no ar, loadStory se junta a ela
@@ -83,29 +82,41 @@ export default function StoriesResumo() {
   const goTo = (i) => {
     if (i < 0) return // já no primeiro — tocar na esquerda não faz nada
     if (i >= slides.length) { close(); return } // depois do último — fecha
-    pausedAtRef.current = 0
+    clockRef.current = { elapsed: 0, startedAt: 0 }
     setIndex(i)
-    setProgress(0)
   }
 
+  // Soma ao relógio o que já passou nesta rodada (chamar ANTES de pausar).
+  const stopClock = () => {
+    const c = clockRef.current
+    if (c.startedAt) { c.elapsed += Date.now() - c.startedAt; c.startedAt = 0 }
+  }
+
+  // Cada slide dura STORY_DURATION_MS. A barra anda por CSS (animação de transform, que roda fora da thread do React): antes o
+  // estado de progresso mudava a cada quadro e a tela inteira era refeita 60 vezes por segundo, pesado em celular simples.
+  // Aqui só há UM temporizador por slide e a pausa/retomada usa o relógio acima.
+  const effectivePaused = paused || away
   useEffect(() => {
-    if (paused || slides.length === 0) return
-    let cancelled = false
-    startRef.current = performance.now() - pausedAtRef.current
-    const tick = (t) => {
-      if (cancelled) return
-      const pct = Math.min(1, (t - startRef.current) / STORY_DURATION_MS)
-      setProgress(pct)
-      if (pct >= 1) { goTo(index + 1); return }
-      rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => { cancelled = true; cancelAnimationFrame(rafRef.current) }
+    if (effectivePaused || slides.length === 0) return undefined
+    const c = clockRef.current
+    c.startedAt = Date.now()
+    const timer = setTimeout(() => goTo(index + 1), Math.max(0, STORY_DURATION_MS - c.elapsed))
+    return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, paused, slides.length])
+  }, [index, effectivePaused, slides.length])
+
+  // Trocou de app/aba: o story espera (a barra e o relógio param) e continua de onde estava ao voltar.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) stopClock()
+      setAway(document.hidden)
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
 
   const togglePause = () => {
-    if (!paused) pausedAtRef.current = progress * STORY_DURATION_MS
+    if (!paused) stopClock()
     setPaused(p => !p)
   }
 
@@ -169,14 +180,11 @@ export default function StoriesResumo() {
   const cta = slide?.cta || empty?.cta
 
   return (
-    <div className={`stories-page${slide ? ` stories-theme-${slide.theme}` : ''}`}>
+    <div className={`stories-page${slide ? ` stories-theme-${slide.theme}` : ''}`} style={{ '--story-ms': `${STORY_DURATION_MS}ms` }}>
       <div className="stories-progress-row">
         {slides.map((s, i) => (
           <div key={s.id} className="stories-progress-track">
-            <div
-              className="stories-progress-fill"
-              style={{ width: `${(i < index ? 1 : i === index ? progress : 0) * 100}%` }}
-            />
+            <div className={`stories-progress-fill${i < index ? ' is-done' : i === index ? ` is-active${effectivePaused ? ' is-paused' : ''}` : ''}`} />
           </div>
         ))}
       </div>

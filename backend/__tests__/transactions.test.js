@@ -547,6 +547,53 @@ describe('POST /api/transactions/auto-launch', () => {
 // ══════════════════════════════════════════════════════════
 // RESUMO EM STORIES
 // ══════════════════════════════════════════════════════════
+describe('GET /api/transactions/stories-bundle', () => {
+  const row = {
+    user: { salary: 4200, autoLaunchMonth: null, autoLaunchYear: null },
+    budgets: [{ id: 'b1', amount: 600 }],
+    goals: [{ id: 'g1', title: 'Viagem', targetAmount: 5000, currentAmount: 1000, color: '#4ac46e', deadline: null, createdAt: '2026-09-02T12:00:00.000Z', userId: 'user-123' }],
+    transactions: [{ type: 'expense', amount: 100, category: 'food', month: new Date().getMonth() + 1, year: new Date().getFullYear(), budgetId: null }],
+  }
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.$queryRaw.mockResolvedValue([row])
+  })
+
+  test('exige autenticação', async () => {
+    expect((await request(app).get('/api/transactions/stories-bundle')).status).toBe(401)
+    expect(prisma.$queryRaw).not.toHaveBeenCalled()
+  })
+
+  test('devolve resumo do mês, resumo do mês anterior e metas, de quem pediu, com UMA consulta SQL e sem cache', async () => {
+    const res = await request(app).get('/api/transactions/stories-bundle').set(authHeader())
+
+    expect(res.status).toBe(200)
+    expect(res.headers['cache-control']).toBe('no-store')
+    expect(res.body.userId).toBe('user-123')
+    expect(res.body.resumo).toHaveLength(2)
+    expect(res.body.resumo[0].salary).toBe(4200)
+    expect(res.body.metas).toEqual([row.goals[0]])
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1)
+    // só a verificação de login (authMiddleware) usa o Prisma "normal": o pacote não faz as consultas das rotas antigas
+    expect(prisma.transaction.findMany).not.toHaveBeenCalled()
+    expect(prisma.budget.findMany).not.toHaveBeenCalled()
+    expect(prisma.goal.findMany).not.toHaveBeenCalled()
+  })
+
+  test('usuário que não existe mais: 404', async () => {
+    prisma.$queryRaw.mockResolvedValue([{ ...row, user: null }])
+    const res = await request(app).get('/api/transactions/stories-bundle').set(authHeader())
+    expect(res.status).toBe(404)
+  })
+
+  test('erro do banco: 500 em português (o app cai de volta nas rotas antigas)', async () => {
+    prisma.$queryRaw.mockRejectedValue(new Error('conexão perdida'))
+    const res = await request(app).get('/api/transactions/stories-bundle').set(authHeader())
+    expect(res.status).toBe(500)
+    expect(res.body.error).toBe('Erro ao montar os resumos.')
+  })
+})
+
 describe('GET /api/transactions/monthly-recap', () => {
   beforeEach(() => {
     prisma.user.findUnique.mockResolvedValue(mockUser())

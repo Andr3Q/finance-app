@@ -106,6 +106,8 @@ export const transactionsAPI = {
   subscriptions:  (params)     => api.get('/transactions/subscriptions', { params }),
   weeklyTipAvailable: ()       => api.get('/transactions/weekly-tip-available'),
   monthlyRecap:   (offset = 0) => api.get('/transactions/monthly-recap', { params: { offset } }),
+  // resumo do mês + resumo do mês anterior + metas numa chamada só (uma ida ao banco) — o que os círculos do Início abrem
+  storiesBundle:  ()            => api.get('/transactions/stories-bundle'),
 }
 
 // ── Funções de orçamento (contas fixas) ─────────────────

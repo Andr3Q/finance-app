@@ -7,6 +7,7 @@ import { initAnalytics } from './services/analytics.js'
 import { hasConsent } from './components/features/CookieBanner.jsx'
 import { SPLASH_MIN_MS } from './splashConfig.js'
 import { reloadOnceForNewVersion } from './utils/lazyWithReload.js'
+import { startStoriesEarly } from './services/storiesData.js'
 import './index.css'
 
 // ── Sentry — rastreamento de erros JavaScript no browser ────────────
@@ -28,6 +29,10 @@ window.addEventListener('vite:preloadError', (e) => { if (reloadOnceForNewVersio
 // Só inicializa analytics se o usuário já deu consentimento (LGPD Art. 5º)
 if (hasConsent()) initAnalytics()
 
+
+// Os resumos dos stories começam a ser buscados já na abertura (durante a splash), não depois de o Início carregar:
+// o banco leva alguns segundos e a pessoa não pode ver "Montando seu resumo…" ao tocar no círculo.
+startStoriesEarly()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

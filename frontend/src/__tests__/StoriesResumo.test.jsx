@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import StoriesResumo from '../pages/StoriesResumo.jsx'
@@ -549,3 +549,126 @@ describe('StoriesResumo — dados já prontos (pré-carregados pelo Início)', (
   })
 })
 
+// ── Leve e fluido: a barra anda por CSS e há um temporizador por slide (antes: re-render do React a cada quadro) ──────
+describe('StoriesResumo — tempo dos slides (sem trabalho por quadro)', () => {
+  const fills = () => [...document.querySelectorAll('.stories-progress-fill')].map(f => ['is-done', 'is-active', 'is-paused'].filter(c => f.classList.contains(c)).join(' ') || '-')
+  const tick = (ms) => act(async () => { await vi.advanceTimersByTimeAsync(ms) })
+  async function openStory(state = 0) {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance', 'Date'] })
+    setup(state)
+    await tick(0) // deixa a busca dos dados (promessas) terminar
+  }
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
+
+  it('cada slide dura 5 s e avança sozinho; a barra do slide que passou fica cheia e a do atual anda', async () => {
+    await openStory(0)
+    expect(fills()).toEqual(['is-active', '-', '-', '-', '-', '-'])
+    await tick(4900)
+    expect(fills()[0]).toBe('is-active')           // ainda no 1º
+    await tick(150)
+    expect(fills()).toEqual(['is-done', 'is-active', '-', '-', '-', '-'])
+    await tick(5000)
+    expect(fills()).toEqual(['is-done', 'is-done', 'is-active', '-', '-', '-'])
+  })
+
+  it('depois do último slide fecha sozinho', async () => {
+    await openStory(-1) // mês anterior: 2 slides
+    expect(fills()).toHaveLength(2)
+    await tick(5000); expect(mockNavigate).not.toHaveBeenCalled()
+    await tick(5000); expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('a barra é animação de CSS: sem largura calculada em JS e sem requestAnimationFrame (nada de re-render a cada quadro)', async () => {
+    const raf = vi.spyOn(window, 'requestAnimationFrame')
+    await openStory(0)
+    await tick(4900)
+    expect(raf).not.toHaveBeenCalled()
+    for (const f of document.querySelectorAll('.stories-progress-fill')) expect(f.getAttribute('style')).toBeNull()
+    expect(document.querySelector('.stories-page').style.getPropertyValue('--story-ms')).toBe('5000ms') // a duração do CSS e a do temporizador são uma só
+  })
+
+  it('pausar para a barra e o relógio; retomar continua de onde parou (pausou aos 2 s: faltam 3 s)', async () => {
+    await openStory(0)
+    await tick(2000)
+    fireEvent.click(screen.getByRole('button', { name: 'Pausar' }))
+    expect(fills()[0]).toBe('is-active is-paused')
+    await tick(60_000)                              // pausado por 1 minuto: nada anda
+    expect(fills()[0]).toBe('is-active is-paused')
+    fireEvent.click(screen.getByRole('button', { name: 'Retomar' }))
+    expect(fills()[0]).toBe('is-active')
+    await tick(2900); expect(fills()[0]).toBe('is-active')   // faltam ~3 s
+    await tick(200);  expect(fills()[1]).toBe('is-active')
+  })
+
+  it('pausar várias vezes no mesmo slide soma o tempo certo (1 s + 1 s + 3 s = 5 s)', async () => {
+    await openStory(0)
+    for (const seconds of [1, 1]) {
+      await tick(seconds * 1000)
+      fireEvent.click(screen.getByRole('button', { name: 'Pausar' })); await tick(10_000)
+      fireEvent.click(screen.getByRole('button', { name: 'Retomar' }))
+    }
+    await tick(2900); expect(fills()[0]).toBe('is-active')
+    await tick(200);  expect(fills()[1]).toBe('is-active')
+  })
+
+  it('o app foi para o segundo plano: o story espera sozinho e continua de onde estava ao voltar', async () => {
+    await openStory(0)
+    await tick(3000)
+    Object.defineProperty(document, 'hidden', { value: true, configurable: true })
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    expect(fills()[0]).toBe('is-active is-paused')
+    await tick(30_000)
+    expect(fills()[0]).toBe('is-active is-paused')
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true })
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    expect(fills()[0]).toBe('is-active')
+    await tick(1900); expect(fills()[0]).toBe('is-active')   // faltavam 2 s
+    await tick(200);  expect(fills()[1]).toBe('is-active')
+  })
+
+  it('voltar um slide recomeça o relógio dele do zero', async () => {
+    await openStory(0)
+    await tick(5100)                                           // foi para o 2º
+    await tick(3000)
+    fireEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    expect(fills()).toEqual(['is-active', '-', '-', '-', '-', '-'])
+    await tick(4900); expect(fills()[0]).toBe('is-active')     // 5 s inteiros de novo
+    await tick(200);  expect(fills()[1]).toBe('is-active')
+  })
+
+  it('tocar para avançar no meio do slide recomeça o relógio do próximo (não herda o tempo do anterior)', async () => {
+    await openStory(0)
+    await tick(4000)
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }))
+    expect(fills()[1]).toBe('is-active')
+    await tick(4900); expect(fills()[1]).toBe('is-active')
+    await tick(200);  expect(fills()[2]).toBe('is-active')
+  })
+
+  it('pausou, retomou e tocou em Avançar: o próximo slide dura os 5 s inteiros (não herda o que o anterior já gastou)', async () => {
+    await openStory(0)
+    await tick(2000)
+    fireEvent.click(screen.getByRole('button', { name: 'Pausar' })); await tick(1000)
+    fireEvent.click(screen.getByRole('button', { name: 'Retomar' })); await tick(500)
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }))
+    expect(fills()[1]).toBe('is-active')
+    await tick(4900); expect(fills()[1]).toBe('is-active')
+    await tick(200);  expect(fills()[2]).toBe('is-active')
+  })
+
+  it('avançar com o story pausado troca de slide mas continua pausado', async () => {
+    await openStory(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Pausar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Avançar' }))
+    expect(fills()).toEqual(['is-done', 'is-active is-paused', '-', '-', '-', '-'])
+    await tick(20_000)
+    expect(fills()[1]).toBe('is-active is-paused')
+  })
+
+  it('sem nenhum slide (mês vazio) não agenda temporizador nem fecha sozinho', async () => {
+    mockRecap.mockResolvedValue({ data: baseRecap({ hasData: false }) })
+    await openStory(0)
+    await tick(60_000)
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+})

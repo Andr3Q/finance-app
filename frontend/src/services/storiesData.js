@@ -13,8 +13,18 @@ const FRESH_MS         = { resumo: 10 * 60_000, metas: 10 * 60_000, dicas: 6 * 3
 const REFRESH_AFTER_MS = 60_000 // ao voltar ao Início, refaz só o que tem mais de 1 min
 const REFRESH_DELAY_MS = 2_000  // depois de uma mudança de dado, espera juntar (várias seguidas viram uma busca só)
 
-export const LOADERS = {
+// Carregadores de uma coisa só (rotas antigas): ficam como reserva se o pacote falhar.
+const LEGACY = {
   resumo: (offset) => transactionsAPI.monthlyRecap(offset).then(r => r.data),
+  metas:  () => goalsAPI.list().then(r => r.data),
+}
+
+export const LOADERS = {
+  // Resumo do mês, do mês anterior e metas vêm de UMA chamada (o pacote): o banco atende uma consulta por vez (~0,6 s cada) e as
+  // 3 rotas antigas somavam ~12 consultas — os stories levavam ~8 s para ficar prontos. Falhou o pacote? As rotas antigas valem.
+  resumo: (offset, userId) => (userId && (offset === 0 || offset === -1)
+    ? loadBundle(userId).then(b => b.resumo[offset === 0 ? 0 : 1]).catch(() => LEGACY.resumo(offset))
+    : LEGACY.resumo(offset)),
   // As duas fontes são independentes: se uma falhar, o outro slide ainda vale.
   dicas: async () => {
     const [tip, subs] = await Promise.allSettled([agentAPI.weeklyTip(), transactionsAPI.subscriptions({ strict: 1 })])
@@ -24,7 +34,7 @@ export const LOADERS = {
       subs: subs.status === 'fulfilled' ? subs.value.data : [],
     }
   },
-  metas: () => goalsAPI.list().then(r => r.data),
+  metas: (_offset, userId) => (userId ? loadBundle(userId).then(b => b.metas).catch(() => LEGACY.metas()) : LEGACY.metas()),
 }
 
 const store    = new Map() // chave -> { data, at }
@@ -32,6 +42,8 @@ const inflight = new Map() // chave -> Promise (a busca que já está no ar)
 let generation   = 0       // sobe a cada invalidação: resposta de uma busca iniciada ANTES dela não é guardada
 let lastPrefetch = null    // { userId, tip } do último pré-carregamento, pra refazer depois de uma mudança de dado
 let refreshTimer = null
+const bundleInflight = new Map() // usuário -> a chamada do pacote que já está no ar
+let early = null                 // a chamada do pacote disparada na abertura do app: { promise }
 
 const monthStamp = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}` }
 // O mês faz parte da chave do resumo e a semana, da dica: virou o mês/a semana, é outra entrada.
@@ -55,11 +67,64 @@ export function loadStory(userId, kind, offset = 0, { force = false } = {}) {
   const gen = generation
   // Promise.resolve().then: um erro síncrono do carregador (ex.: API indisponível) vira rejeição, não exceção solta.
   const p = Promise.resolve()
-    .then(() => LOADERS[kind](offset))
+    .then(() => LOADERS[kind](offset, userId))
     .then(data => { if (gen === generation) store.set(key, { data, at: Date.now() }); return data })
     .finally(() => { if (inflight.get(key) === p) inflight.delete(key) })
   inflight.set(key, p)
   return p
+}
+
+const isBundle = (b) => !!b && typeof b.userId === 'string' && Array.isArray(b.resumo) && b.resumo.length === 2 && Array.isArray(b.metas)
+
+// Guarda as três coisas do pacote de uma vez (resumo do mês, do mês anterior e metas), cada uma na sua entrada.
+function storeBundle(userId, b) {
+  const at = Date.now()
+  store.set(keyOf(userId, 'resumo', 0),  { data: b.resumo[0], at })
+  store.set(keyOf(userId, 'resumo', -1), { data: b.resumo[1], at })
+  store.set(keyOf(userId, 'metas'),      { data: b.metas, at })
+}
+
+// Uma chamada de pacote por vez, compartilhada por quem pedir (resumo, metas…). Se o app já disparou a chamada na abertura
+// (startStoriesEarly), espera por ela em vez de repetir.
+function loadBundle(userId) {
+  if (bundleInflight.has(userId)) return bundleInflight.get(userId)
+  const gen = generation
+  const fetchBundle = () => transactionsAPI.storiesBundle().then(r => r.data)
+  const source = early
+    ? early.promise.then(b => (isBundle(b) && b.userId === userId ? b : fetchBundle()))
+    : Promise.resolve().then(fetchBundle) // Promise.resolve().then: API indisponível vira rejeição, não exceção solta
+  const p = source
+    .then(b => {
+      if (!isBundle(b) || b.userId !== userId) throw new Error('pacote dos stories inválido')
+      if (gen === generation) storeBundle(userId, b)
+      return b
+    })
+    .finally(() => { if (bundleInflight.get(userId) === p) bundleInflight.delete(userId) })
+  bundleInflight.set(userId, p)
+  return p
+}
+
+/**
+ * Dispara o pacote dos stories ASSIM QUE o app abre — durante a splash e a validação do login, antes mesmo de o Início
+ * existir e de saber quem é a pessoa (o cookie diz; a resposta traz o userId). Quando ela toca no círculo, o resumo já
+ * está pronto. Só em aparelho que já teve conta; falha é silenciosa (o Início busca normalmente). fetch puro, não axios:
+ * um 401 aqui não pode disparar o redirecionamento para o login.
+ */
+export function startStoriesEarly() {
+  try {
+    if (early || typeof fetch !== 'function') return
+    if (navigator.connection?.saveData) return // economia de dados ligada: não gasta à toa
+    if (localStorage.getItem('nancy_has_account') !== '1' && !sessionStorage.getItem('user')) return
+  } catch { return }
+  const gen = generation
+  const promise = fetch('/api/transactions/stories-bundle', { credentials: 'include', headers: { Accept: 'application/json' } })
+    .then(r => (r.ok ? r.json() : null))
+    .catch(() => null)
+  early = { promise }
+  promise.then(b => {
+    if (early?.promise === promise) early = null // consumida: de agora em diante, chamadas novas vão à rede
+    if (isBundle(b) && gen === generation) { storeBundle(b.userId, b); warmStoriesPage() }
+  })
 }
 
 // A tela dos stories é um pedaço de código separado (carregado só quando abre): baixar antes tira esse atraso da primeira vez.
@@ -103,6 +168,8 @@ export function prefetchStoriesWhenIdle(userId, opts) {
 export function invalidateStories() {
   store.clear()
   inflight.clear()
+  bundleInflight.clear()
+  early = null
   generation++
   if (!lastPrefetch) return
   clearTimeout(refreshTimer)
@@ -113,7 +180,7 @@ export function invalidateStories() {
 
 /** Só para testes: volta tudo ao estado inicial. */
 export function resetStoriesCache() {
-  store.clear(); inflight.clear(); generation++; lastPrefetch = null
+  store.clear(); inflight.clear(); bundleInflight.clear(); early = null; generation++; lastPrefetch = null
   clearTimeout(refreshTimer); refreshTimer = null
 }
 

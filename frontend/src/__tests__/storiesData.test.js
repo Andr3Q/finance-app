@@ -1,9 +1,9 @@
 import {
-  peekStory, loadStory, prefetchStories, prefetchStoriesWhenIdle, invalidateStories, resetStoriesCache,
+  peekStory, loadStory, prefetchStories, prefetchStoriesWhenIdle, invalidateStories, resetStoriesCache, startStoriesEarly,
 } from '../services/storiesData.js'
 
 vi.mock('../services/api.js', () => ({
-  transactionsAPI: { monthlyRecap: vi.fn(), subscriptions: vi.fn() },
+  transactionsAPI: { monthlyRecap: vi.fn(), subscriptions: vi.fn(), storiesBundle: vi.fn() },
   goalsAPI:        { list: vi.fn() },
   agentAPI:        { weeklyTip: vi.fn() },
 }))
@@ -24,8 +24,9 @@ beforeEach(() => {
   transactionsAPI.subscriptions.mockResolvedValue({ data: [] })
   goalsAPI.list.mockResolvedValue({ data: [{ title: 'Viagem' }] })
   agentAPI.weeklyTip.mockResolvedValue({ data: { tip: 'x' } })
+  transactionsAPI.storiesBundle.mockRejectedValue(new Error('sem pacote')) // padrão: pacote indisponível -> rotas antigas
 })
-afterEach(() => { vi.useRealTimers() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('storiesData — guardar e reaproveitar', () => {
   it('busca uma vez e depois entrega do guardado, na hora, sem nova chamada', async () => {
@@ -249,5 +250,180 @@ describe('storiesData — pré-carregamento', () => {
       prefetchStoriesWhenIdle('u1', { tip: false })
       expect(idle).toHaveBeenCalledWith(expect.any(Function), { timeout: 2000 })
     } finally { delete window.requestIdleCallback; delete window.cancelIdleCallback }
+  })
+})
+
+// ── O pacote: resumo do mês + mês anterior + metas numa chamada só (1 ida ao banco no servidor) ───────────────────────
+const BUNDLE = (userId = 'u1') => ({ data: { userId, resumo: [{ hasData: true, month: 10 }, { hasData: true, month: 9 }], metas: [{ title: 'Viagem' }] } })
+
+describe('storiesData — pacote', () => {
+  it('uma chamada enche o resumo do mês, o do mês anterior e as metas — e nenhuma rota antiga é chamada', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    expect(await loadStory('u1', 'resumo', 0)).toEqual({ hasData: true, month: 10 })
+
+    expect(peekStory('u1', 'resumo', -1)).toEqual({ hasData: true, month: 9 }) // já guardado: abre na hora
+    expect(peekStory('u1', 'metas')).toEqual([{ title: 'Viagem' }])
+    expect(transactionsAPI.storiesBundle).toHaveBeenCalledTimes(1)
+    expect(transactionsAPI.monthlyRecap).not.toHaveBeenCalled()
+    expect(goalsAPI.list).not.toHaveBeenCalled()
+  })
+
+  it('os 3 círculos pedidos ao mesmo tempo se juntam em UMA chamada', async () => {
+    const d = deferred()
+    transactionsAPI.storiesBundle.mockReturnValue(d.promise)
+    const all = Promise.all([loadStory('u1', 'resumo', 0), loadStory('u1', 'resumo', -1), loadStory('u1', 'metas')])
+    d.resolve(BUNDLE())
+    expect(await all).toEqual([{ hasData: true, month: 10 }, { hasData: true, month: 9 }, [{ title: 'Viagem' }]])
+    expect(transactionsAPI.storiesBundle).toHaveBeenCalledTimes(1)
+  })
+
+  it('o pré-carregamento do Início faz UMA chamada para as duas levas (o mês anterior já veio no pacote)', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    await prefetchStories('u1', { tip: false })
+    expect(transactionsAPI.storiesBundle).toHaveBeenCalledTimes(1)
+    expect(transactionsAPI.monthlyRecap).not.toHaveBeenCalled()
+    expect(goalsAPI.list).not.toHaveBeenCalled()
+    expect(peekStory('u1', 'resumo', -1)).toBeDefined()
+  })
+
+  it('pacote falhou: cai nas rotas antigas e o story abre do mesmo jeito', async () => {
+    transactionsAPI.storiesBundle.mockRejectedValue(new Error('500'))
+    expect(await loadStory('u1', 'resumo', 0)).toEqual({ hasData: true, month: 0 })
+    expect(await loadStory('u1', 'metas')).toEqual([{ title: 'Viagem' }])
+    expect(transactionsAPI.monthlyRecap).toHaveBeenCalledWith(0)
+    expect(goalsAPI.list).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['de outra pessoa', BUNDLE('outra')],
+    ['sem o mês anterior', { data: { userId: 'u1', resumo: [{ hasData: true }], metas: [] } }],
+    ['vazio', { data: null }],
+    ['em formato inesperado', { data: { userId: 'u1', resumo: 'x', metas: 'y' } }],
+  ])('pacote %s nunca é guardado nem mostrado: usa as rotas antigas', async (_, answer) => {
+    transactionsAPI.storiesBundle.mockResolvedValue(answer)
+    expect(await loadStory('u1', 'resumo', 0)).toEqual({ hasData: true, month: 0 })
+    expect(peekStory('u1', 'resumo', -1)).toBeUndefined()
+    expect(transactionsAPI.monthlyRecap).toHaveBeenCalledTimes(1)
+  })
+
+  it('outros meses (que o Início não usa) vão direto pela rota antiga', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    await loadStory('u1', 'resumo', -3)
+    expect(transactionsAPI.monthlyRecap).toHaveBeenCalledWith(-3)
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+  })
+
+  it('mudou um dado durante a busca do pacote: a resposta velha não é guardada e o pacote é buscado de novo', async () => {
+    const d = deferred()
+    transactionsAPI.storiesBundle.mockReturnValueOnce(d.promise).mockResolvedValue({ data: { userId: 'u1', resumo: [{ hasData: true, month: 11 }, { hasData: true, month: 10 }], metas: [] } })
+    const pending = loadStory('u1', 'resumo', 0)
+    await flush()                            // o pedido do pacote já saiu...
+    expect(transactionsAPI.storiesBundle).toHaveBeenCalledTimes(1)
+    invalidateStories()                      // ...e a pessoa registra uma transação antes de a resposta chegar
+    d.resolve(BUNDLE())
+    await pending.catch(() => {})
+    expect(peekStory('u1', 'resumo', 0)).toBeUndefined() // o número velho não ficou guardado
+    expect(await loadStory('u1', 'resumo', 0)).toEqual({ hasData: true, month: 11 })
+  })
+
+  it('depois de uma mudança, o refresh em segundo plano usa o pacote (uma chamada)', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    await prefetchStories('u1', { tip: false })
+    transactionsAPI.storiesBundle.mockClear()
+    window.dispatchEvent(new Event('budget-updated'))
+    await vi.advanceTimersByTimeAsync(2100)
+    await flush()
+    expect(transactionsAPI.storiesBundle).toHaveBeenCalledTimes(1)
+    expect(transactionsAPI.monthlyRecap).not.toHaveBeenCalled()
+  })
+})
+
+// ── Começar já na abertura do app: o pacote é pedido antes do Início existir ─────────────────────────────────────────
+describe('storiesData — começa na abertura do app', () => {
+  const answer = (body, ok = true) => Promise.resolve({ ok, json: () => Promise.resolve(body) })
+  beforeEach(() => { localStorage.setItem('nancy_has_account', '1') })
+  afterEach(() => { localStorage.clear(); sessionStorage.clear() })
+
+  it('pede o pacote uma vez (com o cookie) e guarda para a pessoa certa: o toque abre na hora, sem nenhuma chamada nova', async () => {
+    const fetchMock = vi.fn().mockReturnValue(answer(BUNDLE('u1').data))
+    vi.stubGlobal('fetch', fetchMock)
+    startStoriesEarly()
+    startStoriesEarly() // chamar de novo não repete
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/transactions/stories-bundle')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'include' })
+    expect(peekStory('u1', 'resumo', 0)).toEqual({ hasData: true, month: 10 })   // síncrono: o story abre pronto
+    expect(peekStory('u1', 'resumo', -1)).toEqual({ hasData: true, month: 9 })
+    expect(peekStory('u1', 'metas')).toEqual([{ title: 'Viagem' }])
+    expect(peekStory('outra', 'resumo', 0)).toBeUndefined()
+    await loadStory('u1', 'resumo', 0)
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+  })
+
+  it('o Início pede enquanto a chamada da abertura ainda está no ar: junta-se a ela (nada de segunda chamada)', async () => {
+    const d = deferred()
+    const fetchMock = vi.fn().mockReturnValue(d.promise)
+    vi.stubGlobal('fetch', fetchMock)
+    startStoriesEarly()
+    const pending = loadStory('u1', 'resumo', 0)
+    d.resolve({ ok: true, json: () => Promise.resolve(BUNDLE('u1').data) })
+
+    expect(await pending).toEqual({ hasData: true, month: 10 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+  })
+
+  it('a chamada da abertura trouxe o pacote de OUTRA pessoa (troca de conta): não vale, busca o certo', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(answer(BUNDLE('antiga').data)))
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE('nova'))
+    startStoriesEarly()
+    expect(await loadStory('nova', 'resumo', 0)).toEqual({ hasData: true, month: 10 })
+    expect(transactionsAPI.storiesBundle).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['sem sessão (401)', () => answer({ error: 'x' }, false)],
+    ['rede caiu', () => Promise.reject(new Error('rede'))],
+    ['resposta fora do formato', () => answer({ foo: 1 })],
+  ])('%s: silencioso, nada é guardado e o Início busca normalmente', async (_, reply) => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(reply))
+    startStoriesEarly()
+    await flush()
+    expect(peekStory('u1', 'resumo', 0)).toBeUndefined()
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    expect(await loadStory('u1', 'resumo', 0)).toEqual({ hasData: true, month: 10 })
+  })
+
+  it('aparelho que nunca teve conta (nem sessão aberta): não faz chamada nenhuma', () => {
+    localStorage.clear()
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock)
+    startStoriesEarly()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('com sessão aberta (sessionStorage) mesmo sem o aviso do aparelho: começa', async () => {
+    localStorage.clear(); sessionStorage.setItem('user', '{"id":"u1"}')
+    const fetchMock = vi.fn().mockReturnValue(answer(BUNDLE('u1').data)); vi.stubGlobal('fetch', fetchMock)
+    startStoriesEarly()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('economia de dados ligada: não faz chamada na abertura', () => {
+    const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock)
+    Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true })
+    try { startStoriesEarly(); expect(fetchMock).not.toHaveBeenCalled() }
+    finally { Object.defineProperty(navigator, 'connection', { value: undefined, configurable: true }) }
+  })
+
+  it('mudou um dado antes de a resposta da abertura chegar: ela é descartada (seria número velho)', async () => {
+    const d = deferred()
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(d.promise))
+    startStoriesEarly()
+    invalidateStories()
+    d.resolve({ ok: true, json: () => Promise.resolve(BUNDLE('u1').data) })
+    await flush()
+    expect(peekStory('u1', 'resumo', 0)).toBeUndefined()
   })
 })
