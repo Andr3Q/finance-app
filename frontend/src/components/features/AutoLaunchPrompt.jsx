@@ -6,7 +6,8 @@ import { useState } from 'react'
 import { transactionsAPI } from '../../services/api.js'
 import { IconAlert } from '../ui/icons.jsx'
 
-export default function AutoLaunchPrompt({ autoLaunched, onLaunched }) {
+// pending/total: quantas contas fixas faltam e quantas existem — sem isto o aviso dizia "ainda não foram lançadas" mesmo com 3 de 4 pagas.
+export default function AutoLaunchPrompt({ autoLaunched, onLaunched, pending = 0, total = 0 }) {
   const [loading,   setLoading]   = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [error,     setError]     = useState('')
@@ -31,7 +32,9 @@ export default function AutoLaunchPrompt({ autoLaunched, onLaunched }) {
     <div className="alc fu d2">
       <div>
         <h4>Lançar contas fixas do mês?</h4>
-        <p>Suas contas fixas ainda não foram lançadas este mês.</p>
+        <p>{pending > 0 && total > pending
+          ? `${pending === 1 ? 'Falta 1 conta fixa' : `Faltam ${pending} contas fixas`} para lançar este mês.`
+          : 'Suas contas fixas ainda não foram lançadas este mês.'}</p>
         {error && (
           <p style={{ color: 'var(--red)', fontSize: 13, marginTop: 6, display: 'flex', alignItems: 'center', gap: 5 }}><IconAlert size={13} color="var(--red)" /> {error}</p>
         )}

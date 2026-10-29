@@ -74,13 +74,15 @@ export default function Login({ isRegister = false }) {
       if (!trimmedName)            errs.name = 'Nome obrigatório'
       else if (trimmedName.length < 2) errs.name = 'O nome deve ter pelo menos 2 caracteres.'
     }
-    if (!EMAIL_RE.test(form.email.trim())) errs.email = 'E-mail inválido'
+    if (!form.email.trim()) errs.email = 'Informe seu e-mail'
+    else if (!EMAIL_RE.test(form.email.trim())) errs.email = 'E-mail inválido'
     if (mode === 'register') {
       if (!PASSWORD_RE.test(form.password))
         errs.password = 'Mínimo 8 caracteres com letra maiúscula, minúscula e número'
       if (!termsOk) errs.terms = 'Você precisa aceitar os termos para continuar'
     } else {
-      if (form.password.length < 8) errs.password = 'Mínimo 8 caracteres'
+      if (!form.password) errs.password = 'Informe sua senha'
+      else if (form.password.length < 8) errs.password = 'Mínimo 8 caracteres'
     }
     setFieldErrs(errs)
     return Object.keys(errs).length === 0

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { authAPI, budgetAPI, goalsAPI } from '../../services/api.js'
+import { invalidateCache } from '../../services/cache.js'
+import { useEscapeKey } from '../../hooks/useEscapeKey.js'
 import { useUser, saveUser } from '../../hooks/useUser.js'
 import { analytics } from '../../services/analytics.js'
 
@@ -25,6 +27,8 @@ export default function OnboardingModal() {
   const [budgetErr,      setBudgetErr]      = useState('')
   const [gTitle,         setGTitle]         = useState('')
   const [gAmount,        setGAmount]        = useState('')
+  const [confirmSkip,    setConfirmSkip]    = useState(false) // diálogo do app: "Pular sem salvar o salário?"
+  useEscapeKey(() => setConfirmSkip(false), confirmSkip)
 
   // Fonte de verdade é o servidor (onboardingComplete), não uma flag local —
   // antes disso dependia de sessionStorage.just_registered, que some ao
@@ -40,6 +44,9 @@ export default function OnboardingModal() {
     // Usa o `user` vivo do hook, não uma cópia do sessionStorage — ver mesmo
     // fix em ProfileCard.jsx (apagava salary/reportEmail do estado global).
     saveUser({ ...user, onboardingComplete: true })
+    // O Início já carregou (vazio) por trás do onboarding: sem este aviso ele ficava zerado até a pessoa recarregar a página.
+    invalidateCache('dashboard')
+    window.dispatchEvent(new CustomEvent('budget-updated'))
   }
 
   const handleNext = async () => {
@@ -67,13 +74,14 @@ export default function OnboardingModal() {
   // clicar por engano com o botão "Continuar" logo ao lado. Também usada pelo
   // botão de voltar quando ele está no passo 1 (não tem passo anterior dentro
   // do onboarding pra onde voltar — pular é a ação equivalente).
-  const handleSkip = () => {
-    if (step === 1 && parseFloat(salary) > 0 &&
-        !window.confirm('Você digitou um salário mas não salvou. Pular mesmo assim?')) {
-      return
-    }
+  const skip = () => {
+    setConfirmSkip(false)
     if (step < 3) setStep(s => s + 1)
     else finish()
+  }
+  const handleSkip = () => {
+    if (step === 1 && parseFloat(salary) > 0) { setConfirmSkip(true); return } // confirma no próprio app (não no diálogo do navegador)
+    skip()
   }
 
   const handleBack = () => {
@@ -139,7 +147,7 @@ export default function OnboardingModal() {
 
             {step === 2 && (
               <>
-                <p className="ob-desc">Adicione aluguel, internet, academia... Você pode incluir mais depois em Configurações.</p>
+                <p className="ob-desc">Adicione aluguel, internet, academia... Você pode incluir mais depois em Perfil → Finanças.</p>
                 {budgetsAdded > 0 && (
                   <div className="ob-added">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -224,6 +232,20 @@ export default function OnboardingModal() {
           </div>
         </div>
       </div>
+      {confirmSkip && (
+        <div className="gls-modal-overlay" style={{ zIndex: 5 }} onClick={() => setConfirmSkip(false)}>
+          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="ob-skip-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head"><span id="ob-skip-title">Pular sem salvar o salário?</span></div>
+            <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
+              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>Você digitou um salário, mas ele ainda não foi salvo. Pular mesmo assim?</div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirmSkip(false)}>Continuar editando</button>
+              <button className="gls-btn-save" onClick={skip}>Pular mesmo assim</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

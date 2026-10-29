@@ -53,6 +53,21 @@ describe('Login — modo entrar', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
+  // Achado N2-1: campo vazio dizia "E-mail inválido" / "Mínimo 8 caracteres" em vez de pedir para preencher.
+  it('campos vazios pedem para preencher (e-mail inválido e senha curta continuam com a própria mensagem)', async () => {
+    setup()
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
+    expect(await screen.findByText('Informe seu e-mail')).toBeInTheDocument()
+    expect(screen.getByText('Informe sua senha')).toBeInTheDocument()
+    expect(authAPI.login).not.toHaveBeenCalled()
+
+    await userEvent.type(document.getElementById('f-email'), 'abc')
+    await userEvent.type(document.getElementById('f-pass'), '123')
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
+    expect(await screen.findByText('E-mail inválido')).toBeInTheDocument()
+    expect(screen.getByText('Mínimo 8 caracteres')).toBeInTheDocument()
+  })
+
   it('renderiza os campos e-mail e senha', () => {
     setup()
     expect(screen.getByLabelText('E-mail')).toBeInTheDocument()

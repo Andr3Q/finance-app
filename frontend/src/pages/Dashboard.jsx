@@ -332,7 +332,7 @@ export default function Dashboard() {
               </section>
             ) : (<>
             {/* dentro do corpo, abaixo do cabeçalho azul: acima dele, o aviso empurrava o azul pra baixo e deixava uma faixa clara sob a barra de status */}
-            <AutoLaunchPrompt autoLaunched={summary?.autoLaunched} onLaunched={() => fetchData()} />
+            <AutoLaunchPrompt autoLaunched={summary?.autoLaunched} pending={summary?.unpaidBudgetIds?.length || 0} total={budgets.length} onLaunched={() => fetchData()} />
 
             {/* Resumos em stories — os 4 círculos abrem a tela 09 (mesma rota,
                 fluxo escolhido por state.story): mês atual e mês anterior

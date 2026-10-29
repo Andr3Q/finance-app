@@ -69,6 +69,19 @@ test.describe('Auth — Login', () => {
     await expect(page.getByText(/e-mail ou senha incorretos/i)).toBeVisible()
   })
 
+  // Achado N2-1: campo vazio dizia "E-mail inválido" / "Mínimo 8 caracteres" em vez de pedir para preencher.
+  test('campos vazios pedem para preencher, sem chamar o servidor', async ({ page }) => {
+    const mock = createMock(page)
+    let calls = 0
+    await page.route('**/api/auth/login**', r => { calls++; r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }) })
+    await page.goto('/login')
+    await page.getByRole('button', { name: /^entrar$/i }).click()
+
+    await expect(page.getByText('Informe seu e-mail')).toBeVisible()
+    await expect(page.getByText('Informe sua senha')).toBeVisible()
+    expect(calls).toBe(0)
+  })
+
   test('exibe campo de código 2FA quando conta tem 2FA ativado', async ({ page }) => {
     const mock = createMock(page)
     mock.post('/api/auth/login', { requires2FA: true, tempToken: 'temp-abc' })
@@ -175,6 +188,20 @@ test.describe('Auth — Recuperação de senha', () => {
     await page.getByRole('button', { name: /enviar|recuperar/i }).click()
 
     await expect(page.getByText(/e-mail enviado|verifique sua caixa|link de recuperação/i).first()).toBeVisible()
+  })
+
+  // Achado N2-1: o campo vazio ia até o servidor (limite de 3 pedidos por hora) para só então dizer "E-mail inválido.".
+  test('campo vazio ou e-mail inválido são barrados na tela, sem gastar um dos 3 pedidos por hora', async ({ page }) => {
+    let calls = 0
+    await page.route('**/api/auth/forgot-password**', r => { calls++; r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }) })
+    await page.goto('/forgot-password')
+    await page.getByRole('button', { name: /enviar|recuperar/i }).click()
+    await expect(page.getByText('Informe o e-mail da sua conta.')).toBeVisible()
+
+    await page.getByRole('textbox').first().fill('abc')
+    await page.getByRole('button', { name: /enviar|recuperar/i }).click()
+    await expect(page.getByText('E-mail inválido.')).toBeVisible()
+    expect(calls).toBe(0)
   })
 
   test('exibe erro quando e-mail não encontrado', async ({ page }) => {

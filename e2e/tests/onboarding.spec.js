@@ -59,6 +59,63 @@ test('quem já informou o salário no cadastro não é perguntado de novo: o onb
   await expect(page.getByText('Quanto você ganha por mês?')).toHaveCount(0)
 })
 
+// ── Achados do QA N2-1 ─────────────────────────────────────────────────────────────────────────────────────────────────
+const EMPTY_DASH = { summary: { salary: 0, totalIncome: 0, totalExpenses: 0, totalFixedCosts: 0, unpaidFixedCosts: 0, unpaidBudgetIds: [], totalAvailable: 0, currentBalance: 0, percentUsed: 0 }, transactions: [], limits: [], budgets: [] }
+const FULL_DASH = { summary: { salary: 5000, totalIncome: 1500, totalExpenses: 2840, totalFixedCosts: 2000, unpaidFixedCosts: 0, unpaidBudgetIds: [], totalAvailable: 6500, currentBalance: 3660, percentUsed: 44 }, transactions: [], limits: [], budgets: [{ id: 'b1', name: 'Aluguel', amount: 2000, dueDay: 1 }] }
+
+test('concluir o onboarding atualiza o Início na hora (antes ficava zerado até o F5)', async ({ page }) => {
+  const user = { ...TEST_USER, onboardingComplete: false, salary: 5000 } // abre em "Contas fixas"
+  await injectSession(page, user)
+  let finished = false
+  await page.route('**/api/**', r => r.fulfill(json([])))
+  await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
+  // Antes de concluir o servidor ainda não tem nada para mostrar; DEPOIS de concluir devolve os dados que a pessoa informou.
+  // (Em desenvolvimento o React lê duas vezes ao montar — por isso o resultado depende do momento, não da contagem de leituras.)
+  await page.route('**/api/auth/complete-onboarding**', r => { finished = true; return r.fulfill(json({ ok: true })) })
+  await page.route('**/api/transactions/dashboard**', r => r.fulfill(json(finished ? FULL_DASH : EMPTY_DASH)))
+  await page.goto('/dashboard')
+
+  const ob = page.locator('.ob-shell')
+  await expect(ob.getByRole('heading', { name: 'Contas fixas' })).toBeVisible()
+  await expect(page.locator('.home-stat-val').first()).toHaveText('0') // por trás do onboarding o Início ainda está zerado (é o que a pessoa via)
+  await ob.getByRole('button', { name: 'Pular por agora' }).click() // 2 -> 3
+  await ob.getByRole('button', { name: 'Pular por agora' }).click() // 3 -> concluir
+
+  await expect(page.locator('.ob-shell')).toHaveCount(0)
+  await expect(page.locator('.home-stat-val').first()).toHaveText('6.500') // Entradas = salário + entradas, SEM recarregar a página
+})
+
+test('"Pular" com salário digitado pergunta no próprio app (não no diálogo do navegador)', async ({ page }) => {
+  const user = { ...TEST_USER, onboardingComplete: false, salary: 0 }
+  await injectSession(page, user)
+  let nativeDialogs = 0
+  page.on('dialog', d => { nativeDialogs++; d.dismiss() })
+  await page.route('**/api/**', r => r.fulfill(json([])))
+  await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
+  await page.goto('/dashboard')
+
+  await page.getByPlaceholder('0,00').fill('8500')
+  await page.getByRole('button', { name: 'Pular por agora' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Pular sem salvar o salário?' })
+  await expect(dialog).toBeVisible()
+  expect(nativeDialogs).toBe(0)
+  await dialog.getByRole('button', { name: 'Continuar editando' }).click()
+  await expect(page.getByPlaceholder('0,00')).toHaveValue('8500') // o valor continua lá
+  await page.getByRole('button', { name: 'Pular por agora' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Pular mesmo assim' }).click()
+  await expect(page.locator('.ob-shell').getByRole('heading', { name: 'Contas fixas' })).toBeVisible()
+  expect(nativeDialogs).toBe(0)
+})
+
+test('o texto das contas fixas aponta o caminho real: Perfil → Finanças', async ({ page }) => {
+  const user = { ...TEST_USER, onboardingComplete: false, salary: 5000 }
+  await injectSession(page, user)
+  await page.route('**/api/**', r => r.fulfill(json([])))
+  await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
+  await page.goto('/dashboard')
+  await expect(page.locator('.ob-shell').getByText(/Você pode incluir mais depois em Perfil → Finanças\./)).toBeVisible()
+})
+
 test('quem salvou o tema claro vê o título das telas de auth em branco sobre o azul', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('theme', 'light'))
   await page.goto('/login')

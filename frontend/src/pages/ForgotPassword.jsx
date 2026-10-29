@@ -27,9 +27,12 @@ export default function ForgotPassword() {
   const handleSubmit = async e => {
     e.preventDefault()
     setError('')
+    // Valida aqui, como no login e no cadastro: o servidor limita a 3 pedidos por hora e não vale gastar um com campo vazio.
+    if (!email.trim()) { setError('Informe o e-mail da sua conta.'); return }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('E-mail inválido.'); return }
     setLoading(true)
     try {
-      await authAPI.forgotPassword(email)
+      await authAPI.forgotPassword(email.trim())
       setSent(true)
     } catch (err) {
       setError(err.response?.data?.error || 'Ocorreu um erro. Tente novamente.')

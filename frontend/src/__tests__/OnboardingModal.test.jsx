@@ -104,3 +104,114 @@ describe('OnboardingModal — fluxo de conclusão', () => {
     expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument()
   })
 })
+
+// ── Achados do QA N2-1 ───────────────────────────────────────────────────────────────────────────────────────────────
+// useUser guarda o salário em memória por id de usuário: cada teste usa um id novo para não herdar o salário do anterior
+let seq = 0
+const freshUser = (overrides = {}) => setUser({ id: `user-n21-${++seq}`, ...overrides })
+
+describe('OnboardingModal — o Início atualiza ao concluir', () => {
+  let updated
+  beforeEach(() => { updated = vi.fn(); window.addEventListener('budget-updated', updated) })
+  afterEach(() => window.removeEventListener('budget-updated', updated))
+
+  it('concluir (inclusive pulando tudo) avisa o app que os dados mudaram: o Início não fica zerado até o F5', async () => {
+    freshUser({ salary: 5000 })
+    render(<OnboardingModal />)
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' })) // passo 2 -> 3
+    expect(updated).not.toHaveBeenCalled()                                         // só avisa ao terminar
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' })) // passo 3 -> concluir
+    expect(await screen.findByText('Vamos começar').catch(() => null)).toBeNull()
+    expect(updated).toHaveBeenCalledTimes(1)
+  })
+
+  it('o aviso sai DEPOIS de salvar a meta e de marcar o onboarding como concluído (a tela recarrega com tudo já salvo)', async () => {
+    const { goalsAPI, authAPI } = await import('../services/api.js')
+    const order = []
+    goalsAPI.create.mockImplementation(async () => { order.push('meta') })
+    authAPI.completeOnboarding.mockImplementation(async () => { order.push('concluir') })
+    window.addEventListener('budget-updated', () => order.push('aviso'), { once: true })
+    freshUser({ salary: 5000 })
+    render(<OnboardingModal />)
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' })) // passo 3
+    await userEvent.type(screen.getByPlaceholderText('Ex: Reserva de emergência'), 'Viagem')
+    await userEvent.type(screen.getByPlaceholderText('Ex: 10000'), '5000')
+    await userEvent.click(screen.getByRole('button', { name: 'Concluir' }))
+
+    await vi.waitFor(() => expect(order).toEqual(['meta', 'concluir', 'aviso']))
+  })
+})
+
+describe('OnboardingModal — "pular" com salário digitado confirma no próprio app', () => {
+  const typeSalary = async () => {
+    await userEvent.type(screen.getByPlaceholderText('0,00'), '8500')
+  }
+
+  it('abre um diálogo do app (não o confirm() do navegador) e não pula ainda', async () => {
+    const confirm = vi.spyOn(window, 'confirm')
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await typeSalary()
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Pular sem salvar o salário?' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(confirm).not.toHaveBeenCalled()
+    expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument() // continua no passo 1
+  })
+
+  it('"Continuar editando" fecha o diálogo e mantém o passo 1 com o valor digitado', async () => {
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await typeSalary()
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar editando' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('0,00')).toHaveValue(8500)
+  })
+
+  it('"Pular mesmo assim" vai para o passo 2', async () => {
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await typeSalary()
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Pular mesmo assim' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Contas fixas')).toBeInTheDocument()
+  })
+
+  it('o botão de voltar do passo 1 (que age como pular) também pergunta no app; Esc e o fundo cancelam', async () => {
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await typeSalary()
+    await userEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Voltar' }))
+    await userEvent.click(document.querySelector('.gls-modal-overlay'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument()
+  })
+
+  it('sem salário digitado, pular é direto (sem diálogo)', async () => {
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Contas fixas')).toBeInTheDocument()
+  })
+})
+
+describe('OnboardingModal — textos', () => {
+  it('o passo de contas fixas aponta o caminho real (Perfil → Finanças), não "Configurações"', () => {
+    freshUser({ salary: 5000 })
+    render(<OnboardingModal />)
+    expect(screen.getByText(/Você pode incluir mais depois em Perfil → Finanças\./)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('Configurações')
+  })
+})
