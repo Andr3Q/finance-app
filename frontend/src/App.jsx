@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useState, createContext, useContext } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import ScrollToTop from './components/layout/ScrollToTop.jsx'
 import InstallBanner from './components/features/InstallBanner.jsx'
 import AgentChat from './components/features/AgentChat.jsx'
 import NewTransactionSheet from './components/features/NewTransactionSheet.jsx'
@@ -184,6 +185,7 @@ export default function App() {
   return (
     <AuthValidContext.Provider value={isValidating}>
       <BrowserRouter>
+        <ScrollToTop />
         <CookieBanner />
         <InstallBanner />
         <Suspense fallback={<PageLoader />}>

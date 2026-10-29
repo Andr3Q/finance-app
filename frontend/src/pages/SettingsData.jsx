@@ -61,7 +61,7 @@ export default function SettingsData() {
       await authAPI.deleteAccount(deletePass)
       sessionStorage.removeItem('user')
       sessionStorage.removeItem('token')
-      navigate('/login')
+      navigate('/login', { state: { notice: 'Conta excluída. Seus dados foram apagados.' } })
     } catch (err) {
       setDeleteErr(err.response?.data?.error || 'Erro ao excluir conta.')
       setDeleteLoading(false)
@@ -122,7 +122,7 @@ export default function SettingsData() {
 
       {deleteModal && (
         <div className="modal-overlay" style={{ zIndex:9000 }}>
-          <div className="modal del-modal" style={{ maxWidth:420, padding:0, overflow:'hidden', border:'1px solid rgba(239,68,68,.2)' }}>
+          <div className="modal del-modal" role="dialog" aria-modal="true" aria-labelledby="dd-del-title" style={{ maxWidth:420, padding:0, overflow:'hidden', border:'1px solid rgba(239,68,68,.2)' }}>
 
             <div className="del-modal-bar" />
 
@@ -137,7 +137,7 @@ export default function SettingsData() {
                   </svg>
                 </div>
                 <div style={{ paddingTop:2 }}>
-                  <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:4 }}>Excluir conta permanentemente</div>
+                  <div id="dd-del-title" style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:4 }}>Excluir conta permanentemente</div>
                   <div style={{ fontSize:12, color:'#ef4444', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="#ef4444"><circle cx="12" cy="12" r="10"/></svg>
                     Esta ação não pode ser desfeita
@@ -169,6 +169,7 @@ export default function SettingsData() {
                 </label>
                 <input
                   type="password"
+                  autoComplete="current-password"
                   placeholder="Digite sua senha atual"
                   value={deletePass}
                   onChange={e => { setDeletePass(e.target.value); setDeleteErr('') }}

@@ -53,4 +53,23 @@ test.describe('Termos de Uso', () => {
     await page.getByRole('button', { name: 'Voltar' }).click()
     await expect(page).toHaveURL(/\/termos$/)
   })
+
+  // Achado N2-10: aberta pelo Perfil já rolado, a tela abria no meio do texto, com o cabeçalho fora da tela.
+  // (janela baixa: garante que a lista do Perfil passa da tela mesmo com a API simulada, que não traz os cartões extras)
+  for (const [link, url, title] of [['Termos de uso', /\/termos$/, 'Termos de Uso'], ['Política de privacidade', /\/privacidade$/, 'Política de Privacidade']]) {
+    test(`"${link}" aberta pelo Perfil rolado começa no topo, com o cabeçalho à vista`, async ({ page }) => {
+      await page.setViewportSize({ width: 393, height: 520 })
+      await setup(page)
+      await page.goto('/settings')
+      await expect(page.locator('#app-splash')).toBeHidden({ timeout: 20000 }) // a splash (~4s) cobre a tela a cada carregamento
+      await expect(page.getByRole('button', { name: link, exact: true })).toBeVisible() // a lista já desenhada: só então há o que rolar
+      await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })) // o CSS tem scroll-behavior: smooth
+      expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(100) // a lista do Perfil é maior que a tela: sem isso o teste não provaria nada
+      await page.getByRole('button', { name: link, exact: true }).click()
+      await expect(page).toHaveURL(url)
+      const h1 = page.getByRole('heading', { level: 1, name: title })
+      await expect(h1).toBeInViewport()
+      expect(await page.evaluate(() => window.scrollY)).toBe(0)
+    })
+  }
 })

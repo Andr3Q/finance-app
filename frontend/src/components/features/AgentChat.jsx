@@ -7,6 +7,7 @@ import { analytics } from '../../services/analytics.js'
 import { invalidateCache } from '../../services/cache.js'
 import { MONTHS } from '../../constants/index.js'
 import NancyMark from '../ui/NancyMark.jsx'
+import AiMessage from './AiMessage.jsx'
 
 // Sugestões da conversa vazia (design Nancy 2, tela 12). A do meio usa o mês atual.
 function buildSuggestions(now = new Date()) {
@@ -43,6 +44,22 @@ function getMicHelpText() {
     return 'Toque no ícone de cadeado/informações ao lado do endereço do site (ou, se instalou o Nancy como app, vá em Configurações do Android → Apps → Nancy → Permissões) e libere o Microfone. Depois recarregue a página.'
   }
   return 'Clique no ícone de cadeado/informações ao lado do endereço do site, libere o Microfone e recarregue a página.'
+}
+
+// Mensagem do chat para uma falha da API. Erro do servidor (5xx) nunca mostra o texto cru que veio no corpo — já
+// apareceu a palavra "internal" no chat —, só uma frase própria em português.
+function chatErrorMessage(err) {
+  const status = err.response?.status
+  const serverMsg = err.response?.data?.error
+  if (status === 429) return 'Muitas mensagens seguidas. Aguarde alguns segundos.'
+  // 403 com limitReached é o gate de plano (agent.js requirePlan), não sessão
+  // expirada — o interceptor global (api.js) já sabe dessa distinção e não
+  // desloga o usuário nesse caso; a mensagem local precisa concordar.
+  if (err.response?.data?.limitReached) return serverMsg || 'Recurso exclusivo do plano Elite.'
+  if (status === 401 || status === 403) return 'Sessão expirada. Faça login novamente.'
+  if (!err.response) return 'Sem conexão com o servidor.'
+  if (status >= 500) return 'Não consegui falar com a Nancy agora. Tente de novo em instantes.'
+  return serverMsg || 'Não consegui processar a mensagem. Tente de novo.'
 }
 
 export default function AgentChat() {
@@ -107,7 +124,10 @@ export default function AgentChat() {
     navigator.permissions.query({ name: 'microphone' }).then(s => {
       status = s
       setMicPermission(s.state)
-      s.onchange = () => setMicPermission(s.state)
+      s.onchange = () => {
+        setMicPermission(s.state)
+        if (s.state === 'granted') setVoiceError('') // liberou nas configurações: o aviso de "bloqueado" não vale mais
+      }
     }).catch(() => {})
     return () => { if (status) status.onchange = null }
   }, [])
@@ -123,7 +143,10 @@ export default function AgentChat() {
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 120)
-    } else if (listening) {
+    } else {
+      setVoiceError('') // o aviso do microfone não fica esperando na próxima vez que o chat abrir
+    }
+    if (!open && listening) {
       // O painel esconde o botão de "parar gravação" ao fechar, mas o
       // componente continua montado (só o conteúdo interno é condicional) —
       // sem isso, o microfone ficaria gravando em segundo plano indefinidamente,
@@ -136,47 +159,71 @@ export default function AgentChat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [history, loading])
 
-  const send = async (msg) => {
+  // dropLast: tira do fim da conversa a pergunta que falhou e o erro dela, para "Tentar de novo" não repetir a pergunta.
+  const send = async (msg, { dropLast = 0 } = {}) => {
     const text = (msg || input).trim()
     if (!text || loading || transcribing) return
     setInput('')
     analytics.track('ai_message_sent')
 
+    const base = history.slice(0, history.length - dropLast)
     const userMsg = { role: 'user', content: text }
-    setHistory(h => [...h, userMsg])
+    setHistory([...base, userMsg])
     setLoading(true)
 
     try {
-      const apiHistory = history
+      const apiHistory = base
         .filter(m => m.role && m.content && !m.error)
         .map(m => ({ role: m.role, content: m.content }))
       const res = await agentAPI.chat(text, apiHistory)
-      setHistory(h => [...h, { role: 'assistant', content: res.data.reply }])
+      const { reply, pendingAction, dataChanged } = res.data
+      // pendingAction: a IA preparou uma edição/exclusão e NADA foi feito ainda — os botões Confirmar/Cancelar
+      // aparecem abaixo da resposta e só o toque em Confirmar executa (POST /agent/confirm).
+      setHistory(h => [...h, { role: 'assistant', content: reply, ...(pendingAction ? { pending: { token: pendingAction.token, state: 'open' } } : {}) }])
       // O chat pode criar/editar/excluir transação via tool-calling — sem isso,
       // Dashboard/Transações continuavam mostrando dado velho até o usuário
       // forçar um refresh manual (ex: trocar de mês e voltar).
-      if (res.data.dataChanged) {
-        invalidateCache('dashboard')
-        window.dispatchEvent(new CustomEvent('budget-updated'))
-      }
+      if (dataChanged) refreshApp()
     } catch (err) {
-      const status = err.response?.status
-      const serverMsg = err.response?.data?.error
-      const limitReached = err.response?.data?.limitReached
-      const errMsg =
-        status === 429 ? 'Muitas mensagens seguidas. Aguarde alguns segundos.' :
-        status === 503 ? 'Agente IA não configurado.' :
-        // 403 com limitReached é o gate de plano (agent.js requirePlan), não sessão
-        // expirada — o interceptor global (api.js) já sabe dessa distinção e não
-        // desloga o usuário nesse caso; a mensagem local precisa concordar.
-        limitReached ? (serverMsg || 'Recurso exclusivo do plano Elite.') :
-        status === 401 || status === 403 ? 'Sessão expirada. Faça login novamente.' :
-        !err.response ? 'Sem conexão com o servidor.' :
-        serverMsg || 'Erro ao processar mensagem.'
-      setHistory(h => [...h, { role: 'assistant', content: errMsg, error: true }])
+      setHistory(h => [...h, { role: 'assistant', content: chatErrorMessage(err), error: true, retryText: text }])
     } finally {
       setLoading(false)
     }
+  }
+
+  const refreshApp = () => {
+    invalidateCache('dashboard')
+    window.dispatchEvent(new CustomEvent('budget-updated'))
+  }
+
+  const setPendingState = (index, state) =>
+    setHistory(h => h.map((m, i) => (i === index && m.pending ? { ...m, pending: { ...m.pending, state } } : m)))
+
+  const confirmPending = async (index) => {
+    const pending = history[index]?.pending
+    if (!pending || pending.state !== 'open' || loading || transcribing) return
+    analytics.track('ai_action_confirmed')
+    setLoading(true)
+    try {
+      const res = await agentAPI.confirm(pending.token)
+      setPendingState(index, 'done')
+      setHistory(h => [...h, { role: 'assistant', content: res.data.message }])
+      if (res.data.dataChanged) refreshApp()
+    } catch (err) {
+      // 400 (token inválido/expirado) e 409 (a transação mudou ou o mês fechou) não adiantam tentar de novo
+      const final = [400, 409].includes(err.response?.status)
+      setPendingState(index, final ? 'closed' : 'open')
+      setHistory(h => [...h, { role: 'assistant', content: final ? (err.response.data?.error || chatErrorMessage(err)) : chatErrorMessage(err), error: true }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const cancelPending = (index) => {
+    if (history[index]?.pending?.state !== 'open' || loading) return
+    analytics.track('ai_action_cancelled')
+    setPendingState(index, 'cancelled')
+    setHistory(h => [...h, { role: 'assistant', content: 'Tudo bem, não mexi em nada.' }])
   }
 
   const handleKey = (e) => {
@@ -353,11 +400,32 @@ export default function AgentChat() {
                     ))}
                   </div>
                 )}
-                {history.map((m, i) => (
-                  <div key={i} className={`nia-msg ${m.role === 'user' ? 'user' : 'bot'}${m.error ? ' err' : ''}`}>
-                    <div className="nia-bubble">{m.content}</div>
-                  </div>
-                ))}
+                {history.map((m, i) => {
+                  const isBot       = m.role !== 'user'
+                  const canRetry    = m.error && m.retryText && i === history.length - 1 && !loading
+                  const hasActions  = m.pending?.state === 'open' || canRetry
+                  const bubble      = <div className={`nia-bubble${isBot && !m.error ? ' nia-rich-bubble' : ''}`}>{isBot && !m.error ? <AiMessage text={m.content} /> : m.content}</div>
+                  return (
+                    <div key={i} className={`nia-msg ${isBot ? 'bot' : 'user'}${m.error ? ' err' : ''}`}>
+                      {hasActions ? (
+                        <div className="nia-col">
+                          {bubble}
+                          {m.pending?.state === 'open' && (
+                            <div className="nia-actions" role="group" aria-label="Confirmar a ação">
+                              <button type="button" className="nia-act-yes" onClick={() => confirmPending(i)} disabled={loading}>Confirmar</button>
+                              <button type="button" className="nia-act-no" onClick={() => cancelPending(i)} disabled={loading}>Cancelar</button>
+                            </div>
+                          )}
+                          {canRetry && (
+                            <div className="nia-actions">
+                              <button type="button" className="nia-act-no" onClick={() => send(m.retryText, { dropLast: 2 })}>Tentar de novo</button>
+                            </div>
+                          )}
+                        </div>
+                      ) : bubble}
+                    </div>
+                  )
+                })}
               </>
             )}
             {loading && (
@@ -368,7 +436,14 @@ export default function AgentChat() {
             <div ref={bottomRef} />
           </div>
 
-          {isElite && voiceError && <div className="nia-voice-error">{voiceError}</div>}
+          {isElite && voiceError && (
+            <div className="nia-voice-error" role="status">
+              <span>{voiceError}</span>
+              <button type="button" onClick={() => setVoiceError('')} aria-label="Fechar aviso">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
           {isElite && (
             <div className="nia-input-bar">
               <textarea

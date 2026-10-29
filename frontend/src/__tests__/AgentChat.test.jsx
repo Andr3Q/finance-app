@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import AgentChat from '../components/features/AgentChat.jsx'
 
@@ -9,6 +9,7 @@ vi.mock('../services/analytics.js', () => ({
 vi.mock('../services/api.js', () => ({
   agentAPI: {
     chat:       vi.fn(),
+    confirm:    vi.fn(),
     transcribe: vi.fn(),
   },
 }))
@@ -449,5 +450,249 @@ describe('AgentChat — Nancy IA (tela 12)', () => {
     fireEvent.click(screen.getByLabelText('Assistente IA'))
     fireEvent.click(screen.getByRole('button', { name: /ver planos/i }))
     expect(screen.getByText('Página de planos')).toBeInTheDocument()
+  })
+})
+
+// ── Rodada de QA N2-7 (2026-10-28): confirmação, texto formatado, erro em português, aviso do microfone ────────────
+function typeAndSend(text) {
+  fireEvent.change(screen.getByPlaceholderText('Pergunte à Nancy…'), { target: { value: text } })
+  fireEvent.click(screen.getByLabelText('Enviar'))
+}
+
+describe('AgentChat — resposta formatada (sem markdown cru)', () => {
+  it('negrito, lista e tabela aparecem formatados, sem ** nem | na tela', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: '**Resumo de outubro**\n\n| Categoria | Valor |\n|---|---|\n| Casa | R$ 3.500,00 |\n\n- **Saldo:** R$ 8.822,20' } })
+    setup()
+    typeAndSend('Onde estou gastando mais?')
+
+    expect(await screen.findByText('Resumo de outubro')).toBeInTheDocument()
+    expect(screen.getByText('Resumo de outubro').tagName).toBe('STRONG')
+    const table = screen.getByRole('table')
+    expect(table).toHaveTextContent('CategoriaValor')
+    expect(table).toHaveTextContent('CasaR$ 3.500,00')
+    expect(screen.getByRole('listitem')).toHaveTextContent('Saldo: R$ 8.822,20')
+    const panel = screen.getByRole('dialog', { name: 'Nancy IA' })
+    expect(panel.textContent).not.toContain('**')
+    expect(panel.textContent).not.toContain('|---')
+  })
+
+  it('HTML que vier na resposta aparece como texto (nada é injetado na página)', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: '<img src="x" onerror="window.__xss=1"> e <b>negrito html</b>' } })
+    setup()
+    typeAndSend('oi')
+
+    expect(await screen.findByText(/<img src="x"/)).toBeInTheDocument()
+    expect(document.querySelector('.nia-bubble img')).toBeNull()
+    expect(document.querySelector('.nia-bubble b')).toBeNull()
+    expect(window.__xss).toBeUndefined()
+  })
+
+  it('a mensagem do próprio usuário não é reinterpretada (aparece exatamente como digitada)', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'ok' } })
+    setup()
+    typeAndSend('gastei **50** em - mercado')
+
+    const mine = await screen.findByText('gastei **50** em - mercado')
+    expect(mine.closest('.nia-msg')).toHaveClass('user')
+    expect(mine.querySelector('strong')).toBeNull()
+  })
+})
+
+describe('AgentChat — excluir/editar só depois do Confirmar', () => {
+  const pendingReply = { data: { reply: 'Excluir “Netflix” de R$ 55,90 em 03/10/2026?\nAinda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir.', pendingAction: { token: 'tok-1', kind: 'delete', summary: 'Excluir “Netflix”' }, dataChanged: false } }
+
+  it('a IA prepara: aparecem Confirmar e Cancelar e NADA é executado antes do toque', async () => {
+    agentAPI.chat.mockResolvedValue(pendingReply)
+    setup()
+    typeAndSend('Exclui a transação Netflix de R$ 55,90')
+
+    expect(await screen.findByText(/Ainda não fiz nada/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
+    expect(agentAPI.confirm).not.toHaveBeenCalled()
+  })
+
+  it('Confirmar executa uma vez, mostra o resultado, atualiza o app e some com os botões', async () => {
+    agentAPI.chat.mockResolvedValue(pendingReply)
+    agentAPI.confirm.mockResolvedValue({ data: { message: 'Pronto, excluí a transação “Netflix” de R$ 55,90 em 03/10/2026.', dataChanged: true } })
+    const updated = vi.fn()
+    window.addEventListener('budget-updated', updated)
+    setup()
+    typeAndSend('Exclui a transação Netflix de R$ 55,90')
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByText(/Pronto, excluí a transação/)).toBeInTheDocument()
+    expect(agentAPI.confirm).toHaveBeenCalledTimes(1)
+    expect(agentAPI.confirm).toHaveBeenCalledWith('tok-1')
+    expect(updated).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument()
+    window.removeEventListener('budget-updated', updated)
+  })
+
+  it('Cancelar não chama o servidor, não altera nada e some com os botões', async () => {
+    agentAPI.chat.mockResolvedValue(pendingReply)
+    const updated = vi.fn()
+    window.addEventListener('budget-updated', updated)
+    setup()
+    typeAndSend('Exclui a transação Netflix de R$ 55,90')
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+
+    expect(await screen.findByText('Tudo bem, não mexi em nada.')).toBeInTheDocument()
+    expect(agentAPI.confirm).not.toHaveBeenCalled()
+    expect(updated).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument()
+    window.removeEventListener('budget-updated', updated)
+  })
+
+  it('o Confirmar fica desabilitado enquanto a confirmação está em andamento (sem toque duplo)', async () => {
+    agentAPI.chat.mockResolvedValue(pendingReply)
+    let finish
+    agentAPI.confirm.mockReturnValue(new Promise(resolve => { finish = resolve }))
+    setup()
+    typeAndSend('Exclui a transação Netflix de R$ 55,90')
+    const yes = await screen.findByRole('button', { name: 'Confirmar' })
+    fireEvent.click(yes)
+    fireEvent.click(yes)
+
+    expect(agentAPI.confirm).toHaveBeenCalledTimes(1)
+    expect(yes).toBeDisabled()
+    finish({ data: { message: 'Pronto.', dataChanged: true } })
+    expect(await screen.findByText('Pronto.')).toBeInTheDocument()
+  })
+
+  it('confirmação recusada (expirou ou a transação mudou): mostra o motivo e fecha os botões', async () => {
+    agentAPI.chat.mockResolvedValue(pendingReply)
+    agentAPI.confirm.mockRejectedValue({ response: { status: 400, data: { error: 'Essa confirmação expirou. Peça de novo à Nancy.', expired: true } } })
+    setup()
+    typeAndSend('Exclui a transação Netflix de R$ 55,90')
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
+
+    const msg = await screen.findByText('Essa confirmação expirou. Peça de novo à Nancy.')
+    expect(msg.closest('.nia-msg')).toHaveClass('err')
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument()
+  })
+
+  it('falha de rede ao confirmar: avisa e deixa os botões para tentar de novo', async () => {
+    agentAPI.chat.mockResolvedValue(pendingReply)
+    agentAPI.confirm.mockRejectedValueOnce({ message: 'Network Error' }).mockResolvedValueOnce({ data: { message: 'Pronto, excluí.', dataChanged: true } })
+    setup()
+    typeAndSend('Exclui a transação Netflix de R$ 55,90')
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByText('Sem conexão com o servidor.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+    expect(await screen.findByText('Pronto, excluí.')).toBeInTheDocument()
+    expect(agentAPI.confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('a conversa seguinte leva o pedido e o resultado como contexto (o modelo sabe o que foi decidido)', async () => {
+    agentAPI.chat.mockResolvedValueOnce(pendingReply).mockResolvedValueOnce({ data: { reply: 'De nada!' } })
+    agentAPI.confirm.mockResolvedValue({ data: { message: 'Pronto, excluí a transação “Netflix”.', dataChanged: true } })
+    setup()
+    typeAndSend('Exclui a transação Netflix')
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
+    await screen.findByText(/Pronto, excluí a transação/)
+    typeAndSend('Valeu')
+
+    await waitFor(() => expect(agentAPI.chat).toHaveBeenCalledTimes(2))
+    expect(agentAPI.chat.mock.calls[1][1].map(m => m.role)).toEqual(['user', 'assistant', 'assistant'])
+    expect(agentAPI.chat.mock.calls[1][1][2].content).toBe('Pronto, excluí a transação “Netflix”.')
+  })
+})
+
+describe('AgentChat — erros em português e "Tentar de novo"', () => {
+  it('erro 500 nunca mostra o texto cru do servidor (já apareceu "internal")', async () => {
+    agentAPI.chat.mockRejectedValue({ response: { status: 500, data: { error: 'internal' } } })
+    setup()
+    typeAndSend('oi')
+
+    expect(await screen.findByText('Não consegui falar com a Nancy agora. Tente de novo em instantes.')).toBeInTheDocument()
+    expect(screen.queryByText('internal')).not.toBeInTheDocument()
+  })
+
+  it.each([502, 503, 504])('erro %i (inclusive HTML do balanceador, sem corpo) vira a mesma frase em português', async (status) => {
+    agentAPI.chat.mockRejectedValue({ response: { status, data: '<html>Bad Gateway</html>' } })
+    setup()
+    typeAndSend('oi')
+
+    expect(await screen.findByText('Não consegui falar com a Nancy agora. Tente de novo em instantes.')).toBeInTheDocument()
+  })
+
+  it('erro de validação (400) mostra a mensagem do servidor', async () => {
+    agentAPI.chat.mockRejectedValue({ response: { status: 400, data: { error: 'Mensagem muito longa.' } } })
+    setup()
+    typeAndSend('oi')
+
+    expect(await screen.findByText('Mensagem muito longa.')).toBeInTheDocument()
+  })
+
+  it('"Tentar de novo" reenvia a mesma pergunta sem duplicá-la na conversa nem no contexto da IA', async () => {
+    agentAPI.chat
+      .mockResolvedValueOnce({ data: { reply: 'Resposta 1' } })
+      .mockRejectedValueOnce({ response: { status: 500, data: { error: 'internal' } } })
+      .mockResolvedValueOnce({ data: { reply: 'Resposta 2' } })
+    setup()
+    typeAndSend('primeira')
+    await screen.findByText('Resposta 1')
+    typeAndSend('segunda')
+    fireEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }))
+
+    expect(await screen.findByText('Resposta 2')).toBeInTheDocument()
+    expect(agentAPI.chat).toHaveBeenCalledTimes(3)
+    expect(agentAPI.chat.mock.calls[2][0]).toBe('segunda')
+    expect(agentAPI.chat.mock.calls[2][1]).toEqual([{ role: 'user', content: 'primeira' }, { role: 'assistant', content: 'Resposta 1' }])
+    expect(screen.getAllByText('segunda')).toHaveLength(1)
+    expect(screen.queryByText(/Não consegui falar com a Nancy/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+  })
+
+  it('"Tentar de novo" só existe no último erro (some depois de uma nova mensagem)', async () => {
+    agentAPI.chat.mockRejectedValueOnce({ message: 'Network Error' }).mockResolvedValueOnce({ data: { reply: 'ok' } })
+    setup()
+    typeAndSend('primeira')
+    expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+    typeAndSend('segunda')
+    await screen.findByText('ok')
+
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+  })
+})
+
+describe('AgentChat — aviso de microfone não fica preso na tela', () => {
+  async function denyMic() {
+    const getUserMedia = vi.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError'))
+    stubMic({ getUserMedia })
+    setup()
+    fireEvent.click(screen.getByLabelText('Falar mensagem'))
+    await screen.findByText(/Permissão de microfone negada/)
+  }
+
+  it('tem um botão para fechar o aviso', async () => {
+    await denyMic()
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar aviso' }))
+    expect(screen.queryByText(/Permissão de microfone negada/)).not.toBeInTheDocument()
+  })
+
+  it('fechar e reabrir o chat não traz o aviso de volta', async () => {
+    await denyMic()
+    fireEvent.click(screen.getByLabelText('Fechar chat'))
+    fireEvent.click(screen.getByLabelText('Assistente IA'))
+    expect(screen.queryByText(/Permissão de microfone negada/)).not.toBeInTheDocument()
+  })
+
+  it('liberar o microfone nas configurações do navegador tira o aviso sozinho', async () => {
+    const status = { state: 'prompt', onchange: null }
+    const getUserMedia = vi.fn().mockRejectedValue(new DOMException('denied', 'NotAllowedError'))
+    stubMic({ getUserMedia })
+    Object.defineProperty(navigator, 'permissions', { value: { query: vi.fn().mockResolvedValue(status) }, configurable: true })
+    setup()
+    await waitFor(() => expect(status.onchange).toBeTypeOf('function'))
+    fireEvent.click(screen.getByLabelText('Falar mensagem'))
+    await screen.findByText(/Permissão de microfone negada/)
+
+    act(() => { status.state = 'granted'; status.onchange() })
+
+    expect(screen.queryByText(/Permissão de microfone negada/)).not.toBeInTheDocument()
   })
 })

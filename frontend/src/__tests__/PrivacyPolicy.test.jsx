@@ -44,6 +44,15 @@ describe('Política de Privacidade', () => {
     }
   })
 
+  it('os caminhos dos direitos do titular existem no app (Perfil → …); não há tela chamada "Configurações"', () => {
+    renderPage()
+    const text = document.body.textContent
+    for (const path of ['Perfil → Dados pessoais', 'Perfil → Meus dados → Excluir minha conta', 'CSV, PDF ou JSON (disponível em Perfil → Meus dados)', 'Perfil → Notificações']) {
+      expect(text).toContain(path)
+    }
+    expect(text).not.toContain('Configurações')
+  })
+
   it('o contato do Encarregado e o rodapé levam ao e-mail de privacidade e aos Termos', () => {
     renderPage()
     const mails = screen.getAllByRole('link', { name: 'privacidade@nancy.com.br' })

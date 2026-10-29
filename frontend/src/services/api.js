@@ -139,6 +139,7 @@ export const notificationsAPI = {
 // ── Agente IA ───────────────────────────────────────────
 export const agentAPI = {
   chat:          (message, history) => api.post('/agent/chat', { message, history }),
+  confirm:       (token)            => api.post('/agent/confirm', { token }),
   predict:       ()                 => api.post('/agent/predict', {}),
   weeklyTip:     ()                 => api.get('/agent/weekly-tip'),
   monthlyReport: (month, year)      => api.post('/agent/monthly-report', { month, year }),

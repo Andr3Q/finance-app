@@ -67,7 +67,7 @@ export default function TermsOfUse() {
 
         <h2 className="lg-h">5. Cancelamento e reembolso</h2>
         <ul className="lg-ul">
-          <li className="lg-li"><strong>Cancelamento:</strong> você pode cancelar a qualquer momento em Configurações → Planos, sem multa</li>
+          <li className="lg-li"><strong>Cancelamento:</strong> você pode cancelar a qualquer momento em Perfil → Pagamentos, sem multa</li>
           <li className="lg-li"><strong>Após cancelamento:</strong> o acesso ao plano pago fica ativo até o fim do período já pago</li>
           <li className="lg-li"><strong>Reembolso:</strong> solicitações dentro de 7 dias da compra são analisadas caso a caso. Após 7 dias, não há reembolso proporcional</li>
           <li className="lg-li"><strong>Plano Grátis:</strong> sem cobrança, pode ser cancelado (excluindo conta) a qualquer momento</li>

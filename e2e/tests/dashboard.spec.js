@@ -389,6 +389,16 @@ test.describe('Dashboard — tema claro imposto e barra de baixo', () => {
     await expect(banner).toContainText('Perguntar à Nancy')
   })
 
+  // Achado N2-7: tocar no cartão abria o chat vazio — o botão promete perguntar, então já leva uma pergunta ligada ao que o cartão diz.
+  test('tocar no banner "No ritmo atual" leva uma pergunta pronta ao chat', async ({ page }) => {
+    await goDashboard(page)
+    if (new Date().getDate() < 3) return
+    await page.evaluate(() => window.addEventListener('nancy:open-agent-chat', e => { window.__asked = e.detail?.message }))
+    await page.locator('.home-insight').click()
+    const asked = await page.evaluate(() => window.__asked)
+    expect(['Como posso sobrar ainda mais este mês?', 'Como posso fechar este mês no azul?']).toContain(asked)
+  })
+
   test('estatísticas em número inteiro, sem R$ nem "k" (Entradas = salário + entradas)', async ({ page }) => {
     await goDashboard(page)
     const vals = page.locator('.home-stat-val')

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
@@ -44,6 +44,9 @@ export default function Login({ isRegister = false }) {
   const redirectTo = (typeof fromPath === 'string' && fromPath.startsWith('/'))
     ? `${fromPath}${location.state.from.search || ''}`
     : '/dashboard'
+  // Aviso vindo de outra tela (ex: "Conta excluída") — aparece uma vez; o state do histórico é limpo para não voltar no recarregar.
+  const [notice] = useState(() => (typeof location.state?.notice === 'string' ? location.state.notice : ''))
+  useEffect(() => { if (notice) navigate(location.pathname, { replace: true, state: null }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const refCode  = useRef(new URLSearchParams(window.location.search).get('ref') || '')
   // Rotas /login e /register montam <Login key=.../> separadas (App.jsx)
   // justamente pra cada uma remontar do zero — então "mode" é fixo pro
@@ -248,6 +251,7 @@ export default function Login({ isRegister = false }) {
             </Link>
             <h1 className="auth-title">Bem-vindo de volta</h1>
             <p className="auth-subtitle">Entre para ver como estão suas finanças.</p>
+            {notice && <p className="auth-notice" role="status">{notice}</p>}
           </div>
 
           <div className="auth-sheet">

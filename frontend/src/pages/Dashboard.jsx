@@ -397,7 +397,10 @@ export default function Dashboard() {
             </div>
 
             {projected !== null && (
-              <button className="home-insight" onClick={() => window.dispatchEvent(new Event('nancy:open-agent-chat'))}>
+              <button className="home-insight" onClick={() => window.dispatchEvent(new CustomEvent('nancy:open-agent-chat', {
+                // o toque já leva a pergunta ligada ao que o cartão diz (o chat envia sozinho, como no cartão da Análise)
+                detail: { message: projected >= 0 ? 'Como posso sobrar ainda mais este mês?' : 'Como posso fechar este mês no azul?' },
+              }))}>
                 <span className="home-insight-ico"><IconSparkle /></span>
                 <span className="home-insight-body">
                   <span className="home-insight-text">

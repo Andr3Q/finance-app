@@ -7,7 +7,7 @@ vi.mock('../components/layout/Navbar.jsx', () => ({ default: () => null }))
 
 import { authAPI } from '../services/api.js'
 
-function Where() { const l = useLocation(); return <div data-testid="where">{l.pathname}</div> }
+function Where() { const l = useLocation(); return <><div data-testid="where">{l.pathname}</div><div data-testid="notice">{l.state?.notice || ''}</div></> }
 function renderPage({ entries = ['/settings', '/settings/dados'], index = 1 } = {}) {
   return render(
     <MemoryRouter initialEntries={entries} initialIndex={index}>
@@ -119,6 +119,25 @@ describe('Meus dados — excluir conta', () => {
     expect(authAPI.deleteAccount).toHaveBeenCalledWith('Senha123')
     expect(sessionStorage.getItem('user')).toBeNull()
     expect(sessionStorage.getItem('token')).toBeNull()
+  })
+
+  // Achado N2-10: depois de excluir não havia nenhum sinal de que a conta tinha sido apagada (só caía no login).
+  it('depois de excluir, leva um aviso de "Conta excluída" para a tela de login', async () => {
+    authAPI.deleteAccount.mockResolvedValue({})
+    renderPage()
+    openModal()
+    fireEvent.change(screen.getByPlaceholderText('Digite sua senha atual'), { target: { value: 'Senha123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir conta' }))
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/login'))
+    expect(screen.getByTestId('notice')).toHaveTextContent('Conta excluída. Seus dados foram apagados.')
+  })
+
+  it('a confirmação é um diálogo (leitor de tela) e o campo de senha é reconhecido pelo gerenciador de senhas', () => {
+    renderPage()
+    openModal()
+    const dialog = screen.getByRole('dialog', { name: 'Excluir conta permanentemente' })
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(screen.getByPlaceholderText('Digite sua senha atual')).toHaveAttribute('autocomplete', 'current-password')
   })
 
   it('senha errada: mostra o erro do servidor, continua na tela e na sessão', async () => {

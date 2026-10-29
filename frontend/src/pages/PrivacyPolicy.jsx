@@ -80,10 +80,10 @@ export default function PrivacyPolicy() {
       <div className="lg-box">
         <ul className="lg-ul lg-ul-flush">
           <li className="lg-li"><strong>Acesso:</strong> solicitar cópia de todos os dados que temos sobre você</li>
-          <li className="lg-li"><strong>Correção:</strong> atualizar dados incorretos ou desatualizados (disponível em Configurações)</li>
-          <li className="lg-li"><strong>Exclusão:</strong> apagar sua conta e todos os dados associados (disponível em Configurações → Excluir conta)</li>
-          <li className="lg-li"><strong>Portabilidade:</strong> exportar seus dados em formato CSV (disponível em Transações)</li>
-          <li className="lg-li"><strong>Revogação de consentimento:</strong> cancelar notificações a qualquer momento em Configurações</li>
+          <li className="lg-li"><strong>Correção:</strong> atualizar dados incorretos ou desatualizados (disponível em Perfil → Dados pessoais)</li>
+          <li className="lg-li"><strong>Exclusão:</strong> apagar sua conta e todos os dados associados (disponível em Perfil → Meus dados → Excluir minha conta)</li>
+          <li className="lg-li"><strong>Portabilidade:</strong> exportar seus dados em CSV, PDF ou JSON (disponível em Perfil → Meus dados)</li>
+          <li className="lg-li"><strong>Revogação de consentimento:</strong> cancelar notificações a qualquer momento em Perfil → Notificações</li>
           <li className="lg-li"><strong>Informação:</strong> saber com quem compartilhamos seus dados (esta política)</li>
         </ul>
       </div>

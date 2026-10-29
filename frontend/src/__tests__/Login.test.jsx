@@ -41,6 +41,18 @@ beforeEach(() => {
 // ── Login ────────────────────────────────────────────────────────────────────
 
 describe('Login — modo entrar', () => {
+  it('mostra o aviso que veio de outra tela (ex: "Conta excluída") uma vez e limpa o state do histórico', () => {
+    setup({}, [{ pathname: '/login', state: { notice: 'Conta excluída. Seus dados foram apagados.' } }])
+    expect(screen.getByRole('status')).toHaveTextContent('Conta excluída. Seus dados foram apagados.')
+    expect(mockNavigate).toHaveBeenCalledWith('/login', { replace: true, state: null }) // não volta ao recarregar
+  })
+
+  it('sem aviso, nada extra aparece nem mexe no histórico', () => {
+    setup()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
   it('renderiza os campos e-mail e senha', () => {
     setup()
     expect(screen.getByLabelText('E-mail')).toBeInTheDocument()

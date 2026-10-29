@@ -78,6 +78,18 @@ test.describe('Meus dados', () => {
     await page.getByRole('button', { name: 'Excluir conta', exact: true }).click()
     await expect(page).toHaveURL(/\/login$/)
     expect(calls.del).toEqual([{ password: 'errada' }, { password: 'Certa123' }])
+    // achado N2-10: a pessoa precisa ver que a conta foi mesmo excluída
+    await expect(page.getByRole('status')).toHaveText('Conta excluída. Seus dados foram apagados.')
+  })
+
+  test('a confirmação de excluir é um diálogo e o link de JSON tem área de toque de 44px', async ({ page }) => {
+    await setup(page)
+    const json = await page.getByRole('button', { name: /JSON/ }).boundingBox()
+    expect(json.height).toBeGreaterThanOrEqual(44)
+    await page.getByRole('button', { name: 'Excluir minha conta' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Excluir conta permanentemente' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByPlaceholder('Digite sua senha atual')).toHaveAttribute('autocomplete', 'current-password')
   })
 
   test('voltar retorna ao Perfil', async ({ page }) => {

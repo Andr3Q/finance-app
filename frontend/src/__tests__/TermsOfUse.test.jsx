@@ -45,6 +45,14 @@ describe('Termos de Uso', () => {
     }
   })
 
+  // Achado N2-10: o texto mandava cancelar em "Configurações → Planos", caminho que não existe no app.
+  it('os caminhos citados existem no app (Perfil → Pagamentos); não há tela chamada "Configurações"', () => {
+    renderPage()
+    const text = document.body.textContent
+    expect(text).toContain('cancelar a qualquer momento em Perfil → Pagamentos')
+    expect(text).not.toContain('Configurações')
+  })
+
   it('rodapé: e-mail de contato e link pra Política de Privacidade', () => {
     renderPage()
     expect(screen.getByRole('link', { name: 'contato@nancy.com.br' })).toHaveAttribute('href', 'mailto:contato@nancy.com.br')

@@ -11099,7 +11099,42 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .nia-typing span:nth-child(3) { animation-delay: .3s; }
 @keyframes niaDot { 0%, 100% { opacity: .35; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
 
-.nia-voice-error { margin: 0 16px 8px; padding: 10px 14px; border-radius: 12px; background: rgba(255,92,92,.3); color: #fff; font-size: 12.5px; line-height: 1.4; }
+.nia-voice-error {
+  margin: 0 16px 8px; padding: 10px 8px 10px 14px; border-radius: 12px; background: rgba(255,92,92,.3); color: #fff;
+  font-size: 12.5px; line-height: 1.4; display: flex; align-items: flex-start; gap: 8px;
+}
+.nia-voice-error span { flex: 1; min-width: 0; }
+.nia-voice-error button {
+  flex-shrink: 0; width: 28px; height: 28px; margin-top: -4px; border: none; border-radius: 8px; cursor: pointer;
+  background: transparent; color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.nia-voice-error button:hover { background: rgba(255,255,255,.18); }
+
+/* resposta formatada (negrito, lista, tabela) — ver utils/aiText.js */
+.nia-bubble.nia-rich-bubble { white-space: normal; }
+.nia-rich > * { margin: 0; }
+.nia-rich > * + * { margin-top: 8px; }
+.nia-rich p { white-space: pre-wrap; }
+.nia-rich .nia-heading { font-weight: 700; }
+.nia-rich ul, .nia-rich ol { padding-left: 18px; }
+.nia-rich li + li { margin-top: 3px; }
+.nia-rich strong { font-weight: 700; }
+.nia-table-wrap { overflow-x: auto; }
+.nia-table { border-collapse: collapse; font-size: 12.5px; line-height: 1.35; overflow-wrap: normal; }
+.nia-table th, .nia-table td { padding: 5px 12px 5px 0; text-align: left; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,.2); }
+.nia-table th { font-weight: 700; }
+.nia-table tr:last-child td { border-bottom: none; }
+
+/* resposta com botões (Confirmar/Cancelar de edição e exclusão, Tentar de novo) */
+.nia-col { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: min(300px, 86%); }
+.nia-col .nia-bubble { max-width: 100%; }
+.nia-actions { display: flex; gap: 8px; }
+.nia-act-yes, .nia-act-no {
+  height: 40px; padding: 0 18px; border-radius: 20px; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 700;
+}
+.nia-act-yes { border: none; background: #fff; color: #1C48FF; }
+.nia-act-no { border: 1px solid rgba(255,255,255,.4); background: transparent; color: #fff; }
+.nia-act-yes:disabled, .nia-act-no:disabled { opacity: .55; cursor: default; }
 
 .nia-input-bar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 12px 14px max(30px, calc(env(safe-area-inset-bottom, 0px) + 12px)); }
 .nia-input {
@@ -12042,8 +12077,10 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .dd-danger { box-sizing: border-box; padding: 16px; border: 1.5px solid #F3C4C9; border-radius: 24px; background: var(--bg-card); }
 .dd-delete { width: 100%; height: 49px; margin-top: 16px; border: none; border-radius: 16px; background: #D63348; color: #fff; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .dd-delete:hover { background: #C42B40; }
-.dd-json { display: block; margin: 18px auto 0; padding: 4px 8px; border: none; background: none; font-family: inherit; font-size: 12px; color: var(--t2); text-decoration: underline; cursor: pointer; }
+.dd-json { display: block; margin: 4px auto 0; padding: 15px 12px; /* área de toque de 44px, visual discreto */ border: none; background: none; font-family: inherit; font-size: 12px; color: var(--t2); text-decoration: underline; cursor: pointer; }
 .dd-json:disabled { opacity: .5; cursor: default; }
+
+.auth-notice { margin: 12px 0 0; padding: 9px 14px; border-radius: 12px; background: rgba(61,226,159,.24); color: #fff; font-size: 13px; font-weight: 600; line-height: 1.35; }
 
 /* ── Instalar app (Nancy 2, tela 33) ── */
 .ia-hero { display: flex; align-items: center; gap: 18px; margin-bottom: 16px; padding: 22px 24px; border-radius: 24px; background: #1C48FF; color: #fff; }
