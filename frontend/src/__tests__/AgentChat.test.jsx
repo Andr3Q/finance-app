@@ -696,3 +696,197 @@ describe('AgentChat — aviso de microfone não fica preso na tela', () => {
     expect(screen.queryByText(/Permissão de microfone negada/)).not.toBeInTheDocument()
   })
 })
+
+describe('AgentChat — um só cartão de confirmação ativo (QA N2-7, rodada 2)', () => {
+  const pending = (token, summary = 'Excluir “Spotify” de R$ 21,90 em 04/10/2026') => ({ data: {
+    reply: `${summary}?\nAinda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir.`,
+    pendingAction: { token, kind: 'delete', summary, expiresAt: Date.now() + 10 * 60 * 1000 }, dataChanged: false,
+  } })
+  const confirmButtons = () => screen.queryAllByRole('button', { name: 'Confirmar' })
+
+  it('o bug do QA: dois cartões, "Cancelar" no novo e o "Confirmar" antigo ainda executava — agora só o último vale e nada executa', async () => {
+    agentAPI.chat.mockResolvedValueOnce(pending('tok-A')).mockResolvedValueOnce(pending('tok-B'))
+    setup()
+    typeAndSend('Exclui a transação Spotify')
+    await screen.findAllByRole('button', { name: 'Confirmar' })
+    typeAndSend('Exclui o Spotify de novo, por favor')   // outra mensagem: o cartão A é encerrado
+    await waitFor(() => expect(agentAPI.chat).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(confirmButtons()).toHaveLength(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(await screen.findByText('Tudo bem, não mexi em nada.')).toBeInTheDocument()
+    expect(confirmButtons()).toHaveLength(0)             // não sobrou nenhum "Confirmar" na tela
+    expect(agentAPI.confirm).not.toHaveBeenCalled()
+  })
+
+  it('ao mandar outra mensagem o cartão aberto perde os botões NA HORA (não fica ativo enquanto a IA responde)', async () => {
+    agentAPI.chat.mockResolvedValueOnce(pending('tok-A')).mockReturnValueOnce(new Promise(() => {})) // a 2ª resposta nunca chega
+    setup()
+    typeAndSend('Exclui a transação Spotify')
+    await screen.findByRole('button', { name: 'Confirmar' })
+    typeAndSend('Quanto gastei esse mês?')
+
+    await waitFor(() => expect(agentAPI.chat).toHaveBeenCalledTimes(2))
+    expect(confirmButtons()).toHaveLength(0)
+    expect(agentAPI.confirm).not.toHaveBeenCalled()
+  })
+
+  it('"sim" digitado com um cartão aberto NÃO vai para a IA (não duplica o cartão): só lembra de tocar no botão', async () => {
+    agentAPI.chat.mockResolvedValueOnce(pending('tok-A'))
+    setup()
+    typeAndSend('Exclui a transação Spotify')
+    await screen.findByRole('button', { name: 'Confirmar' })
+    for (const yes of ['sim', 'Sim!', '  SIM  ', 'pode', 'Pode sim.', 'confirmo', 'ok']) typeAndSend(yes)
+
+    expect(await screen.findAllByText('Toque em Confirmar, logo acima, para concluir — ou em Cancelar para desistir.')).toHaveLength(7)
+    expect(agentAPI.chat).toHaveBeenCalledTimes(1)       // só o pedido original foi para a IA
+    expect(agentAPI.confirm).not.toHaveBeenCalled()      // digitar nunca confirma
+    expect(confirmButtons()).toHaveLength(1)             // e o cartão continua único e ativo
+  })
+
+  it('"sim, mas muda o valor" não é só um "sim": vai para a IA e encerra o cartão', async () => {
+    agentAPI.chat.mockResolvedValueOnce(pending('tok-A')).mockResolvedValueOnce({ data: { reply: 'Certo, qual o novo valor?' } })
+    setup()
+    typeAndSend('Exclui a transação Spotify')
+    await screen.findByRole('button', { name: 'Confirmar' })
+    typeAndSend('sim, mas muda o valor para 10')
+
+    expect(await screen.findByText('Certo, qual o novo valor?')).toBeInTheDocument()
+    expect(agentAPI.chat).toHaveBeenCalledTimes(2)
+    expect(confirmButtons()).toHaveLength(0)
+  })
+
+  it('sem cartão aberto, "sim" é uma mensagem normal para a IA', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Oi!' } })
+    setup()
+    typeAndSend('sim')
+    await screen.findByText('Oi!')
+    expect(agentAPI.chat).toHaveBeenCalledWith('sim', [])
+  })
+
+  it('qualquer outra pergunta encerra o cartão aberto: ele perde os botões e o texto "Ainda não fiz nada"', async () => {
+    agentAPI.chat.mockResolvedValueOnce(pending('tok-A')).mockResolvedValueOnce({ data: { reply: 'Você gastou R$ 8.006,90.' } })
+    setup()
+    typeAndSend('Exclui a transação Spotify')
+    await screen.findByRole('button', { name: 'Confirmar' })
+    typeAndSend('Quanto gastei esse mês?')
+    await screen.findByText('Você gastou R$ 8.006,90.')
+
+    expect(confirmButtons()).toHaveLength(0)
+    expect(screen.queryByText(/Ainda não fiz nada/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Sem efeito\./)).toBeInTheDocument()
+  })
+
+  it('depois de confirmar ou cancelar, a bolha troca "Ainda não fiz nada…" pelo estado final', async () => {
+    agentAPI.chat.mockResolvedValue(pending('tok-A'))
+    agentAPI.confirm.mockResolvedValue({ data: { message: 'Pronto, excluí.', dataChanged: true } })
+    setup()
+    typeAndSend('Exclui a transação Spotify')
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
+    await screen.findByText('Pronto, excluí.')
+    expect(screen.queryByText(/Ainda não fiz nada/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Confirmado\./)).toBeInTheDocument()
+  })
+
+  it('cancelado: a bolha diz "Cancelado."', async () => {
+    agentAPI.chat.mockResolvedValue(pending('tok-A'))
+    setup()
+    typeAndSend('Exclui a transação Spotify')
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+    await screen.findByText('Tudo bem, não mexi em nada.')
+    expect(screen.queryByText(/Ainda não fiz nada/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Cancelado\./)).toBeInTheDocument()
+  })
+
+  it('cartão que já passou da validade chega sem botões, mesmo aberto', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Excluir X?\nAinda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir.', pendingAction: { token: 'tok-old', kind: 'delete', summary: 'Excluir X', expiresAt: Date.now() - 1000 } } })
+    setup()
+    typeAndSend('Exclui X')
+    await screen.findByText(/Sem efeito\./)
+    expect(confirmButtons()).toHaveLength(0)
+  })
+
+  it('a validade vence com o chat aberto: tocar em Confirmar não chama o servidor e explica', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-10-29T12:00:00Z'))
+      agentAPI.chat.mockResolvedValue({ data: { reply: 'Excluir X?\nAinda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir.', pendingAction: { token: 'tok-1', kind: 'delete', summary: 'Excluir X', expiresAt: Date.now() + 10 * 60 * 1000 } } })
+      setup()
+      typeAndSend('Exclui X')
+      const yes = await screen.findByRole('button', { name: 'Confirmar' })
+      vi.setSystemTime(new Date('2026-10-29T12:11:00Z'))   // passaram 11 min
+      fireEvent.click(yes)
+
+      expect(await screen.findByText('Essa confirmação expirou. Peça de novo à Nancy.')).toBeInTheDocument()
+      expect(agentAPI.confirm).not.toHaveBeenCalled()
+      expect(confirmButtons()).toHaveLength(0)
+    } finally { vi.useRealTimers() }
+  })
+})
+
+describe('AgentChat — erros: limite por hora, tempo esgotado e tentar de novo', () => {
+  it('limite por hora: diz quanto esperar e não oferece "Tentar de novo"', async () => {
+    agentAPI.chat.mockRejectedValue({ response: { status: 429, data: { error: 'Limite de mensagens para a IA atingido. Tente novamente em 1 hora.' }, headers: { 'retry-after': '2544' } } })
+    setup()
+    typeAndSend('oi')
+    expect(await screen.findByText('Você atingiu o limite de mensagens da IA por agora. Tente de novo em 43 min.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+  })
+
+  it('IA sobrecarregada: mostra a causa real e deixa tentar de novo', async () => {
+    agentAPI.chat.mockRejectedValue({ response: { status: 429, data: { error: 'Serviço de IA sobrecarregado. Aguarde alguns segundos e tente novamente.' }, headers: {} } })
+    setup()
+    typeAndSend('oi')
+    expect(await screen.findByText('Serviço de IA sobrecarregado. Aguarde alguns segundos e tente novamente.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+  })
+
+  it('tempo esgotado no aparelho: manda conferir o Extrato e NÃO oferece "Tentar de novo" (evita lançar em dobro)', async () => {
+    agentAPI.chat.mockRejectedValue({ code: 'ECONNABORTED', message: 'timeout of 95000ms exceeded' })
+    setup()
+    typeAndSend('Registra 50 de mercado')
+    expect(await screen.findByText(/confira o Extrato antes de tentar de novo/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+  })
+
+  it('resposta 200 "Fiz o que você pediu, mas não consegui escrever a resposta" atualiza o app como uma ação feita', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Fiz o que você pediu, mas não consegui escrever a resposta agora. Confira no Extrato.', dataChanged: true } })
+    const updated = vi.fn()
+    window.addEventListener('budget-updated', updated)
+    setup()
+    typeAndSend('Registra 30 de transporte')
+    expect(await screen.findByText(/Fiz o que você pediu/)).toBeInTheDocument()
+    expect(updated).toHaveBeenCalledTimes(1)
+    window.removeEventListener('budget-updated', updated)
+  })
+})
+
+describe('AgentChat — foco do teclado no celular (tela cheia)', () => {
+  const stubMobile = (matches) => vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches, addEventListener() {}, removeEventListener() {} }))
+
+  it('no celular o diálogo é modal e o Tab dá a volta dentro dele', async () => {
+    stubMobile(true)
+    setup()
+    const dialog = await screen.findByRole('dialog', { name: 'Nancy IA' })
+    await waitFor(() => expect(dialog).toHaveAttribute('aria-modal', 'true'))
+    const focusables = [...dialog.querySelectorAll('button:not([disabled]), textarea:not([disabled])')]
+    const last = focusables[focusables.length - 1]; const first = focusables[0]
+    last.focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+    first.focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+  })
+
+  it('no desktop (janela flutuante) não é modal e o Tab não é preso', async () => {
+    stubMobile(false)
+    setup()
+    const dialog = await screen.findByRole('dialog', { name: 'Nancy IA' })
+    expect(dialog).not.toHaveAttribute('aria-modal')
+    const focusables = [...dialog.querySelectorAll('button:not([disabled]), textarea:not([disabled])')]
+    focusables[focusables.length - 1].focus()
+    const prevented = !fireEvent.keyDown(document, { key: 'Tab' })
+    expect(prevented).toBe(false)
+  })
+})

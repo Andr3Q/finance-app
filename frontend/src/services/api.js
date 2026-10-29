@@ -138,12 +138,14 @@ export const notificationsAPI = {
 
 // ── Agente IA ───────────────────────────────────────────
 export const agentAPI = {
-  chat:          (message, history) => api.post('/agent/chat', { message, history }),
+  // O servidor dá até 90 s à conversa (a IA encadeia consultas): com o limite padrão de 15 s o app desistia antes e
+  // mostrava "sem conexão" enquanto o servidor ainda registrava o que foi pedido.
+  chat:          (message, history) => api.post('/agent/chat', { message, history }, { timeout: 95_000 }),
   confirm:       (token)            => api.post('/agent/confirm', { token }),
   predict:       ()                 => api.post('/agent/predict', {}),
   weeklyTip:     ()                 => api.get('/agent/weekly-tip'),
   monthlyReport: (month, year)      => api.post('/agent/monthly-report', { month, year }),
-  transcribe:    (formData)         => api.post('/agent/transcribe', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  transcribe:    (formData)         => api.post('/agent/transcribe', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 65_000 }),
 }
 
 // ── Funções de metas financeiras ────────────────────────

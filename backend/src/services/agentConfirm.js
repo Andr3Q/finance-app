@@ -19,13 +19,13 @@ function signingKey() {
 
 const sign = (payload) => crypto.createHmac('sha256', signingKey()).update(payload).digest()
 
-function signPendingAction({ userId, tool, args, label }, now = Date.now()) {
+function signPendingAction({ userId, tool, args, label, changes }, now = Date.now()) {
   if (!CONFIRMABLE_TOOLS.has(tool)) throw new Error(`Ferramenta sem fluxo de confirmação: ${tool}`)
-  const payload = Buffer.from(JSON.stringify({ v: 1, u: userId, t: tool, a: args, l: label, e: now + CONFIRM_TTL_MS })).toString('base64url')
+  const payload = Buffer.from(JSON.stringify({ v: 1, u: userId, t: tool, a: args, l: label, c: changes, e: now + CONFIRM_TTL_MS })).toString('base64url')
   return `${payload}.${sign(payload).toString('base64url')}`
 }
 
-// { ok: true, tool, args, label } ou { ok: false, reason: 'invalid' | 'wrong_user' | 'expired' }
+// { ok: true, tool, args, label, changes } ou { ok: false, reason: 'invalid' | 'wrong_user' | 'expired' }
 function verifyPendingAction(token, userId, now = Date.now()) {
   const invalid = { ok: false, reason: 'invalid' }
   if (typeof token !== 'string' || token.length > 4000) return invalid
@@ -41,7 +41,11 @@ function verifyPendingAction(token, userId, now = Date.now()) {
   if (!data || data.v !== 1 || !CONFIRMABLE_TOOLS.has(data.t) || typeof data.u !== 'string' || typeof data.a !== 'object' || data.a === null) return invalid
   if (data.u !== userId) return { ok: false, reason: 'wrong_user' }
   if (typeof data.e !== 'number' || data.e < now) return { ok: false, reason: 'expired' }
-  return { ok: true, tool: data.t, args: data.a, label: typeof data.l === 'string' ? data.l : 'a transação' }
+  return {
+    ok: true, tool: data.t, args: data.a,
+    label: typeof data.l === 'string' ? data.l : 'a transação',
+    changes: typeof data.c === 'string' ? data.c : '',
+  }
 }
 
 module.exports = { signPendingAction, verifyPendingAction, CONFIRMABLE_TOOLS, CONFIRM_TTL_MS }

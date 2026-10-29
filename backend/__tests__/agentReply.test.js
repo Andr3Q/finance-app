@@ -58,6 +58,12 @@ describe('sanitizeReply', () => {
     '15 300',                                   // sem centavos e sem R$: não é dinheiro garantido
   ])('não mexe em texto que já está certo: %s', (text) => expect(sanitizeReply(text)).toBe(text))
 
+  test.each([
+    ['Você gastou 71 % da renda e 40 % do limite', 'Você gastou 71% da renda e 40% do limite'],
+    ['Já está em 26%', 'Já está em 26%'],
+    ['Cresceu 0,5 % no mês', 'Cresceu 0,5% no mês'],
+  ])('porcentagem sem espaço, como o resto do app: %s', (input, expected) => expect(sanitizeReply(input)).toBe(expected))
+
   test('linhas em branco sobrando e espaço na ponta', () => {
     expect(sanitizeReply('  Olá  \n\n\n\nTudo bem?   \n')).toBe('Olá\n\nTudo bem?')
   })

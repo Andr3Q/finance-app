@@ -6,7 +6,12 @@ const base = { userId: 'user-1', tool: 'delete_transaction', args: { id: 'tx-1' 
 describe('token de confirmação da Nancy IA', () => {
   test('ida e volta: devolve exatamente o que foi assinado', () => {
     const token = signPendingAction(base)
-    expect(verifyPendingAction(token, 'user-1')).toEqual({ ok: true, tool: 'delete_transaction', args: { id: 'tx-1' }, label: 'a transação X' })
+    expect(verifyPendingAction(token, 'user-1')).toEqual({ ok: true, tool: 'delete_transaction', args: { id: 'tx-1' }, label: 'a transação X', changes: '' })
+  })
+
+  test('leva também o resumo do que muda (a confirmação do app repete o novo valor)', () => {
+    const token = signPendingAction({ ...base, tool: 'update_transaction', changes: 'valor de R$ 150,00 para R$ 175,00' })
+    expect(verifyPendingAction(token, 'user-1')).toMatchObject({ ok: true, tool: 'update_transaction', changes: 'valor de R$ 150,00 para R$ 175,00' })
   })
 
   test('só vale para o usuário que pediu', () => {

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { agentAPI } from '../../services/api.js'
 import { useUser } from '../../hooks/useUser.js'
 import { useEscapeKey } from '../../hooks/useEscapeKey.js'
+import { useFocusTrap } from '../../hooks/useFocusTrap.js'
+import { chatError } from '../../utils/chatErrors.js'
 import { analytics } from '../../services/analytics.js'
 import { invalidateCache } from '../../services/cache.js'
 import { MONTHS } from '../../constants/index.js'
@@ -46,20 +48,22 @@ function getMicHelpText() {
   return 'Clique no ícone de cadeado/informações ao lado do endereço do site, libere o Microfone e recarregue a página.'
 }
 
-// Mensagem do chat para uma falha da API. Erro do servidor (5xx) nunca mostra o texto cru que veio no corpo — já
-// apareceu a palavra "internal" no chat —, só uma frase própria em português.
-function chatErrorMessage(err) {
-  const status = err.response?.status
-  const serverMsg = err.response?.data?.error
-  if (status === 429) return 'Muitas mensagens seguidas. Aguarde alguns segundos.'
-  // 403 com limitReached é o gate de plano (agent.js requirePlan), não sessão
-  // expirada — o interceptor global (api.js) já sabe dessa distinção e não
-  // desloga o usuário nesse caso; a mensagem local precisa concordar.
-  if (err.response?.data?.limitReached) return serverMsg || 'Recurso exclusivo do plano Elite.'
-  if (status === 401 || status === 403) return 'Sessão expirada. Faça login novamente.'
-  if (!err.response) return 'Sem conexão com o servidor.'
-  if (status >= 500) return 'Não consegui falar com a Nancy agora. Tente de novo em instantes.'
-  return serverMsg || 'Não consegui processar a mensagem. Tente de novo.'
+// Cartão de confirmação (excluir/editar): só o ÚLTIMO fica ativo. Um "Confirmar" antigo que sobrava na tela executava a
+// ação mesmo depois de a pessoa ter tocado em "Cancelar" num cartão repetido (achado do QA N2-7, rodada 2).
+const closeOpenPending = (list) => list.map(m => (m.pending?.state === 'open' ? { ...m, pending: { ...m.pending, state: 'closed' } } : m))
+const isExpired = (pending) => !!pending?.expiresAt && Date.now() > pending.expiresAt
+const hasOpenPending = (list) => list.some(m => m.pending?.state === 'open' && !isExpired(m.pending))
+// "sim", "ok", "pode"... digitado com um cartão aberto: não vai para a IA (ela repetiria a pergunta e deixaria dois
+// cartões) — só lembra de tocar no botão. Confirmar continua exigindo o toque.
+const AFFIRMATION = /^(sim|s|ok|okay|isso|pode|pode sim|claro|confirmo|confirma|confirmar|com certeza|pode excluir|pode alterar|pode apagar|vai|manda)$/
+const isAffirmation = (text) => AFFIRMATION.test(text.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.!\s]+$/g, ''))
+// A frase fixa do servidor (ver composeReply em backend/src/routes/agent.js) deixa de valer depois que o cartão se resolve
+const WAITING = /Ainda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir\./
+const RESOLVED_TEXT = { done: 'Confirmado.', cancelled: 'Cancelado.', closed: 'Sem efeito.' }
+const displayContent = (m) => {
+  if (!m.pending) return m.content
+  const state = m.pending.state === 'open' && isExpired(m.pending) ? 'closed' : m.pending.state
+  return state === 'open' ? m.content : m.content.replace(WAITING, RESOLVED_TEXT[state] || 'Sem efeito.')
 }
 
 export default function AgentChat() {
@@ -83,6 +87,11 @@ export default function AgentChat() {
   const streamRef        = useRef(null)
   const maxDurationTimer = useRef(null)
   const navigate         = useNavigate()
+  const panelRef         = useRef(null)
+  // Em tela cheia (celular) o chat é modal: o foco do teclado fica dentro dele. No desktop é uma janela flutuante, sem trava.
+  const [fullScreen, setFullScreen] = useState(false)
+  useEffect(() => { if (open) setFullScreen(!!window.matchMedia?.('(max-width: 900px)').matches) }, [open])
+  useFocusTrap(panelRef, open && fullScreen)
 
   // Permite abrir o chat de fora (ex: menu rápido do "+" na barra de
   // navegação, que fica num componente irmão — Navbar/AgentChat são montados
@@ -164,9 +173,15 @@ export default function AgentChat() {
     const text = (msg || input).trim()
     if (!text || loading || transcribing) return
     setInput('')
+
+    if (hasOpenPending(history) && isAffirmation(text)) {
+      setHistory([...history, { role: 'user', content: text }, { role: 'assistant', content: 'Toque em Confirmar, logo acima, para concluir — ou em Cancelar para desistir.' }])
+      return
+    }
     analytics.track('ai_message_sent')
 
-    const base = history.slice(0, history.length - dropLast)
+    // qualquer outra mensagem encerra os cartões abertos: a conversa seguiu, o botão antigo não pode mais agir
+    const base = closeOpenPending(history.slice(0, history.length - dropLast))
     const userMsg = { role: 'user', content: text }
     setHistory([...base, userMsg])
     setLoading(true)
@@ -179,13 +194,14 @@ export default function AgentChat() {
       const { reply, pendingAction, dataChanged } = res.data
       // pendingAction: a IA preparou uma edição/exclusão e NADA foi feito ainda — os botões Confirmar/Cancelar
       // aparecem abaixo da resposta e só o toque em Confirmar executa (POST /agent/confirm).
-      setHistory(h => [...h, { role: 'assistant', content: reply, ...(pendingAction ? { pending: { token: pendingAction.token, state: 'open' } } : {}) }])
+      setHistory(h => [...closeOpenPending(h), { role: 'assistant', content: reply, ...(pendingAction ? { pending: { token: pendingAction.token, expiresAt: pendingAction.expiresAt, state: 'open' } } : {}) }])
       // O chat pode criar/editar/excluir transação via tool-calling — sem isso,
       // Dashboard/Transações continuavam mostrando dado velho até o usuário
       // forçar um refresh manual (ex: trocar de mês e voltar).
       if (dataChanged) refreshApp()
     } catch (err) {
-      setHistory(h => [...h, { role: 'assistant', content: chatErrorMessage(err), error: true, retryText: text }])
+      const { message, retry } = chatError(err)
+      setHistory(h => [...h, { role: 'assistant', content: message, error: true, ...(retry ? { retryText: text } : {}) }])
     } finally {
       setLoading(false)
     }
@@ -202,6 +218,11 @@ export default function AgentChat() {
   const confirmPending = async (index) => {
     const pending = history[index]?.pending
     if (!pending || pending.state !== 'open' || loading || transcribing) return
+    if (isExpired(pending)) {
+      setPendingState(index, 'closed')
+      setHistory(h => [...h, { role: 'assistant', content: 'Essa confirmação expirou. Peça de novo à Nancy.', error: true }])
+      return
+    }
     analytics.track('ai_action_confirmed')
     setLoading(true)
     try {
@@ -213,7 +234,7 @@ export default function AgentChat() {
       // 400 (token inválido/expirado) e 409 (a transação mudou ou o mês fechou) não adiantam tentar de novo
       const final = [400, 409].includes(err.response?.status)
       setPendingState(index, final ? 'closed' : 'open')
-      setHistory(h => [...h, { role: 'assistant', content: final ? (err.response.data?.error || chatErrorMessage(err)) : chatErrorMessage(err), error: true }])
+      setHistory(h => [...h, { role: 'assistant', content: final ? (err.response.data?.error || chatError(err).message) : chatError(err).message, error: true }])
     } finally {
       setLoading(false)
     }
@@ -222,8 +243,7 @@ export default function AgentChat() {
   const cancelPending = (index) => {
     if (history[index]?.pending?.state !== 'open' || loading) return
     analytics.track('ai_action_cancelled')
-    setPendingState(index, 'cancelled')
-    setHistory(h => [...h, { role: 'assistant', content: 'Tudo bem, não mexi em nada.' }])
+    setHistory(h => [...closeOpenPending(h).map((m, i) => (i === index ? { ...m, pending: { ...m.pending, state: 'cancelled' } } : m)), { role: 'assistant', content: 'Tudo bem, não mexi em nada.' }])
   }
 
   const handleKey = (e) => {
@@ -360,7 +380,7 @@ export default function AgentChat() {
 
       {/* Painel do chat — tela cheia azul no celular, janela flutuante no desktop (tela 12) */}
       {open && (
-        <div className="agent-panel nia-panel fade-in" role="dialog" aria-label="Nancy IA">
+        <div ref={panelRef} className="agent-panel nia-panel fade-in" role="dialog" aria-label="Nancy IA" aria-modal={fullScreen ? 'true' : undefined}>
           <div className="nia-head">
             <NancyMark size={42} />
             <div className="nia-head-txt">
@@ -403,14 +423,16 @@ export default function AgentChat() {
                 {history.map((m, i) => {
                   const isBot       = m.role !== 'user'
                   const canRetry    = m.error && m.retryText && i === history.length - 1 && !loading
-                  const hasActions  = m.pending?.state === 'open' || canRetry
-                  const bubble      = <div className={`nia-bubble${isBot && !m.error ? ' nia-rich-bubble' : ''}`}>{isBot && !m.error ? <AiMessage text={m.content} /> : m.content}</div>
+                  const awaiting    = m.pending?.state === 'open' && !isExpired(m.pending)
+                  const hasActions  = awaiting || canRetry
+                  const shown       = displayContent(m)
+                  const bubble      = <div className={`nia-bubble${isBot && !m.error ? ' nia-rich-bubble' : ''}`}>{isBot && !m.error ? <AiMessage text={shown} /> : shown}</div>
                   return (
                     <div key={i} className={`nia-msg ${isBot ? 'bot' : 'user'}${m.error ? ' err' : ''}`}>
                       {hasActions ? (
                         <div className="nia-col">
                           {bubble}
-                          {m.pending?.state === 'open' && (
+                          {awaiting && (
                             <div className="nia-actions" role="group" aria-label="Confirmar a ação">
                               <button type="button" className="nia-act-yes" onClick={() => confirmPending(i)} disabled={loading}>Confirmar</button>
                               <button type="button" className="nia-act-no" onClick={() => cancelPending(i)} disabled={loading}>Cancelar</button>
