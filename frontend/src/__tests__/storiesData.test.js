@@ -338,6 +338,43 @@ describe('storiesData — pacote', () => {
   })
 })
 
+describe('storiesData — voltar para o app', () => {
+  const comeBack = () => {
+    Object.defineProperty(document, 'hidden', { value: false, configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+  }
+  it('voltou depois de mais de 1 min: refaz o pacote em segundo plano (o story continua pronto e sem número velho)', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    await prefetchStories('u1', { tip: false })
+    transactionsAPI.storiesBundle.mockClear()
+    await vi.advanceTimersByTimeAsync(2 * 60_000)
+    comeBack()
+    await vi.advanceTimersByTimeAsync(500)
+    await flush()
+    expect(transactionsAPI.storiesBundle).toHaveBeenCalledTimes(1)
+    expect(agentAPI.weeklyTip).not.toHaveBeenCalled() // sem gastar a IA a cada volta
+  })
+
+  it('voltou logo (menos de 1 min): nada é refeito', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    await prefetchStories('u1', { tip: false })
+    transactionsAPI.storiesBundle.mockClear()
+    await vi.advanceTimersByTimeAsync(20_000)
+    comeBack()
+    await vi.advanceTimersByTimeAsync(500)
+    await flush()
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+  })
+
+  it('nunca pré-carregou (ninguém logado): voltar não faz chamada', async () => {
+    comeBack()
+    await vi.advanceTimersByTimeAsync(500)
+    await flush()
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+    expect(transactionsAPI.monthlyRecap).not.toHaveBeenCalled()
+  })
+})
+
 // ── Começar já na abertura do app: o pacote é pedido antes do Início existir ─────────────────────────────────────────
 describe('storiesData — começa na abertura do app', () => {
   const answer = (body, ok = true) => Promise.resolve({ ok, json: () => Promise.resolve(body) })

@@ -186,3 +186,11 @@ export function resetStoriesCache() {
 
 // Todo ponto do app que muda dado avisa com 'budget-updated' (junto de invalidateCache('dashboard')).
 if (typeof window !== 'undefined') window.addEventListener('budget-updated', invalidateStories)
+
+// Voltou para o app depois de um tempo (outro app, tela bloqueada): o que tem mais de 1 min é refeito em segundo plano
+// (uma chamada, sem a dica da IA), para o story continuar pronto e sem número velho — o guardado vale 10 min.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && lastPrefetch) prefetchStoriesWhenIdle(lastPrefetch.userId, { tip: false })
+  })
+}
