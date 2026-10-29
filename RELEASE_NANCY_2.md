@@ -1,6 +1,6 @@
 # Subida do Nancy 2 para produção — roteiro
 
-> **Para quem:** André (executa) e Tales (acompanha). **Escrito em:** 2026-10-28.
+> **Para quem:** André (executa) e Tales (acompanha). **Escrito em:** 2026-10-28 (atualizado em 2026-10-29).
 > Este roteiro foi preparado a partir da homologação; **nada daqui foi executado em produção**.
 > A produção só muda quando a PR `develop → main` é mesclada (o pipeline `deploy.yml` roda sozinho).
 
@@ -11,6 +11,8 @@
 - **Correções que valem para todos os usuários, inclusive hoje em produção:**
   - **Salário zerado (existe em produção desde 2026-06-22):** o campo "Salário mensal" aparece vazio e "Salvar" vazio zerava o salário avisando "sucesso". Corrigido (campo já vem preenchido; salvar vazio não grava).
   - Onboarding passa a **pular a pergunta de salário** para quem já informou no cadastro (era a intenção do código, que nunca funcionava).
+  - **Nancy IA (plano Elite) não exclui nem altera mais nada sem o usuário tocar em "Confirmar"** (antes apagava direto). Rota nova `POST /api/agent/confirm`; o token de confirmação é assinado com uma chave derivada do `JWT_SECRET` que já existe — **não há variável nova**. Trocar o `JWT_SECRET` só invalida confirmações pendentes (vencem em 10 min de qualquer forma).
+  - Telas abertas por toque passam a abrir **no topo** (Termos e Privacidade abriam no meio do texto).
 - **4 migrações de banco** (todas aditivas — só `ADD COLUMN` com valor padrão/opcional e 1 `CREATE TABLE`):
   `20261021010000_add_email_verify_code`, `20261022120000_add_user_avatar` (tabela `UserAvatar` com RLS), `20261022150000_add_notification_prefs`, `20261022170000_add_payment_details`.
   O código antigo ignora as colunas novas, então **voltar a versão do app não exige desfazer migração**.
@@ -70,6 +72,7 @@ Qualquer um destes, do mais simples ao mais completo. **Migrações não precisa
 8. **PWA:** o ícone novo no celular (reinstalar o app para ver); abrir pelo ícone.
 9. **Termos e Privacidade** abrem logado e deslogado.
 10. (Se a conta for paga) **Perfil → Pagamentos** mostra o plano e o histórico.
+11. **Nancy IA (conta Elite):** "Quanto gastei esse mês?" bate com o Extrato; pedir para excluir uma transação de teste mostra **Confirmar/Cancelar** e o Extrato só muda depois de Confirmar. Abrir Termos pelo Perfil já rolado abre no topo.
 
 ## 6. Monitoramento nas primeiras 24 h
 
@@ -87,14 +90,15 @@ Qualquer um destes, do mais simples ao mais completo. **Migrações não precisa
 | **Latência do banco** | `/health` mede `db_ms` de 490 a 2100 ms em produção e 900 a 4700 ms em homologação (Supabase `sa-east-1`, plano gratuito; cada requisição autenticada faz 1 consulta de usuário + as da rota). É o maior risco de desempenho. | Investigar: usar o pooler (porta 6543/PgBouncer) para o app, plano pago do Supabase, cache curto do usuário no middleware de auth. Não bloqueia a subida, mas explica telas "lentas" (a splash de ~4 s + carga de dados). |
 | **Sem backup automático do banco** | Risco aceito em RELIABILITY.md; a subida roda migrações. | Backup manual antes (pré-voo #4); avaliar plano com backup diário. |
 | **Resumo semanal para todos** | 1ª segunda após a subida envia para todos os usuários existentes. | Conferir cota do Resend (pré-voo #7) ou desligar o padrão antes (virar `false` para existentes) — decidir. |
-| **Textos jurídicos** | Termos diz que as assinaturas "renovam automaticamente", mas o app cobra por período e não renova sozinho; Privacidade não cita a exportação CSV. | Revisar com o Tales antes da subida. |
+| **Textos jurídicos** | Termos diz que as assinaturas "renovam automaticamente", mas o app cobra por período e não renova sozinho (os caminhos "Configurações → …" já foram corrigidos para "Perfil → …" e a Privacidade já cita CSV/PDF/JSON). | Revisar a frase da renovação com o Tales antes da subida (recomendação: dizer que o plano **não** renova sozinho e que o botão "Cancelar" vira "Não renovar"). |
 | **Lembrete de salário × campo Salário** | A notificação "Seu salário deve cair hoje. Quer registrar?" abre "Nova transação" como Entrada, mas o salário cadastrado já entra nas Entradas (salário + entradas): registrar de novo conta em dobro. | Decisão de produto: mudar o texto/ação do lembrete ou parar de somar o salário cadastrado quando houver entrada "Salário" no mês. |
 | **Marcar conta fixa como paga duplica lançamento parecido** | Se a pessoa já lançou "Aluguel" à mão, marcar a conta fixa "Aluguel" como paga cria outro. | Já está no backlog ("redesenho do payBudget"). |
 | **Plano Grátis e "Limites"** | O roteiro antigo dizia que Grátis cria limites; no app (e na tabela de planos) é recurso Pro. | Confirmar que a tabela de planos reflete a intenção comercial. |
 | **Criar transação com data** | "Nova transação" sempre é de hoje (o endpoint ignora a data); só a edição muda a data. | Possível melhoria futura. |
 | **Dependências (npm audit, só produção)** | Frontend: 0 vulnerabilidades. Backend (2026-10-28): 7, todas de negação de serviço ou baixas — `body-parser` (alta, DoS com corpo comprimido), `multer` (alta, DoS com `fileFilter` assíncrono pendente — o app não usa filtro assíncrono), `qs` (moderada, DoS), e 4 baixas via `resend → @react-email/render → html-to-text → deepmerge` (poluição de protótipo em dado que não vem do usuário). Nenhuma permite acesso a dados. | Correção sem quebra existe (`npm audit fix`); o Dependabot já abre as PRs. Não atualizar junto com a subida (uma mudança por vez) — tratar logo depois, com CI verde. |
 | **Capturas do manifest** | `manifest.json` ainda aponta capturas da interface antiga. | Trocar por capturas novas (não afeta o funcionamento). |
-| **Rotas com problemas de CI na branch** | As últimas CIs falharam por testes E2E desatualizados (cookies, dica da semana, onboarding), nunca por defeito do app; o deploy de homologação só roda com testes verdes. | Pré-voo #1 é obrigatório. |
+| **E2E e CI** | O E2E agora roda igual à CI (`scripts/e2e-ci.sh`, container oficial do Playwright), sem esperas por tempo; padrão: 3 rodadas seguidas sem falha nem teste instável antes de cada push. | Pré-voo #1 continua obrigatório. |
+| **Minutos do GitHub Actions** | O repositório é público (minutos grátis). Em outubro foram ~2.500 min cobráveis (CI 1.365, deploy de homologação 735, produção 244…). Se o repositório virar **privado**: plano Free tem 2.000 min/mês (estouraria; excedente ≈ US$ 0,008/min); **GitHub Pro (US$ 4/mês)** dá 3.000 min e libera proteção de branch e aprovação manual do ambiente `production`. | Decidir antes de tornar privado; reaproveitar a CI no deploy de homologação (FLUXO_DE_DEPLOY.md, Fase 2) corta ~700 min/mês. |
 
 ## 8. Se algo der errado — quem chama quem
 
