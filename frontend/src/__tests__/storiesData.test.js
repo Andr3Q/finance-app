@@ -1,9 +1,11 @@
+import { renderHook } from '@testing-library/react'
+import { useTipAvailable, resetTipAvailableCache } from '../hooks/useTipAvailable.js'
 import {
   peekStory, loadStory, prefetchStories, prefetchStoriesWhenIdle, invalidateStories, resetStoriesCache, startStoriesEarly,
 } from '../services/storiesData.js'
 
 vi.mock('../services/api.js', () => ({
-  transactionsAPI: { monthlyRecap: vi.fn(), subscriptions: vi.fn(), storiesBundle: vi.fn() },
+  transactionsAPI: { monthlyRecap: vi.fn(), subscriptions: vi.fn(), storiesBundle: vi.fn(), weeklyTipAvailable: vi.fn() },
   goalsAPI:        { list: vi.fn() },
   agentAPI:        { weeklyTip: vi.fn() },
 }))
@@ -25,6 +27,7 @@ beforeEach(() => {
   goalsAPI.list.mockResolvedValue({ data: [{ title: 'Viagem' }] })
   agentAPI.weeklyTip.mockResolvedValue({ data: { tip: 'x' } })
   transactionsAPI.storiesBundle.mockRejectedValue(new Error('sem pacote')) // padrão: pacote indisponível -> rotas antigas
+  transactionsAPI.weeklyTipAvailable.mockResolvedValue({ data: { available: false } })
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
@@ -378,7 +381,7 @@ describe('storiesData — voltar para o app', () => {
 // ── Começar já na abertura do app: o pacote é pedido antes do Início existir ─────────────────────────────────────────
 describe('storiesData — começa na abertura do app', () => {
   const answer = (body, ok = true) => Promise.resolve({ ok, json: () => Promise.resolve(body) })
-  beforeEach(() => { localStorage.setItem('nancy_has_account', '1') })
+  beforeEach(() => { localStorage.setItem('nancy_has_account', '1'); resetTipAvailableCache() })
   afterEach(() => { localStorage.clear(); sessionStorage.clear() })
 
   it('pede o pacote uma vez (com o cookie) e guarda para a pessoa certa: o toque abre na hora, sem nenhuma chamada nova', async () => {
@@ -431,6 +434,60 @@ describe('storiesData — começa na abertura do app', () => {
     expect(peekStory('u1', 'resumo', 0)).toBeUndefined()
     transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
     expect(await loadStory('u1', 'resumo', 0)).toEqual({ hasData: true, month: 10 })
+  })
+
+  it('depois do pacote, já pergunta se há dica e, havendo, busca a dica e as assinaturas (o story de Dicas abre pronto)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(answer(BUNDLE('u1').data)))
+    transactionsAPI.weeklyTipAvailable.mockResolvedValue({ data: { available: true } })
+    startStoriesEarly()
+    await flush(); await flush()
+
+    expect(transactionsAPI.weeklyTipAvailable).toHaveBeenCalledTimes(1)
+    expect(agentAPI.weeklyTip).toHaveBeenCalledTimes(1)
+    expect(transactionsAPI.subscriptions).toHaveBeenCalledTimes(1)
+    expect(peekStory('u1', 'dicas')).toEqual({ tip: { tip: 'x' }, subs: [] })
+    // o Início, quando abrir, usa a resposta guardada em vez de perguntar de novo
+    const { result } = renderHook(() => useTipAvailable('u1'))
+    expect(result.current).toBe(true)
+    expect(transactionsAPI.weeklyTipAvailable).toHaveBeenCalledTimes(1)
+  })
+
+  it('mudou um dado enquanto perguntava da dica: a resposta velha não dispara a IA', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(answer(BUNDLE('u1').data)))
+    const d = deferred()
+    transactionsAPI.weeklyTipAvailable.mockReturnValue(d.promise)
+    startStoriesEarly()
+    await flush(); await flush()
+    expect(transactionsAPI.weeklyTipAvailable).toHaveBeenCalledTimes(1)
+    invalidateStories()                              // a pessoa registrou uma transação
+    d.resolve({ data: { available: true } })
+    await flush(); await flush()
+    expect(agentAPI.weeklyTip).not.toHaveBeenCalled()
+  })
+
+  it('sem base de comparação (dica indisponível): não chama a IA', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(answer(BUNDLE('u1').data)))
+    transactionsAPI.weeklyTipAvailable.mockResolvedValue({ data: { available: false } })
+    startStoriesEarly()
+    await flush(); await flush()
+    expect(agentAPI.weeklyTip).not.toHaveBeenCalled()
+    expect(peekStory('u1', 'dicas')).toBeUndefined()
+  })
+
+  it('falha ao perguntar da dica: silencioso, e o pacote continua guardado', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(answer(BUNDLE('u1').data)))
+    transactionsAPI.weeklyTipAvailable.mockRejectedValue(new Error('rede'))
+    startStoriesEarly()
+    await flush(); await flush()
+    expect(peekStory('u1', 'resumo', 0)).toBeDefined()
+    expect(agentAPI.weeklyTip).not.toHaveBeenCalled()
+  })
+
+  it('sem pacote válido (sem sessão) não pergunta da dica', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockReturnValue(answer({ error: 'x' }, false)))
+    startStoriesEarly()
+    await flush(); await flush()
+    expect(transactionsAPI.weeklyTipAvailable).not.toHaveBeenCalled()
   })
 
   it('aparelho que nunca teve conta (nem sessão aberta): não faz chamada nenhuma', () => {

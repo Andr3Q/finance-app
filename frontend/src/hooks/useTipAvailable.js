@@ -10,6 +10,9 @@ let cached = null // { value, at, userKey }
 
 export function resetTipAvailableCache() { cached = null }
 
+// Quem já perguntou (ex.: a abertura do app, que também deixa a dica pronta) guarda a resposta aqui: o Início não pergunta de novo.
+export function rememberTipAvailable(userKey, value) { cached = { value: value === true, at: Date.now(), userKey } }
+
 export function useTipAvailable(userKey = '') {
   const fresh = cached && cached.userKey === userKey && Date.now() - cached.at < TTL_MS
   const [available, setAvailable] = useState(fresh ? cached.value : null)

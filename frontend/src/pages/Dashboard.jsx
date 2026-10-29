@@ -425,7 +425,7 @@ export default function Dashboard() {
                 const d     = new Date(t.date)
                 const desc  = t.description || CATEGORY_LABELS[t.category] || t.category
                 return (
-                  <div key={t.id} className="home-recent-row">
+                  <button key={t.id} type="button" className="home-recent-row" onClick={() => navigate('/transactions')}>
                     <div className="home-recent-ico">
                       <CategoryIcon category={t.category} size={16} color="currentColor" />
                     </div>
@@ -438,7 +438,7 @@ export default function Dashboard() {
                     <span className={`home-recent-amt ${isInc ? 'inc' : 'exp'}`}>
                       {hideBalance ? HIDDEN : `${isInc ? '+' : '−'}R$ ${fmt(t.amount)}`}
                     </span>
-                  </div>
+                  </button>
                 )
               })}
             </div>

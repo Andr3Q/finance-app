@@ -122,9 +122,15 @@ describe('limites por categoria', () => {
   const tx = (category, amount) => ({ type: 'expense', category, amount })
   const limits = [{ category: 'food', amount: 1500 }]
 
+  it('limite estourado também leva aos Limites (não às Metas)', () => {
+    const n = build({ budgets: [], limits, transactions: [tx('food', 1000), tx('food', 600)] }).find(x => x.kind === 'limit')
+    expect(n.title).toBe('Alimentação passou do limite')
+    expect(n.action).toEqual({ type: 'route', to: '/limites' })
+  })
+
   it('perto do limite (82%): quanto falta até o teto, sem centavos quando redondo', () => {
     const n = build({ budgets: [], limits, transactions: [tx('food', 1000), tx('food', 230)] }).find(x => x.kind === 'limit')
-    expect(n).toMatchObject({ title: 'Alimentação em 82% do limite', body: 'Faltam R$ 270 até o teto do mês.', when: 'este mês', action: { type: 'route', to: '/goals' } })
+    expect(n).toMatchObject({ title: 'Alimentação em 82% do limite', body: 'Faltam R$ 270 até o teto do mês.', when: 'este mês', action: { type: 'route', to: '/limites' } })
   })
 
   it('centavos aparecem quando existem', () => {

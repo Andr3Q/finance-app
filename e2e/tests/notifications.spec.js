@@ -98,13 +98,13 @@ test.describe('Notificações', () => {
     await expect(page.locator('.ntf-sub')).toHaveText('Nenhuma nova')
   })
 
-  test('conta que vence leva às Contas do mês e limite leva às Metas', async ({ page }) => {
+  test('conta que vence leva às Contas do mês e limite leva aos Limites (não às Metas)', async ({ page }) => {
     await setup(page, { at: SALARY_DAY, data: payload(7) })
     await row(page, /Academia vence hoje/).click()
     await expect(page).toHaveURL(/\/contas-do-mes$/)
     await page.goBack()
     await row(page, /Alimentação em 82% do limite/).click()
-    await expect(page).toHaveURL(/\/goals$/)
+    await expect(page).toHaveURL(/\/limites$/)
   })
 
   test('lembrete de salário abre a folha "Nova transação" já como Entrada', async ({ page }) => {

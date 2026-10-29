@@ -130,6 +130,35 @@ test.describe('Stories prontos antes do toque', () => {
   })
 })
 
+test.describe('Stories: dica pronta e teclado', () => {
+  test('o story de Dicas também abre PRONTO (a dica e as assinaturas são buscadas já na abertura, uma vez só)', async ({ page }) => {
+    const calls = await setup(page)
+    await page.goto('/dashboard')
+    await expect.poll(() => calls.tip, { timeout: 25000 }).toBe(1)
+    await expect.poll(() => calls.bundleDone, { timeout: 25000 }).toBe(1)
+    await page.locator('button.home-story-light').click()
+    await expect(page.getByText(/Reduza o mercado/)).toBeVisible({ timeout: 1500 })
+    await expect(page.getByText('Montando seu resumo…')).toHaveCount(0)
+    expect(calls.tip).toBe(1) // abrir o story não chamou a IA de novo
+  })
+
+  test('Esc fecha o story e as setas avançam e voltam (desktop e acessibilidade)', async ({ page }) => {
+    const calls = await setup(page, { slowMs: 200 })
+    await page.goto('/dashboard')
+    await expect.poll(() => calls.bundleDone, { timeout: 25000 }).toBe(1)
+    await page.locator('button.home-story-blue').click()
+    await expect(page.getByText('Resumo do mês')).toBeVisible({ timeout: 2000 })
+    const fills = () => page.locator('.stories-progress-fill').evaluateAll(els => els.map(e => (e.classList.contains('is-active') ? 'A' : e.classList.contains('is-done') ? 'D' : '-')).join(''))
+    expect(await fills()).toMatch(/^A-+$/)
+    await page.keyboard.press('ArrowRight')
+    expect(await fills()).toMatch(/^DA-*$/)
+    await page.keyboard.press('ArrowLeft')
+    expect(await fills()).toMatch(/^A-+$/)
+    await page.keyboard.press('Escape')
+    await expect(page).toHaveURL(/\/dashboard$/)
+  })
+})
+
 test.describe('Stories leves: a barra anda por CSS, sem trabalho por quadro', () => {
   test('a barra de progresso é uma animação de transform (sem largura calculada em JS) e o slide avança sozinho em ~5 s', async ({ page }) => {
     const calls = await setup(page, { slowMs: 200 })

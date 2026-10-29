@@ -160,11 +160,12 @@ describe('Notificações — ações', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('/contas-do-mes')
   })
 
-  it('limite leva às Metas', async () => {
+  // Achado N2-2: a notificação de limite abria as Metas, não a tela onde o limite é gerenciado.
+  it('limite leva aos Limites (não às Metas)', async () => {
     const user = userEvent.setup({ advanceTimers: () => {} })
     setup()
     await user.click(await screen.findByRole('button', { name: /Alimentação em 82% do limite/ }))
-    expect(screen.getByTestId('where')).toHaveTextContent('/goals')
+    expect(screen.getByTestId('where')).toHaveTextContent('/limites')
   })
 
   it('trial leva aos Planos', async () => {

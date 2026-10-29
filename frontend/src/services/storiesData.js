@@ -1,5 +1,6 @@
 import { transactionsAPI, goalsAPI, agentAPI } from './api.js'
 import { dicasKey } from '../utils/storiesSeen.js'
+import { rememberTipAvailable } from '../hooks/useTipAvailable.js'
 
 // Dados dos stories (resumo do mês, resumo do mês anterior, dicas da Nancy IA e metas), buscados ANTES de a pessoa tocar
 // no círculo. O resumo faz o servidor ler as transações do ano e calcular na hora (segundos) e a dica chama a IA: buscar
@@ -123,8 +124,21 @@ export function startStoriesEarly() {
   early = { promise }
   promise.then(b => {
     if (early?.promise === promise) early = null // consumida: de agora em diante, chamadas novas vão à rede
-    if (isBundle(b) && gen === generation) { storeBundle(b.userId, b); warmStoriesPage() }
+    if (isBundle(b) && gen === generation) { storeBundle(b.userId, b); warmStoriesPage(); primeTip(b.userId, gen) }
   })
+}
+
+// A dica da IA (e as assinaturas) também começam já na abertura, assim que o pacote chega e se sabe que há base de comparação:
+// o story de Dicas abre pronto como os outros. Falha é silenciosa (o toque busca normalmente).
+function primeTip(userId, gen) {
+  Promise.resolve()
+    .then(() => transactionsAPI.weeklyTipAvailable())
+    .then(r => {
+      const available = r.data?.available === true
+      rememberTipAvailable(userId, available) // o Início não pergunta de novo
+      if (available && gen === generation) return loadStory(userId, 'dicas')
+    })
+    .catch(() => {})
 }
 
 // A tela dos stories é um pedaço de código separado (carregado só quando abre): baixar antes tira esse atraso da primeira vez.

@@ -399,6 +399,16 @@ test.describe('Dashboard — tema claro imposto e barra de baixo', () => {
     expect(['Como posso sobrar ainda mais este mês?', 'Como posso fechar este mês no azul?']).toContain(asked)
   })
 
+  // Achado N2-2: as linhas de "Últimas" não faziam nada ao toque.
+  test('tocar numa linha de "Últimas" abre o Extrato', async ({ page }) => {
+    await goDashboard(page)
+    const rows = page.locator('.home-recent-row')
+    await expect(rows).toHaveCount(5)
+    await expect(rows.first()).toHaveJSProperty('tagName', 'BUTTON') // é um botão de verdade (teclado e leitor de tela)
+    await rows.first().click()
+    await expect(page).toHaveURL(/\/transactions$/)
+  })
+
   test('estatísticas em número inteiro, sem R$ nem "k" (Entradas = salário + entradas)', async ({ page }) => {
     await goDashboard(page)
     const vals = page.locator('.home-stat-val')

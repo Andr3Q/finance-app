@@ -5396,7 +5396,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .home-recent-head { background: #1C48FF; display: flex; align-items: center; justify-content: space-between; padding: 17px 20px; }
 .home-recent-title { font-family: var(--fd); font-weight: 800; font-size: 19px; color: #fff; margin: 0; }
 .home-recent-link { background: none; border: none; color: #BCF4DF; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
-.home-recent-row { display: flex; align-items: center; gap: 13px; padding: 14px 20px; border-top: 1px solid #EDF2F8; }
+.home-recent-row { display: flex; align-items: center; gap: 13px; width: 100%; box-sizing: border-box; padding: 14px 20px; border: none; border-top: 1px solid #EDF2F8; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .home-recent-head + .home-recent-row { border-top: none; }
 .home-recent-ico {
   width: 46px; height: 46px; border-radius: 15px; flex-shrink: 0; background: #1C48FF; color: #fff;

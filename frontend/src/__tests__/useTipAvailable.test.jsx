@@ -1,5 +1,5 @@
 import { renderHook, waitFor, act } from '@testing-library/react'
-import { useTipAvailable, resetTipAvailableCache } from '../hooks/useTipAvailable.js'
+import { useTipAvailable, resetTipAvailableCache, rememberTipAvailable } from '../hooks/useTipAvailable.js'
 
 vi.mock('../services/api.js', () => ({ transactionsAPI: { weeklyTipAvailable: vi.fn() } }))
 import { transactionsAPI } from '../services/api.js'
@@ -63,5 +63,28 @@ describe('useTipAvailable (a dica da semana só é anunciada quando existe)', ()
     await act(async () => {})
     expect(result.current).toBeNull()
     expect(transactionsAPI.weeklyTipAvailable).not.toHaveBeenCalled()
+  })
+})
+
+describe('rememberTipAvailable (a abertura do app já perguntou)', () => {
+  it('o Início usa a resposta guardada e NÃO pergunta de novo', () => {
+    rememberTipAvailable('u1', true)
+    const { result } = renderHook(() => useTipAvailable('u1'))
+    expect(result.current).toBe(true)
+    expect(transactionsAPI.weeklyTipAvailable).not.toHaveBeenCalled()
+  })
+
+  it('vale só para a pessoa que perguntou; outra pessoa pergunta de novo', async () => {
+    rememberTipAvailable('u1', true)
+    transactionsAPI.weeklyTipAvailable.mockResolvedValue({ data: { available: false } })
+    const { result } = renderHook(() => useTipAvailable('u2'))
+    expect(result.current).toBeNull()
+    await waitFor(() => expect(result.current).toBe(false))
+    expect(transactionsAPI.weeklyTipAvailable).toHaveBeenCalledTimes(1)
+  })
+
+  it('só "true" estrito vira true', () => {
+    rememberTipAvailable('u1', 'yes')
+    expect(renderHook(() => useTipAvailable('u1')).result.current).toBe(false)
   })
 })

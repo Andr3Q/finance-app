@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { goalsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import { peekStory, loadStory, invalidateStories, LOADERS } from '../services/storiesData.js'
 import { monthName, money, maskSlides, HIDDEN_AMOUNT, buildRecapSlides, buildTipSlides, buildGoalSlides } from '../utils/storySlides.js'
 import { resumoKey, dicasKey, metasKey, markSeen } from '../utils/storiesSeen.js'
@@ -115,6 +116,18 @@ export default function StoriesResumo() {
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [])
 
+  // Teclado (desktop e acessibilidade): Esc fecha, setas voltam e avançam.
+  useEscapeKey(() => close(), true)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'ArrowRight') goTo(index + 1)
+      else if (e.key === 'ArrowLeft') goTo(index - 1)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, slides.length])
+
   const togglePause = () => {
     if (!paused) stopClock()
     setPaused(p => !p)
@@ -142,10 +155,19 @@ export default function StoriesResumo() {
     if (busy) return
     setBusy(true)
     try {
+      // Já existe a meta deste mês? Sem isto, cada toque criava outra "Meta de <mês>" igual.
+      const title = `Meta de ${cta.nextName}`
+      let existing = null
+      try { existing = peekStory(user.id, 'metas') ?? await loadStory(user.id, 'metas') } catch { existing = null }
+      if (Array.isArray(existing) && existing.some(g => String(g.title).trim().toLowerCase() === title.toLowerCase())) {
+        showToast(`Você já tem a meta de ${cta.nextName}.`)
+        setBusy(false)
+        return
+      }
       const lastDay = new Date(cta.nextYm.year, cta.nextYm.month, 0).getDate()
       const mm = String(cta.nextYm.month).padStart(2, '0')
       await goalsAPI.create({
-        title: `Meta de ${cta.nextName}`,
+        title,
         targetAmount: cta.amount,
         deadline: `${cta.nextYm.year}-${mm}-${String(lastDay).padStart(2, '0')}`,
       })

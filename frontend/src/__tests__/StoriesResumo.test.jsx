@@ -53,6 +53,7 @@ async function advance(times) {
 beforeEach(() => {
   resetStoriesCache() // os dados dos stories ficam guardados em memória: cada teste começa do zero
   vi.clearAllMocks()
+  mockGoals.mockReset() // a lista de metas de um teste não pode vazar para o seguinte
   localStorage.clear()
   mockRecap.mockResolvedValue({ data: baseRecap() })
 })
@@ -152,6 +153,39 @@ describe('StoriesResumo — resumo do mês atual (6 slides)', () => {
       title: 'Meta de novembro', targetAmount: 10000, deadline: '2026-11-30',
     })
     expect(mockNavigate).toHaveBeenCalledWith('/goals')
+  })
+
+  // Achado N2-2: cada toque em "Criar meta de novembro" criava outra meta igual.
+  it('slide 6: se a meta do mês seguinte JÁ existe, não cria outra e avisa', async () => {
+    mockGoals.mockResolvedValue({ data: [{ title: 'Meta de novembro', targetAmount: 10000, currentAmount: 0 }] })
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    await advance(5)
+    await userEvent.click(screen.getByRole('button', { name: 'Criar meta de novembro' }))
+    expect(await screen.findByText('Você já tem a meta de novembro.')).toBeInTheDocument()
+    expect(mockCreate).not.toHaveBeenCalled()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Criar meta de novembro' })).toBeEnabled() // o botão volta
+  })
+
+  it('slide 6: a comparação ignora maiúsculas e espaços, e outras metas não impedem a criação', async () => {
+    mockCreate.mockResolvedValue({ data: {} })
+    mockGoals.mockResolvedValue({ data: [{ title: 'Viagem', targetAmount: 5000, currentAmount: 0 }, { title: ' META DE OUTUBRO ', targetAmount: 1, currentAmount: 0 }] })
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    await advance(5)
+    await userEvent.click(screen.getByRole('button', { name: 'Criar meta de novembro' }))
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('slide 6: meta já existente com espaços e caixa diferentes também é reconhecida', async () => {
+    mockGoals.mockResolvedValue({ data: [{ title: '  META DE NOVEMBRO ', targetAmount: 1, currentAmount: 0 }] })
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    await advance(5)
+    await userEvent.click(screen.getByRole('button', { name: 'Criar meta de novembro' }))
+    expect(await screen.findByText('Você já tem a meta de novembro.')).toBeInTheDocument()
+    expect(mockCreate).not.toHaveBeenCalled()
   })
 
   it('slide 6: erro do limite do plano aparece e não navega', async () => {
@@ -669,6 +703,45 @@ describe('StoriesResumo — tempo dos slides (sem trabalho por quadro)', () => {
     mockRecap.mockResolvedValue({ data: baseRecap({ hasData: false }) })
     await openStory(0)
     await tick(60_000)
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+})
+
+// ── Teclado (achado N2-2): Esc fecha, setas voltam e avançam ─────────────────────────────────────────────────────────
+describe('StoriesResumo — teclado', () => {
+  const key = (k) => act(() => { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) })
+  const fillClasses = () => [...document.querySelectorAll('.stories-progress-fill')].map(f => f.classList.contains('is-active') ? 'A' : f.classList.contains('is-done') ? 'D' : '-').join('')
+
+  it('Esc fecha o resumo (volta para o Início)', async () => {
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    key('Escape')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('seta direita avança e seta esquerda volta; esquerda no primeiro slide não faz nada', async () => {
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    expect(fillClasses()).toBe('A-----')
+    key('ArrowLeft'); expect(fillClasses()).toBe('A-----')
+    key('ArrowRight'); expect(fillClasses()).toBe('DA----')
+    key('ArrowRight'); expect(fillClasses()).toBe('DDA---')
+    key('ArrowLeft');  expect(fillClasses()).toBe('DA----')
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  it('seta direita no último slide fecha, como tocar à direita', async () => {
+    setup(-1)
+    await screen.findByText('Você guardou')
+    key('ArrowRight'); key('ArrowRight')
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('outras teclas não fazem nada', async () => {
+    setup(0)
+    await screen.findByText('Resumo do mês')
+    key('a'); key('Enter'); key(' ')
+    expect(fillClasses()).toBe('A-----')
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 })

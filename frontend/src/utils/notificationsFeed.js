@@ -126,14 +126,14 @@ export function buildNotifications({
         id: `limit:${l.category}:${monthKey(now)}:over`, kind: 'limit', rank: 3,
         title: `${label} passou do limite`,
         body:  `${moneyCompact(Math.round((spent - limit) * 100) / 100)} acima do teto do mês.`,
-        when: 'este mês', action: { type: 'route', to: '/goals' },
+        when: 'este mês', action: { type: 'route', to: '/limites' },
       })
     } else if (pct >= LIMIT_WARN_PCT) {
       items.push({
         id: `limit:${l.category}:${monthKey(now)}:warn`, kind: 'limit', rank: 4,
         title: `${label} em ${pct}% do limite`,
         body:  `Faltam ${moneyCompact(Math.round((limit - spent) * 100) / 100)} até o teto do mês.`,
-        when: 'este mês', action: { type: 'route', to: '/goals' },
+        when: 'este mês', action: { type: 'route', to: '/limites' },
       })
     }
   }
