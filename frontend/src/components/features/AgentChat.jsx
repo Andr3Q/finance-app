@@ -5,6 +5,7 @@ import { useUser } from '../../hooks/useUser.js'
 import { useEscapeKey } from '../../hooks/useEscapeKey.js'
 import { useFocusTrap } from '../../hooks/useFocusTrap.js'
 import { chatError } from '../../utils/chatErrors.js'
+import { buildApiHistory } from '../../utils/chatHistory.js'
 import { analytics } from '../../services/analytics.js'
 import { invalidateCache } from '../../services/cache.js'
 import { MONTHS } from '../../constants/index.js'
@@ -52,6 +53,9 @@ function getMicHelpText() {
 // ação mesmo depois de a pessoa ter tocado em "Cancelar" num cartão repetido (achado do QA N2-7, rodada 2).
 const closeOpenPending = (list) => list.map(m => (m.pending?.state === 'open' ? { ...m, pending: { ...m.pending, state: 'closed' } } : m))
 const isExpired = (pending) => !!pending?.expiresAt && Date.now() > pending.expiresAt
+// A validade conta pelo RELÓGIO DO APARELHO a partir de agora (expiresInMs do servidor): comparar com o horário absoluto do servidor
+// "vencia" o cartão na hora em quem tem o relógio adiantado. (expiresAt só como reserva para respostas sem expiresInMs.)
+const expiresAtOf = (p) => (Number.isFinite(p.expiresInMs) ? Date.now() + p.expiresInMs : p.expiresAt)
 const hasOpenPending = (list) => list.some(m => m.pending?.state === 'open' && !isExpired(m.pending))
 // "sim", "ok", "pode"... digitado com um cartão aberto: não vai para a IA (ela repetiria a pergunta e deixaria dois
 // cartões) — só lembra de tocar no botão. Confirmar continua exigindo o toque.
@@ -187,17 +191,13 @@ export default function AgentChat() {
     setLoading(true)
 
     try {
-      // Contexto da conversa: só as últimas 10 mensagens (é o que o servidor usa — mandar tudo travava o chat com "Histórico
-      // inválido." depois de uns 20 turnos) e sem os turnos que falharam (pergunta que ficou sem resposta não é contexto).
-      const apiHistory = base
-        .filter((m, i) => m.role && m.content && !m.error && !(m.role === 'user' && base[i + 1]?.error))
-        .map(m => ({ role: m.role, content: m.content }))
-        .slice(-10)
+      // Contexto da conversa: últimas mensagens, cortadas, sem os turnos que falharam (ver utils/chatHistory.js)
+      const apiHistory = buildApiHistory(base)
       const res = await agentAPI.chat(text, apiHistory)
       const { reply, pendingAction, dataChanged } = res.data
       // pendingAction: a IA preparou uma edição/exclusão e NADA foi feito ainda — os botões Confirmar/Cancelar
       // aparecem abaixo da resposta e só o toque em Confirmar executa (POST /agent/confirm).
-      setHistory(h => [...closeOpenPending(h), { role: 'assistant', content: reply, ...(pendingAction ? { pending: { token: pendingAction.token, expiresAt: pendingAction.expiresAt, state: 'open' } } : {}) }])
+      setHistory(h => [...closeOpenPending(h), { role: 'assistant', content: reply, ...(pendingAction ? { pending: { token: pendingAction.token, expiresAt: expiresAtOf(pendingAction), state: 'open' } } : {}) }])
       // O chat pode criar/editar/excluir transação via tool-calling — sem isso,
       // Dashboard/Transações continuavam mostrando dado velho até o usuário
       // forçar um refresh manual (ex: trocar de mês e voltar).
@@ -237,7 +237,7 @@ export default function AgentChat() {
       // 400 (token inválido/expirado) e 409 (a transação mudou ou o mês fechou) não adiantam tentar de novo
       const final = [400, 409].includes(err.response?.status)
       setPendingState(index, final ? 'closed' : 'open')
-      setHistory(h => [...h, { role: 'assistant', content: final ? (err.response.data?.error || chatError(err).message) : chatError(err).message, error: true }])
+      setHistory(h => [...h, { role: 'assistant', content: final ? (err.response.data?.error || chatError(err, { confirming: true }).message) : chatError(err, { confirming: true }).message, error: true }])
     } finally {
       setLoading(false)
     }

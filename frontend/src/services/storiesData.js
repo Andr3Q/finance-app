@@ -46,6 +46,14 @@ let refreshTimer = null
 const bundleInflight = new Map() // usuário -> a chamada do pacote que já está no ar
 let early = null                 // a chamada do pacote disparada na abertura do app: { promise }
 
+// Quem está logado AGORA neste navegador (o sessionStorage 'user' é apagado no logout). null = ninguém/não dá para saber.
+// Os resumos guardados são de uma pessoa: se a sessão virou outra (logout + outro login na mesma aba), nada é buscado nem guardado
+// em nome da antiga — senão o recap/metas de quem entrou agora podia ficar guardado na chave de quem saiu.
+function sessionUserId() {
+  try { return JSON.parse(sessionStorage.getItem('user') || 'null')?.id ?? null } catch { return null }
+}
+const stillTheSameSession = (userId) => { const current = sessionUserId(); return !current || current === userId }
+
 const monthStamp = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}` }
 // O mês faz parte da chave do resumo e a semana, da dica: virou o mês/a semana, é outra entrada.
 const keyOf = (userId, kind, offset = 0) => `${userId}|${kind}|${kind === 'dicas' ? dicasKey() : `${monthStamp()}|${offset}`}`
@@ -69,7 +77,7 @@ export function loadStory(userId, kind, offset = 0, { force = false } = {}) {
   // Promise.resolve().then: um erro síncrono do carregador (ex.: API indisponível) vira rejeição, não exceção solta.
   const p = Promise.resolve()
     .then(() => LOADERS[kind](offset, userId))
-    .then(data => { if (gen === generation) store.set(key, { data, at: Date.now() }); return data })
+    .then(data => { if (gen === generation && stillTheSameSession(userId)) store.set(key, { data, at: Date.now() }); return data })
     .finally(() => { if (inflight.get(key) === p) inflight.delete(key) })
   inflight.set(key, p)
   return p
@@ -97,7 +105,7 @@ function loadBundle(userId) {
   const p = source
     .then(b => {
       if (!isBundle(b) || b.userId !== userId) throw new Error('pacote dos stories inválido')
-      if (gen === generation) storeBundle(userId, b)
+      if (gen === generation && stillTheSameSession(userId)) storeBundle(userId, b)
       return b
     })
     .finally(() => { if (bundleInflight.get(userId) === p) bundleInflight.delete(userId) })
@@ -153,6 +161,7 @@ function warmStoriesPage() {
  */
 export async function prefetchStories(userId, { tip = false } = {}) {
   if (!userId) return
+  if (!stillTheSameSession(userId)) return // a sessão virou outra pessoa (logout/login): nada em nome da antiga
   if (typeof navigator !== 'undefined' && navigator.connection?.saveData) return // economia de dados ligada: não gasta à toa
   lastPrefetch = { userId, tip }
   warmStoriesPage()
@@ -188,7 +197,10 @@ export function invalidateStories() {
   if (!lastPrefetch) return
   clearTimeout(refreshTimer)
   refreshTimer = setTimeout(() => {
-    if (lastPrefetch) prefetchStories(lastPrefetch.userId, { tip: false })
+    if (!lastPrefetch) return
+    // saiu da conta nesse meio-tempo (o logout não passa por aqui): esquece tudo em vez de bater na API sem sessão (um 401 recarregaria o /login)
+    if (sessionUserId() !== lastPrefetch.userId) { resetStoriesCache(); return }
+    prefetchStories(lastPrefetch.userId, { tip: false })
   }, REFRESH_DELAY_MS)
 }
 
@@ -205,6 +217,10 @@ if (typeof window !== 'undefined') window.addEventListener('budget-updated', inv
 // (uma chamada, sem a dica da IA), para o story continuar pronto e sem número velho — o guardado vale 10 min.
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && lastPrefetch) prefetchStoriesWhenIdle(lastPrefetch.userId, { tip: false })
+    if (document.hidden || !lastPrefetch) return
+    // Sem sessão (saiu da conta, ou entrou outra pessoa): não busca nada — sem sessão a API responde 401 e o app recarregaria a
+    // tela de login, apagando o que a pessoa estivesse digitando (ex.: o código do 2FA ao voltar do autenticador).
+    if (sessionUserId() !== lastPrefetch.userId) { resetStoriesCache(); return }
+    prefetchStoriesWhenIdle(lastPrefetch.userId, { tip: false })
   })
 }

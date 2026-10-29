@@ -28,8 +28,9 @@ beforeEach(() => {
   agentAPI.weeklyTip.mockResolvedValue({ data: { tip: 'x' } })
   transactionsAPI.storiesBundle.mockRejectedValue(new Error('sem pacote')) // padrão: pacote indisponível -> rotas antigas
   transactionsAPI.weeklyTipAvailable.mockResolvedValue({ data: { available: false } })
+  sessionStorage.setItem('user', JSON.stringify({ id: 'u1' })) // alguém logado (o logout apaga isto)
 })
-afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); sessionStorage.clear() })
 
 describe('storiesData — guardar e reaproveitar', () => {
   it('busca uma vez e depois entrega do guardado, na hora, sem nova chamada', async () => {
@@ -491,7 +492,7 @@ describe('storiesData — começa na abertura do app', () => {
   })
 
   it('aparelho que nunca teve conta (nem sessão aberta): não faz chamada nenhuma', () => {
-    localStorage.clear()
+    localStorage.clear(); sessionStorage.clear()
     const fetchMock = vi.fn(); vi.stubGlobal('fetch', fetchMock)
     startStoriesEarly()
     expect(fetchMock).not.toHaveBeenCalled()
@@ -519,5 +520,85 @@ describe('storiesData — começa na abertura do app', () => {
     d.resolve({ ok: true, json: () => Promise.resolve(BUNDLE('u1').data) })
     await flush()
     expect(peekStory('u1', 'resumo', 0)).toBeUndefined()
+  })
+})
+
+// ── Revisão independente: o que está guardado é de UMA pessoa; sair da conta não pode deixar buscas nem dados soltos ──────
+describe('storiesData — sessão (logout e troca de conta)', () => {
+  const logout = () => sessionStorage.removeItem('user')
+  const loginAs = (id) => sessionStorage.setItem('user', JSON.stringify({ id }))
+  const comeBack = () => { Object.defineProperty(document, 'hidden', { value: false, configurable: true }); document.dispatchEvent(new Event('visibilitychange')) }
+
+  it('saiu da conta e voltou para o app: NÃO busca nada (sem sessão a API dá 401 e o app recarregaria o /login) e esquece o guardado', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    await prefetchStories('u1', { tip: false })
+    transactionsAPI.storiesBundle.mockClear()
+    logout()
+    await vi.advanceTimersByTimeAsync(2 * 60_000)
+    comeBack()
+    await vi.advanceTimersByTimeAsync(500); await flush()
+
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+    expect(transactionsAPI.monthlyRecap).not.toHaveBeenCalled()
+    expect(peekStory('u1', 'resumo', 0)).toBeUndefined() // o que era da pessoa que saiu não fica na memória
+  })
+
+  it('entrou OUTRA pessoa na mesma aba e o app voltou: não busca em nome da antiga', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    await prefetchStories('u1', { tip: false })
+    transactionsAPI.storiesBundle.mockClear()
+    loginAs('u2')
+    await vi.advanceTimersByTimeAsync(2 * 60_000)
+    comeBack()
+    await vi.advanceTimersByTimeAsync(500); await flush()
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+    expect(peekStory('u1', 'resumo', 0)).toBeUndefined()
+  })
+
+  it('mudou um dado e DEPOIS saiu da conta: o refresh agendado não bate na API', async () => {
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE())
+    await prefetchStories('u1', { tip: false })
+    transactionsAPI.storiesBundle.mockClear()
+    window.dispatchEvent(new Event('budget-updated'))
+    logout()                                          // saiu antes de o refresh de 2 s disparar
+    await vi.advanceTimersByTimeAsync(2100); await flush()
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+    expect(transactionsAPI.monthlyRecap).not.toHaveBeenCalled()
+  })
+
+  it('a resposta chega depois de OUTRA pessoa entrar (rotas antigas): não é guardada na chave da antiga', async () => {
+    const d = deferred()
+    transactionsAPI.monthlyRecap.mockReturnValue(d.promise)
+    const pending = loadStory('u1', 'resumo', -3)     // mês que o Início não usa: vai direto pela rota antiga
+    await flush()
+    loginAs('u2')                                     // o cookie agora é de outra pessoa: a resposta é DELA
+    d.resolve(RECAP(-3))
+    await pending
+    expect(peekStory('u1', 'resumo', -3)).toBeUndefined()
+  })
+
+  it('idem para o pacote: resposta que volta depois da troca de conta não é guardada', async () => {
+    const d = deferred()
+    transactionsAPI.storiesBundle.mockReturnValue(d.promise)
+    const pending = loadStory('u1', 'resumo', 0)
+    await flush()
+    loginAs('u2')
+    d.resolve(BUNDLE('u1'))
+    await pending.catch(() => {})
+    expect(peekStory('u1', 'resumo', 0)).toBeUndefined()
+  })
+
+  it('o pré-carregamento do Início não roda em nome de quem não é mais a sessão', async () => {
+    loginAs('u2')
+    await prefetchStories('u1', { tip: false })
+    expect(transactionsAPI.storiesBundle).not.toHaveBeenCalled()
+    expect(transactionsAPI.monthlyRecap).not.toHaveBeenCalled()
+  })
+
+  it('a pessoa de agora funciona normalmente (nada do acima atrapalha quem está logado)', async () => {
+    loginAs('u2')
+    transactionsAPI.storiesBundle.mockResolvedValue(BUNDLE('u2'))
+    await prefetchStories('u2', { tip: false })
+    expect(peekStory('u2', 'resumo', 0)).toBeDefined()
   })
 })

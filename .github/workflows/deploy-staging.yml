@@ -181,7 +181,7 @@ jobs:
 
           ENV_VARS="NODE_ENV=production,EMAIL_FROM=staging@myfinancepro.com.br"
           if [[ -n "${DB_LIMIT:-}" ]]; then
-            [[ "$DB_LIMIT" =~ ^[0-9]{1,2}$ ]] || { echo "❌ db_connection_limit inválido: '$DB_LIMIT' (use um número de 1 a 20)"; exit 1; }
+            [[ "$DB_LIMIT" =~ ^([1-9]|1[0-9]|20)$ ]] || { echo "❌ db_connection_limit inválido: '$DB_LIMIT' (use um número de 1 a 20)"; exit 1; }
             ENV_VARS="$ENV_VARS,DB_CONNECTION_LIMIT=$DB_LIMIT"
             echo "🧪 Experimento: DB_CONNECTION_LIMIT=$DB_LIMIT (só nesta homologação; o próximo deploy sem o campo volta ao padrão)"
           fi

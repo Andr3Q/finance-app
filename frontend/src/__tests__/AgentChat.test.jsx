@@ -648,7 +648,7 @@ describe('AgentChat — erros em português e "Tentar de novo"', () => {
   })
 
   it('"Tentar de novo" só existe no último erro (some depois de uma nova mensagem)', async () => {
-    agentAPI.chat.mockRejectedValueOnce({ message: 'Network Error' }).mockResolvedValueOnce({ data: { reply: 'ok' } })
+    agentAPI.chat.mockRejectedValueOnce({ response: { status: 500, data: { error: 'internal' } } }).mockResolvedValueOnce({ data: { reply: 'ok' } })
     setup()
     typeAndSend('primeira')
     expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
@@ -939,5 +939,34 @@ describe('AgentChat — contexto enviado à IA', () => {
 
     expect(await screen.findByText('r4')).toBeInTheDocument()
     expect(agentAPI.chat.mock.calls[3][1]).toEqual([{ role: 'user', content: 'p1' }, { role: 'assistant', content: 'r1' }])
+  })
+})
+
+// Revisão independente: respostas longas da IA estouravam o teto de corpo do servidor e o chat travava; relógio do aparelho errado "vencia" o cartão.
+describe('AgentChat — contexto cortado e validade do cartão', () => {
+  it('respostas longas vão cortadas como contexto (o corpo do pedido nunca estoura o teto do servidor)', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'r'.repeat(3000) } })
+    setup()
+    for (let i = 1; i <= 6; i++) { typeAndSend(`pergunta ${i}`); await screen.findAllByText(/^r{50}/) }
+    await waitFor(() => expect(agentAPI.chat).toHaveBeenCalledTimes(6))
+    const last = agentAPI.chat.mock.calls.at(-1)[1]
+    expect(last.length).toBeLessThanOrEqual(10)
+    for (const m of last) expect(m.content.length).toBeLessThanOrEqual(601) // 600 + "…"
+    expect(last.reduce((sum, m) => sum + m.content.length, 0)).toBeLessThanOrEqual(6000)
+  })
+
+  it('relógio do aparelho 1 hora ADIANTADO: o cartão não "vence" na hora (a validade conta a partir do recebimento)', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Excluir X?\nAinda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir.', pendingAction: { token: 'tok-1', kind: 'delete', summary: 'Excluir X', expiresAt: Date.now() - 3_600_000, expiresInMs: 600_000 } } })
+    setup()
+    typeAndSend('Exclui X')
+    expect(await screen.findByRole('button', { name: 'Confirmar' })).toBeInTheDocument() // com o horário absoluto do servidor aqui apareceria "Sem efeito."
+  })
+
+  it('resposta antiga do servidor (sem expiresInMs): usa o horário absoluto, como antes', async () => {
+    agentAPI.chat.mockResolvedValue({ data: { reply: 'Excluir X?\nAinda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir.', pendingAction: { token: 'tok-1', kind: 'delete', summary: 'Excluir X', expiresAt: Date.now() - 1000 } } })
+    setup()
+    typeAndSend('Exclui X')
+    await screen.findByText(/Sem efeito\./)
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).not.toBeInTheDocument()
   })
 })

@@ -8,16 +8,23 @@
 // não adianta (limite por hora, plano, sessão, validação).
 const waitText = (seconds) => (seconds >= 3600 ? 'cerca de 1 hora' : `${Math.max(1, Math.ceil(seconds / 60))} min`)
 
-export function chatError(err) {
+const SLOW = { message: 'A resposta demorou mais que o esperado. Se você pediu para registrar ou pagar algo, confira o Extrato antes de tentar de novo.', retry: false }
+
+// confirming: é o toque em "Confirmar" (excluir/editar) — repetir é seguro (a ação é idempotente), então sem conexão continua com "tentar de novo".
+export function chatError(err, { confirming = false } = {}) {
   const res = err?.response
   const serverMsg = typeof res?.data?.error === 'string' ? res.data.error : ''
 
   if (!res) {
-    if (err?.code === 'ECONNABORTED') {
-      return { message: 'A resposta demorou mais que o esperado. Se você pediu para registrar ou pagar algo, confira o Extrato antes de tentar de novo.', retry: false }
-    }
-    return { message: 'Sem conexão com o servidor.', retry: true }
+    if (err?.code === 'ECONNABORTED') return SLOW
+    if (confirming) return { message: 'Sem conexão com o servidor.', retry: true }
+    // Sem internet de verdade: o pedido nem saiu, repetir é seguro. Com internet, a conexão caiu NO MEIO do pedido: o servidor
+    // pode ter feito o que foi pedido (registrar/pagar) e a resposta se perdeu — repetir lançaria em dobro.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return { message: 'Sem conexão com a internet. Tente de novo quando voltar.', retry: true }
+    return { message: 'A conexão caiu no meio do pedido. Se você pediu para registrar ou pagar algo, confira o Extrato antes de tentar de novo.', retry: false }
   }
+  // O servidor respondeu "tempo esgotado" mas pode ter continuado trabalhando (ações da IA) depois disso.
+  if (res.data?.timeout === true) return SLOW
 
   if (res.status === 429) {
     const wait = Number(res.headers?.['retry-after'])

@@ -216,6 +216,8 @@ app.use(cookieParser())
 // Foto de perfil (JPEG 256x256 em base64, até ~64 KB + invólucro) precisa de um teto maior que o global; vem ANTES
 // do parser de 10kb, que então só pula este corpo (já lido). Qualquer outra rota segue com 10kb.
 app.use('/api/auth/avatar', express.json({ limit: '80kb' }))
+// Chat da IA: até 10 mensagens de contexto (cada uma limitada a 2000 caracteres pelo servidor) + a pergunta — passa de 10kb.
+app.use('/api/agent/chat', express.json({ limit: '32kb' }))
 app.use(express.json({ limit: '10kb' }))
 app.use(express.urlencoded({ extended: true, limit: '10kb' }))
 app.use('/api/', apiLimiter)

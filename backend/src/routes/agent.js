@@ -13,6 +13,7 @@ const { reportError } = require('../lib/sentry')
 const { HISTORY_DAYS, DAY_MS, computeWeeklyTipStats, composeTip, buildAdvicePrompt, sanitizeAdvice } = require('../services/weeklyTip')
 const { signPendingAction, verifyPendingAction, CONFIRM_TTL_MS } = require('../services/agentConfirm')
 const { brl, dateBR, sanitizeReply } = require('../services/agentReply')
+const { withResponseTimeout } = require('../lib/responseTimeout')
 
 const router = express.Router()
 router.use(authMiddleware)
@@ -92,22 +93,6 @@ function circuitIsOpen() {
     return false
   }
   return true
-}
-
-// ── Timeout de resposta maior que o global (30s, definido em server.js) ──
-// /chat, /predict e /monthly-report chamam o Groq (que já tem seu próprio
-// timeout de 30s por tentativa) — sem esse ajuste, o timeout global do
-// Express corta a conexão com 503 antes do Groq responder, mesmo quando a
-// resposta terminaria com sucesso segundos depois. /chat pode encadear até
-// MAX_TOOL_ITERATIONS chamadas sequenciais ao Groq, por isso ganha uma
-// janela maior que as outras duas (que fazem só 1 chamada).
-function withResponseTimeout(ms) {
-  return (req, res, next) => {
-    res.setTimeout(ms, () => {
-      if (!res.headersSent) res.status(503).json({ error: 'Tempo de resposta esgotado.' })
-    })
-    next()
-  }
 }
 
 // ── Retry para erros transitórios ───────────────────────
@@ -297,23 +282,28 @@ async function runTool(name, args, userId, effectivePlan, opts = {}) {
         ...(categories.length ? [{ category: { in: categories } }] : []),
       ]
     }
-    const txs = await prisma.transaction.findMany({ where, orderBy: { date: 'desc' }, take: 200 })
-
-    // Totais e total por categoria saem do servidor, sobre TODAS as transações do mês. A lista abaixo é cortada
-    // (o resultado da ferramenta tem tamanho máximo) — se o modelo somasse a lista, "onde gastei mais" ficava errado
-    // para quem tem muitas transações.
+    // Totais e total por categoria saem do BANCO (agregação), sobre TODAS as transações do período — a lista é cortada
+    // (o resultado da ferramenta tem tamanho máximo) e antes os totais eram somados sobre só as 200 primeiras linhas, o que
+    // errava "onde gastei mais" de quem importou muitos lançamentos.
+    const [listed, groups] = await Promise.all([
+      prisma.transaction.findMany({ where, orderBy: { date: 'desc' }, take: TX_LIST_MAX }),
+      prisma.transaction.groupBy({ by: ['category', 'type'], where, _sum: { amount: true }, _count: { _all: true } }),
+    ])
     let totalExpenses = 0
     let totalIncome   = 0
+    let count         = 0
     const byCategory  = new Map()
-    for (const t of txs) {
-      const value = Number(t.amount)
-      const row   = byCategory.get(t.category) || { category: CATEGORY_LABELS[t.category] || t.category, expenses: 0, income: 0, count: 0 }
-      if (t.type === 'income') { row.income += value; totalIncome += value } else { row.expenses += value; totalExpenses += value }
-      row.count++
-      byCategory.set(t.category, row)
+    for (const g of groups) {
+      const value = Number(g._sum?.amount || 0)
+      const n     = g._count?._all || 0
+      const row   = byCategory.get(g.category) || { category: CATEGORY_LABELS[g.category] || g.category, expenses: 0, income: 0, count: 0 }
+      if (g.type === 'income') { row.income += value; totalIncome += value } else { row.expenses += value; totalExpenses += value }
+      row.count += n
+      count += n
+      byCategory.set(g.category, row)
     }
     return {
-      month, year, count: txs.length,
+      month, year, count,
       totalExpenses: round2(totalExpenses), totalIncome: round2(totalIncome),
       texto: { saidas: brl(totalExpenses), receitas: brl(totalIncome) },
       byCategory: [...byCategory.values()]
@@ -323,14 +313,14 @@ async function runTool(name, args, userId, effectivePlan, opts = {}) {
           expenses: round2(r.expenses), expensesText: brl(r.expenses),
           ...(r.income > 0 ? { income: round2(r.income), incomeText: brl(r.income) } : {}),
         })),
-      transactions: txs.slice(0, TX_LIST_MAX).map(t => ({
+      transactions: listed.map(t => ({
         id: t.id, type: t.type,
         amount: Number(t.amount), amountText: brl(t.amount),
         category: CATEGORY_LABELS[t.category] || t.category,
         description: t.description,
         date: dateBR(t.date),
       })),
-      truncated: txs.length > TX_LIST_MAX,
+      truncated: count > TX_LIST_MAX,
       note: search
         ? 'Totais e categorias valem só para o que casou com a busca. "totalIncome" são só as receitas lançadas, sem o salário.'
         : '"totalIncome" são só as receitas lançadas, sem o salário (as Entradas do app somam o salário — veja get_summary).',
@@ -448,7 +438,8 @@ async function runTool(name, args, userId, effectivePlan, opts = {}) {
       data: {
         userId, type: args.type, amount,
         category: args.category,
-        description: args.description ? String(args.description).slice(0, 255) : null,
+        // a coluna é NOT NULL: sem descrição do modelo, usa o nome da categoria (antes gravava null e dava erro)
+        description: (String(args.description ?? '').trim() || CATEGORY_LABELS[args.category] || args.category).slice(0, 255),
         date,
         month: txMonth,
         year:  txYear,
@@ -520,6 +511,7 @@ async function runTool(name, args, userId, effectivePlan, opts = {}) {
         summary: `Alterar ${subject}: ${changes.join('; ')}`,
         token: signPendingAction({ userId, tool: name, args: { id: args.id, ...data }, label: `a transação ${subject}`, changes: changes.join('; ') }, now),
         expiresAt: now + CONFIRM_TTL_MS,
+        expiresInMs: CONFIRM_TTL_MS, // o app conta a validade pelo próprio relógio (um relógio errado no aparelho não pode "vencer" o cartão)
       } }
     }
 
@@ -551,6 +543,7 @@ async function runTool(name, args, userId, effectivePlan, opts = {}) {
         summary: `Excluir ${subject}`,
         token: signPendingAction({ userId, tool: name, args: { id: args.id }, label: `a transação ${subject}` }, now),
         expiresAt: now + CONFIRM_TTL_MS,
+        expiresInMs: CONFIRM_TTL_MS,
       } }
     }
 
@@ -770,7 +763,11 @@ router.post('/chat', withResponseTimeout(90_000), async (req, res) => {
   let skippedConfirm = false
 
   const composeReply = (modelText) => {
-    let reply = modelText || 'Não consegui gerar uma resposta. Tente novamente.'
+    // Se uma ação JÁ foi feita e o modelo não escreveu nada (acabou o limite de tokens/iterações), "tente novamente" levaria a
+    // lançar em dobro: diz o que aconteceu.
+    let reply = modelText || (dataChanged
+      ? 'Fiz o que você pediu, mas não consegui escrever a resposta agora. Confira no Extrato.'
+      : 'Não consegui gerar uma resposta. Tente novamente.')
     if (pendingAction) {
       // Texto fixo, do servidor: o modelo não pode dizer "feito" de algo que ainda espera o toque em Confirmar. Se ele
       // também fez outra coisa na mesma mensagem (ex: registrou um gasto), o que ele contou vem antes.
@@ -781,7 +778,7 @@ router.post('/chat', withResponseTimeout(90_000), async (req, res) => {
     return {
       reply, dataChanged,
       pendingAction: pendingAction
-        ? { token: pendingAction.token, kind: pendingAction.kind, summary: pendingAction.summary, expiresAt: pendingAction.expiresAt }
+        ? { token: pendingAction.token, kind: pendingAction.kind, summary: pendingAction.summary, expiresAt: pendingAction.expiresAt, expiresInMs: pendingAction.expiresInMs }
         : null,
     }
   }
