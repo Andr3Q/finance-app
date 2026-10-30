@@ -272,3 +272,27 @@ test.describe('Auth — sessão expirada em aparelho que já teve conta', () => 
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 })
+
+// Achado do André (iPhone): ao abrir o app com a sessão expirada, a página recarrega direto para /login e o gerenciador de senhas do
+// celular abria o "Iniciar a sessão com a senha de ...?" POR CIMA do vídeo da splash — o campo de senha já estava montado por baixo.
+test.describe('Auth — a splash segura o formulário de login', () => {
+  test('nunca existe campo de senha enquanto a splash está na tela; quando ela sai, o formulário aparece', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.__nancySplashGone = false // desliga o atalho que os outros testes usam
+      document.addEventListener('DOMContentLoaded', () => {
+        const check = () => {
+          const s = document.getElementById('app-splash')
+          if (s && !s.classList.contains('splash-hide') && document.querySelector('input[type="password"]')) window.__senhaSobSplash = true
+        }
+        new MutationObserver(check).observe(document.documentElement, { childList: true, subtree: true })
+        check()
+      })
+    })
+    await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+    await page.goto('/login')
+    await expect(page.locator('#app-splash')).toBeHidden({ timeout: 20000 })
+    await expect(page.locator('input[type="password"]')).toHaveCount(1)
+    expect(await page.evaluate(() => !!window.__senhaSobSplash)).toBe(false)
+  })
+})
+

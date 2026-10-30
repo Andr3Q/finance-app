@@ -15,6 +15,7 @@ import { SPLASH_MIN_MS } from './splashConfig.js'
 import { lazyWithReload } from './utils/lazyWithReload.js'
 import { rememberReturnTo, clearReturnTo } from './utils/returnTo.js'
 import { useDialogFocus } from './hooks/useDialogFocus.js'
+import AppLoader from './components/ui/AppLoader.jsx'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazyWithReload(() => import('./pages/Landing.jsx'))
@@ -111,11 +112,7 @@ function HomeRoute() {
 }
 
 function PageLoader() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
-      <span className="spinner" style={{ width: 32, height: 32, borderWidth: 3 }} />
-    </div>
-  )
+  return <AppLoader />
 }
 
 export default function App() {

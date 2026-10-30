@@ -9,6 +9,7 @@ import Navbar from '../components/layout/Navbar.jsx'
 import GradCard from '../components/ui/GradCard.jsx'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import AutoLaunchPrompt from '../components/features/AutoLaunchPrompt.jsx'
+import AppLoader from '../components/ui/AppLoader.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
@@ -251,12 +252,7 @@ export default function Dashboard() {
   const projected   = useMemo(() => projectedBalance(summary, dayOfMonth, daysInMonth), [summary, dayOfMonth, daysInMonth])
 
   if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh' }}>
-      <div style={{ textAlign:'center' }}>
-        <div className="dsb-loader"><div className="dsb-loader-ring" /></div>
-        <p style={{ color:'var(--t2)', fontSize:13, marginTop:16 }}>Carregando suas finanças…</p>
-      </div>
-    </div>
+    <AppLoader label="Carregando suas finanças…" />
   )
 
   const RING_R          = 25

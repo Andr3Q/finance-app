@@ -228,6 +228,18 @@ test.describe('Dashboard — Stories (círculos de resumo)', () => {
     await expect(page.locator('.stories-progress-track')).toHaveCount(6)
   })
 
+  // Achado do André (iPhone): tocar nos stories deixava uma "sombra" cinza do sistema sobre 40% da tela (as zonas de avançar/voltar).
+  test('as zonas de toque dos stories não deixam o destaque cinza do iOS', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-blue').click()
+    await expect(page.getByText('Resumo de outubro')).toBeVisible()
+    for (const sel of ['.stories-tap-left', '.stories-tap-right', '.stories-iconbtn']) {
+      const cor = await page.locator(sel).first().evaluate(el => getComputedStyle(el).webkitTapHighlightColor)
+      expect(cor, sel).toBe('rgba(0, 0, 0, 0)')
+    }
+  })
+
   test('círculo do mês anterior abre a versão curta (2 histórias)', async ({ page }) => {
     await goDashboard(page)
     await mockStories(page)
@@ -494,6 +506,46 @@ test.describe('Dashboard — Isolamento de mocks (LIFO / paralelo)', () => {
 // ─────────────────────────────────────────────────────────────────
 test.describe('Início — falha ao carregar', () => {
   test.use({ viewport: { width: 393, height: 852 } })
+
+  const setupInicio = async (page, atrasoMs = 0) => {
+    await injectSession(page, { ...TEST_USER, plan: 'elite' })
+    await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+    await page.route('**/api/auth/me**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_USER) }))
+    await page.route('**/api/transactions/dashboard**', async r => {
+      if (atrasoMs) await new Promise(res => setTimeout(res, atrasoMs))
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard) })
+    })
+  }
+
+  // Achado do André (iPhone): a tela de espera era cinza, com um spinner e texto — parecia uma tela em branco e é do visual antigo.
+  test('enquanto carrega, a espera é a tela azul do app com o ícone do Nancy e o anel (não a tela cinza)', async ({ page }) => {
+    await setupInicio(page, 3500)
+    await page.goto('/dashboard')
+    // a espera do app (PageLoader) e a do Início são duas instâncias em sequência: espera pela do Início (a que tem o texto) e mede tudo de uma vez
+    await expect(page.getByText('Carregando suas finanças…')).toBeAttached({ timeout: 20000 }) // texto só para leitor de tela
+    await expect.poll(() => page.evaluate(() => {
+      const el = document.querySelector('.app-loader')
+      if (!el) return null
+      return { bg: getComputedStyle(el).backgroundColor, marca: el.querySelectorAll('svg.nancy-mark').length, anel: el.querySelectorAll('.app-loader-ring').length }
+    })).toEqual({ bg: 'rgb(28, 72, 255)', marca: 1, anel: 1 })
+    await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
+    await expect(page.locator('.app-loader')).toHaveCount(0)
+  })
+
+  // Achado do André (iPhone): puxar a tela para baixo mostrava uma faixa branca/cinza acima do cabeçalho azul — o "elástico" mostra o
+  // fundo do rolador (.pwnav). No celular os primeiros 220px dele são azuis; o iOS em si só se confere no aparelho.
+  test('celular: o fundo do rolador é azul no topo (o elástico do iPhone não mostra cinza); no desktop não muda', async ({ page }) => {
+    await setupInicio(page)
+    await page.goto('/dashboard')
+    await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
+    const fundo = () => page.locator('.pwnav').first().evaluate(el => getComputedStyle(el).backgroundImage)
+    const mobile = await fundo()
+    expect(mobile).toContain('linear-gradient')
+    expect(mobile).toContain('rgb(28, 72, 255) 0px')
+    expect(mobile).toContain('rgb(28, 72, 255) 220px')
+    await page.setViewportSize({ width: 1280, height: 800 })
+    expect(await fundo()).toBe('none')
+  })
 
   test('sem conexão e sem nada guardado: avisa, não mostra R$ 0,00, e "Tentar de novo" carrega os dados', async ({ page }) => {
     await injectSession(page, { ...TEST_USER, plan: 'elite' })
