@@ -11,6 +11,8 @@
 # Quem preferir pode definir PROD_DB_URL no ambiente (URL completa, já com a senha codificada): aí ele não pergunta nada.
 # O que for colado é conferido: precisa ser postgresql://, sem "?parâmetros" no fim (são tirados) e nunca a porta 6543.
 #
+# Atalho sem digitar a senha: POOLER_HOST=<host do pooler> scripts/backup-prod.sh  e colar o DATABASE_URL inteiro da produção.
+#
 # Onde pegar a URL: Supabase → botão "Connect" (ou Project Settings → Database → Connection string) → URI.
 #  • A conexão DIRETA (db.<ref>.supabase.co:5432) funciona: o contêiner usa a rede do seu computador (--network host) e o Supabase só
 #    atende esse endereço por IPv6 (o Docker sozinho não tem IPv6). Se o seu computador NÃO tiver IPv6 ("Network is unreachable"),
@@ -58,6 +60,12 @@ if [[ "$PROD_DB_URL" =~ (:\[[^]]*\]@) ]]; then
   [ -n "$DB_PASS" ] || { echo "❌ Senha vazia. Nada foi feito."; exit 1; }
   PROD_DB_URL="${PROD_DB_URL/"$MARCADOR"/:$(urlencode "$DB_PASS")@}"
   unset DB_PASS MARCADOR
+fi
+# POOLER_HOST=aws-1-us-west-1.pooler.supabase.com: você cola o DATABASE_URL INTEIRO da produção (o de db.<ref>.supabase.co, que já traz a
+# senha completa, sem precisar selecionar só um pedaço) e o script troca sozinho o endereço direto — que só tem IPv6 e muitas redes
+# recusam — pelo do Session pooler (IPv4), ajustando o usuário para postgres.<ref>.
+if [ -n "${POOLER_HOST:-}" ] && [[ "$PROD_DB_URL" =~ ^(postgres(ql)?://)([^:/@]+):([^@]*)@db\.([a-z0-9]+)\.supabase\.co(:[0-9]+)?(/.*)$ ]]; then
+  PROD_DB_URL="${BASH_REMATCH[1]}${BASH_REMATCH[3]}.${BASH_REMATCH[5]}:${BASH_REMATCH[4]}@${POOLER_HOST}:5432${BASH_REMATCH[7]}"
 fi
 # Mostra onde vai conectar (a senha mascarada) para você conferir host, porta e usuário.
 echo "   Conectando em: $(printf '%s' "$PROD_DB_URL" | sed -E 's#(://[^:/@]+):[^@]*@#\1:****@#')"
