@@ -180,7 +180,8 @@ export function buildTipSlides({ tip, subs }) {
       sub: subs.length === 1
         ? `É ${largestName}. Quer revisar?`
         : `A maior é ${largestName} (R$ ${Math.round(largest.amount).toLocaleString('pt-BR')}/mês). Quer revisar?`,
-      cta: { kind: 'open-chat', label: 'Revisar com a Nancy' },
+      // O botão promete uma revisão: o chat já abre com a pergunta enviada (abria vazio, sem dizer o que escrever).
+      cta: { kind: 'open-chat', label: 'Revisar com a Nancy', message: 'Quais das minhas assinaturas vale a pena revisar ou cancelar?' },
     })
   }
 

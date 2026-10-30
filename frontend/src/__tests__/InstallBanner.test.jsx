@@ -66,3 +66,23 @@ describe('aviso de instalar — sem emoji', () => {
     expect(btn.textContent).not.toMatch(EMOJI_OR_GLYPH)
   })
 })
+
+// ── Onde o aviso NÃO aparece (achado N2-1) ────────────────────────────────────────────────────────────────────────────
+// Na boas-vindas (uma tela só) ele ficava em cima do botão "Já tenho conta" e interceptava o toque.
+describe('aviso de instalar — onde aparece', () => {
+  it('na boas-vindas (/) não aparece', async () => {
+    await renderAt('/')
+    expect(screen.queryByText('Instalar Nancy')).not.toBeInTheDocument()
+  })
+
+  it.each(['/settings/instalar', '/resumo-stories'])('em %s não aparece (a tela já tem a própria ação / é tela cheia)', async (path) => {
+    await renderAt(path)
+    expect(screen.queryByText('Instalar Nancy')).not.toBeInTheDocument()
+  })
+
+  it('dispensado há menos de 7 dias: não aparece em lugar nenhum', async () => {
+    localStorage.setItem('install-banner-dismissed', String(Date.now()))
+    await renderAt('/dashboard')
+    expect(screen.queryByText('Instalar Nancy')).not.toBeInTheDocument()
+  })
+})

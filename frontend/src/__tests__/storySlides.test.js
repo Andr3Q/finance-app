@@ -124,7 +124,8 @@ describe('buildTipSlides', () => {
     expect(a).toMatchObject({ id: 'tip', theme: 'green', eyebrow: 'Dica da semana', headline: 'Alimentação está 18% acima da média.', sub: tip.tip })
     expect(b).toMatchObject({ id: 'subs', theme: 'blue', eyebrow: 'Assinaturas', headline: '3 assinaturas somam R$ 119/mês.' })
     expect(b.sub).toBe('A maior é Netflix (R$ 56/mês). Quer revisar?')
-    expect(b.cta).toEqual({ kind: 'open-chat', label: 'Revisar com a Nancy' })
+    // achado N2-2: o botão abria o chat vazio — agora leva a pergunta
+    expect(b.cta).toEqual({ kind: 'open-chat', label: 'Revisar com a Nancy', message: 'Quais das minhas assinaturas vale a pena revisar ou cancelar?' })
   })
 
   it('não afirma "não é usada há N dias" (o app não sabe o uso)', () => {

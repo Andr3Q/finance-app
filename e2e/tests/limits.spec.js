@@ -1,6 +1,7 @@
 // @ts-nocheck
 const { test, expect } = require('../helpers/test')
 const { injectSession, TEST_USER } = require('../helpers/session')
+const { touchTarget44 } = require('../helpers/touch')
 
 // ─────────────────────────────────────────────────────────────────
 // Limites (Nancy 2) — celular. Relógio fixado em 21/out/2026.
@@ -114,6 +115,14 @@ test.describe('Limites', () => {
     await expect(page.locator('.lm-amt').nth(1)).toHaveText('R$ 575,00 / R$ 800,00')
     await expect(page.locator('.lm-note').nth(1)).toHaveText('R$ 225,00 disponível')   // 96% (amarelo) virou 72% (verde)
     expect(state.calls).toEqual([['POST', 'leisure', 250], ['POST', 'transport', 800]])
+  })
+
+  // Achado Passada 2: o X de remover limite media 22x24 e ficava colado ao conteúdo do cartão (fluxo destrutivo).
+  test('o X de remover limite e o Voltar têm área de toque de 44x44', async ({ page }) => {
+    await setup(page)
+    await expect(page.locator('.lm-del').first()).toBeVisible()
+    expect(await touchTarget44(page, '.lm-del', 0)).toEqual([true, true, true, true])
+    expect(await touchTarget44(page, '.fin-back', 0)).toEqual([true, true, true, true])
   })
 
   test('o X remove o teto, e a categoria some da lista', async ({ page }) => {

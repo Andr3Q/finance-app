@@ -70,8 +70,7 @@ export default function SettingsNotifications() {
     <>
       <Navbar />
       {msg && (
-        <div className={`toast ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}
-          style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9001, whiteSpace: 'nowrap' }}>
+        <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
           {msg}
         </div>
       )}

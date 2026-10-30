@@ -28,6 +28,9 @@ export default function OnboardingModal() {
   const [gTitle,         setGTitle]         = useState('')
   const [gAmount,        setGAmount]        = useState('')
   const [confirmSkip,    setConfirmSkip]    = useState(false) // diálogo do app: "Pular sem salvar o salário?"
+  const [salaryErr,      setSalaryErr]      = useState('')
+  const [goalErr,        setGoalErr]        = useState('')
+  const [contaErr,       setContaErr]       = useState('')
   useEscapeKey(() => setConfirmSkip(false), confirmSkip)
 
   // Fonte de verdade é o servidor (onboardingComplete), não uma flag local —
@@ -51,20 +54,42 @@ export default function OnboardingModal() {
 
   const handleNext = async () => {
     if (step === 1) {
+      // Vazio ou ≤ 0 seguia em frente sem dizer nada (achado N2-1), e uma falha ao salvar também: a pessoa achava que o salário
+      // tinha sido guardado. Agora só avança com o salário salvo — ou por "Pular por agora".
       const v = parseFloat(salary)
-      if (v > 0) {
-        try {
-          await budgetAPI.updateSalary(v)
-          saveUser({ ...user, salary: v })
-        } catch {}
+      if (salary.trim() === '') { setSalaryErr('Informe seu salário ou toque em "Pular por agora".'); return }
+      if (!(v > 0)) { setSalaryErr('Informe um valor maior que zero.'); return }
+      setSalaryErr('')
+      setSaving(true)
+      try {
+        await budgetAPI.updateSalary(v)
+        saveUser({ ...user, salary: v })
+        setStep(2)
+      } catch (err) {
+        setSalaryErr(err.response?.data?.error || 'Não foi possível salvar o salário agora. Tente de novo ou toque em "Pular por agora".')
+      } finally {
+        setSaving(false)
       }
-      setStep(2)
     } else if (step === 2) {
+      // Conta digitada e não adicionada ("+ Adicionar conta") se perdia em silêncio ao continuar (achado da revisão independente).
+      if (bName.trim() || bAmount.trim()) {
+        setContaErr('Toque em "+ Adicionar conta" para guardar esta conta, ou limpe os campos para continuar.')
+        return
+      }
       setStep(3)
     } else {
-      if (gTitle.trim() && parseFloat(gAmount) > 0) {
+      // Meta é opcional, mas preenchida pela metade ou com falha ao criar não pode passar como se tivesse sido criada.
+      if (gTitle.trim() || gAmount.trim()) {
+        if (!gTitle.trim() || !(parseFloat(gAmount) > 0)) { setGoalErr('Informe o nome e um valor-alvo maior que zero, ou toque em "Pular por agora".'); return }
+        setGoalErr('')
         setSaving(true)
-        try { await goalsAPI.create({ title: gTitle.trim(), targetAmount: parseFloat(gAmount) }) } catch {}
+        try {
+          await goalsAPI.create({ title: gTitle.trim(), targetAmount: parseFloat(gAmount) })
+        } catch (err) {
+          setGoalErr(err.response?.data?.error || 'Não foi possível criar a meta agora. Tente de novo ou toque em "Pular por agora".')
+          setSaving(false)
+          return
+        }
       }
       await finish()
     }
@@ -98,6 +123,7 @@ export default function OnboardingModal() {
       setBudgetsAdded(n => n + 1)
       setBName('')
       setBAmount('')
+      setContaErr('')
     } catch (err) {
       if (err.response?.data?.limitReached) {
         setBudgetErr('Limite de contas do seu plano atingido. Você pode adicionar mais após o trial.')
@@ -133,14 +159,18 @@ export default function OnboardingModal() {
                   <input
                     type="number"
                     placeholder="0,00"
+                    aria-label="Salário mensal"
+                    aria-invalid={salaryErr ? 'true' : undefined}
+                    aria-describedby={salaryErr ? 'ob-salary-err' : undefined}
                     value={salary}
-                    onChange={e => setSalary(e.target.value)}
+                    onChange={e => { setSalary(e.target.value); setSalaryErr('') }}
                     min="0"
                     max="999999999"
                     className="ob-currency-input"
                     autoFocus
                   />
                 </div>
+                {salaryErr && <p id="ob-salary-err" className="ob-err" role="alert">{salaryErr}</p>}
                 <p className="ob-hint">Usamos isso para calcular seu saldo disponível. Você pode mudar depois.</p>
               </div>
             )}
@@ -158,22 +188,24 @@ export default function OnboardingModal() {
                 )}
                 <div className="ob-row">
                   <div className="ob-field">
-                    <label>Nome</label>
+                    <label htmlFor="ob-bname">Nome</label>
                     <input
+                      id="ob-bname"
                       type="text"
                       placeholder="Ex: Aluguel"
                       value={bName}
-                      onChange={e => { setBName(e.target.value); setBudgetErr('') }}
+                      onChange={e => { setBName(e.target.value); setBudgetErr(''); setContaErr('') }}
                       maxLength={60}
                     />
                   </div>
                   <div className="ob-field ob-field-sm">
-                    <label>Valor</label>
+                    <label htmlFor="ob-bamount">Valor</label>
                     <input
+                      id="ob-bamount"
                       type="number"
                       placeholder="1200"
                       value={bAmount}
-                      onChange={e => { setBAmount(e.target.value); setBudgetErr('') }}
+                      onChange={e => { setBAmount(e.target.value); setBudgetErr(''); setContaErr('') }}
                       min="0.01"
                     />
                   </div>
@@ -191,6 +223,7 @@ export default function OnboardingModal() {
                 >
                   {saving ? '...' : '+ Adicionar conta'}
                 </button>
+                {contaErr && <p className="ob-err" role="alert">{contaErr}</p>}
               </>
             )}
 
@@ -198,26 +231,29 @@ export default function OnboardingModal() {
               <>
                 <p className="ob-desc">Defina um objetivo: viagem, reserva de emergência, celular novo... (opcional)</p>
                 <div className="ob-field">
-                  <label>Nome da meta</label>
+                  <label htmlFor="ob-gtitle">Nome da meta</label>
                   <input
+                    id="ob-gtitle"
                     type="text"
                     placeholder="Ex: Reserva de emergência"
                     value={gTitle}
-                    onChange={e => setGTitle(e.target.value)}
+                    onChange={e => { setGTitle(e.target.value); setGoalErr('') }}
                     maxLength={80}
                     autoFocus
                   />
                 </div>
                 <div className="ob-field">
-                  <label>Valor-alvo</label>
+                  <label htmlFor="ob-gamount">Valor-alvo</label>
                   <input
+                    id="ob-gamount"
                     type="number"
                     placeholder="Ex: 10000"
                     value={gAmount}
-                    onChange={e => setGAmount(e.target.value)}
+                    onChange={e => { setGAmount(e.target.value); setGoalErr('') }}
                     min="0.01"
                   />
                 </div>
+                {goalErr && <p className="ob-err" role="alert">{goalErr}</p>}
               </>
             )}
           </div>

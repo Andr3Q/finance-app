@@ -1,6 +1,7 @@
 // @ts-nocheck
 const { test, expect } = require('../helpers/test')
 const { injectSession, TEST_USER } = require('../helpers/session')
+const { touchTarget44 } = require('../helpers/touch')
 
 // ─────────────────────────────────────────────────────────────────
 // Assinaturas (Nancy 2, tela 21) — celular. Relógio fixado em 21/out/2026.
@@ -44,6 +45,13 @@ test.describe('Assinaturas', () => {
       return { hero: cs('.fin-hero').backgroundColor, sum: cs('.sb-sum').backgroundColor, on: cs('.sb-switch.on').backgroundColor, theme: document.documentElement.getAttribute('data-theme') }
     })
     expect(m).toEqual({ hero: 'rgb(28, 72, 255)', sum: 'rgb(28, 72, 255)', on: 'rgb(25, 200, 132)', theme: 'light' })
+  })
+
+  // Achado Passada 2: os interruptores "Manter ..." tinham 30px de altura.
+  test('os interruptores têm área de toque de 44px de altura', async ({ page }) => {
+    await setup(page)
+    await expect(page.getByRole('switch', { name: /Música/ })).toBeVisible()
+    for (const i of [0, 1, 2]) expect(await touchTarget44(page, '.sb-switch', i)).toEqual([true, true, true, true])
   })
 
   test('desligar o interruptor vira lembrete nas Notificações e o bolinha do sino acende no Início', async ({ page }) => {

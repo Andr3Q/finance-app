@@ -13,6 +13,8 @@ import { saveUser } from './hooks/useUser.js'
 import { analytics } from './services/analytics.js'
 import { SPLASH_MIN_MS } from './splashConfig.js'
 import { lazyWithReload } from './utils/lazyWithReload.js'
+import { rememberReturnTo, clearReturnTo } from './utils/returnTo.js'
+import { useDialogFocus } from './hooks/useDialogFocus.js'
 
 // Páginas carregadas sob demanda — só baixam quando o usuário acessar
 const Landing        = lazyWithReload(() => import('./pages/Landing.jsx'))
@@ -68,6 +70,9 @@ const AuthValidContext = createContext(false)
 function PrivateRoute({ children }) {
   const isValidating = useContext(AuthValidContext)
   const location = useLocation()
+  // Abertura de uma rota protegida com a sessão ainda por conferir: se o servidor disser que ela expirou, o app redireciona
+  // para o login com uma navegação completa (perde o state abaixo). Guardar o destino aqui deixa o login devolver a pessoa a ele.
+  useEffect(() => { if (isValidating) rememberReturnTo(location) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   // Enquanto valida contra o servidor, espera — sessionStorage vazio não
   // significa "deslogado" (pode só ter fechado o app; o cookie httpOnly não
   // dá pra ler daqui, só o /auth/me sabe se ainda é válido). Só decide
@@ -114,6 +119,7 @@ function PageLoader() {
 }
 
 export default function App() {
+  useDialogFocus() // foco dos diálogos modais: fica dentro deles e volta a quem abriu ao fechar
   // isValidating: true enquanto /auth/me não respondeu — PrivateRoute/HomeRoute
   // bloqueiam a decisão de rota nesse período para evitar tanto o flash de
   // dados quanto o bug oposto: mandar pro /login só porque o sessionStorage
@@ -138,6 +144,7 @@ export default function App() {
             sessionStorage.setItem('trial_just_expired', '1')
           }
         }
+        clearReturnTo() // sessão válida: o destino guardado não é mais necessário
         setIsValidating(false)
       })
       .catch((err) => {
@@ -167,6 +174,9 @@ export default function App() {
             authAPI.me().then(res => { if (res.data) saveUser(res.data) }).catch(() => {})
           }, 20000)
         }
+        // Falha de rede/servidor (não é sessão expirada): o app segue com a sessão em cache e o destino guardado não será mais
+        // usado — se ficasse, um logout e login futuros nesta aba cairiam nele em vez do Início.
+        clearReturnTo()
         setIsValidating(false)
       })
   }, [])

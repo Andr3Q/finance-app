@@ -125,7 +125,7 @@ export default function VerifyEmail() {
               <div className="auth-field">
                 <input
                   id="f-code" name="code" type="text"
-                  inputMode="numeric" pattern="\d{6}" maxLength={6}
+                  inputMode="numeric" pattern="\d{6}" maxLength={6} autoComplete="one-time-code"
                   placeholder="000000"
                   value={code}
                   onChange={e => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); if (err) setErr('') }}

@@ -102,7 +102,7 @@ export default function BillsMonth() {
       <Navbar />
 
       {toast && (
-        <div className={`toast ${toast.ok ? 'tok' : 'terr'}`} style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9001, maxWidth: 'calc(100vw - 32px)', textAlign: 'center' }}>
+        <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
           {toast.msg}
         </div>
       )}

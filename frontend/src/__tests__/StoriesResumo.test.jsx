@@ -248,6 +248,27 @@ describe('StoriesResumo — estados e navegação', () => {
     expect(await screen.findByText(/Não foi possível carregar o resumo/)).toBeInTheDocument()
   })
 
+  // Achado N2-2: o story com erro só tinha "Fechar" (o Início tem "Tentar de novo"): a pessoa fechava e abria tudo de novo.
+  it('falha ao carregar: "Tentar de novo" refaz a busca e abre o resumo', async () => {
+    mockRecap.mockRejectedValueOnce(new Error('boom'))
+    setup(0)
+    expect(await screen.findByText(/Não foi possível carregar o resumo/)).toBeInTheDocument()
+    expect(mockRecap).toHaveBeenCalledTimes(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByText(/Seu outubro/)).toBeInTheDocument() // o erro não ficou guardado: a nova busca funcionou
+    expect(mockRecap).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+  })
+
+  it('"Tentar de novo" que falha de novo continua oferecendo outra tentativa', async () => {
+    mockRecap.mockRejectedValue(new Error('boom'))
+    setup(0)
+    await screen.findByText(/Não foi possível carregar o resumo/)
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    expect(await screen.findByRole('button', { name: 'Tentar de novo' })).toBeInTheDocument()
+    expect(mockRecap).toHaveBeenCalledTimes(2)
+  })
+
   it('botão fechar navega para /dashboard', async () => {
     setup(0)
     await screen.findByText('Resumo do mês')
@@ -331,7 +352,7 @@ describe('StoriesResumo — Dicas IA', () => {
     await screen.findByText('Dica da semana')
     await advance(1)
     await userEvent.click(screen.getByRole('button', { name: 'Revisar com a Nancy' }))
-    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { state: { openChat: true } })
+    expect(mockNavigate).toHaveBeenCalledWith('/dashboard', { state: { openChat: true, message: 'Quais das minhas assinaturas vale a pena revisar ou cancelar?' } })
   })
 
   it('"Compartilhar resumo" usa o compartilhamento nativo com o texto do slide', async () => {

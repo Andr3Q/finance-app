@@ -1,6 +1,7 @@
 // @ts-nocheck
 const { test, expect } = require('../helpers/test')
 const { injectSession, TEST_USER } = require('../helpers/session')
+const { touchTarget44 } = require('../helpers/touch')
 
 // ─────────────────────────────────────────────────────────────────
 // Meus dados (Nancy 2, tela 32) — /settings/dados, celular.
@@ -65,6 +66,30 @@ test.describe('Meus dados', () => {
     expect(calls.export).toEqual(['csv', 'pdf', 'json'])
   })
 
+  // achado N2-10 (aviso do limite de exportações): texto vermelho sobre fundo vermelho (contraste 1,6:1) e caixa encolhida
+  // para metade da tela, com a frase quebrada em 3 linhas. Vale para TODOS os avisos do topo (classe .toast-top).
+  test('o aviso de erro é legível (contraste ≥ 4,5), usa a largura do texto e não pula de lado ao aparecer', async ({ page }) => {
+    await setup(page)
+    await page.route('**/api/auth/export-data**', r => r.fulfill(json({ error: 'Limite' }, 429))) // a rota mais nova vence
+    await page.getByRole('button', { name: 'CSV' }).click()
+    const toast = page.getByRole('alert').filter({ hasText: 'Limite de exportações atingido' })
+    await expect(toast).toBeVisible()
+    const read = () => toast.evaluate(el => {
+      const r = el.getBoundingClientRect(); const cs = getComputedStyle(el)
+      return { center: r.left + r.width / 2, width: r.width, color: cs.color, bg: cs.backgroundColor }
+    })
+    const early = await read()                      // durante a animação de entrada
+    await page.waitForTimeout(500)                  // depois dela (.3s)
+    const late = await read()
+    const lum = (rgb) => { const [r, g, b] = rgb.match(/\d+/g).slice(0, 3).map(Number).map(v => { const c = v / 255; return c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4 }); return .2126 * r + .7152 * g + .0722 * b }
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + .05) / (lo + .05) }
+    expect(ratio(late.color, late.bg)).toBeGreaterThanOrEqual(4.5)
+    expect(late.width).toBeGreaterThan(300)         // antes: 195px
+    expect(late.width).toBeLessThanOrEqual(393 - 32)
+    expect(Math.abs(late.center - 393 / 2)).toBeLessThanOrEqual(1)
+    expect(Math.abs(early.center - late.center)).toBeLessThanOrEqual(1) // antes: entrava deslocado e pulava no fim da animação
+  })
+
   test('excluir conta pede a senha; senha errada mostra o erro e a certa leva ao login', async ({ page }) => {
     const calls = await setup(page)
     await page.getByRole('button', { name: 'Excluir minha conta' }).click()
@@ -90,6 +115,35 @@ test.describe('Meus dados', () => {
     const dialog = page.getByRole('dialog', { name: 'Excluir conta permanentemente' })
     await expect(dialog).toBeVisible()
     await expect(dialog.getByPlaceholder('Digite sua senha atual')).toHaveAttribute('autocomplete', 'current-password')
+  })
+
+  // Achado N2-10: no diálogo de excluir a conta, Tab e Shift+Tab saíam para os botões atrás do véu, e ao fechar (Esc ou Cancelar)
+  // o foco caía no <body>. Vale para todos os diálogos modais do app (gerenciador único: hooks/useDialogFocus.js).
+  test('o diálogo de excluir prende o foco (Tab e Shift+Tab dão a volta) e devolve o foco a quem abriu ao fechar', async ({ page }) => {
+    await setup(page)
+    const opener = page.getByRole('button', { name: 'Excluir minha conta' })
+    const dialog = page.getByRole('dialog', { name: 'Excluir conta permanentemente' })
+    const insideDialog = () => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))
+
+    await opener.click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByPlaceholder('Digite sua senha atual')).toBeFocused() // o campo já tinha o foco: não é roubado
+    for (let i = 0; i < 6; i++) { await page.keyboard.press('Tab');       expect(await insideDialog()).toBe(true) }
+    for (let i = 0; i < 6; i++) { await page.keyboard.press('Shift+Tab'); expect(await insideDialog()).toBe(true) }
+
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(opener).toBeFocused()
+
+    await opener.click()
+    await dialog.getByRole('button', { name: 'Cancelar' }).click()
+    await expect(dialog).toHaveCount(0)
+    await expect(opener).toBeFocused()
+  })
+
+  test('o botão Voltar tem área de toque de 44x44 (o visual de 42 não muda)', async ({ page }) => {
+    await setup(page)
+    expect(await touchTarget44(page, '.fin-back', 0)).toEqual([true, true, true, true])
   })
 
   test('voltar retorna ao Perfil', async ({ page }) => {

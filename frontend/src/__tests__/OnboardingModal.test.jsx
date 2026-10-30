@@ -215,3 +215,173 @@ describe('OnboardingModal — textos', () => {
     expect(document.body.textContent).not.toContain('Configurações')
   })
 })
+
+// ── Achado N2-1: salário vazio/negativo seguia em frente sem nenhuma mensagem, e uma falha ao salvar passava em silêncio ──
+describe('OnboardingModal — salário e meta: validação e falhas visíveis', () => {
+  const salaryField = () => screen.getByLabelText('Salário mensal')
+  const continuar = () => userEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+
+  it('"Continuar" com o salário vazio avisa e fica no passo 1, sem chamar o servidor', async () => {
+    const { budgetAPI } = await import('../services/api.js')
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await continuar()
+    expect(screen.getByRole('alert')).toHaveTextContent('Informe seu salário ou toque em "Pular por agora".')
+    expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument()
+    expect(salaryField()).toHaveAttribute('aria-invalid', 'true')
+    expect(budgetAPI.updateSalary).not.toHaveBeenCalled()
+  })
+
+  it.each(['-500', '0'])('salário %s: pede um valor maior que zero e não salva nada', async (valor) => {
+    const { budgetAPI } = await import('../services/api.js')
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await userEvent.type(salaryField(), valor)
+    await continuar()
+    expect(screen.getByRole('alert')).toHaveTextContent('Informe um valor maior que zero.')
+    expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument()
+    expect(budgetAPI.updateSalary).not.toHaveBeenCalled()
+  })
+
+  it('o erro some quando a pessoa começa a corrigir o valor', async () => {
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await continuar()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    await userEvent.type(salaryField(), '8')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('salário válido: salva e vai para o passo 2', async () => {
+    const { budgetAPI } = await import('../services/api.js')
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await userEvent.type(salaryField(), '8500')
+    await continuar()
+    expect(budgetAPI.updateSalary).toHaveBeenCalledWith(8500)
+    expect(await screen.findByText('Contas fixas')).toBeInTheDocument()
+  })
+
+  it('falha ao salvar o salário: mostra o erro e NÃO avança (antes seguia como se tivesse salvo)', async () => {
+    const { budgetAPI } = await import('../services/api.js')
+    budgetAPI.updateSalary.mockRejectedValueOnce({ response: { data: { error: 'Salário excede o limite permitido.' } } })
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await userEvent.type(salaryField(), '8500')
+    await continuar()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Salário excede o limite permitido.')
+    expect(screen.getByText('Quanto você ganha por mês?')).toBeInTheDocument()
+    expect(salaryField()).toHaveValue(8500) // o que foi digitado continua lá para tentar de novo
+  })
+
+  it('falha de rede ao salvar o salário: mensagem padrão que também aponta a saída (pular)', async () => {
+    const { budgetAPI } = await import('../services/api.js')
+    budgetAPI.updateSalary.mockRejectedValueOnce(new Error('Network Error'))
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await userEvent.type(salaryField(), '8500')
+    await continuar()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar o salário agora. Tente de novo ou toque em "Pular por agora".')
+    // e a pessoa pode tentar de novo
+    await continuar()
+    expect(await screen.findByText('Contas fixas')).toBeInTheDocument()
+  })
+
+  it('"Pular por agora" com o campo vazio continua levando ao passo 2 (o aviso é só do "Continuar")', async () => {
+    freshUser({ salary: 0 })
+    render(<OnboardingModal />)
+    await continuar()
+    await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' }))
+    expect(screen.getByText('Contas fixas')).toBeInTheDocument()
+  })
+
+  describe('passo 3 (meta)', () => {
+    const goToGoalStep = async () => {
+      freshUser({ salary: 5000 })
+      render(<OnboardingModal />)
+      await userEvent.click(screen.getByRole('button', { name: 'Pular por agora' })) // passo 2 -> 3
+    }
+
+    it('meta preenchida pela metade (só o nome) avisa e não conclui', async () => {
+      const { goalsAPI, authAPI } = await import('../services/api.js')
+      await goToGoalStep()
+      await userEvent.type(screen.getByLabelText('Nome da meta'), 'Viagem')
+      await userEvent.click(screen.getByRole('button', { name: 'Concluir' }))
+      expect(screen.getByRole('alert')).toHaveTextContent('Informe o nome e um valor-alvo maior que zero, ou toque em "Pular por agora".')
+      expect(goalsAPI.create).not.toHaveBeenCalled()
+      expect(authAPI.completeOnboarding).not.toHaveBeenCalled()
+    })
+
+    it('falha ao criar a meta: avisa e o onboarding continua aberto (antes concluía sem a meta)', async () => {
+      const { goalsAPI, authAPI } = await import('../services/api.js')
+      goalsAPI.create.mockRejectedValueOnce(new Error('Network Error'))
+      await goToGoalStep()
+      await userEvent.type(screen.getByLabelText('Nome da meta'), 'Viagem')
+      await userEvent.type(screen.getByLabelText('Valor-alvo'), '5000')
+      await userEvent.click(screen.getByRole('button', { name: 'Concluir' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível criar a meta agora.')
+      expect(authAPI.completeOnboarding).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: 'Concluir' })).toBeEnabled() // dá para tentar de novo
+    })
+
+    it('sem nada preenchido, "Concluir" conclui direto (a meta é opcional)', async () => {
+      const { authAPI } = await import('../services/api.js')
+      await goToGoalStep()
+      await userEvent.click(screen.getByRole('button', { name: 'Concluir' }))
+      await vi.waitFor(() => expect(authAPI.completeOnboarding).toHaveBeenCalledTimes(1))
+    })
+  })
+})
+
+// ── Achado da revisão independente: a conta digitada e não adicionada se perdia em silêncio ao tocar em "Continuar" (passo 2) ──
+describe('OnboardingModal — passo 2: conta digitada e não adicionada', () => {
+  const goToStep2 = () => {
+    freshUser({ salary: 5000 }) // já informou o salário: abre direto em "Contas fixas"
+    render(<OnboardingModal />)
+  }
+  const continuar = () => userEvent.click(screen.getByRole('button', { name: 'Continuar' }))
+
+  it.each([
+    ['só o nome', async () => { await userEvent.type(screen.getByLabelText('Nome'), 'Aluguel') }],
+    ['só o valor', async () => { await userEvent.type(screen.getByLabelText('Valor'), '1200') }],
+    ['nome e valor', async () => { await userEvent.type(screen.getByLabelText('Nome'), 'Aluguel'); await userEvent.type(screen.getByLabelText('Valor'), '1200') }],
+  ])('%s digitados e sem tocar em "+ Adicionar conta": avisa e fica no passo 2', async (_, fill) => {
+    goToStep2()
+    await fill()
+    await continuar()
+    expect(screen.getByRole('alert')).toHaveTextContent('Toque em "+ Adicionar conta" para guardar esta conta, ou limpe os campos para continuar.')
+    expect(screen.getByRole('heading', { name: 'Contas fixas' })).toBeInTheDocument()
+  })
+
+  it('o aviso não trava o botão de adicionar: tocar nele guarda a conta, limpa os campos e o "Continuar" segue', async () => {
+    const { budgetAPI } = await import('../services/api.js')
+    goToStep2()
+    await userEvent.type(screen.getByLabelText('Nome'), 'Aluguel')
+    await userEvent.type(screen.getByLabelText('Valor'), '1200')
+    await continuar()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '+ Adicionar conta' })) // continua ligado
+    expect(budgetAPI.create).toHaveBeenCalledWith({ name: 'Aluguel', amount: 1200 })
+    expect(await screen.findByText('1 conta adicionada')).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await continuar()
+    expect(await screen.findByRole('heading', { name: 'Primeira meta' })).toBeInTheDocument()
+  })
+
+  it('limpar os campos (ou corrigir) tira o aviso e libera o "Continuar"', async () => {
+    goToStep2()
+    await userEvent.type(screen.getByLabelText('Nome'), 'Alu')
+    await continuar()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    await userEvent.clear(screen.getByLabelText('Nome'))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await continuar()
+    expect(await screen.findByRole('heading', { name: 'Primeira meta' })).toBeInTheDocument()
+  })
+
+  it('campos vazios: "Continuar" segue direto (adicionar conta é opcional)', async () => {
+    goToStep2()
+    await continuar()
+    expect(await screen.findByRole('heading', { name: 'Primeira meta' })).toBeInTheDocument()
+  })
+})

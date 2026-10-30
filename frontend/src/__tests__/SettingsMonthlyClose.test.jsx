@@ -143,6 +143,28 @@ describe('Balanço mensal', () => {
   })
 })
 
+// Achado Passada 2: depois do aviso de sucesso a tela seguia com o botão "Fechar mês" ativo e "Nenhum mês fechado ainda" por alguns
+// segundos (a recarga é de 3 consultas) — parecia que tinha falhado.
+describe('Balanço mensal — depois de fechar, o botão só volta com a tela já atualizada', () => {
+  it('enquanto a recarga não termina o botão fica desligado ("Gerando relatório…"); ao terminar mostra "Mês já fechado"', async () => {
+    renderPage()
+    await screen.findByText('+R$ 9.500,00')
+    let release
+    const holding = new Promise(r => { release = r })
+    // a recarga depois do fechamento: lançamentos abertos = 0 (mês fechado), mas a consulta demora
+    transactionsAPI.list.mockImplementation(() => holding.then(() => ({ data: { data: [], total: 0 } })))
+    fireEvent.click(closeBtn())
+    confirmClose()
+    expect(await screen.findByText('Mês fechado com sucesso! Relatório enviado para ana@x.com')).toBeInTheDocument()
+    await waitFor(() => expect(transactionsAPI.list).toHaveBeenCalledTimes(2))
+    const busy = screen.getByRole('button', { name: /Gerando relatório/ })
+    expect(busy).toBeDisabled()                                           // a pessoa não consegue tocar de novo
+    expect(reportsAPI.monthlyClose).toHaveBeenCalledTimes(1)
+    release()
+    expect(await screen.findByRole('button', { name: 'Mês já fechado' })).toBeDisabled()
+  })
+})
+
 describe('Balanço mensal — mês já fechado e conta que fecha', () => {
   it('mês sem lançamentos abertos que tem resultado = FECHADO: o botão vira "Mês já fechado" (desligado) e aponta para o relatório', async () => {
     transactionsAPI.list.mockResolvedValue({ data: { data: [], total: 0 } })

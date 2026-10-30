@@ -107,6 +107,32 @@ test('"Pular" com salário digitado pergunta no próprio app (não no diálogo d
   expect(nativeDialogs).toBe(0)
 })
 
+// Achado N2-1: salário vazio ou negativo seguia para "Contas fixas" sem nenhuma mensagem (e o servidor nem chegava a ser chamado).
+test('"Continuar" sem salário válido avisa no próprio campo e só avança com um valor maior que zero', async ({ page }) => {
+  const user = { ...TEST_USER, onboardingComplete: false, salary: 0 }
+  const saved = []
+  await injectSession(page, user)
+  await page.route('**/api/**', r => r.fulfill(json([])))
+  await page.route('**/api/auth/me**', r => r.fulfill(json(user)))
+  await page.route('**/api/budget/salary**', r => { saved.push(JSON.parse(r.request().postData() || '{}').salary); r.fulfill(json({ salary: saved.at(-1) })) })
+  await page.goto('/dashboard')
+
+  const field = page.getByLabel('Salário mensal')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Informe seu salário ou toque em "Pular por agora".')
+  await field.fill('-500')
+  await expect(page.getByRole('alert')).toHaveCount(0) // corrigir tira o aviso
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Informe um valor maior que zero.')
+  await expect(page.getByText('Quanto você ganha por mês?')).toBeVisible() // continua no passo 1
+  expect(saved).toEqual([])
+
+  await field.fill('4500')
+  await page.getByRole('button', { name: 'Continuar' }).click()
+  await expect(page.locator('.ob-shell').getByRole('heading', { name: 'Contas fixas' })).toBeVisible()
+  expect(saved).toEqual([4500])
+})
+
 test('o texto das contas fixas aponta o caminho real: Perfil → Finanças', async ({ page }) => {
   const user = { ...TEST_USER, onboardingComplete: false, salary: 5000 }
   await injectSession(page, user)

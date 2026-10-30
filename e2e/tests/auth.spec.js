@@ -1,6 +1,7 @@
 // @ts-nocheck
 const { test, expect } = require('../helpers/test')
 const { createMock }   = require('../helpers/mockApi')
+const { injectSession } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Autenticação — E2E
@@ -213,5 +214,61 @@ test.describe('Auth — Recuperação de senha', () => {
     await page.getByRole('button', { name: /enviar|recuperar/i }).click()
 
     await expect(page.getByText(/não encontrado/i)).toBeVisible()
+  })
+})
+
+test.describe('Auth — sessão expirada em aparelho que já teve conta', () => {
+  // "Já teve conta neste aparelho" só no PRIMEIRO carregamento da aba: o app apaga a flag quando o servidor diz que a sessão expirou
+  // — se o init script a recolocasse a cada recarga, a abertura entraria em loop (sessão expirada → recarrega → flag → ...).
+  const hadAccountBefore = (page) => page.addInitScript(() => {
+    if (!sessionStorage.getItem('__seeded')) { sessionStorage.setItem('__seeded', '1'); localStorage.setItem('nancy_has_account', '1') }
+  })
+  const ANA = { id: 'u1', name: 'Ana E2E', email: 'ana@test.com', plan: 'pro', salary: 5000, onboardingComplete: true, emailVerified: true, isOnTrial: false }
+
+  // Achado N2-1: abrir /goals (favorito, link de notificação ou de cobrança) com a sessão expirada levava ao login, mas depois de
+  // entrar a pessoa caía no Início: a conferência da sessão recarrega a página para o login e o state do roteador (de onde ela
+  // veio) se perdia. Só acontecia em aparelho que já teve conta; num aparelho novo o state sobrevive.
+  test('abrir uma rota protegida leva ao login e, depois de entrar, volta para ela', async ({ page }) => {
+    await hadAccountBefore(page)
+    await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+    const mock = createMock(page)
+    mock.fail('/api/auth/me', 'Sessão expirada.', 401)
+    mock.post('/api/auth/login', { user: ANA })
+
+    await page.goto('/goals?aba=metas')
+    await expect(page).toHaveURL(/\/login$/)
+    await page.getByPlaceholder('voce@email.com').fill('ana@test.com')
+    await page.getByPlaceholder('••••••••').fill('Senha@123')
+    await page.getByRole('button', { name: /^entrar$/i }).click()
+
+    await expect(page).toHaveURL(/\/goals\?aba=metas$/)
+  })
+
+  // Achado da revisão independente: o destino guardado só era apagado quando a conferência da sessão dava certo; numa falha de rede/
+  // servidor (sem 401) ele ficava na aba e um logout + login futuros caíam nele em vez do Início.
+  test('falha de servidor na conferência da sessão (sem 401) não deixa o destino guardado para um login futuro', async ({ page }) => {
+    await injectSession(page, ANA) // sessão em cache: o app segue funcionando mesmo com a conferência falhando
+    await hadAccountBefore(page)
+    await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+    createMock(page).fail('/api/auth/me', 'Erro interno', 500)
+
+    await page.goto('/goals')
+    await expect(page).toHaveURL(/\/goals$/)
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('nancy_return_to'))).toBeNull()
+  })
+
+  test('quem abriu o login direto continua indo para o Início', async ({ page }) => {
+    await hadAccountBefore(page)
+    await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+    const mock = createMock(page)
+    mock.fail('/api/auth/me', 'Sessão expirada.', 401)
+    mock.post('/api/auth/login', { user: ANA })
+
+    await page.goto('/login')
+    await page.getByPlaceholder('voce@email.com').fill('ana@test.com')
+    await page.getByPlaceholder('••••••••').fill('Senha@123')
+    await page.getByRole('button', { name: /^entrar$/i }).click()
+
+    await expect(page).toHaveURL(/\/dashboard$/)
   })
 })

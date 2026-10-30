@@ -99,6 +99,27 @@ describe('Meus dados — excluir conta', () => {
     expect(authAPI.deleteAccount).not.toHaveBeenCalled()
   })
 
+  // Achado Passada 2: a lista dizia "Plano cancelado — sem reembolso" até para a conta Grátis, que não tem plano para cancelar.
+  it.each([['free', false], ['pro', true], ['elite', true]])('plano %s: a linha "Plano cancelado — sem reembolso" aparece? %s', (plan, aparece) => {
+    sessionStorage.setItem('user', JSON.stringify({ id: `u-${plan}`, plan }))
+    renderPage()
+    openModal()
+    const linha = screen.queryByText('Plano cancelado — sem reembolso')
+    if (aparece) expect(linha).toBeInTheDocument(); else expect(linha).not.toBeInTheDocument()
+    expect(screen.getByText('Todas as transações e histórico')).toBeInTheDocument() // o resto da lista continua
+  })
+
+  // Achado N2-10: "Senha incorreta." aparecia sem role="alert" — o leitor de tela não avisava.
+  it('senha incorreta é anunciada (role="alert") e a conta não é excluída', async () => {
+    authAPI.deleteAccount.mockRejectedValue({ response: { data: { error: 'Senha incorreta.' } } })
+    renderPage()
+    openModal()
+    fireEvent.change(screen.getByPlaceholderText('Digite sua senha atual'), { target: { value: 'errada' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir conta' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Senha incorreta.')
+    expect(screen.getByTestId('where')).toHaveTextContent('/settings/dados')
+  })
+
   it('Esc fecha a confirmação sem excluir a conta', () => {
     renderPage()
     openModal()

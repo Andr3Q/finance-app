@@ -353,6 +353,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .toast { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: var(--rmd); font-size: 13px; font-weight: 500; margin-bottom: 14px; animation: fadeUp .3s ease; }
 .tok   { background: rgba(74,226,172,.07); border: 1px solid rgba(74,226,172,.2); color: var(--green); }
 .terr  { background: rgba(255,71,87,.07);  border: 1px solid rgba(255,71,87,.2);  color: var(--red); }
+.twarn { background: rgba(255,193,7,.07);  border: 1px solid rgba(255,193,7,.2);  color: var(--yellow); }
+/* Aviso flutuante no topo (todas as telas). Centralizado sem transform: o fadeUp anima o transform, e com translateX(-50%) o
+   aviso entrava deslocado e pulava de lado ao fim da animação. A largura é a do texto (limitada à tela): com left:50% a caixa
+   encolhia para metade da tela e a frase quebrava em 3 linhas. */
+.toast-top { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); left: 0; right: 0; margin: 0 auto; z-index: 9001; box-sizing: border-box; width: max-content; max-width: calc(100vw - 32px); justify-content: center; text-align: center; }
 
 /* ── Alertas ─────────────────────────────────────────────── */
 .alt  { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: var(--rmd); font-size: 13px; font-weight: 500; margin-bottom: 12px; }
@@ -6502,8 +6507,10 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .tf-close:hover { color: #0d0d0d; background: rgba(0,0,0,.06); }
 
 /* ── Toast ─────────────────────────────────────────────── */
-[data-theme="light"] .toast.tok  { background: #2e8a4a; }
-[data-theme="light"] .toast.terr { background: #c53030; }
+/* Texto branco sobre o fundo cheio: o texto herdava o verde/vermelho do tema escuro (vermelho sobre vermelho, contraste 1,6:1). */
+[data-theme="light"] .toast.tok   { background: #25773f; border-color: transparent; color: #fff; }
+[data-theme="light"] .toast.terr  { background: #c53030; border-color: transparent; color: #fff; }
+[data-theme="light"] .toast.twarn { background: #8a5a00; border-color: transparent; color: #fff; }
 
 /* ── FAB ───────────────────────────────────────────────── */
 [data-theme="light"] .fab { background: #3aaa5c; box-shadow: 0 4px 16px rgba(58,170,92,.4); }
@@ -9174,6 +9181,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .ob-currency-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .ob-currency-input::placeholder { color: #A7AEBD; font-weight: 700; }
 .ob-hint { font-size: 12.5px; color: #6b7280; line-height: 1.5; margin: 10px 0 0; }
+.ob-err { font-size: 12.5px; color: #B3261E; line-height: 1.4; margin: 8px 0 0; }
 
 /* Passos 2/3 — conteúdo preservado da versão antiga, só recolorido pro
    sheet branco novo (antes presumia o fundo escuro do .ob-card antigo). */
@@ -10587,10 +10595,11 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 .auth-input:focus { border-color: #1546FF; background: #fff; }
 .auth-input.err { border-color: #e5484d; background: rgba(229,72,77,.05); }
 .auth-pass-wrap { position: relative; }
-.auth-pass-wrap .auth-input { padding-right: 42px; }
+.auth-pass-wrap .auth-input { padding-right: 46px; }
+/* Área de toque de 44x44 (era 24x24 e difícil de acertar); o ícone continua onde estava. */
 .auth-eye {
-  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; color: #9aa3b5; cursor: pointer; padding: 4px; display: flex;
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 44px; height: 44px;
+  background: none; border: none; color: #9aa3b5; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
 }
 .auth-eye:hover { color: #0d0d0d; }
 
@@ -10769,6 +10778,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer;
 }
 .stories-cta:disabled { opacity: .7; cursor: default; }
+.stories-retry { margin-top: 16px; height: 44px; padding: 0 24px; border-radius: 22px; border: none; background: #fff; color: #1546FF; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; pointer-events: auto; } /* .stories-content tem pointer-events: none (os toques vão para as zonas de avançar/voltar): sem isto o toque no botão fechava o story */
 .stories-share { background: none; border: none; color: #fff; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 8px; }
 
 .stories-toast {
@@ -12156,3 +12166,13 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
 .home-error strong { display: block; font-size: 15px; line-height: 22px; color: #121A33; }
 .home-error p { margin: 6px 0 16px; font-size: 13px; line-height: 19px; color: #5B6784; }
 .home-error-btn { height: 44px; padding: 0 22px; border: none; border-radius: 14px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+/* ── Área de toque mínima de 44x44 ───────────────────────────────────────────────────────────────────────────────────
+   QA (Passada 2): "Voltar" com 42px, interruptores com 30px de altura e o X de remover limite com 22x24 — o X fica colado ao
+   conteúdo do cartão num fluxo destrutivo. O visual não muda: o toque é aceito numa borda invisível ao redor do controle. */
+.fin-back, .ntf-back, .auth-back, .srch-back, .lm-del { position: relative; }   /* .sb-switch já é relative */
+.fin-back::after, .ntf-back::after { content: ''; position: absolute; inset: -1px; }        /* 42 -> 44 */
+.auth-back::after                  { content: ''; position: absolute; inset: -5px; }        /* 34 -> 44 */
+.srch-back::after                  { content: ''; position: absolute; inset: -4px; }        /* 36 -> 44 */
+.sb-switch::after                  { content: ''; position: absolute; inset: -7px -3px; }   /* 50x30 -> 56x44 */
+.lm-del::after                     { content: ''; position: absolute; inset: -10px -11px; } /* 22x24 -> 44x44 */

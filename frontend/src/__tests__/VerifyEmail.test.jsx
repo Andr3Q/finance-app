@@ -54,6 +54,15 @@ describe('VerifyEmail — sem token na URL', () => {
     expect(screen.getByRole('button', { name: 'Confirmar e-mail' })).toBeInTheDocument()
     expect(mockNavigate).not.toHaveBeenCalled()
   })
+
+  // Achado N2-1: sem autocomplete, o celular não sugeria o código que acabou de chegar por e-mail/SMS.
+  it('o campo do código aceita o preenchimento automático do celular (one-time-code)', async () => {
+    mockUser = { id: 'u1' }
+    setup('')
+    const campo = await screen.findByPlaceholderText('000000')
+    expect(campo).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(campo).toHaveAttribute('inputmode', 'numeric')
+  })
 })
 
 describe('VerifyEmail — verificação por código', () => {

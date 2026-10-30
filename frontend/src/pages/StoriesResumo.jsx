@@ -44,6 +44,7 @@ export default function StoriesResumo() {
   const [away,     setAway]     = useState(false) // o app foi para o segundo plano: o story espera, como se estivesse pausado
   const [busy,  setBusy]  = useState(false)
   const [toast, setToast] = useState(null)
+  const [attempt, setAttempt] = useState(0) // sobe a cada "Tentar de novo": refaz a busca que falhou
 
   // Relógio do slide atual: quanto já passou antes da última pausa e quando a rodada atual começou.
   const clockRef = useRef({ elapsed: 0, startedAt: 0 })
@@ -55,7 +56,9 @@ export default function StoriesResumo() {
       .then(d => { if (!cancelled) { setData(d); setStatus('ready') } })
       .catch(() => { if (!cancelled) setStatus('error') })
     return () => { cancelled = true }
-  }, [story, offset, user.id, warm])
+  }, [story, offset, user.id, warm, attempt])
+
+  const retry = () => { setStatus('loading'); setAttempt(a => a + 1) } // erro nunca fica guardado: a próxima busca vai à rede
 
   // Mesma preferência "ocultar valores" do Início — lida uma vez ao abrir.
   const [hideValues] = useState(() => {
@@ -183,7 +186,7 @@ export default function StoriesResumo() {
   // aqui o esconderia — volta pro Início, que abre o chat ao receber o state.
   const runCta = (cta) => {
     if (cta.kind === 'create-goal') return createGoal(cta)
-    if (cta.kind === 'open-chat')   return navigate('/dashboard', { state: { openChat: true } })
+    if (cta.kind === 'open-chat')   return navigate('/dashboard', { state: { openChat: true, message: cta.message } })
     if (cta.kind === 'go-goals')    return navigate('/goals')
   }
 
@@ -234,7 +237,12 @@ export default function StoriesResumo() {
 
       <div className="stories-content">
         {status === 'loading' && <p className="stories-subtext">Montando seu resumo…</p>}
-        {status === 'error' && <p className="stories-subtext">Não foi possível carregar o resumo. Tente de novo mais tarde.</p>}
+        {status === 'error' && (
+          <>
+            <p className="stories-subtext">Não foi possível carregar o resumo.</p>
+            <button type="button" className="stories-retry" onClick={retry}>Tentar de novo</button>
+          </>
+        )}
         {empty && (
           <>
             <div className="stories-eyebrow">{empty.eyebrow}</div>

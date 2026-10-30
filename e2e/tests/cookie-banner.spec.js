@@ -59,21 +59,43 @@ test.describe('Aviso de cookies', () => {
     })).toBeLessThanOrEqual(0)
   })
 
-  test('Aceitar guarda a decisão, tira o aviso e o respiro, e ele não volta ao recarregar; o aviso de instalar o app espera a decisão', async ({ page }) => {
+  test('Aceitar guarda a decisão, tira o aviso e o respiro, e ele não volta ao recarregar', async ({ page }) => {
     await page.route('**/api/**', r => r.fulfill(json([])))
     await page.goto('/')
     await expect(page.getByRole('region', { name: 'Aviso de cookies' })).toBeVisible({ timeout: 15000 })
-    await expect(page.locator('.ib-wrap')).toBeHidden() // enquanto os cookies estão pendentes, só um aviso por vez
     await page.getByRole('button', { name: 'Aceitar' }).click()
     await expect(page.getByRole('region', { name: 'Aviso de cookies' })).toHaveCount(0)
     expect(await page.evaluate(() => localStorage.getItem('analytics-consent'))).toBe('accepted')
     expect(await page.evaluate(() => document.documentElement.hasAttribute('data-ck-open'))).toBe(false)
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--ck-pad').trim())).toBe('')
-    await expect(page.locator('.ib-wrap')).toBeVisible() // o de instalar o app aparece depois da decisão
     await page.reload()
     await expect(page.locator('.lw-page')).toBeVisible({ timeout: 15000 })
     await expect(page.getByRole('region', { name: 'Aviso de cookies' })).toHaveCount(0)
   })
+
+  // Um aviso por vez: o de instalar o app só aparece depois da decisão dos cookies (nas telas onde ele aparece).
+  test('o aviso de instalar o app espera a decisão dos cookies', async ({ page }) => {
+    await page.route('**/api/**', r => r.fulfill(json([])))
+    await page.goto('/termos')
+    await expect(page.getByRole('region', { name: 'Aviso de cookies' })).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('.ib-wrap')).toBeHidden()
+    await page.getByRole('button', { name: 'Aceitar' }).click()
+    await expect(page.locator('.ib-wrap')).toBeVisible()
+  })
+
+  // Achado N2-1: na boas-vindas o banner "Instalar Nancy" (y 673–741) cobria o botão "Já tenho conta" (y 670–724) e o clique era
+  // interceptado. Decidindo os cookies (aceitar OU recusar), o botão continua tocável.
+  for (const decisao of ['Aceitar', 'Recusar']) {
+    test(`boas-vindas: depois de ${decisao.toLowerCase()} os cookies, nada cobre "Já tenho conta"`, async ({ page }) => {
+      await page.route('**/api/**', r => r.fulfill(json([])))
+      await page.goto('/')
+      await page.getByRole('button', { name: decisao }).click({ timeout: 15000 })
+      await expect(page.getByRole('region', { name: 'Aviso de cookies' })).toHaveCount(0)
+      await expect(page.locator('.ib-wrap')).toHaveCount(0)
+      await page.getByRole('link', { name: /já tenho conta/i }).first().click({ timeout: 5000 }) // o clique falha se algo cobrir o botão
+      await expect(page).toHaveURL(/\/login/)
+    })
+  }
 
   test('Recusar guarda "declined" e some de vez', async ({ page }) => {
     await page.route('**/api/**', r => r.fulfill(json([])))

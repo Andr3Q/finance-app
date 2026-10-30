@@ -313,6 +313,46 @@ describe('Ferramenta get_summary (via /api/agent/chat)', () => {
   })
 })
 
+// Achado N2-7 (rodada final): com a IA sobrecarregada, cada "Tentar de novo" gastava uma das 40 mensagens por hora — ~8 tentativas
+// levaram a cota de 12 a 4, sem nenhuma resposta. Falha do PROVEDOR não pode custar cota (nos testes o limiter fica desligado;
+// aqui ele é ligado só durante o teste, e o cabeçalho ratelimit-remaining mostra quanto sobrou).
+describe('Cota de mensagens por hora e falhas do provedor de IA', () => {
+  const asUser = (id) => ({ Cookie: `token=${makeToken(id)}` })
+  const withLimiter = async (fn) => {
+    const prev = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    try { await fn() } finally { process.env.NODE_ENV = prev; mockCreate.mockReset() }
+  }
+
+  test('pedido que falha por culpa do provedor NÃO gasta a cota: a segunda tentativa vê a mesma sobra', () => withLimiter(async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockRejectedValue(Object.assign(new Error('boom'), { status: 500 }))
+    const first  = await request(app).post('/api/agent/chat').set(asUser('quota-falha')).send({ message: 'oi' })
+    const second = await request(app).post('/api/agent/chat').set(asUser('quota-falha')).send({ message: 'oi de novo' })
+    expect(first.status).toBe(500)
+    expect(first.headers['ratelimit-remaining']).toBe('39')
+    expect(second.headers['ratelimit-remaining']).toBe('39') // se a falha custasse cota, seria 38
+  }))
+
+  test('resposta boa gasta a cota (o limite continua valendo para quem usa)', () => withLimiter(async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValue(simpleReply('Olá!'))
+    const first  = await request(app).post('/api/agent/chat').set(asUser('quota-ok')).send({ message: 'oi' })
+    const second = await request(app).post('/api/agent/chat').set(asUser('quota-ok')).send({ message: 'oi de novo' })
+    expect(first.status).toBe(200)
+    expect(first.headers['ratelimit-remaining']).toBe('39')
+    expect(second.headers['ratelimit-remaining']).toBe('38')
+  }))
+
+  test('pedido inválido (400) continua contando: o limite existe para frear abuso', () => withLimiter(async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    const first  = await request(app).post('/api/agent/chat').set(asUser('quota-400')).send({})
+    const second = await request(app).post('/api/agent/chat').set(asUser('quota-400')).send({})
+    expect(first.status).toBe(400)
+    expect(Number(second.headers['ratelimit-remaining'])).toBe(Number(first.headers['ratelimit-remaining']) - 1)
+  }))
+})
+
 // Se a IA falhar DEPOIS de uma ação já feita, o usuário não pode ver só um erro: "Tentar de novo" lançaria em dobro.
 describe('Falha da IA depois de uma ação (QA N2-7, rodada 2)', () => {
   test('gasto registrado e o 2º turno do modelo falha: responde 200 avisando, com dataChanged', async () => {

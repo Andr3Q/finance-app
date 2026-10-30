@@ -49,7 +49,7 @@ export default function SalaryCard({ user, onMessage }) {
       <form onSubmit={handleSave} className="fin-salary-row">
         <div className="fin-field">
           <span className="fin-prefix">R$</span>
-          <CurrencyInput className="fin-inp" value={salary} onChange={setSalary} placeholder="0,00" />
+          <CurrencyInput className="fin-inp" value={salary} onChange={setSalary} placeholder="0,00" ariaLabel="Salário mensal" />
         </div>
         <button type="submit" className="fin-btn" disabled={saving}>
           {saving ? 'Salvando…' : 'Salvar'}

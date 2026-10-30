@@ -214,8 +214,7 @@ export default function Planos() {
       <Navbar />
 
       {toast && (
-        <div className={`toast ${toast.type === 'error' ? 'terr' : toast.type === 'warn' ? 'twarn' : 'tok'}`}
-          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:9001, maxWidth:'calc(100vw - 32px)', textAlign:'center' }}>
+        <div className={`toast toast-top ${toast.type === 'error' ? 'terr' : toast.type === 'warn' ? 'twarn' : 'tok'}`}>
           {toast.msg}
         </div>
       )}

@@ -145,6 +145,13 @@ app.get('/sitemap.xml', (req, res) => {
 </urlset>`)
 })
 
+// /favicon.ico: o navegador usa os <link rel="icon"> do index.html, mas leitores de feed, prévias de link e crawlers pedem este
+// caminho direto. Sem a rota ele caía no catch-all do SPA e devolvia a página do app (HTML, 200) no lugar de um ícone.
+app.get('/favicon.ico', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=86400')
+  res.redirect(301, '/icon-192.png')
+})
+
 // ── Arquivos estáticos com CORS aberto ──────────────────
 // Vite gera <script type="module" crossorigin> — o browser exige
 // Access-Control-Allow-Origin mesmo em same-origin. Solução: cors(*)

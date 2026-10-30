@@ -4,10 +4,11 @@
 
 import { useState } from 'react'
 import { transactionsAPI } from '../../services/api.js'
+import { invalidateCache } from '../../services/cache.js'
 import { IconAlert } from '../ui/icons.jsx'
 
 // pending/total: quantas contas fixas faltam e quantas existem — sem isto o aviso dizia "ainda não foram lançadas" mesmo com 3 de 4 pagas.
-export default function AutoLaunchPrompt({ autoLaunched, onLaunched, pending = 0, total = 0 }) {
+export default function AutoLaunchPrompt({ autoLaunched, pending = 0, total = 0 }) {
   const [loading,   setLoading]   = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [error,     setError]     = useState('')
@@ -21,7 +22,10 @@ export default function AutoLaunchPrompt({ autoLaunched, onLaunched, pending = 0
     try {
       await transactionsAPI.autoLaunch()
       setDismissed(true)
-      onLaunched()
+      // Lançar cria transações: avisa o app inteiro, como todo ponto que muda dado (o Início refaz a busca; o Extrato e os
+      // stories descartam o que tinham guardado — sem isto o story do mês seguia mostrando as contas fixas de antes).
+      invalidateCache('dashboard')
+      window.dispatchEvent(new CustomEvent('budget-updated'))
     } catch (err) {
       setError(err.response?.data?.error || 'Erro ao lançar contas fixas.')
       setLoading(false)

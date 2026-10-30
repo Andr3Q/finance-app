@@ -251,9 +251,30 @@ test.describe('Dashboard — Stories (círculos de resumo)', () => {
     await mockStories(page)
     await page.locator('button.home-story-light').click()
     await page.getByRole('button', { name: 'Avançar' }).click()
+    await page.evaluate(() => window.addEventListener('nancy:open-agent-chat', e => { window.__asked = e.detail?.message }))
     await page.getByRole('button', { name: 'Revisar com a Nancy' }).click()
     await expect(page).toHaveURL(/\/dashboard$/)
     await expect(page.locator('.agent-panel')).toBeVisible()
+    // achado N2-2: o botão prometia uma revisão e o chat abria vazio — agora leva a pergunta pronta
+    await expect.poll(() => page.evaluate(() => window.__asked)).toBe('Quais das minhas assinaturas vale a pena revisar ou cancelar?')
+  })
+
+  // Achado da revisão independente: "Tentar de novo" ficava dentro de .stories-content (pointer-events: none): o toque caía na zona de
+  // "avançar", que fecha o story sem histórias. O teste unitário não vê isso (jsdom não carrega o CSS): só um clique de verdade.
+  test('story com erro: "Tentar de novo" recebe o toque (não fecha o story) e refaz a busca', async ({ page }) => {
+    await goDashboard(page)
+    let falhar = true
+    const foraDoAr = { status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'fora do ar' }) } // (o json() daqui é sempre 200)
+    await page.route('**/api/transactions/stories-bundle**', r => r.fulfill(foraDoAr))
+    await page.route('**/api/transactions/monthly-recap**', r => (falhar ? r.fulfill(foraDoAr) : r.fulfill(json(mockRecap))))
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('budget-updated'))) // descarta o que o Início já tinha pré-carregado
+    await page.locator('button.home-story-blue').click()
+    await expect(page.getByText('Não foi possível carregar o resumo.')).toBeVisible()
+    falhar = false
+    await page.getByRole('button', { name: 'Tentar de novo' }).click({ timeout: 5000 }) // o clique falha se outra camada cobrir o botão
+    await expect(page).toHaveURL(/\/resumo-stories$/)            // não fechou o story
+    await expect(page.getByText('Resumo de outubro')).toBeVisible()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(6)
   })
 
   test('Metas abre a meta mais relevante com quanto falta', async ({ page }) => {

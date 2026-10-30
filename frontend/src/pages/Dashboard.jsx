@@ -140,7 +140,8 @@ export default function Dashboard() {
       // O setTimeout adia o evento pra depois do commit: o AgentChat é irmão
       // desta página e só registra o listener no efeito dele, que roda depois
       // do nosso na montagem.
-      setTimeout(() => window.dispatchEvent(new Event('nancy:open-agent-chat')), 0)
+      const message = typeof location.state.message === 'string' ? location.state.message : undefined
+      setTimeout(() => window.dispatchEvent(new CustomEvent('nancy:open-agent-chat', { detail: { message } })), 0)
       navigate(location.pathname, { replace: true, state: {} })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -267,7 +268,7 @@ export default function Dashboard() {
       <Navbar />
 
       {toast && (
-        <div className={`toast ${toast.ok ? 'tok' : 'terr'}`} style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:9001, whiteSpace:'nowrap' }}>
+        <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
           {toast.msg}
         </div>
       )}
@@ -332,7 +333,7 @@ export default function Dashboard() {
               </section>
             ) : (<>
             {/* dentro do corpo, abaixo do cabeçalho azul: acima dele, o aviso empurrava o azul pra baixo e deixava uma faixa clara sob a barra de status */}
-            <AutoLaunchPrompt autoLaunched={summary?.autoLaunched} pending={summary?.unpaidBudgetIds?.length || 0} total={budgets.length} onLaunched={() => fetchData()} />
+            <AutoLaunchPrompt autoLaunched={summary?.autoLaunched} pending={summary?.unpaidBudgetIds?.length || 0} total={budgets.length} />
 
             {/* Resumos em stories — os 4 círculos abrem a tela 09 (mesma rota,
                 fluxo escolhido por state.story): mês atual e mês anterior

@@ -80,7 +80,10 @@ export default function InstallBanner() {
   // Resumo em stories (tela 09) é tela cheia por cima de tudo (z-index maior
   // que esse banner) e tem o próprio botão "Fechar" — o banner aparecendo
   // junto duplicava o rótulo "Fechar" e cobria parte da zona de toque.
-  if (!visible || pathname === '/settings/instalar' || pathname === '/resumo-stories' || AUTH_ROUTES.includes(pathname)) return null
+  // Boas-vindas (deslogado, "/"): é uma tela só, com "Já tenho conta" colado embaixo. O banner fica ancorado 88px acima do fim
+  // (por causa da barra de baixo, que ali não existe) e cobria o botão inteiro — QA de homologação, 2026-10-29. Instalar o app
+  // continua no banner das telas logadas e em Perfil → Instalar app.
+  if (!visible || pathname === '/' || pathname === '/settings/instalar' || pathname === '/resumo-stories' || AUTH_ROUTES.includes(pathname)) return null
 
   const posDesktop = { position: 'fixed', bottom: 24, right: 84, width: 300, zIndex: 210 }
   const posMobile  = {

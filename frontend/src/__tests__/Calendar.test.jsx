@@ -112,6 +112,44 @@ describe('Calendário — mês e dias', () => {
     expect(screen.getByText('Parcela 1/10')).toBeInTheDocument()
   })
 
+  // Achado Passada 2: "Academia −R$ 90" (a saída lançada) e "Academia · Vencimento" apareciam juntas no dia 15 ("3 eventos"),
+  // como se a despesa fosse contada em dobro.
+  describe('conta fixa já paga não aparece também como vencimento', () => {
+    const paidTx = { ...tx('p', 15, 'expense', 'fixed', 'Academia', 90), budgetId: 'bg' }
+
+    it('mês atual: o servidor diz que está paga (paidThisMonth) — só a saída aparece', async () => {
+      setup({ txs: [paidTx], budgets: [{ id: 'bg', name: 'Academia', amount: 90, dueDay: 15, paidThisMonth: true }] })
+      await screen.findByRole('button', { name: /^15 de outubro/ })
+      fireEvent.click(day(15))
+      expect(screen.getAllByText('Academia')).toHaveLength(1)
+      expect(screen.queryByText('Vencimento')).not.toBeInTheDocument()
+      expect(screen.getByText('−R$ 90,00')).toBeInTheDocument()
+    })
+
+    it('mês mesmo fechado (a saída arquivada nem vem na lista): paidThisMonth já basta para esconder o vencimento', async () => {
+      setup({ txs: [], budgets: [{ id: 'bg', name: 'Academia', amount: 90, dueDay: 15, paidThisMonth: true }] })
+      await screen.findByRole('button', { name: /^15 de outubro/ })
+      expect(day(15).querySelectorAll('.cl-dot')).toHaveLength(0)
+    })
+
+    it('conta pendente continua aparecendo como vencimento', async () => {
+      setup({ txs: [], budgets: [{ id: 'bg', name: 'Internet', amount: 150, dueDay: 15, paidThisMonth: false }] })
+      await screen.findByRole('button', { name: /^15 de outubro/ })
+      fireEvent.click(day(15))
+      expect(screen.getByText('Vencimento')).toBeInTheDocument()
+    })
+
+    it('outro mês: vale o lançamento ligado à conta (budgetId), não o paidThisMonth (que é só do mês atual)', async () => {
+      const setembro = { ...tx('s', 15, 'expense', 'fixed', 'Academia', 90), budgetId: 'bg', date: new Date(2026, 8, 15, 12).toISOString() }
+      setup({ txs: [setembro], budgets: [{ id: 'bg', name: 'Academia', amount: 90, dueDay: 15, paidThisMonth: false }] })
+      await screen.findByRole('button', { name: /^15 de outubro/ })
+      fireEvent.click(screen.getByRole('button', { name: /mês anterior|anterior/i }))
+      const setDay15 = await screen.findByRole('button', { name: /^15 de setembro/ })
+      fireEvent.click(setDay15)
+      expect(screen.queryByText('Vencimento')).not.toBeInTheDocument()
+    })
+  })
+
   it('parcela já paga não aparece no calendário', async () => {
     setup({ installments: [{ id: 'i', name: 'TV', amount: 300, totalInstallments: 10, paidInstallments: 1, startMonth: 10, startYear: 2026 }] })
     await screen.findByRole('button', { name: /^1 de outubro/ })

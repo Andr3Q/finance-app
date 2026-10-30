@@ -22,6 +22,12 @@ beforeEach(() => {
 })
 
 describe('SalaryCard — Salário mensal', () => {
+  // Achado Passada 2: o campo só tinha o placeholder "0,00" — o leitor de tela o anunciava como "0,00".
+  it('o campo tem nome acessível "Salário mensal"', () => {
+    setup({ id: 'u1', salary: 5000 })
+    expect(screen.getByLabelText('Salário mensal')).toBeInTheDocument()
+  })
+
   it('já vem com o salário cadastrado', () => {
     const { input } = setup({ id: 'u1', salary: 5000 })
     expect(input.value).toBe('5.000,00')

@@ -111,8 +111,14 @@ export default function Calendar() {
     if (d.getMonth() + 1 !== month || d.getFullYear() !== year) return
     push(d.getDate(), { kind: tx.type, tx })
   })
+  // Conta fixa JÁ paga no mês deixa de ser "vencimento": o pagamento já aparece como saída, e os dois juntos contavam a mesma
+  // despesa em dobro no dia (achado Passada 2). Mês atual: o servidor diz (paidThisMonth, vale também para mês fechado);
+  // qualquer mês: um lançamento ligado à conta (budgetId).
+  const isCurrentMonth = now.getMonth() + 1 === month && now.getFullYear() === year
+  const paidBudgetIds  = new Set(transactions.filter(t => t.budgetId).map(t => t.budgetId))
   budgets.forEach(b => {
-    if (b.dueDay) push(b.dueDay, { kind: 'budget', budget: b })
+    const paid = paidBudgetIds.has(b.id) || (isCurrentMonth && b.paidThisMonth)
+    if (b.dueDay && !paid) push(b.dueDay, { kind: 'budget', budget: b })
   })
   goals.forEach(g => {
     if (!g.deadline) return
@@ -129,7 +135,6 @@ export default function Calendar() {
   })
 
   const cells          = buildCalendar(year, month)
-  const isCurrentMonth = now.getMonth() + 1 === month && now.getFullYear() === year
   const today          = isCurrentMonth ? now.getDate() : -1
   const selEvents      = selectedDay ? (evByDay[selectedDay] || []) : []
   const hasGoalDots    = Object.values(evByDay).some(evs => evs.some(e => e.kind === 'goal'))
@@ -141,7 +146,7 @@ export default function Calendar() {
     <>
       <Navbar />
       {fetchError && (
-        <div className="toast terr" style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:9001, whiteSpace:'nowrap' }}>
+        <div className="toast toast-top terr">
           Erro ao carregar dados do calendário.
         </div>
       )}

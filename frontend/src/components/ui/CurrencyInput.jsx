@@ -41,7 +41,7 @@ const writtenAmount = (d) => {
   return Number.isFinite(n) ? n : 0
 }
 
-export default function CurrencyInput({ value, onChange, className, style, placeholder, autoFocus }) {
+export default function CurrencyInput({ value, onChange, className, style, placeholder, autoFocus, ariaLabel }) {
   const focused = useRef(false)
   const [display, setDisplay] = useState(() => toDisplay(value))
 
@@ -79,6 +79,7 @@ export default function CurrencyInput({ value, onChange, className, style, place
       className={className}
       style={style}
       placeholder={placeholder || '0,00'}
+      aria-label={ariaLabel}
       value={display}
       onChange={handleChange}
       onFocus={() => { focused.current = true }}

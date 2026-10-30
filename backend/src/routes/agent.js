@@ -571,6 +571,7 @@ function sanitizeHistory(history) {
 }
 
 function handleGroqError(err, res) {
+  res.locals.aiProviderFailed = true // a falha foi do provedor: o limiter por hora (middleware/rateLimiter.js) devolve a mensagem à cota
   // Circuito aberto: falha já foi reportada quando abriu — não reporta de novo
   // a cada request recusado rápido, isso só faria o Sentry ecoar a mesma queda.
   if (err.circuitOpen) {

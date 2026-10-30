@@ -4,6 +4,7 @@ import Navbar from '../components/layout/Navbar.jsx'
 import { authAPI } from '../services/api.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
+import { useUser } from '../hooks/useUser.js'
 
 const Svg = ({ size = 18, sw = 1.9, children }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -18,6 +19,7 @@ export default function SettingsData() {
   const navigate = useNavigate()
   const location = useLocation()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
+  const user = useUser()
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('success')
   const [exporting, setExporting] = useState(null) // 'csv' | 'pdf' | 'json' enquanto o arquivo é gerado
@@ -72,8 +74,7 @@ export default function SettingsData() {
     <>
       <Navbar />
       {msg && (
-        <div className={`toast ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}
-          style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9001, maxWidth: 'calc(100vw - 32px)', textAlign: 'center' }}>
+        <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
           {msg}
         </div>
       )}
@@ -152,7 +153,8 @@ export default function SettingsData() {
                   'Metas e progresso acumulado',
                   'Contas fixas e orçamentos',
                   'Configurações e dados da conta',
-                  'Plano cancelado — sem reembolso',
+                  // quem está no Grátis não tem plano para cancelar (achado Passada 2)
+                  ...(user.plan && user.plan !== 'free' ? ['Plano cancelado — sem reembolso'] : []),
                 ].map(item => (
                   <div key={item} className="del-modal-item" style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, fontSize:13, color:'var(--t2)' }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
@@ -178,7 +180,7 @@ export default function SettingsData() {
                   autoFocus
                 />
                 {deleteErr && (
-                  <div style={{ fontSize:12, color:'#ef4444', marginTop:6, display:'flex', alignItems:'center', gap:5 }}>
+                  <div role="alert" style={{ fontSize:12, color:'#ef4444', marginTop:6, display:'flex', alignItems:'center', gap:5 }}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
                       <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>

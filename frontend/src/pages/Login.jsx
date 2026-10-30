@@ -4,6 +4,7 @@ import { authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
 import { saveUser } from '../hooks/useUser.js'
 import PasswordStrength from '../components/ui/PasswordStrength.jsx'
+import { peekReturnTo, clearReturnTo } from '../utils/returnTo.js'
 
 const IconChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -41,11 +42,15 @@ export default function Login({ isRegister = false }) {
   // de cobrança apontando pra /settings/pagamentos). Só aceita rotas
   // internas (começando com "/") — nunca uma URL externa vinda de state.
   const fromPath = location.state?.from?.pathname
+  // Sessão que expirou com o app já aberto no aparelho: a conferência com o servidor recarrega a página para o login e o state
+  // some — o destino ficou guardado (utils/returnTo.js). Só no login: conta nova começa pelo Início.
+  const [savedReturn] = useState(() => (isRegister ? null : peekReturnTo()))
   const redirectTo = (typeof fromPath === 'string' && fromPath.startsWith('/'))
     ? `${fromPath}${location.state.from.search || ''}`
-    : '/dashboard'
+    : savedReturn || '/dashboard'
+  const goAfterAuth = () => { clearReturnTo(); navigate(redirectTo) }
   // Aviso vindo de outra tela (ex: "Conta excluída") — aparece uma vez; o state do histórico é limpo para não voltar no recarregar.
-  const [notice] = useState(() => (typeof location.state?.notice === 'string' ? location.state.notice : ''))
+  const [notice, setNotice] = useState(() => (typeof location.state?.notice === 'string' ? location.state.notice : ''))
   useEffect(() => { if (notice) navigate(location.pathname, { replace: true, state: null }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const refCode  = useRef(new URLSearchParams(window.location.search).get('ref') || '')
   // Rotas /login e /register montam <Login key=.../> separadas (App.jsx)
@@ -65,6 +70,7 @@ export default function Login({ isRegister = false }) {
     setForm(f => ({ ...f, [name]: value }))
     if (fieldErrs[name]) setFieldErrs(f => ({ ...f, [name]: '' }))
     if (serverErr) setServerErr('')
+    if (notice) setNotice('') // o aviso de "Conta excluída" já cumpriu o papel: não fica ao lado de um erro de login
   }
 
   const validate = () => {
@@ -90,6 +96,7 @@ export default function Login({ isRegister = false }) {
 
   const handleSubmit = async e => {
     e.preventDefault()
+    setNotice('')
     if (!validate()) return
     setLoading(true)
     try {
@@ -115,7 +122,7 @@ export default function Login({ isRegister = false }) {
         analytics.track('user_signed_up')
         analytics.track('trial_started', { plan: res.data.user.plan })
       }
-      navigate(redirectTo)
+      goAfterAuth()
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Ocorreu um erro. Tente novamente.')
     } finally {
@@ -132,7 +139,7 @@ export default function Login({ isRegister = false }) {
       saveUser(res.data.user)
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true })
-      navigate(redirectTo)
+      goAfterAuth()
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Código inválido.')
     } finally {
@@ -150,7 +157,7 @@ export default function Login({ isRegister = false }) {
       saveUser(res.data.user)
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true, backupCode: true })
-      navigate(redirectTo)
+      goAfterAuth()
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Código de recuperação inválido.')
     } finally {
@@ -287,7 +294,7 @@ export default function Login({ isRegister = false }) {
                     type="button"
                     className="auth-eye"
                     onClick={() => setShowPass(v => !v)}
-                    aria-label="Mostrar senha"
+                    aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
                   >
                     {showPass ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
@@ -380,7 +387,7 @@ export default function Login({ isRegister = false }) {
                   type="button"
                   className="auth-eye"
                   onClick={() => setShowPass(v => !v)}
-                  aria-label="Mostrar senha"
+                  aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
                 >
                   {showPass ? <EyeOffIcon /> : <EyeIcon />}
                 </button>

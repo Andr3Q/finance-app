@@ -113,6 +113,77 @@ describe('Login — modo entrar', () => {
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/settings/pagamentos?plano=pro'))
   })
 
+  // Achado N2-1: sessão expirada num aparelho que já teve conta — a conferência com o servidor recarrega a página para o login e
+  // o state do roteador some. O destino ficou guardado na sessão (utils/returnTo.js) e o login devolve a pessoa a ele.
+  describe('destino guardado de uma sessão que expirou', () => {
+    const entrar = async () => {
+      await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
+      await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
+      await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
+    }
+
+    it('sem state.from, volta para o destino guardado e o apaga', async () => {
+      sessionStorage.setItem('nancy_return_to', '/goals?aba=metas')
+      authAPI.login.mockResolvedValue({ data: { user: { id: '1', plan: 'free' } } })
+      setup()
+      await entrar()
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/goals?aba=metas'))
+      expect(sessionStorage.getItem('nancy_return_to')).toBeNull()
+    })
+
+    it('o state.from do roteador tem prioridade sobre o destino guardado', async () => {
+      sessionStorage.setItem('nancy_return_to', '/goals')
+      authAPI.login.mockResolvedValue({ data: { user: { id: '1', plan: 'free' } } })
+      setup({}, [{ pathname: '/login', state: { from: { pathname: '/settings/pagamentos' } } }])
+      await entrar()
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/settings/pagamentos'))
+    })
+
+    it.each(['//outro-site.example/x', 'https://outro-site.example', '/\\outro-site.example', 'goals'])('destino que não é caminho interno (%s) é ignorado', async (valor) => {
+      sessionStorage.setItem('nancy_return_to', valor)
+      authAPI.login.mockResolvedValue({ data: { user: { id: '1', plan: 'free' } } })
+      setup()
+      await entrar()
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
+    })
+
+    it('conta nova (cadastro) começa pelo Início, mesmo com destino guardado', async () => {
+      sessionStorage.setItem('nancy_return_to', '/goals')
+      authAPI.register.mockResolvedValue({ data: { user: { id: '2', plan: 'free' } } })
+      setup({ isRegister: true })
+      await userEvent.type(screen.getByLabelText('Nome'), 'André')
+      await userEvent.type(screen.getByLabelText('E-mail'), 'andre@test.com')
+      await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
+      await userEvent.click(screen.getByRole('checkbox'))
+      await userEvent.click(screen.getByRole('button', { name: /^criar conta$/i }))
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/dashboard'))
+    })
+  })
+
+  // Achado N2-10: "Conta excluída…" ficava ao lado de "E-mail ou senha incorretos." depois de uma tentativa de entrar.
+  it('o aviso "Conta excluída" some quando a pessoa começa a digitar (não fica junto de um erro de login)', async () => {
+    authAPI.login.mockRejectedValue({ response: { data: { error: 'E-mail ou senha incorretos.' } } })
+    setup({}, [{ pathname: '/login', state: { notice: 'Conta excluída. Seus dados foram apagados.' } }])
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('E-mail'), 'user@test.com')
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Senha'), 'Senha12345')
+    await userEvent.click(screen.getByRole('button', { name: /^entrar$/i }))
+    expect(await screen.findByText('E-mail ou senha incorretos.')).toBeInTheDocument()
+    expect(screen.queryByText(/Conta excluída/)).not.toBeInTheDocument()
+  })
+
+  // Achado N2-1: o rótulo do olho ficava "Mostrar senha" com a senha já visível.
+  it('o olho troca o rótulo (Mostrar/Ocultar senha) junto com o tipo do campo', async () => {
+    setup()
+    const campo = screen.getByLabelText('Senha')
+    expect(campo).toHaveAttribute('type', 'password')
+    await userEvent.click(screen.getByRole('button', { name: 'Mostrar senha' }))
+    expect(campo).toHaveAttribute('type', 'text')
+    await userEvent.click(screen.getByRole('button', { name: 'Ocultar senha' }))
+    expect(campo).toHaveAttribute('type', 'password')
+  })
+
   it('exibe erro do servidor quando login falha', async () => {
     authAPI.login.mockRejectedValue({ response: { data: { error: 'Credenciais inválidas' } } })
     setup()

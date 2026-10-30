@@ -89,7 +89,9 @@ export default function SettingsMonthlyClose() {
       showMsg(res.data.message)
       invalidateCache('dashboard')
       window.dispatchEvent(new CustomEvent('budget-updated'))
-      load()
+      // O botão só volta depois que a tela já mostra "Mês já fechado": antes ele ficava ativo por alguns segundos com o aviso
+      // de sucesso na tela e parecia que tinha falhado — a pessoa tocava de novo (achado Passada 2).
+      await load()
     } catch (err) {
       if (err.response?.data?.limitReached) setUpgrade('O relatório PDF mensal é exclusivo do plano Pro.')
       else showMsg(err.response?.data?.error || 'Erro ao fechar o mês.', 'error')
@@ -123,8 +125,7 @@ export default function SettingsMonthlyClose() {
     <>
       <Navbar />
       {msg && (
-        <div className={`toast ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}
-          style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9001, maxWidth: 'calc(100vw - 32px)', textAlign: 'center' }}>
+        <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
           {msg}
         </div>
       )}
