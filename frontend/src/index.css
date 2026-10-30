@@ -12188,10 +12188,11 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
 @media (prefers-reduced-motion: reduce) { .app-loader-ring { animation-duration: 2.6s; } }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
-/* ── iPhone: puxar a tela para baixo mostrava o fundo cinza do rolador (.pwnav) acima do cabeçalho azul ──────────────────
-   Os primeiros 220px do rolador ficam azuis (o "elástico" só revela o que está atrás do conteúdo; o cabeçalho de todas as telas
-   é azul e cobre essa faixa); o resto continua do cinza de sempre. Só no celular: no desktop não há elástico. */
+/* ── iPhone: puxar a tela para baixo mostrava uma faixa cinza/branca acima do cabeçalho azul ────────────────────────────────
+   No celular quem rola é a PÁGINA (o .pwnav não rola), e o "elástico" do iOS revela a cor do html (a "tela" atrás do documento).
+   No tema claro o html era cinza. Agora é o azul do cabeçalho; o body continua cinza claro e opaco, cobrindo todo o documento, então
+   nada muda no uso normal — só o espaço que o elástico abre fica azul. (Uma faixa position:fixed não serve: no iOS o elástico leva os
+   elementos fixos junto.) Só no celular e só no tema claro (telas do Nancy 2). O iOS em si só se confere no aparelho. */
 @media (max-width: 900px) {
-  [data-theme="light"] .pwnav { background: linear-gradient(to bottom, #1C48FF 0, #1C48FF 220px, #f0f2f5 220px, #f0f2f5 100%); }
+  html[data-theme="light"] { background: #1C48FF !important; }
 }
-

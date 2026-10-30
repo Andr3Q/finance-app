@@ -532,19 +532,20 @@ test.describe('Início — falha ao carregar', () => {
     await expect(page.locator('.app-loader')).toHaveCount(0)
   })
 
-  // Achado do André (iPhone): puxar a tela para baixo mostrava uma faixa branca/cinza acima do cabeçalho azul — o "elástico" mostra o
-  // fundo do rolador (.pwnav). No celular os primeiros 220px dele são azuis; o iOS em si só se confere no aparelho.
-  test('celular: o fundo do rolador é azul no topo (o elástico do iPhone não mostra cinza); no desktop não muda', async ({ page }) => {
+  // Achado do André (iPhone): puxar a tela para baixo mostrava uma faixa branca/cinza acima do cabeçalho azul. No celular quem rola é a
+  // PÁGINA e o "elástico" revela a cor do html: azul no celular; o body (cinza claro, opaco) cobre o documento, então nada muda no uso
+  // normal. O iOS em si só se confere no aparelho.
+  test('celular: o espaço que o elástico do iPhone abre é azul (cor do html); body continua cinza claro e opaco; no desktop não muda', async ({ page }) => {
     await setupInicio(page)
     await page.goto('/dashboard')
     await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
-    const fundo = () => page.locator('.pwnav').first().evaluate(el => getComputedStyle(el).backgroundImage)
-    const mobile = await fundo()
-    expect(mobile).toContain('linear-gradient')
-    expect(mobile).toContain('rgb(28, 72, 255) 0px')
-    expect(mobile).toContain('rgb(28, 72, 255) 220px')
+    const cores = () => page.evaluate(() => {
+      const cor = (el) => getComputedStyle(el).backgroundColor
+      return { html: cor(document.documentElement), body: cor(document.body), docVaiAteOFim: document.body.getBoundingClientRect().height >= innerHeight - 1 }
+    })
+    expect(await cores()).toEqual({ html: 'rgb(28, 72, 255)', body: 'rgb(240, 242, 245)', docVaiAteOFim: true })
     await page.setViewportSize({ width: 1280, height: 800 })
-    expect(await fundo()).toBe('none')
+    expect((await cores()).html).toBe('rgb(240, 242, 245)')
   })
 
   test('sem conexão e sem nada guardado: avisa, não mostra R$ 0,00, e "Tentar de novo" carrega os dados', async ({ page }) => {
