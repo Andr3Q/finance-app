@@ -5,6 +5,7 @@ import { analytics } from '../services/analytics.js'
 import { saveUser } from '../hooks/useUser.js'
 import PasswordStrength from '../components/ui/PasswordStrength.jsx'
 import { peekReturnTo, clearReturnTo } from '../utils/returnTo.js'
+import { useSplashGone } from '../hooks/useSplashGone.js'
 
 const IconChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -44,6 +45,7 @@ export default function Login({ isRegister = false }) {
   const fromPath = location.state?.from?.pathname
   // Sessão que expirou com o app já aberto no aparelho: a conferência com o servidor recarrega a página para o login e o state
   // some — o destino ficou guardado (utils/returnTo.js). Só no login: conta nova começa pelo Início.
+  const splashGone = useSplashGone() // o formulário só entra na página depois da splash (senão o gerenciador de senhas abre por cima do vídeo)
   const [savedReturn] = useState(() => (isRegister ? null : peekReturnTo()))
   const redirectTo = (typeof fromPath === 'string' && fromPath.startsWith('/'))
     ? `${fromPath}${location.state.from.search || ''}`
@@ -264,7 +266,7 @@ export default function Login({ isRegister = false }) {
           </div>
 
           <div className="auth-sheet">
-            <form onSubmit={handleSubmit} noValidate>
+            {splashGone && <form onSubmit={handleSubmit} noValidate>
               <div className="auth-field">
                 <label className="auth-label" htmlFor="f-email">E-mail</label>
                 <input
@@ -311,7 +313,7 @@ export default function Login({ isRegister = false }) {
               <button type="submit" className="auth-btn-primary" disabled={loading}>
                 {loading ? <div className="auth-spinner" /> : <span>Entrar</span>}
               </button>
-            </form>
+            </form>}
 
             <div className="auth-divider"><span>ou</span></div>
 
@@ -344,7 +346,7 @@ export default function Login({ isRegister = false }) {
         </div>
 
         <div className="auth-sheet">
-          <form onSubmit={handleSubmit} noValidate>
+          {splashGone && <form onSubmit={handleSubmit} noValidate>
             <div className="auth-field">
               <label className="auth-label" htmlFor="f-name">Nome</label>
               <input
@@ -416,7 +418,7 @@ export default function Login({ isRegister = false }) {
             <button type="submit" className="auth-btn-primary" disabled={loading}>
               {loading ? <div className="auth-spinner" /> : <span>Criar conta</span>}
             </button>
-          </form>
+          </form>}
 
           <p className="auth-foot">Já tem conta? <Link to="/login">Entrar</Link></p>
         </div>

@@ -18,6 +18,9 @@ async function waitForFonts(page) {
 
 const test = base.test.extend({
   page: async ({ page }, use) => {
+    // A splash (4,1s) segura o formulário de login: o gerenciador de senhas do celular abria por cima do vídeo (hooks/useSplashGone.js).
+    // Os testes já convivem com a splash por cima e não esperam por ela — tratam como terminada; só o teste que cobre isso a liga de volta.
+    await page.addInitScript(() => { window.__nancySplashGone = true })
     const goto = page.goto.bind(page)
     const reload = page.reload.bind(page)
     page.goto = async (...args) => { const r = await goto(...args); await waitForFonts(page); return r }

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import Login from '../pages/Login.jsx'
@@ -39,6 +39,23 @@ beforeEach(() => {
 })
 
 // ── Login ────────────────────────────────────────────────────────────────────
+
+// Achado do André (iPhone): o gerenciador de senhas abria por cima do vídeo da splash na abertura — o formulário de /login já estava
+// montado por baixo (sessão expirada recarrega direto para /login).
+describe('Login — o formulário espera a splash sair', () => {
+  afterEach(() => { document.getElementById('app-splash')?.remove(); delete window.__nancySplashGone })
+  const splash = () => { const el = document.createElement('div'); el.id = 'app-splash'; document.body.appendChild(el) }
+
+  it.each([['entrar', false], ['criar conta', true]])('%s: com a splash na tela NÃO existe campo de senha; ao sair, aparece', async (_, isRegister) => {
+    splash()
+    setup({ isRegister })
+    expect(document.querySelector('input[type="password"]')).toBeNull()
+    expect(screen.queryByLabelText('E-mail')).not.toBeInTheDocument()
+    act(() => { window.dispatchEvent(new Event('nancy:splash-gone')) })
+    expect(await screen.findByLabelText('E-mail')).toBeInTheDocument()
+    expect(document.querySelector('input[type="password"]')).not.toBeNull()
+  })
+})
 
 describe('Login — modo entrar', () => {
   it('mostra o aviso que veio de outra tela (ex: "Conta excluída") uma vez e limpa o state do histórico', () => {

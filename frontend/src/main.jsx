@@ -54,6 +54,8 @@ const splash = document.getElementById('app-splash')
 if (splash) {
   setTimeout(() => {
     splash.classList.add('splash-hide')
+    window.__nancySplashGone = true // quem espera a splash sair (formulário de login) é liberado — ver hooks/useSplashGone.js
+    window.dispatchEvent(new Event('nancy:splash-gone'))
     setTimeout(() => splash.remove(), 450) // espera a transição de opacidade (.4s) terminar
   }, SPLASH_MIN_MS)
 }
