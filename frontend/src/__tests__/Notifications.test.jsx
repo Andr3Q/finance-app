@@ -83,7 +83,7 @@ describe('Notificações — lista', () => {
       'Resumo de outubro pronto',
     ])
     expect(screen.getByText('R$ 200,00 · conta fixa')).toBeInTheDocument()
-    expect(screen.getByText('Seu salário deve cair hoje. Quer registrar?')).toBeInTheDocument()
+    expect(screen.getByText('Seu salário deve cair hoje. Confira o valor em Finanças.')).toBeInTheDocument()
     expect(screen.getByText('Faltam R$ 270 até o teto do mês.')).toBeInTheDocument()
   })
 
@@ -184,7 +184,8 @@ describe('Notificações — ações', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('/resumo-stories {"monthOffset":0}')
   })
 
-  it('lembrete de salário abre a folha "Nova transação" já como entrada', async () => {
+  // Registrar o salário como Entrada contava em dobro (o salário cadastrado já entra nas Entradas): o lembrete leva a Finanças.
+  it('lembrete de salário leva à tela Finanças e NÃO abre a folha "Nova transação"', async () => {
     const user = userEvent.setup({ advanceTimers: () => {} })
     getSalaryNotif.mockReturnValue({ status: 'today', msg: '' })
     const heard = vi.fn()
@@ -192,8 +193,8 @@ describe('Notificações — ações', () => {
     setup()
     await user.click(await screen.findByRole('button', { name: /Lembrete de salário/ }))
     window.removeEventListener('nancy:new-transaction', heard)
-    expect(heard).toHaveBeenCalledTimes(1)
-    expect(heard.mock.calls[0][0].detail).toEqual({ type: 'income' })
+    expect(heard).not.toHaveBeenCalled()
+    expect(screen.getByTestId('where')).toHaveTextContent('/financas')
   })
 
   it('"Preferências de notificação" leva às configurações', async () => {

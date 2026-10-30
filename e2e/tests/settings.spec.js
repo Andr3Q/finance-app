@@ -117,33 +117,33 @@ test.describe('Configurações — Alterar senha', () => {
 })
 
 test.describe('Configurações — Cancelar plano', () => {
-  test('botão "Cancelar assinatura" visível para usuário Pro pago', async ({ page }) => {
+  test('botão "Não renovar" visível para usuário Pro pago', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await expect(page.getByRole('button', { name: 'Cancelar assinatura' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Não renovar' })).toBeVisible()
   })
 
   test('botão de cancelar NÃO aparece para usuário Free', async ({ page }) => {
     await setupSettings(page, FREE_USER)
     await page.goto('/settings/pagamentos')
     await expect(page.getByRole('heading', { name: 'Plano Grátis' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Cancelar assinatura' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Não renovar' })).toHaveCount(0)
   })
 
-  test('abre modal de confirmação ao clicar em "Cancelar assinatura"', async ({ page }) => {
+  test('abre modal de confirmação ao clicar em "Não renovar"', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: 'Cancelar assinatura' }).click()
-    await expect(page.getByText(/confirmar cancelamento/i)).toBeVisible()
+    await page.getByRole('button', { name: 'Não renovar' }).click()
+    await expect(page.getByText(/não renovar o plano/i)).toBeVisible()
   })
 
   test('fecha modal ao clicar em "Voltar"', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: 'Cancelar assinatura' }).click()
+    await page.getByRole('button', { name: 'Não renovar' }).click()
     // dentro do modal: o "Voltar" do cabeçalho da tela é outro botão
     await page.locator('.gls-modal').getByRole('button', { name: 'Voltar', exact: true }).click()
-    await expect(page.getByText(/confirmar cancelamento/i)).not.toBeVisible()
+    await expect(page.getByText(/não renovar o plano/i)).not.toBeVisible()
   })
 
   test('cancela plano com sucesso e troca o botão pelo aviso de acesso garantido', async ({ page }) => {
@@ -154,13 +154,13 @@ test.describe('Configurações — Cancelar plano', () => {
     })
 
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: 'Cancelar assinatura' }).click()
+    await page.getByRole('button', { name: 'Não renovar' }).click()
     await page.getByPlaceholder('Sua senha atual').fill('minhasenha')
-    await page.getByRole('button', { name: /sim, cancelar/i }).click()
+    await page.getByRole('button', { name: /sim, não renovar/i }).click()
 
-    await expect(page.locator('.toast')).toContainText('Assinatura cancelada.')
+    await expect(page.locator('.toast')).toContainText('seu plano não será renovado.')
     await expect(page.locator('.pg-cancelled')).toContainText('Acesso premium garantido até')
-    await expect(page.getByRole('button', { name: 'Cancelar assinatura' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Não renovar' })).toHaveCount(0)
   })
 })
 
@@ -212,7 +212,7 @@ test.describe('Configurações — Histórico de pagamentos', () => {
     await setupSettings(page, { ...TEST_USER, plan: 'elite', planExpiresAt: '2026-11-20T15:00:00Z' })
     page.route('**/api/payments/history**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PAYMENTS) }))
     await page.goto('/settings/pagamentos')
-    await expect(page.locator('.fin-hero-sub')).toHaveText('Histórico e cancelamento')
+    await expect(page.locator('.fin-hero-sub')).toHaveText('Histórico e renovação')
     await expect(page.locator('.pg-plan-title')).toHaveText('Plano Elite')
     await expect(page.locator('.pg-plan-sub')).toHaveText('Válido até 20 nov 2026 · cartão •••• 4021')
     await expect(page.locator('.pg-plan-amt')).toHaveText('R$ 34,90')

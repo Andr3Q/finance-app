@@ -45,11 +45,20 @@ describe('Termos de Uso', () => {
     }
   })
 
+  // O app cobra por período (Mercado Pago avulso) e não renova sozinho — os Termos diziam "renovam automaticamente".
+  it('diz que o plano NÃO renova automaticamente e explica o botão "Não renovar"', () => {
+    renderPage()
+    const text = document.body.textContent
+    expect(text).toContain('não renovam automaticamente')
+    expect(text).not.toMatch(/renovam automaticamente a cada|renovam automaticamente após/)
+    expect(text).toContain('a conta volta para o plano Grátis, a menos que você pague de novo')
+  })
+
   // Achado N2-10: o texto mandava cancelar em "Configurações → Planos", caminho que não existe no app.
   it('os caminhos citados existem no app (Perfil → Pagamentos); não há tela chamada "Configurações"', () => {
     renderPage()
     const text = document.body.textContent
-    expect(text).toContain('cancelar a qualquer momento em Perfil → Pagamentos')
+    expect(text).toContain('botão "Não renovar" em Perfil → Pagamentos')
     expect(text).not.toContain('Configurações')
   })
 

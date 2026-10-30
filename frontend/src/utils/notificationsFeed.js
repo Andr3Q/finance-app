@@ -92,15 +92,16 @@ export function buildNotifications({
   // Dia de salário (5º dia útil) — o app já calcula isso em getSalaryNotif().
   if (salaryNotif && wants('salary')) {
     const copy = {
-      today:    { body: 'Seu salário deve cair hoje. Quer registrar?',   when: 'hoje',     rank: 1 },
-      tomorrow: { body: 'Seu salário deve cair amanhã. Quer registrar?', when: 'amanhã',   rank: 7 },
+      today:    { body: 'Seu salário deve cair hoje. Confira o valor em Finanças.',   when: 'hoje',     rank: 1 },
+      tomorrow: { body: 'Seu salário deve cair amanhã. Confira o valor em Finanças.', when: 'amanhã',   rank: 7 },
       soon:     { body: salaryNotif.msg,                                 when: 'em breve', rank: 8 },
     }[salaryNotif.status]
     if (copy) {
       items.push({
         id: `salary:${monthKey(now)}:${salaryNotif.status}`, kind: 'salary', rank: copy.rank,
         title: 'Lembrete de salário', body: copy.body, when: copy.when,
-        action: { type: 'new-transaction', transactionType: 'income' },
+        // Abre Finanças (campo Salário mensal): o salário cadastrado JÁ entra nas Entradas — registrar como Entrada contava em dobro.
+        action: { type: 'route', to: '/financas' },
       })
     }
   }

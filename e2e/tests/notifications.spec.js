@@ -59,7 +59,7 @@ test.describe('Notificações', () => {
     await expect(rows(page)).toHaveCount(3)
     await expect(page.locator('.ntf-name')).toHaveText(['Academia vence hoje', 'Lembrete de salário', 'Alimentação em 82% do limite'])
     await expect(page.locator('.ntf-text')).toHaveText([
-      'R$ 200,00 · conta fixa', 'Seu salário deve cair hoje. Quer registrar?', 'Faltam R$ 270 até o teto do mês.',
+      'R$ 200,00 · conta fixa', 'Seu salário deve cair hoje. Confira o valor em Finanças.', 'Faltam R$ 270 até o teto do mês.',
     ])
     await expect(page.locator('.ntf-when')).toHaveText(['hoje', 'hoje', 'este mês'])
     await expect(page.locator('.ntf-sub')).toHaveText('3 novas')
@@ -107,13 +107,12 @@ test.describe('Notificações', () => {
     await expect(page).toHaveURL(/\/limites$/)
   })
 
-  test('lembrete de salário abre a folha "Nova transação" já como Entrada', async ({ page }) => {
+  // O salário cadastrado já entra nas Entradas: registrar como Entrada contava em dobro — o lembrete leva a Finanças (campo Salário mensal).
+  test('lembrete de salário leva à tela Finanças, sem abrir "Nova transação"', async ({ page }) => {
     await setup(page, { at: SALARY_DAY, data: payload(7) })
     await row(page, /Lembrete de salário/).click()
-    const sheet = page.getByRole('dialog', { name: 'Nova transação' })
-    await expect(sheet).toBeVisible()
-    await expect(sheet.getByRole('button', { name: 'Entrada', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page).toHaveURL(/\/notificacoes$/) // abre por cima, não troca de tela
+    await expect(page).toHaveURL(/\/financas$/)
+    await expect(page.getByRole('dialog', { name: 'Nova transação' })).toHaveCount(0)
   })
 
   test('"Preferências de notificação" leva às configurações e voltar retorna', async ({ page }) => {

@@ -102,13 +102,14 @@ describe('lembretes de vencimento (tela Lembretes)', () => {
 })
 
 describe('salário e trial', () => {
-  it('dia de salário: lembrete com ação de registrar a entrada', () => {
+  // Registrar o salário como Entrada contava em dobro (o salário cadastrado já entra nas Entradas): o lembrete leva a Finanças.
+  it('dia de salário: lembrete leva à tela Finanças (não abre Nova transação)', () => {
     const n = build({ budgets: [], salaryNotif: { status: 'today', msg: 'Hoje é dia de salário!' } }).find(x => x.kind === 'salary')
-    expect(n).toMatchObject({ title: 'Lembrete de salário', body: 'Seu salário deve cair hoje. Quer registrar?', when: 'hoje', action: { type: 'new-transaction', transactionType: 'income' } })
+    expect(n).toMatchObject({ title: 'Lembrete de salário', body: 'Seu salário deve cair hoje. Confira o valor em Finanças.', when: 'hoje', action: { type: 'route', to: '/financas' } })
   })
 
   it('amanhã e "em breve" usam o texto do app', () => {
-    expect(build({ budgets: [], salaryNotif: { status: 'tomorrow', msg: 'x' } }).find(x => x.kind === 'salary')).toMatchObject({ body: 'Seu salário deve cair amanhã. Quer registrar?', when: 'amanhã' })
+    expect(build({ budgets: [], salaryNotif: { status: 'tomorrow', msg: 'x' } }).find(x => x.kind === 'salary')).toMatchObject({ body: 'Seu salário deve cair amanhã. Confira o valor em Finanças.', when: 'amanhã' })
     expect(build({ budgets: [], salaryNotif: { status: 'soon', msg: 'Seu salário cai em breve: dia 23.' } }).find(x => x.kind === 'salary')).toMatchObject({ body: 'Seu salário cai em breve: dia 23.', when: 'em breve' })
   })
 

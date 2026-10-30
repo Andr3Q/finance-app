@@ -75,13 +75,13 @@ describe('Planos — renderização', () => {
     expect(container.querySelector('.pl-pro .pl-cta')).toBeDisabled()
     expect(screen.queryByRole('button', { name: /^assinar pro/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /fazer upgrade para elite/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /cancelar assinatura/i })).toBeInTheDocument()   // no card Grátis
+    expect(screen.getByRole('button', { name: /não renovar/i })).toBeInTheDocument()   // no card Grátis
   })
 
-  it('"Cancelar assinatura" leva ao cancelamento do app (Pagamentos), não manda ir ao Mercado Pago nem escrever pro suporte', async () => {
+  it('"Não renovar" leva ao cancelamento do app (Pagamentos), não manda ir ao Mercado Pago nem escrever pro suporte', async () => {
     setUser({ plan: 'pro' })
     renderPlanos()
-    await userEvent.click(screen.getByRole('button', { name: /cancelar assinatura/i }))
+    await userEvent.click(screen.getByRole('button', { name: /não renovar/i }))
     expect(await screen.findByText('Tela de Pagamentos')).toBeInTheDocument()
     expect(screen.queryByText(/Mercado Pago ou envie um e-mail/)).not.toBeInTheDocument()
   })

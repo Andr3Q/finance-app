@@ -70,7 +70,7 @@ export default function SettingsPayments() {
   let sub   = 'Sem cobrança'
   if (isPaid) {
     title = `Plano ${PLAN_LABEL[user.plan]}`
-    sub = [cancelled ? `Renovação cancelada · acesso até ${until || 'o fim do período pago'}` : until ? `Válido até ${until}` : null, how].filter(Boolean).join(' · ') || 'Plano ativo'
+    sub = [cancelled ? `Não será renovado · acesso até ${until || 'o fim do período pago'}` : until ? `Válido até ${until}` : null, how].filter(Boolean).join(' · ') || 'Plano ativo'
   } else if (isTrial) {
     title = `Teste do ${PLAN_LABEL[user.plan]}`
     sub = user.trialEndsAt ? `Termina em ${dateShort(user.trialEndsAt)}` : 'Período de teste'
@@ -91,7 +91,7 @@ export default function SettingsPayments() {
             <button type="button" className="fin-back" onClick={goBack} aria-label="Voltar"><BackIcon /></button>
             <div className="fin-hero-text">
               <h1 className="fin-hero-title">Pagamentos</h1>
-              <p className="fin-hero-sub">Histórico e cancelamento</p>
+              <p className="fin-hero-sub">Histórico e renovação</p>
             </div>
           </header>
 

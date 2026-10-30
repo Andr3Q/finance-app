@@ -11,7 +11,7 @@ import { analytics } from '../services/analytics.js'
 const FAQ = [
   ['O plano Grátis tem limite de tempo?','Não. O plano Grátis é gratuito para sempre, sem expiração. Use sem pressa.'],
   ['Meus dados ficam seguros?',          'Sim. Seus dados são 100% privados e nunca compartilhados com terceiros. Você é o único dono das suas informações.'],
-  ['Posso cancelar sem taxas?',          'Sim. Cancele a qualquer momento, sem multa, diretamente nas configurações da conta.'],
+  ['Posso cancelar sem taxas?',          'Sim. O plano não renova sozinho: ele vale pelo período pago e depois volta para o Grátis, sem multa. Se quiser registrar que não vai renovar, use "Não renovar" em Perfil → Pagamentos.'],
 ]
 
 const FREE_FEATS = [
@@ -251,7 +251,7 @@ export default function Planos() {
                 <button type="button" className="pl-cta pl-cta-ghost" disabled>Plano básico</button>
               ) : (
                 <button type="button" className="pl-cta pl-cta-ghost" onClick={() => navigate('/settings/pagamentos')}>
-                  Cancelar assinatura
+                  Não renovar
                 </button>
               )}
             </section>

@@ -45,7 +45,7 @@ describe('Pagamentos — plano atual', () => {
   it('plano pago: nome, até quando vale, forma de pagamento do último pagamento e o último valor', async () => {
     renderPage()
     expect(screen.getByRole('heading', { name: 'Pagamentos' })).toBeInTheDocument()
-    expect(screen.getByText('Histórico e cancelamento')).toBeInTheDocument()
+    expect(screen.getByText('Histórico e renovação')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Plano Elite' })).toBeInTheDocument()
     expect(await screen.findByText('Válido até 20 nov 2026 · cartão •••• 4021')).toBeInTheDocument()
     expect(document.querySelector('.pg-plan-amt').textContent).toBe('R$ 34,90')
@@ -63,9 +63,9 @@ describe('Pagamentos — plano atual', () => {
 
   it('assinatura cancelada: aviso de acesso até a data, sem botão de cancelar de novo', async () => {
     renderPage({ subscriptionCancelled: true })
-    expect(await screen.findByText('Renovação cancelada · acesso até 20 nov 2026 · cartão •••• 4021')).toHaveClass('warn')
-    expect(screen.getByRole('status')).toHaveTextContent('Assinatura cancelada.')
-    expect(screen.queryByRole('button', { name: 'Cancelar assinatura' })).not.toBeInTheDocument()
+    expect(await screen.findByText('Não será renovado · acesso até 20 nov 2026 · cartão •••• 4021')).toHaveClass('warn')
+    expect(screen.getByRole('status')).toHaveTextContent('Plano não será renovado.')
+    expect(screen.queryByRole('button', { name: 'Não renovar' })).not.toBeInTheDocument()
   })
 
   it('em teste (trial): "Teste do Pro" com o fim do teste, sem valor e sem cancelar', async () => {
@@ -74,7 +74,7 @@ describe('Pagamentos — plano atual', () => {
     expect(screen.getByRole('heading', { name: 'Teste do Pro' })).toBeInTheDocument()
     expect(screen.getByText('Termina em 02 nov 2026')).toBeInTheDocument()
     expect(document.querySelector('.pg-plan-amt')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Cancelar assinatura' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Não renovar' })).not.toBeInTheDocument()
   })
 
   it('plano grátis: "Sem cobrança", "Ver planos" leva aos planos, sem cancelar e sem histórico vazio', async () => {
@@ -83,7 +83,7 @@ describe('Pagamentos — plano atual', () => {
     expect(screen.getByRole('heading', { name: 'Plano Grátis' })).toBeInTheDocument()
     expect(screen.getByText('Sem cobrança')).toBeInTheDocument()
     await waitFor(() => expect(paymentsAPI.history).toHaveBeenCalled())
-    expect(screen.queryByRole('button', { name: 'Cancelar assinatura' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Não renovar' })).not.toBeInTheDocument()
     expect(screen.queryByText('Histórico')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Ver planos' }))
     expect(screen.getByTestId('where')).toHaveTextContent('/planos')
@@ -118,40 +118,40 @@ describe('Pagamentos — histórico', () => {
     paymentsAPI.history.mockRejectedValue(new Error('off'))
     renderPage()
     expect(await screen.findByText('Não foi possível carregar o histórico agora.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Cancelar assinatura' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Não renovar' })).toBeInTheDocument()
   })
 })
 
 describe('Pagamentos — cancelar assinatura', () => {
   it('pede a senha, chama a API e avisa até quando o acesso continua', async () => {
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar assinatura' }))
-    const dlg = screen.getByText('Confirmar cancelamento').closest('.gls-modal')
-    expect(within(dlg).getByRole('button', { name: /sim, cancelar plano/i })).toBeDisabled()
+    fireEvent.click(await screen.findByRole('button', { name: 'Não renovar' }))
+    const dlg = screen.getByText('Não renovar o plano').closest('.gls-modal')
+    expect(within(dlg).getByRole('button', { name: /sim, não renovar/i })).toBeDisabled()
     fireEvent.change(within(dlg).getByPlaceholderText('Sua senha atual'), { target: { value: 'minhasenha' } })
-    fireEvent.click(within(dlg).getByRole('button', { name: /sim, cancelar plano/i }))
+    fireEvent.click(within(dlg).getByRole('button', { name: /sim, não renovar/i }))
     await waitFor(() => expect(authAPI.downgradeFree).toHaveBeenCalledWith({ password: 'minhasenha' }))
-    expect(await screen.findByText(/Assinatura cancelada\. Seu acesso premium continua até 20\/11\/2026/)).toBeInTheDocument()
-    expect(screen.queryByText('Confirmar cancelamento')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Cancelar assinatura' })).not.toBeInTheDocument()
+    expect(await screen.findByText(/Pronto: seu plano não será renovado\. Seu acesso premium continua até 20\/11\/2026/)).toBeInTheDocument()
+    expect(screen.queryByText('Não renovar o plano')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Não renovar' })).not.toBeInTheDocument()
   })
 
   it('senha errada: o erro do servidor aparece e a assinatura continua ativa', async () => {
     authAPI.downgradeFree.mockRejectedValue({ response: { data: { error: 'Senha incorreta.' } } })
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar assinatura' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Não renovar' }))
     fireEvent.change(screen.getByPlaceholderText('Sua senha atual'), { target: { value: 'errada' } })
-    fireEvent.click(screen.getByRole('button', { name: /sim, cancelar plano/i }))
+    fireEvent.click(screen.getByRole('button', { name: /sim, não renovar/i }))
     expect(await screen.findByText('Senha incorreta.')).toBeInTheDocument()
     expect(JSON.parse(sessionStorage.getItem('user')).subscriptionCancelled).toBeUndefined()
   })
 
   it('"Voltar" do modal fecha sem cancelar', async () => {
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar assinatura' }))
-    const dlg = screen.getByText('Confirmar cancelamento').closest('.gls-modal')
+    fireEvent.click(await screen.findByRole('button', { name: 'Não renovar' }))
+    const dlg = screen.getByText('Não renovar o plano').closest('.gls-modal')
     fireEvent.click(within(dlg).getByRole('button', { name: 'Voltar' }))
-    expect(screen.queryByText('Confirmar cancelamento')).not.toBeInTheDocument()
+    expect(screen.queryByText('Não renovar o plano')).not.toBeInTheDocument()
     expect(authAPI.downgradeFree).not.toHaveBeenCalled()
   })
 })

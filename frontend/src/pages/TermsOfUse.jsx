@@ -59,16 +59,16 @@ export default function TermsOfUse() {
         <h2 className="lg-h">4. Pagamentos e renovação</h2>
         <ul className="lg-ul">
           <li className="lg-li">Pagamentos são processados pelo <strong>Mercado Pago</strong>, sujeitos à política deles</li>
-          <li className="lg-li">Planos mensais renovam automaticamente a cada 31 dias</li>
-          <li className="lg-li">Planos anuais renovam automaticamente após 366 dias</li>
+          <li className="lg-li">Cada pagamento libera o plano por um período: 31 dias no mensal e 366 dias no anual</li>
+          <li className="lg-li">Os planos <strong>não renovam automaticamente</strong>: ao fim do período pago a conta volta para o plano Grátis, a menos que você pague de novo</li>
           <li className="lg-li">Você receberá confirmação de cobrança por e-mail</li>
-          <li className="lg-li">Em caso de falha no pagamento, o plano é rebaixado para Grátis automaticamente</li>
+          <li className="lg-li">Se o pagamento não for aprovado, o plano não é ativado e a conta continua como está</li>
         </ul>
 
         <h2 className="lg-h">5. Cancelamento e reembolso</h2>
         <ul className="lg-ul">
-          <li className="lg-li"><strong>Cancelamento:</strong> você pode cancelar a qualquer momento em Perfil → Pagamentos, sem multa</li>
-          <li className="lg-li"><strong>Após cancelamento:</strong> o acesso ao plano pago fica ativo até o fim do período já pago</li>
+          <li className="lg-li"><strong>Não renovar:</strong> como o plano não renova sozinho, não há nada a cancelar; se quiser registrar que não vai renovar, use o botão "Não renovar" em Perfil → Pagamentos, sem multa</li>
+          <li className="lg-li"><strong>Fim do período:</strong> o acesso ao plano pago fica ativo até o fim do período já pago</li>
           <li className="lg-li"><strong>Reembolso:</strong> solicitações dentro de 7 dias da compra são analisadas caso a caso. Após 7 dias, não há reembolso proporcional</li>
           <li className="lg-li"><strong>Plano Grátis:</strong> sem cobrança, pode ser cancelado (excluindo conta) a qualquer momento</li>
         </ul>
