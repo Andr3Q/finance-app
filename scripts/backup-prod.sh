@@ -11,7 +11,8 @@
 # Quem preferir pode definir PROD_DB_URL no ambiente (URL completa, já com a senha codificada): aí ele não pergunta nada.
 # O que for colado é conferido: precisa ser postgresql://, sem "?parâmetros" no fim (são tirados) e nunca a porta 6543.
 #
-# Atalho sem digitar a senha: POOLER_HOST=<host do pooler> scripts/backup-prod.sh  e colar o DATABASE_URL inteiro da produção.
+# Atalho sem digitar a senha (cole o DATABASE_URL inteiro da produção num arquivo e aponte para ele):
+#   POOLER_HOST=<host do pooler> PROD_DB_URL_FILE=~/url.txt scripts/backup-prod.sh   # depois: rm ~/url.txt
 #
 # Onde pegar a URL: Supabase → botão "Connect" (ou Project Settings → Database → Connection string) → URI.
 #  • A conexão DIRETA (db.<ref>.supabase.co:5432) funciona: o contêiner usa a rede do seu computador (--network host) e o Supabase só
@@ -38,12 +39,18 @@ urlencode() {
 }
 
 # ── A URL do banco ───────────────────────────────────────────────────────────────────────────────────────────────────────
+# De onde vem: PROD_DB_URL_FILE (um arquivo com a URL — cole no editor, onde dá para VER o que colou, e apague depois), PROD_DB_URL
+# (variável) ou, se nenhum, pergunta aqui (escondida).
+if [ -z "${PROD_DB_URL:-}" ] && [ -n "${PROD_DB_URL_FILE:-}" ]; then
+  [ -f "$PROD_DB_URL_FILE" ] || { echo "❌ Arquivo não encontrado: $PROD_DB_URL_FILE. Nada foi feito."; exit 1; }
+  PROD_DB_URL="$(head -n1 "$PROD_DB_URL_FILE")"
+fi
 if [ -z "${PROD_DB_URL:-}" ]; then
-  [ -t 0 ] || { echo "❌ Defina PROD_DB_URL ou rode num terminal, para o script poder pedir a URL."; exit 1; }
+  [ -t 0 ] || { echo "❌ Defina PROD_DB_URL (ou PROD_DB_URL_FILE) ou rode num terminal, para o script poder pedir a URL."; exit 1; }
   read -rsp "Cole a URL do banco de PRODUÇÃO (Supabase → Connect → Session pooler) e aperte Enter: " PROD_DB_URL; echo
 fi
 PROD_DB_URL="${PROD_DB_URL//[[:space:]]/}"   # espaço/quebra de linha que veio junto da colagem
-PROD_DB_URL="${PROD_DB_URL%%\?*}"            # "?schema=public", "?pgbouncer=true"...: o pg_dump não aceita
+PROD_DB_URL="${PROD_DB_URL#[\"\']}"; PROD_DB_URL="${PROD_DB_URL%[\"\']}"   # aspas em volta (DATABASE_URL="...")
 case "$PROD_DB_URL" in
   postgresql://*|postgres://*) ;;
   "") echo "❌ Nada foi colado. Rode de novo e cole a URL (ela começa com postgresql://). Nada foi feito."; exit 1 ;;
@@ -52,23 +59,40 @@ esac
 case "$PROD_DB_URL" in
   *:6543|*:6543/*) echo "❌ A porta 6543 é o transaction pooler e não serve para backup. Use o Session pooler (porta 5432). Nada foi feito."; exit 1 ;;
 esac
-# URL do Supabase ainda com o marcador no lugar da senha (":[YOUR-PASSWORD]@"): pergunta a senha e a coloca já codificada.
+SENHA_BRUTA=""
 if [[ "$PROD_DB_URL" =~ (:\[[^]]*\]@) ]]; then
+  # URL do Supabase ainda com o marcador no lugar da senha (":[YOUR-PASSWORD]@"): pergunta a senha e a coloca já codificada.
   MARCADOR="${BASH_REMATCH[1]}"
+  PROD_DB_URL="${PROD_DB_URL%%\?*}"          # "?schema=public", "?pgbouncer=true"...: o pg_dump não aceita
   [ -t 0 ] || { echo "❌ A URL ainda tem o marcador da senha e não há terminal para pedi-la. Nada foi feito."; exit 1; }
   read -rsp "Digite a senha do BANCO (não aparece na tela) e aperte Enter: " DB_PASS; echo
   [ -n "$DB_PASS" ] || { echo "❌ Senha vazia. Nada foi feito."; exit 1; }
+  SENHA_BRUTA="$DB_PASS"
   PROD_DB_URL="${PROD_DB_URL/"$MARCADOR"/:$(urlencode "$DB_PASS")@}"
   unset DB_PASS MARCADOR
+elif [[ "$PROD_DB_URL" =~ ^(postgres(ql)?://)([^:/@]+):(.*)@([^@]*)$ ]]; then
+  # URL completa com a senha (ex.: o DATABASE_URL da produção). A senha vai até o ÚLTIMO "@"; "?parâmetros" só valem depois dele.
+  # Senha com "%" já está codificada; sem "%" é crua e é codificada aqui (símbolos como ? # / : @ quebrariam a URL).
+  ESQ="${BASH_REMATCH[1]}${BASH_REMATCH[3]}"; PW="${BASH_REMATCH[4]}"; RESTO="${BASH_REMATCH[5]%%\?*}"
+  case "$PW" in
+    *%*) SENHA_BRUTA="$(printf '%b' "${PW//%/\\x}")" ;;
+    *)   SENHA_BRUTA="$PW"; PW="$(urlencode "$PW")" ;;
+  esac
+  PROD_DB_URL="${ESQ}:${PW}@${RESTO}"
+  unset ESQ PW RESTO
 fi
-# POOLER_HOST=aws-1-us-west-1.pooler.supabase.com: você cola o DATABASE_URL INTEIRO da produção (o de db.<ref>.supabase.co, que já traz a
-# senha completa, sem precisar selecionar só um pedaço) e o script troca sozinho o endereço direto — que só tem IPv6 e muitas redes
-# recusam — pelo do Session pooler (IPv4), ajustando o usuário para postgres.<ref>.
-if [ -n "${POOLER_HOST:-}" ] && [[ "$PROD_DB_URL" =~ ^(postgres(ql)?://)([^:/@]+):([^@]*)@db\.([a-z0-9]+)\.supabase\.co(:[0-9]+)?(/.*)$ ]]; then
-  PROD_DB_URL="${BASH_REMATCH[1]}${BASH_REMATCH[3]}.${BASH_REMATCH[5]}:${BASH_REMATCH[4]}@${POOLER_HOST}:5432${BASH_REMATCH[7]}"
+# POOLER_HOST=aws-1-us-west-1.pooler.supabase.com: o endereço direto da produção (db.<ref>.supabase.co) só tem IPv6 e muitas redes o
+# recusam — o script o troca pelo do Session pooler (IPv4) e ajusta o usuário para postgres.<ref>, mantendo a senha da URL.
+if [ -n "${POOLER_HOST:-}" ] && [[ "$PROD_DB_URL" =~ ^(postgres(ql)?://)([^:/@]+):([^@]*)@db\.([a-z0-9]+)\.supabase\.co(:[0-9]+)?(/.*)?$ ]]; then
+  PROD_DB_URL="${BASH_REMATCH[1]}${BASH_REMATCH[3]}.${BASH_REMATCH[5]}:${BASH_REMATCH[4]}@${POOLER_HOST}:5432${BASH_REMATCH[7]:-/postgres}"
 fi
-# Mostra onde vai conectar (a senha mascarada) para você conferir host, porta e usuário.
+# Mostra onde vai conectar (senha mascarada) e o TAMANHO da senha recebida (nunca a senha), para você conferir se ela chegou inteira.
 echo "   Conectando em: $(printf '%s' "$PROD_DB_URL" | sed -E 's#(://[^:/@]+):[^@]*@#\1:****@#')"
+if [ -n "$SENHA_BRUTA" ]; then
+  SIMBOLOS="$(printf '%s' "$SENHA_BRUTA" | tr -d 'A-Za-z0-9' | wc -c)"
+  echo "   Senha recebida: ${#SENHA_BRUTA} caracteres, ${SIMBOLOS} deles símbolos (não letra nem número)"
+fi
+unset SENHA_BRUTA SIMBOLOS
 export PROD_DB_URL
 
 DEST="${1:-$HOME/backups-nancy}"
