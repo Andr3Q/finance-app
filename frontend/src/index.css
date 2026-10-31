@@ -12189,10 +12189,14 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* ── iPhone: puxar a tela para baixo mostrava uma faixa cinza/branca acima do cabeçalho azul ────────────────────────────────
-   No celular quem rola é a PÁGINA (o .pwnav não rola), e o "elástico" do iOS revela a cor do html (a "tela" atrás do documento).
-   No tema claro o html era cinza. Agora é o azul do cabeçalho; o body continua cinza claro e opaco, cobrindo todo o documento, então
-   nada muda no uso normal — só o espaço que o elástico abre fica azul. (Uma faixa position:fixed não serve: no iOS o elástico leva os
-   elementos fixos junto.) Só no celular e só no tema claro (telas do Nancy 2). O iOS em si só se confere no aparelho. */
+   No celular quem rola é a PÁGINA (o .pwnav não rola), e o "elástico" do iOS revela a cor do FUNDO DO DOCUMENTO. O WebKit calcula essa
+   cor misturando o fundo do html com o do body POR CIMA (LocalFrameView::documentBackgroundColor): com o body cinza e opaco, o azul do
+   html nunca aparecia — foi por isso que só pintar o html não adiantou no iPhone do André. Então no celular (tema claro, telas do
+   Nancy 2): html azul, body TRANSPARENTE e o cinza da página passa para o #root (que ocupa a tela toda), então nada muda no uso normal
+   — só o espaço que o elástico abre fica azul. (Uma faixa position:fixed não serve: no iOS o elástico leva os elementos fixos junto.)
+   O iOS em si só se confere no aparelho; o E2E trava a estrutura (html azul, body transparente, #root cinza). */
 @media (max-width: 900px) {
   html[data-theme="light"] { background: #1C48FF !important; }
+  html[data-theme="light"] body { background: transparent !important; }
+  html[data-theme="light"] #root { background: #f0f2f5; }
 }

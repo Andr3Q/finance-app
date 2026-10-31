@@ -532,20 +532,25 @@ test.describe('Início — falha ao carregar', () => {
     await expect(page.locator('.app-loader')).toHaveCount(0)
   })
 
-  // Achado do André (iPhone): puxar a tela para baixo mostrava uma faixa branca/cinza acima do cabeçalho azul. No celular quem rola é a
-  // PÁGINA e o "elástico" revela a cor do html: azul no celular; o body (cinza claro, opaco) cobre o documento, então nada muda no uso
-  // normal. O iOS em si só se confere no aparelho.
-  test('celular: o espaço que o elástico do iPhone abre é azul (cor do html); body continua cinza claro e opaco; no desktop não muda', async ({ page }) => {
+  // Achado do André (iPhone, 2 tentativas): puxar a tela para baixo mostrava uma faixa cinza acima do cabeçalho azul. No celular quem rola
+  // é a PÁGINA e o "elástico" revela a cor do FUNDO DO DOCUMENTO, que o WebKit calcula misturando o fundo do html com o do body POR CIMA.
+  // Com o body cinza e opaco o azul do html nunca aparecia (só pintar o html não adiantou). Agora: html azul, body transparente, #root
+  // cinza. O teste refaz a conta do WebKit; o iOS em si só se confere no aparelho.
+  test('celular: a cor do fundo do documento (html + body por cima) é azul; o cinza da página vem do #root; no desktop não muda', async ({ page }) => {
     await setupInicio(page)
     await page.goto('/dashboard')
     await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
     const cores = () => page.evaluate(() => {
       const cor = (el) => getComputedStyle(el).backgroundColor
-      return { html: cor(document.documentElement), body: cor(document.body), docVaiAteOFim: document.body.getBoundingClientRect().height >= innerHeight - 1 }
+      const rgba = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 } }
+      const sobre = (base, topo) => ({ r: Math.round(base.r * (1 - topo.a) + topo.r * topo.a), g: Math.round(base.g * (1 - topo.a) + topo.g * topo.a), b: Math.round(base.b * (1 - topo.a) + topo.b * topo.a), a: 1 })
+      const doc = sobre(rgba(cor(document.documentElement)), rgba(cor(document.body)))
+      return { documento: `rgb(${doc.r}, ${doc.g}, ${doc.b})`, root: cor(document.getElementById('root')), rootCobreODocumento: document.getElementById('root').getBoundingClientRect().height >= Math.max(innerHeight, document.documentElement.scrollHeight) - 1 }
     })
-    expect(await cores()).toEqual({ html: 'rgb(28, 72, 255)', body: 'rgb(240, 242, 245)', docVaiAteOFim: true })
+    // expect.poll: a página entra com um deslize de 16px (fade-in, .4s) que, no meio, aumenta a altura rolável além do #root
+    await expect.poll(cores).toEqual({ documento: 'rgb(28, 72, 255)', root: 'rgb(240, 242, 245)', rootCobreODocumento: true })
     await page.setViewportSize({ width: 1280, height: 800 })
-    expect((await cores()).html).toBe('rgb(240, 242, 245)')
+    await expect.poll(cores).toMatchObject({ documento: 'rgb(240, 242, 245)', root: 'rgba(0, 0, 0, 0)' })
   })
 
   test('sem conexão e sem nada guardado: avisa, não mostra R$ 0,00, e "Tentar de novo" carrega os dados', async ({ page }) => {
