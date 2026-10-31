@@ -63,6 +63,9 @@
         transition: opacity .4s ease, visibility .4s ease;
       }
       #app-splash.splash-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+      /* O que a abertura não cobre mostra o fundo da página: no iPhone sobra uma faixa embaixo (≈47px) e, no tema claro, ela aparecia
+         azul/cinza. Enquanto a abertura está na tela o fundo é preto, como o vídeo (a marca sai em main.jsx). */
+      html.is-splashing, html.is-splashing[data-theme] { background: #000 !important; }
       #app-splash video {
         position: absolute; inset: 0; width: 100%; height: 100%;
         object-fit: cover; display: block;

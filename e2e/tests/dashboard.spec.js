@@ -540,6 +540,7 @@ test.describe('Início — falha ao carregar', () => {
     await setupInicio(page)
     await page.goto('/dashboard')
     await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
+    await expect(page.locator('#app-splash')).toHaveCount(0, { timeout: 20000 }) // durante a abertura o fundo é preto (splash-background.spec.js)
     const cores = () => page.evaluate(() => {
       const cor = (el) => getComputedStyle(el).backgroundColor
       const rgba = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 } }
