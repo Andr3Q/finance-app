@@ -29,16 +29,28 @@ function process(raw) {
 function toDisplay(v) {
   if (v === '' || v == null) return ''
   const n = Number(v)
-  if (!n && n !== 0) return ''
+  // Zero some (aparece o placeholder "0,00"): com "0,00" escrito de verdade os dígitos digitados caíam nos centavos
+  // e eram descartados, e o campo parecia travado. É o mesmo que o blur já faz com zero.
+  if (!n) return ''
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export default function CurrencyInput({ value, onChange, className, style, placeholder, autoFocus }) {
+// O que está escrito no campo, como número ("1.500,5" → 1500.5; vazio → 0).
+const writtenAmount = (d) => {
+  const n = parseFloat(String(d).replace(/\./g, '').replace(',', '.'))
+  return Number.isFinite(n) ? n : 0
+}
+
+export default function CurrencyInput({ value, onChange, className, style, placeholder, autoFocus, ariaLabel }) {
   const focused = useRef(false)
   const [display, setDisplay] = useState(() => toDisplay(value))
 
   useEffect(() => {
-    if (!focused.current) setDisplay(toDisplay(value))
+    // Com o campo em foco quem digita manda (um valor diferente vindo de fora não atropela a digitação) — com UMA exceção:
+    // o valor de fora ficar vazio enquanto ainda há número escrito significa "o formulário foi limpo" (ex.: Enter para
+    // salvar, com o foco ainda no campo). Antes o campo seguia mostrando o valor antigo e parecia que nada tinha sido salvo.
+    const cleared = value === '' || value == null
+    setDisplay(d => (!focused.current || (cleared && writtenAmount(d) !== 0) ? toDisplay(value) : d))
   }, [value])
 
   const handleChange = (e) => {
@@ -67,6 +79,7 @@ export default function CurrencyInput({ value, onChange, className, style, place
       className={className}
       style={style}
       placeholder={placeholder || '0,00'}
+      aria-label={ariaLabel}
       value={display}
       onChange={handleChange}
       onFocus={() => { focused.current = true }}

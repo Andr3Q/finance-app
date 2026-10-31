@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { isInstalled, getInstallPrompt, clearInstallPrompt } from '../../services/installPrompt.js'
 import { useUser } from '../../hooks/useUser.js'
-import { useTheme } from '../../hooks/useTheme.js'
+import { useTheme, useThemeForced } from '../../hooks/useTheme.js'
 import { authAPI } from '../../services/api.js'
 import { analytics } from '../../services/analytics.js'
 import { MONTHS, WEEKDAYS } from '../../constants/index.js'
@@ -13,17 +13,27 @@ const ROUTE_TITLES = {
   '/analytics':   'Análises',
   '/goals':       'Metas',
   '/financas':    'Finanças',
+  '/parcelados':  'Compras parceladas',
+  '/contas-do-mes': 'Contas do mês',
+  '/analise':     'Análise do mês',
+  '/historico':   'Histórico',
+  '/assinaturas': 'Assinaturas',
+  '/lembretes':   'Lembretes',
+  '/limites':     'Limites',
+  '/notificacoes': 'Notificações',
   '/settings':    'Configurações',
   '/planos':      'Planos',
   '/calendar':    'Calendário',
   '/settings/perfil':       'Perfil',
   '/settings/seguranca':    'Segurança',
-  '/settings/notificacoes': 'Notificações',
+  '/settings/notificacoes': 'Preferências',
   '/settings/fechamento':   'Balanço mensal',
   '/settings/indique':      'Indique e Ganhe',
   '/settings/pagamentos':   'Pagamentos',
   '/settings/dados':        'Meus dados',
   '/settings/instalar':     'Instalar app',
+  '/termos':                'Termos de uso',
+  '/privacidade':           'Privacidade',
 }
 
 function greeting() {
@@ -37,6 +47,8 @@ function BellIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" f
 function HomeIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> }
 function TxIcon()     { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> }
 function TargetIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> }
+function SwapIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4v16"/><path d="M3 8l4-4 4 4"/><path d="M17 20V4"/><path d="M13 16l4 4 4-4"/></svg> }
+function UserIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></svg> }
 function GearIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg> }
 function BoltIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> }
 function WalletIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2v-5"/><path d="M16 12h5v4h-5a2 2 0 010-4z"/></svg> }
@@ -54,6 +66,7 @@ export default function Navbar() {
   const location = useLocation()
   const user = useUser()
   const { theme, toggle } = useTheme()
+  const themeForced = useThemeForced() // telas do Nancy 2 são só claras: o botão de tema não teria efeito
 
   const [appInstalled, setAppInstalled] = useState(() => isInstalled())
   const [installing,   setInstalling]   = useState(false)
@@ -116,8 +129,13 @@ export default function Navbar() {
   const isPro     = user.plan === 'pro' || user.plan === 'elite'
   // "/settings" fica ativo em qualquer subtela dele (ex: /settings/seguranca)
   const isActive  = (path) => path === '/settings'
-    ? location.pathname.startsWith('/settings')
+    ? location.pathname.startsWith('/settings') || ['/termos', '/privacidade'].includes(location.pathname) // Termos/Privacidade abrem pelo Perfil
     : location.pathname === path
+  // No design, Notificações e Finanças (aberta pelo "Contas do mês" do Extrato) aparecem com
+  // "Extrato" aceso na barra de baixo (mobile).
+  const isMobileActive = (path) => isActive(path)
+    || (path === '/transactions' && ['/notificacoes', '/financas', '/parcelados', '/contas-do-mes', '/calendar', '/analise'].includes(location.pathname))
+    || (path === '/goals' && ['/historico', '/assinaturas', '/lembretes', '/limites'].includes(location.pathname)) // sub-telas das Metas
 
   const firstName = user.name ? user.name.split(' ')[0] : ''
   const pageTitle = location.pathname === '/dashboard'
@@ -132,17 +150,17 @@ export default function Navbar() {
     { path: '/settings',     label: 'Configurações', Icon: GearIcon   },
   ]
 
-  // Barra inferior mobile: só 4 links (sem Metas — vai pro menu rápido do "+"
-  // central) + "Configurações" renomeado pra "Mais". Sidebar desktop continua
-  // com os 5 itens originais (navLinks acima) — não tem o mesmo problema de
-  // espaço que motivou essa reorganização no mobile.
+  // Barra inferior mobile (design Nancy 2): Início · Extrato · "+" · Metas · Perfil.
+  // "Finanças" saiu da barra — continua acessível pelo atalho "Contas do mês" do
+  // Extrato e pela sidebar do desktop, que segue com os 5 itens originais (navLinks
+  // acima). "Perfil" leva às configurações.
   const mobileNavLinksLeft  = [
-    { path: '/dashboard',    label: 'Dashboard',  Icon: HomeIcon },
-    { path: '/transactions', label: 'Transações', Icon: TxIcon   },
+    { path: '/dashboard',    label: 'Início',  Icon: HomeIcon },
+    { path: '/transactions', label: 'Extrato', Icon: SwapIcon },
   ]
   const mobileNavLinksRight = [
-    { path: '/financas', label: 'Finanças', Icon: WalletIcon },
-    { path: '/settings', label: 'Mais',      Icon: GearIcon   },
+    { path: '/goals',    label: 'Metas',  Icon: TargetIcon },
+    { path: '/settings', label: 'Perfil', Icon: UserIcon   },
   ]
 
   const [showQuickMenu, setShowQuickMenu] = useState(false)
@@ -151,19 +169,19 @@ export default function Navbar() {
   // /goals) — evita ele ficar aberto por cima de uma tela diferente.
   useEffect(() => { setShowQuickMenu(false) }, [location.pathname])
 
-  // Círculo sempre escuro (identidade do Nancy) — só o ícone muda de cor.
-  // Verde/vermelho seguem o mesmo padrão já usado em receita/despesa no
-  // resto do app; as demais ações usam o verde-menta da marca.
+  // Bolhas brancas com o ícone colorido (design Nancy 2): verde = entrada, vermelho =
+  // saída, azul = ações da marca. Receita/Despesa abrem a folha "Nova transação" por
+  // cima da tela atual (NewTransactionSheet, montado em App.jsx).
   const quickMenuActions = [
-    { key: 'income',      label: 'Receita',          Icon: ArrowUpIcon,   iconColor: '#4ae2ac',
-      onSelect: () => navigate('/dashboard', { state: { openTxForm: 'income' } }) },
-    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,      iconColor: '#4ae2ac',
-      onSelect: () => navigate('/transactions', { state: { openInstallmentForm: true } }) },
-    { key: 'voice',       label: 'Falar com IA',     Icon: MicIcon,       iconColor: '#4ae2ac',
+    { key: 'income',      label: 'Receita',          Icon: ArrowUpIcon,   iconColor: '#19C884',
+      onSelect: () => window.dispatchEvent(new CustomEvent('nancy:new-transaction', { detail: { type: 'income' } })) },
+    { key: 'installment', label: 'Compra Parcelada', Icon: InstIcon,      iconColor: '#1C48FF',
+      onSelect: () => navigate('/parcelados', { state: { focusForm: true } }) },
+    { key: 'voice',       label: 'Falar com IA',     Icon: MicIcon,       iconColor: '#1C48FF',
       onSelect: () => window.dispatchEvent(new Event('nancy:open-agent-chat')) },
-    { key: 'expense',     label: 'Despesa',          Icon: ArrowDownIcon, iconColor: '#ff6b6b',
-      onSelect: () => navigate('/dashboard', { state: { openTxForm: 'expense' } }) },
-    { key: 'goals',       label: 'Metas',            Icon: TargetIcon,    iconColor: '#4ae2ac',
+    { key: 'expense',     label: 'Despesa',          Icon: ArrowDownIcon, iconColor: '#E5484D',
+      onSelect: () => window.dispatchEvent(new CustomEvent('nancy:new-transaction', { detail: { type: 'expense' } })) },
+    { key: 'goals',       label: 'Metas',            Icon: TargetIcon,    iconColor: '#12A06E',
       onSelect: () => navigate('/goals') },
   ]
 
@@ -265,8 +283,8 @@ export default function Navbar() {
               <div className="dsb-s-user-role">
                 {user.isOnTrial
                   ? `Trial Pro — ${Math.max(0, Math.ceil((new Date(user.trialEndsAt) - Date.now()) / 86400000))} dias`
-                  : user.plan === 'elite' ? 'Plano Elite ⚡'
-                  : isPro ? 'Plano Pro ✨'
+                  : user.plan === 'elite' ? 'Plano Elite'
+                  : isPro ? 'Plano Pro'
                   : 'Plano Grátis'}
               </div>
             </div>
@@ -296,12 +314,12 @@ export default function Navbar() {
               </span>
             )
             : isPro
-              ? <span className="dsb-topbar-pro" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>PRO ✨</span>
-              : <button className="dsb-topbar-upgrade" onClick={() => navigate('/planos')}>⚡ Upgrade</button>
+              ? <span className="dsb-topbar-pro" onClick={() => navigate('/planos')} style={{ cursor:'pointer' }}>PRO</span>
+              : <button className="dsb-topbar-upgrade" onClick={() => navigate('/planos')}>Upgrade</button>
           }
 
-          {/* Toggle dark/light */}
-          <button className="dsb-theme-btn" onClick={toggle} title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}>
+          {/* Toggle dark/light — escondido nas telas do Nancy 2 (sempre claras) */}
+          {!themeForced && <button className="dsb-theme-btn" onClick={toggle} title={theme === 'dark' ? 'Modo claro' : 'Modo escuro'}>
             {theme === 'dark' ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="5"/>
@@ -315,7 +333,7 @@ export default function Navbar() {
                 <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
               </svg>
             )}
-          </button>
+          </button>}
 
           {/* Sino de notificações */}
           <div className="dsb-bell-wrap" ref={bellRef}>
@@ -404,9 +422,9 @@ export default function Navbar() {
       )}
 
       {/* ── Mobile bottom nav ── */}
-      <nav className="dsb-mobile-nav">
+      <nav className={`dsb-mobile-nav${showQuickMenu ? ' menu-open' : ''}`}>
         {mobileNavLinksLeft.map(({ path, label, Icon }) => {
-          const active = isActive(path)
+          const active = isMobileActive(path)
           return (
             <button
               key={path}
@@ -428,7 +446,7 @@ export default function Navbar() {
         </button>
 
         {mobileNavLinksRight.map(({ path, label, Icon }) => {
-          const active = isActive(path)
+          const active = isMobileActive(path)
           return (
             <button
               key={path}

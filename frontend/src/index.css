@@ -3,6 +3,21 @@
    Design tokens + componentes globais
    ═══════════════════════════════════════════════════════ */
 
+/* ── Fonte Sora, hospedada no próprio app ───────────────────
+   Antes vinha do Google Fonts: o layout dependia da internet e do instante em que a fonte chegava (texto de
+   largura diferente quebrava de linha, e o teste de layout falhava só em alguns ambientes). Fonte variável: um
+   arquivo por subconjunto cobre os pesos 100–800. O Vite gera o nome com hash em /assets (cache de 1 ano). */
+@font-face {
+  font-family: 'Sora'; font-style: normal; font-weight: 100 800; font-display: swap;
+  src: url('./assets/fonts/sora-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Sora'; font-style: normal; font-weight: 100 800; font-display: swap;
+  src: url('./assets/fonts/sora-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* ── Tokens ─────────────────────────────────────────────── */
 :root {
   /* Background */
@@ -259,7 +274,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* ── Layout ──────────────────────────────────────────────── */
 .page          { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
 .page-with-nav { padding-top: calc(var(--nav-height) + 16px); }
-.pwnav         { margin-left: var(--dsb-sidebar-w); padding-top: var(--dsb-topbar-h); height: 100dvh; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; background: transparent; }
+.pwnav         { margin-left: var(--dsb-sidebar-w); padding-top: var(--dsb-topbar-h); padding-bottom: var(--ck-pad, 0px); height: 100dvh; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; background: transparent; }
 
 .grid-2, .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .grid-3, .g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
@@ -338,6 +353,11 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .toast { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: var(--rmd); font-size: 13px; font-weight: 500; margin-bottom: 14px; animation: fadeUp .3s ease; }
 .tok   { background: rgba(74,226,172,.07); border: 1px solid rgba(74,226,172,.2); color: var(--green); }
 .terr  { background: rgba(255,71,87,.07);  border: 1px solid rgba(255,71,87,.2);  color: var(--red); }
+.twarn { background: rgba(255,193,7,.07);  border: 1px solid rgba(255,193,7,.2);  color: var(--yellow); }
+/* Aviso flutuante no topo (todas as telas). Centralizado sem transform: o fadeUp anima o transform, e com translateX(-50%) o
+   aviso entrava deslocado e pulava de lado ao fim da animação. A largura é a do texto (limitada à tela): com left:50% a caixa
+   encolhia para metade da tela e a frase quebrava em 3 linhas. */
+.toast-top { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); left: 0; right: 0; margin: 0 auto; z-index: 9001; box-sizing: border-box; width: max-content; max-width: calc(100vw - 32px); justify-content: center; text-align: center; }
 
 /* ── Alertas ─────────────────────────────────────────────── */
 .alt  { display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: var(--rmd); font-size: 13px; font-weight: 500; margin-bottom: 12px; }
@@ -710,7 +730,10 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
   /* Page layout */
   .page-with-nav { padding-top: calc(16px + env(safe-area-inset-top, 0px)) !important; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
-  .pwnav { margin-left: 0 !important; padding-top: env(safe-area-inset-top, 0px) !important; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important; }
+  /* Sem faixa no topo: o cabeçalho azul de cada tela (home-hero, ex-hero, ntf-hero, fin-hero, pf-page) já soma a área
+     segura do iPhone no próprio padding e precisa começar na borda de cima, cobrindo a barra de status. Reservar essa
+     área aqui deixava uma faixa clara (fundo da página) acima do azul. */
+  .pwnav { margin-left: 0 !important; padding-top: 0 !important; padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px) + var(--ck-pad, 0px)) !important; }
   .page  { padding-left: 14px; padding-right: 14px; }
   .card  { padding: 16px; border-radius: var(--rmd); }
 
@@ -5227,6 +5250,179 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 /* ═══════════════════════════════════════════════════════
+   home-* — Início (Nancy 2, tela 08), fiel ao design: cabeçalho azul chapado
+   #1C48FF de cantos arredondados, corpo #F2F6FF com cartões brancos. A tela é
+   sempre clara (useForcedLightTheme): os tokens abaixo valem só dentro dela,
+   então componentes reaproveitados (ex.: círculos das stories, que usam
+   var(--bg) no espaço do anel) herdam as cores do design.
+   ═══════════════════════════════════════════════════════ */
+.home-page {
+  --bg: #F2F6FF; --bg-card: #fff; --bdbd: #EDF2F8; --bg-hover: rgba(18,26,51,.04);
+  --t1: #121A33; --t2: #5B6784; --t3: #99A5BE;
+  --home-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  background: #F2F6FF; min-height: 100%;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+}
+
+.home-hero {
+  background: #1C48FF; color: #fff; border-radius: 0 0 32px 32px;
+  padding: calc(22px + env(safe-area-inset-top, 0px)) 20px 30px;
+}
+.home-hero-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+.home-user { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.home-avatar {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 15px; color: #fff;
+}
+.home-greet { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.home-hi { font-size: 13px; color: rgba(255,255,255,.78); }
+.home-name { font-size: 17px; font-weight: 800; font-family: var(--fd); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.home-hero-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.home-iconbtn {
+  width: 44px; height: 44px; border-radius: 15px; border: none; color: #fff; cursor: pointer; position: relative;
+  background: rgba(255,255,255,.16); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.home-iconbtn:hover { background: rgba(255,255,255,.24); }
+.home-iconbtn .dsb-bell-dot {
+  top: 9px; right: 10px; width: 9px; height: 9px; box-sizing: content-box;
+  background: #3DE29F; border: 2px solid #1C48FF; box-shadow: none;
+}
+
+.home-balance-lbl { font-size: 14px; color: rgba(255,255,255,.82); margin-bottom: 4px; }
+.home-balance-val { font-family: var(--fd); font-weight: 800; font-size: 40px; line-height: 1.1; letter-spacing: -.02em; margin-bottom: 12px; }
+.home-badge {
+  display: inline-flex; align-items: center; height: 27px; padding: 0 13px; border-radius: 14px; margin-bottom: 24px;
+  background: #3DE29F; color: #0E3C2E; font-size: 12.5px; font-weight: 700;
+}
+.home-badge.neg { background: #FFD6D6; color: #7A1212; }
+
+.home-quick-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.home-qa-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 9px; padding: 0;
+  background: none; border: none; color: #fff; cursor: pointer; font-family: inherit;
+}
+.home-qa-ico {
+  width: 62px; height: 62px; border-radius: 21px; background: rgba(255,255,255,.16);
+  display: flex; align-items: center; justify-content: center;
+}
+.home-qa-ico svg { width: 24px; height: 24px; }
+.home-qa-lbl { font-size: 12.5px; font-weight: 700; }
+.home-qa-btn:hover .home-qa-ico { background: rgba(255,255,255,.24); }
+.home-qa-btn-active .home-qa-ico, .home-qa-btn-active:hover .home-qa-ico { background: #fff; color: #1C48FF; }
+
+.home-body { background: #F2F6FF; padding: 26px 20px 0; }
+
+.home-section-title { font-family: var(--fd); font-weight: 800; font-size: 18px; color: #121A33; margin: 0 0 14px; }
+
+.home-stories-row {
+  display: flex; gap: 14px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 2px;
+  /* Anel das stories (design, tema claro): menta no topo → branco na base. No
+     tema escuro o design não existe — a base do anel some em vez de virar um
+     arco branco berrante sobre o fundo escuro. */
+  --story-ring: linear-gradient(180deg, #3EE29F 0%, rgba(62,226,159,0) 100%);
+  --story-ring-seen: linear-gradient(rgba(255,255,255,.06), rgba(255,255,255,.06));
+}
+[data-theme="light"] .home-stories-row {
+  --story-ring: linear-gradient(180deg, #3EE29F 0%, #fff 100%);
+  --story-ring-seen: linear-gradient(rgba(255,255,255,.33), rgba(255,255,255,.33));
+}
+.home-story {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  flex-shrink: 0; width: 68px; font-size: 11px; color: var(--t2); text-align: center;
+  /* Reset de <button> — os 4 círculos são botões que abrem as stories. */
+  background: none; border: none; padding: 0; font-family: inherit; cursor: pointer;
+}
+/* Círculo de 56px + espaço de 3px (cor do fundo) + anel de 3px = 68px. Um único
+   elemento com 3 camadas de fundo, de cima pra baixo: preenchimento (content-box),
+   espaço (padding-box) e anel (border-box) — sem pseudo-elementos nem z-index. */
+.home-story span {
+  box-sizing: border-box; width: 68px; height: 68px; border: 3px solid transparent; padding: 3px; border-radius: 50%;
+  background:
+    var(--story-fill) content-box,
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    var(--story-ring) border-box;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 14px; color: #fff;
+}
+.home-story small { font-weight: 600; line-height: 1.3; color: var(--t1); }
+/* Já visto: anel quase invisível e rótulo apagado (print do design: "Outubro"). */
+.home-story.is-seen span { background:
+    var(--story-fill) content-box,
+    linear-gradient(var(--bg), var(--bg)) padding-box,
+    var(--story-ring-seen) border-box; }
+.home-story.is-seen small { font-weight: 500; color: var(--t2); }
+
+/* Preenchimentos — medidos no print do design (degradês a 165°, como o resto do app). */
+.home-story-blue  { --story-fill: linear-gradient(165deg, #1E4FFC 0%, #2476E9 50%, #1ABD93 100%); }
+.home-story-navy  { --story-fill: linear-gradient(#122E9D, #122E9D); }
+.home-story-ring  { --story-fill: linear-gradient(165deg, #169E6C 0%, #18C080 50%, #37E09B 100%); }
+.home-story-ring span { color: #0E3C2E; }
+.home-story-light { --story-fill: linear-gradient(#fff, #fff); }
+.home-story-light span { color: #1C48FF; }
+
+.home-health-card, .home-stat {
+  background: #fff; box-shadow: 0 1px 2px rgba(20,40,110,.04), 0 8px 20px rgba(20,40,110,.05);
+}
+.home-health-card {
+  display: flex; align-items: center; gap: 18px; border-radius: 22px; padding: 20px; margin-bottom: 12px;
+}
+.home-health-ring-wrap { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
+.home-health-ring-wrap svg { position: absolute; inset: 0; }
+.home-health-score {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 20px; color: #121A33;
+}
+.home-health-title { font-size: 17px; font-weight: 700; color: #121A33; font-family: var(--fd); }
+.home-health-sub { font-size: 14px; margin-top: 3px; font-weight: 500; }
+
+.home-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin-bottom: 12px; }
+.home-stat { border-radius: 20px; padding: 15px 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 7px; }
+.home-stat-dot { width: 10px; height: 10px; border-radius: 50%; }
+.home-stat-lbl { font-size: 12.5px; color: #5B6784; margin-top: 4px; }
+.home-stat-val { font-family: var(--home-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; color: #121A33; }
+
+.home-insight {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left; font-family: inherit;
+  background: #1C48FF; border: none; border-radius: 20px; padding: 16px; color: #fff; cursor: pointer; margin-bottom: 12px;
+}
+.home-insight-ico {
+  width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0; color: #3DE29F;
+  background: rgba(255,255,255,.14); display: flex; align-items: center; justify-content: center;
+}
+.home-insight-body { flex: 1; min-width: 0; }
+.home-insight-text { display: block; font-size: 15px; line-height: 1.4; font-weight: 500; }
+.home-insight-text strong { color: #3DE29F; font-weight: 800; }
+.home-insight-text strong.neg { color: #FFB4B4; }
+.home-insight-cta { display: block; margin-top: 8px; font-size: 13px; font-weight: 700; color: #BCF4DF; }
+
+.home-recent { background: #fff; border-radius: 24px; overflow: hidden; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(20,40,110,.04), 0 8px 20px rgba(20,40,110,.05); }
+.home-recent-head { background: #1C48FF; display: flex; align-items: center; justify-content: space-between; padding: 17px 20px; }
+.home-recent-title { font-family: var(--fd); font-weight: 800; font-size: 19px; color: #fff; margin: 0; }
+.home-recent-link { background: none; border: none; color: #BCF4DF; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+.home-recent-row { display: flex; align-items: center; gap: 13px; width: 100%; box-sizing: border-box; padding: 14px 20px; border: none; border-top: 1px solid #EDF2F8; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.home-recent-head + .home-recent-row { border-top: none; }
+.home-recent-ico {
+  width: 46px; height: 46px; border-radius: 15px; flex-shrink: 0; background: #1C48FF; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.home-recent-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.home-recent-name { font-size: 15px; font-weight: 700; color: #121A33; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-recent-meta { font-size: 13px; color: #656A7A; }
+.home-recent-amt { font-family: var(--home-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.home-recent-amt.exp { color: #121A33; }
+.home-recent-amt.inc { color: #117953; }
+.home-recent .hb-empty { padding: 28px 20px; color: #656A7A; }
+
+@media (min-width: 860px) {
+  .home-page { max-width: 720px; margin: 0 auto; padding: 12px 24px 40px; background: none; }
+  .home-hero { border-radius: 32px; padding: 28px 32px 34px; }
+  .home-body { background: none; padding: 28px 0 0; }
+  .home-balance-val { font-size: 44px; }
+}
+
+/* ═══════════════════════════════════════════════════════
    hb-* — Layout Híbrido (mistura Option 1-4)
    ═══════════════════════════════════════════════════════ */
 
@@ -6311,8 +6507,10 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 [data-theme="light"] .tf-close:hover { color: #0d0d0d; background: rgba(0,0,0,.06); }
 
 /* ── Toast ─────────────────────────────────────────────── */
-[data-theme="light"] .toast.tok  { background: #2e8a4a; }
-[data-theme="light"] .toast.terr { background: #c53030; }
+/* Texto branco sobre o fundo cheio: o texto herdava o verde/vermelho do tema escuro (vermelho sobre vermelho, contraste 1,6:1). */
+[data-theme="light"] .toast.tok   { background: #25773f; border-color: transparent; color: #fff; }
+[data-theme="light"] .toast.terr  { background: #c53030; border-color: transparent; color: #fff; }
+[data-theme="light"] .toast.twarn { background: #8a5a00; border-color: transparent; color: #fff; }
 
 /* ── FAB ───────────────────────────────────────────────── */
 [data-theme="light"] .fab { background: #3aaa5c; box-shadow: 0 4px 16px rgba(58,170,92,.4); }
@@ -8779,21 +8977,7 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   .gls-act-btn { padding: 0 8px; font-size: 11.5px; }
 }
 
-/* Settings: Reminders card */
-.rmdr-list { display: flex; flex-direction: column; gap: 2px; }
-.rmdr-item {
-  display: flex; align-items: center; gap: 10px; padding: 9px 0;
-  border-bottom: 1px solid rgba(255,255,255,.05);
-}
-.rmdr-item:last-child { border-bottom: none; }
-.rmdr-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.rmdr-name { flex: 1; font-size: 13px; color: var(--t1); }
-.rmdr-val  { font-size: 12.5px; font-weight: 600; color: var(--t2); font-family: 'Sora', sans-serif; }
-.rmdr-day  { font-size: 11.5px; font-weight: 700; font-family: 'Sora', sans-serif; min-width: 60px; text-align: right; }
 .cfg-fixed-due { font-size: 11px; color: var(--t3); margin-left: 6px; }
-
-[data-theme="light"] .rmdr-item { border-bottom-color: rgba(0,0,0,.06); }
-[data-theme="light"] .rmdr-name { color: #0d0d0d; }
 
 /* ── Planos: card Elite ── */
 .pp1-elite {
@@ -8924,215 +9108,120 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 }
 
 /* ── Onboarding Modal ──────────────────────────────────── */
+/* ── Onboarding (Nancy 2, tela 07) — card no mesmo estilo visual das
+   telas de auth (hero azul + sheet branco), mas continua um overlay
+   fixo por cima do dashboard (não uma rota própria) — bloqueia
+   interação até terminar/pular, igual sempre funcionou. */
 .ob-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  overflow-y: auto;
 }
-
-.ob-card {
-  background: #1a1a1a;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--rlg);
-  padding: 32px;
+.ob-shell {
   width: 100%;
-  max-width: 440px;
-  animation: obFadeUp 0.3s ease;
+  max-width: 400px;
+  min-height: min(620px, 85vh);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  display: flex;
+  flex-direction: column;
+  animation: obFadeUp .3s ease;
 }
-
 @keyframes obFadeUp {
   from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-.ob-dots {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 28px;
+.ob-hero-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px;
 }
-
+.ob-dots { display: flex; align-items: center; gap: 6px; }
 .ob-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  transition: background 0.3s, transform 0.3s;
+  width: 7px; height: 7px; border-radius: 4px;
+  background: rgba(255,255,255,.3); transition: width .25s, background .25s;
 }
+.ob-dot.done    { background: var(--c); }
+.ob-dot.current { width: 22px; background: var(--c); }
 
-.ob-dot.on {
-  background: var(--c);
-  transform: scale(1.2);
+.ob-sheet { flex: 1; display: flex; flex-direction: column; }
+.ob-sheet-body { flex: 1; }
+.ob-sheet-actions { margin-top: auto; padding-top: 16px; }
+
+.ob-skip-link {
+  display: block; width: 100%; margin-top: 12px; text-align: center;
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: #1546FF;
 }
+.ob-skip-link:hover:not(:disabled) { text-decoration: underline; }
+.ob-skip-link:disabled { opacity: .5; cursor: default; }
 
-.ob-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: rgba(74,226,172,0.1);
-  border: 1px solid rgba(74,226,172,0.22);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
-  color: var(--c);
+/* Passo 1 — campo de salário com prefixo R$ */
+.ob-currency-wrap {
+  display: flex; align-items: center; gap: 10px;
+  border: 1.5px solid #E5E9F2; background: #F7F9FC; border-radius: 12px;
+  padding: 0 16px; transition: border-color .15s, background .15s;
 }
-
-.ob-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--t1);
-  margin-bottom: 8px;
+.ob-currency-wrap:focus-within { border-color: #1546FF; background: #fff; }
+.ob-currency-prefix { font-size: 17px; font-weight: 700; color: #0d0d0d; flex-shrink: 0; }
+.ob-currency-input {
+  border: none; background: transparent; outline: none; width: 100%;
+  padding: 15px 0; font-size: 22px; font-weight: 700; color: #0d0d0d;
+  font-family: inherit; -moz-appearance: textfield;
 }
+.ob-currency-input::-webkit-outer-spin-button,
+.ob-currency-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.ob-currency-input::placeholder { color: #A7AEBD; font-weight: 700; }
+.ob-hint { font-size: 12.5px; color: #6b7280; line-height: 1.5; margin: 10px 0 0; }
+.ob-err { font-size: 12.5px; color: #B3261E; line-height: 1.4; margin: 8px 0 0; }
 
-.ob-desc {
-  font-size: 14px;
-  color: var(--t2);
-  margin-bottom: 24px;
-  line-height: 1.55;
-}
+/* Passos 2/3 — conteúdo preservado da versão antiga, só recolorido pro
+   sheet branco novo (antes presumia o fundo escuro do .ob-card antigo). */
+.ob-desc { font-size: 14px; color: #6b7280; margin-bottom: 20px; line-height: 1.55; }
 
-.ob-field {
-  margin-bottom: 14px;
-}
-
+.ob-field { margin-bottom: 14px; }
 .ob-field label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--t2);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 7px;
+  display: block; font-size: 11px; font-weight: 600; color: #6b7280;
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 7px;
 }
-
 .ob-field input {
-  width: 100%;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--rsm);
-  padding: 10px 14px;
-  color: var(--t1);
-  font-size: 14px;
-  font-family: var(--fn);
-  transition: border-color 0.2s;
-  outline: none;
+  width: 100%; box-sizing: border-box;
+  background: #F7F9FC; border: 1.5px solid #E5E9F2; border-radius: 12px;
+  padding: 12px 14px; color: #0d0d0d; font-size: 14px; font-family: inherit;
+  transition: border-color .15s, background .15s; outline: none;
 }
+.ob-field input:focus { border-color: #1546FF; background: #fff; }
+.ob-field input::placeholder { color: #A7AEBD; }
 
-.ob-field input:focus {
-  border-color: var(--c);
-}
-
-.ob-field input::placeholder {
-  color: var(--t3);
-}
-
-.ob-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-}
-
-.ob-row .ob-field {
-  flex: 1;
-  margin-bottom: 0;
-}
-
-.ob-field-sm {
-  max-width: 130px;
-}
+.ob-row { display: flex; gap: 10px; align-items: flex-end; }
+.ob-row .ob-field { flex: 1; margin-bottom: 0; }
+.ob-field-sm { max-width: 130px; }
 
 .ob-add {
-  width: 100%;
-  margin-top: 10px;
-  background: rgba(74,226,172,0.1);
-  border: 1px solid rgba(74,226,172,0.28);
-  border-radius: var(--rsm);
-  padding: 10px;
-  color: var(--c);
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--fn);
-  cursor: pointer;
-  transition: var(--tr);
+  width: 100%; margin-top: 10px;
+  background: rgba(21,70,255,.06); border: 1px solid rgba(21,70,255,.2);
+  border-radius: 12px; padding: 11px; color: #1546FF;
+  font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: background .15s;
 }
-
-.ob-add:hover:not(:disabled) {
-  background: rgba(74,226,172,0.18);
-}
-
-.ob-add:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
+.ob-add:hover:not(:disabled) { background: rgba(21,70,255,.12); }
+.ob-add:disabled { opacity: 0.4; cursor: default; }
 
 .ob-added {
-  font-size: 13px;
-  color: var(--c);
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  font-size: 13px; color: #087A52; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 6px;
 }
 
-.ob-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-.ob-skip {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--rsm);
-  padding: 10px 18px;
-  color: var(--t2);
-  font-size: 13px;
-  font-family: var(--fn);
-  cursor: pointer;
-  transition: var(--tr);
-}
-
-.ob-skip:hover:not(:disabled) {
-  border-color: rgba(255,255,255,0.25);
-  color: var(--t1);
-}
-
-.ob-skip:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.ob-next {
-  background: var(--c);
-  border: none;
-  border-radius: var(--rsm);
-  padding: 10px 22px;
-  color: #000;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: var(--fn);
-  cursor: pointer;
-  transition: var(--tr);
-}
-
-.ob-next:hover:not(:disabled) {
-  background: #2bbf96;
-}
-
-.ob-next:disabled {
-  opacity: 0.5;
-  cursor: default;
+@media (min-width: 700px) {
+  .ob-shell { max-width: 440px; }
 }
 
 @media (max-width: 480px) {
@@ -10246,9 +10335,9 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   font-size: 11px;
   color: var(--t3);
   font-weight: 400;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
+  /* quebra em até 2 linhas em vez de cortar com "…" (a frase é o convite do plano; cortada perde o sentido) */
+  overflow-wrap: anywhere;
 }
 .pub-btn {
   flex-shrink: 0;
@@ -10344,4 +10433,1770 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
   color: var(--t2);
   display: block;
   margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   NANCY 2 — Boas-vindas (landing). Substitui as regras .lp2-*
+   acima (landing de marketing antiga, mantidas no arquivo por ora
+   só por segurança — já não são mais usadas pelo Landing.jsx atual,
+   a limpar numa passada dedicada depois que o redesign estiver
+   fechado). Fundo azul fixo independente de tema, igual a página
+   antiga já fazia (force data-theme="dark" no mount).
+   ═══════════════════════════════════════════════════════ */
+.lw-page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: linear-gradient(165deg, #1546FF 0%, #1140E8 55%, #0D34C4 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px calc(24px + var(--ck-pad, 0px)); /* --ck-pad: só existe enquanto o aviso de cookies está aberto */
+}
+.lw-card {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lw-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.lw-brand { display: flex; align-items: center; gap: 9px; }
+.lw-brand-mark {
+  width: 28px; height: 28px; border-radius: 9px;
+  background: rgba(255,255,255,.16);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 15px; color: #fff;
+  flex-shrink: 0;
+}
+.lw-brand-name { font-family: var(--fd); font-weight: 700; font-size: 17px; color: #fff; }
+.lw-btn-login {
+  padding: 7px 16px; border-radius: 20px;
+  background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.2);
+  color: #fff; font-size: 13px; font-weight: 600; font-family: var(--fd);
+  text-decoration: none;
+}
+
+.lw-chip-summary {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 13px; border-radius: 20px; margin-bottom: 14px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18);
+  color: #fff; font-size: 12.5px; font-weight: 600;
+}
+
+.lw-preview {
+  position: relative;
+  background: #fff; border-radius: 18px;
+  padding: 16px 18px 20px;
+  box-shadow: 0 20px 40px rgba(8,16,60,.28);
+  margin-bottom: 34px;
+}
+.lw-preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.lw-preview-label { font-size: 12.5px; color: rgba(13,13,13,.5); font-weight: 600; }
+.lw-preview-pct { font-size: 12.5px; font-weight: 700; color: var(--c); }
+.lw-preview-balance { font-family: var(--fd); font-weight: 800; font-size: 25px; color: #0d0d0d; margin-bottom: 8px; }
+.lw-sparkline { width: 100%; height: 34px; display: block; }
+.lw-callout {
+  position: absolute; left: 16px; right: 16px; bottom: -18px;
+  display: flex; align-items: center; gap: 9px;
+  background: #0A1A3D; color: #fff;
+  border-radius: 13px; padding: 10px 14px;
+  font-size: 12.5px; font-weight: 600; line-height: 1.3;
+  box-shadow: 0 10px 22px rgba(8,16,60,.3);
+}
+.lw-callout-ico {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  background: var(--c); color: #0A1A3D;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.lw-headline {
+  font-family: var(--fd); font-weight: 800; font-size: 30px; line-height: 1.15;
+  color: #fff; margin: 0 0 10px;
+}
+.lw-headline-accent { color: var(--c); }
+.lw-sub {
+  font-size: 14px; line-height: 1.5; color: rgba(255,255,255,.75);
+  margin: 0 0 16px; max-width: 340px;
+}
+
+.lw-chips { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.lw-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 20px;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.16);
+  color: #fff; font-size: 12.5px; font-weight: 600;
+}
+
+.lw-ctas { display: flex; flex-direction: column; gap: 10px; margin-top: 18px; }
+.lw-btn-primary, .lw-btn-secondary {
+  display: flex; align-items: center; justify-content: center;
+  padding: 14px; border-radius: 14px;
+  font-size: 15px; font-weight: 700; font-family: var(--fd);
+  text-decoration: none; transition: var(--tr);
+}
+.lw-btn-primary { background: #fff; color: #1546FF; }
+.lw-btn-primary:hover { opacity: .92; }
+.lw-btn-secondary { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,.4); }
+.lw-btn-secondary:hover { background: rgba(255,255,255,.08); }
+
+.lw-footnote { text-align: center; font-size: 12px; color: rgba(255,255,255,.55); margin: 16px 0 0; }
+
+/* Desktop: card ganha mais respiro e um pouco mais de escala — mesmo
+   conteúdo, só não fica esticado feio numa tela larga. */
+@media (min-width: 700px) {
+  .lw-card { max-width: 440px; }
+  .lw-headline { font-size: 34px; }
+  .lw-preview { padding: 20px 22px 24px; }
+  .lw-preview-balance { font-size: 28px; }
+}
+
+/* ── Tela 03 (Entrar) — cartão auth sobre o mesmo invólucro .lw-page ── */
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+}
+.auth-hero {
+  background: linear-gradient(160deg, #1546FF 0%, #1140E8 100%);
+  padding: 20px 24px 30px;
+}
+.auth-back {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: rgba(255,255,255,.16);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; text-decoration: none; margin-bottom: 18px;
+}
+.auth-back:hover { background: rgba(255,255,255,.26); }
+.auth-title { font-family: var(--fd); font-weight: 800; font-size: 22px; color: #fff; margin: 0 0 6px; }
+.auth-subtitle { font-size: 13px; color: rgba(255,255,255,.75); margin: 0; }
+
+.auth-sheet {
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  margin-top: -14px;
+  padding: 26px 22px 28px;
+}
+.auth-field { margin-bottom: 16px; }
+.auth-label { display: block; font-size: 12.5px; font-weight: 600; color: #0d0d0d; margin-bottom: 6px; }
+.auth-input {
+  width: 100%; box-sizing: border-box;
+  padding: 13px 14px; border-radius: 12px;
+  border: 1.5px solid #E5E9F2; background: #F7F9FC;
+  font-size: 14.5px; font-family: inherit; color: #0d0d0d;
+  outline: none; transition: border-color .15s, background .15s;
+}
+.auth-input::placeholder { color: #A7AEBD; }
+.auth-input:focus { border-color: #1546FF; background: #fff; }
+.auth-input.err { border-color: #e5484d; background: rgba(229,72,77,.05); }
+.auth-pass-wrap { position: relative; }
+.auth-pass-wrap .auth-input { padding-right: 46px; }
+/* Área de toque de 44x44 (era 24x24 e difícil de acertar); o ícone continua onde estava. */
+.auth-eye {
+  position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 44px; height: 44px;
+  background: none; border: none; color: #9aa3b5; cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center;
+}
+.auth-eye:hover { color: #0d0d0d; }
+
+.auth-forgot-row { display: flex; justify-content: flex-end; margin: -8px 0 16px; }
+.auth-link-sm { font-size: 12.5px; color: #1546FF; font-weight: 600; text-decoration: none; }
+.auth-link-sm:hover { text-decoration: underline; }
+
+.auth-field-err {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11.5px; color: #e5484d; margin-top: 6px;
+}
+.auth-server-err {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(229,72,77,.07); border: 1px solid rgba(229,72,77,.25);
+  border-radius: 10px; padding: 11px 14px;
+  color: #e5484d; font-size: 13px; margin-bottom: 14px;
+}
+
+.auth-btn-primary {
+  width: 100%; display: flex; align-items: center; justify-content: center;
+  background: #1546FF; color: #fff; border: none; border-radius: 12px;
+  padding: 14px; font-size: 15px; font-weight: 700; font-family: var(--fd);
+  cursor: pointer; transition: background .15s; text-decoration: none; box-sizing: border-box;
+}
+.auth-btn-primary:hover:not(:disabled) { background: #0f39e0; }
+.auth-btn-primary:disabled { opacity: .65; cursor: not-allowed; }
+.auth-spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+  animation: lauth-spin .7s linear infinite;
+}
+
+.auth-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin: 18px 0; font-size: 12px; color: #9aa3b5;
+}
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: #E5E9F2; }
+
+.auth-btn-google {
+  width: 100%; padding: 13px; border-radius: 12px;
+  border: 1.5px solid #E5E9F2; background: #fff; color: #1546FF;
+  font-size: 14.5px; font-weight: 700; font-family: var(--fd); cursor: pointer;
+}
+.auth-btn-google:disabled { opacity: .55; cursor: not-allowed; }
+
+.auth-foot { text-align: center; font-size: 13px; color: #6b7280; margin: 18px 0 0; }
+.auth-foot a { color: #1546FF; font-weight: 600; text-decoration: none; }
+.auth-foot a:hover { text-decoration: underline; }
+
+.auth-terms {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 2px 0 14px; cursor: pointer;
+  font-size: 12.5px; color: #6b7280; line-height: 1.5;
+}
+.auth-terms input[type=checkbox] {
+  margin-top: 2px; width: 15px; height: 15px; flex-shrink: 0;
+  accent-color: #1546FF; cursor: pointer;
+}
+.auth-terms a { color: #1546FF; font-weight: 600; text-decoration: none; }
+.auth-terms a:hover { text-decoration: underline; }
+
+.auth-sent { text-align: center; padding: 8px 0 4px; }
+.auth-sent-ico {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(21,70,255,.08); border: 1px solid rgba(21,70,255,.18);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; color: #1546FF;
+}
+.auth-sent-title { font-family: var(--fd); font-weight: 800; font-size: 18px; color: #0d0d0d; margin: 0 0 10px; }
+.auth-sent-text { font-size: 13.5px; color: #6b7280; line-height: 1.6; margin: 0 0 22px; }
+.auth-sent-ico.err { background: rgba(229,72,77,.08); border-color: rgba(229,72,77,.2); color: #e5484d; }
+
+.auth-code-input { text-align: center; font-size: 24px; font-weight: 700; letter-spacing: .4em; font-family: monospace; padding-left: 10px; }
+
+.auth-loading { text-align: center; padding: 20px 0; }
+.auth-loading-spin {
+  width: 32px; height: 32px; margin: 0 auto 16px; border-radius: 50%;
+  border: 3px solid rgba(21,70,255,.15); border-top-color: #1546FF;
+  animation: lauth-spin .7s linear infinite;
+}
+.auth-loading-text { font-size: 13.5px; color: #6b7280; }
+
+.auth-resend-btn {
+  display: block; width: 100%; margin-top: 14px; text-align: center;
+  background: none; border: none; cursor: pointer; font-size: 12.5px;
+}
+.auth-resend-msg { text-align: center; font-size: 12.5px; color: #087A52; margin: -8px 0 14px; }
+
+@media (min-width: 700px) {
+  .auth-card { max-width: 440px; }
+}
+
+/* ── Resumo em stories (tela 09) — tela cheia, só o slide de abertura por
+   enquanto. Zonas de toque começam abaixo do cabeçalho (top: 56px) pra
+   nunca brigar com os botões de pausar/fechar; o texto do slide tem
+   pointer-events:none pra não bloquear o toque por baixo dele. ── */
+.stories-page {
+  position: fixed; inset: 0; z-index: 2000;
+  background: linear-gradient(165deg, #1546FF 0%, #1140E8 55%, #0D34C4 100%);
+  color: #fff;
+  display: flex; flex-direction: column;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 24px;
+  overflow: hidden;
+}
+
+.stories-progress-row { display: flex; gap: 4px; margin-bottom: 14px; flex-shrink: 0; }
+.stories-progress-track { flex: 1; height: 3px; border-radius: 3px; background: rgba(255,255,255,.3); overflow: hidden; }
+/* A barra anda por animação de transform (compositor), sem re-render do React: ver StoriesResumo.jsx */
+.stories-progress-fill { height: 100%; width: 100%; background: #fff; border-radius: 3px; transform: scaleX(0); transform-origin: left center; }
+.stories-progress-fill.is-done { transform: scaleX(1); }
+.stories-progress-fill.is-active { will-change: transform; animation: storiesFill var(--story-ms, 5000ms) linear forwards; }
+.stories-progress-fill.is-paused { animation-play-state: paused; }
+@keyframes storiesFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.stories-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0; }
+.stories-header-user { display: flex; align-items: center; gap: 10px; }
+.stories-avatar {
+  width: 28px; height: 28px; border-radius: 9px; background: rgba(255,255,255,.2);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 14px; color: #fff; flex-shrink: 0;
+}
+.stories-header-text { display: flex; flex-direction: column; line-height: 1.25; text-align: left; }
+.stories-title { font-size: 13px; font-weight: 700; }
+.stories-sub { font-size: 11px; color: rgba(255,255,255,.65); }
+.stories-header-actions { display: flex; align-items: center; gap: 2px; }
+.stories-iconbtn {
+  width: 30px; height: 30px; border-radius: 50%; background: none; border: none;
+  color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.stories-iconbtn:hover { background: rgba(255,255,255,.12); }
+
+.stories-tap-zone { position: absolute; top: 56px; bottom: 0; width: 40%; background: none; border: none; padding: 0; margin: 0; }
+/* iPhone: sem isto o toque pinta o destaque cinza do sistema sobre 40% da tela (a "sombra" nos stories); os botões da tela também. */
+.stories-page button { -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; outline: none; }
+.stories-page button:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.stories-tap-left  { left: 0; }
+.stories-tap-right { right: 0; }
+
+.stories-content {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  position: relative; pointer-events: none;
+}
+.stories-eyebrow {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: rgba(255,255,255,.7); margin-bottom: 10px;
+}
+.stories-headline { font-family: var(--fd); font-weight: 800; font-size: 30px; line-height: 1.15; margin: 0 0 12px; }
+.stories-subtext { font-size: 14px; line-height: 1.4; color: rgba(255,255,255,.88); margin: 0; }
+
+/* Temas por slide (mix = azul→verde, green = verde com texto escuro) */
+.stories-theme-mix   { background: linear-gradient(170deg, #1546FF 0%, #1B6FE8 42%, #12C48A 100%); }
+.stories-theme-green { background: linear-gradient(170deg, #0AA56A 0%, #12C783 45%, #34E3A0 100%); color: #06281f; }
+.stories-theme-green .stories-eyebrow  { color: rgba(6,40,31,.6); }
+.stories-theme-green .stories-subtext  { color: rgba(6,40,31,.8); }
+.stories-theme-green .stories-progress-track { background: rgba(6,40,31,.25); }
+.stories-theme-green .stories-progress-fill  { background: #06281f; }
+.stories-theme-green .stories-sub { color: rgba(6,40,31,.65); }
+.stories-theme-green .stories-iconbtn { color: #06281f; }
+
+.stories-big { font-family: var(--fd); font-weight: 800; font-size: 52px; line-height: 1.05; margin: 0 0 14px; letter-spacing: -.01em; }
+.stories-big-accent { color: #34E3A0; }
+.stories-mono { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+.stories-bars { display: flex; flex-direction: column; gap: 14px; margin: 4px 0 18px; }
+.stories-bar-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+.stories-bar-track { height: 8px; border-radius: 8px; background: rgba(255,255,255,.2); overflow: hidden; }
+.stories-bar-fill { height: 100%; border-radius: 8px; background: #fff; }
+.stories-bar-fill-1 { background: #34E3A0; }
+.stories-bar-fill-2 { background: #A8F2D8; }
+.stories-bar-fill-3 { background: #D6E4FF; }
+
+.stories-ring { position: relative; width: 112px; height: 112px; margin: 6px 0 16px; }
+.stories-ring-score { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--fd); font-weight: 800; font-size: 38px; }
+
+.stories-cta-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; flex-shrink: 0; }
+.stories-cta {
+  width: 100%; height: 48px; border-radius: 24px; border: none; background: #fff; color: #1546FF;
+  font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer;
+}
+.stories-cta:disabled { opacity: .7; cursor: default; }
+.stories-retry { margin-top: 16px; height: 44px; padding: 0 24px; border-radius: 22px; border: none; background: #fff; color: #1546FF; font-family: inherit; font-weight: 700; font-size: 14px; cursor: pointer; pointer-events: auto; } /* .stories-content tem pointer-events: none (os toques vão para as zonas de avançar/voltar): sem isto o toque no botão fechava o story */
+.stories-share { background: none; border: none; color: #fff; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 4px 8px; }
+
+.stories-toast {
+  position: absolute; left: 14px; right: 14px; bottom: 96px; z-index: 3; padding: 11px 14px; border-radius: 12px;
+  background: rgba(255,255,255,.95); color: #0D34C4; font-size: 13px; font-weight: 600; text-align: center;
+}
+.stories-toast-err { color: #B3261E; }
+
+@media (min-width: 700px) {
+  .stories-page { max-width: 440px; margin: 0 auto; border-radius: 24px; top: 24px; bottom: 24px; height: calc(100% - 48px); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   ex-* — Extrato (Nancy 2, tela 10). Substitui o visual tx1-* da página de
+   transações (deixado como está: parte do CSS antigo segue em uso, ex.: as
+   compras parceladas, que agora abrem pelo atalho "Parcelados"). Cabeçalho
+   sempre azul (marca); corpo segue o tema claro/escuro, como a tela 08.
+   ═══════════════════════════════════════════════════════ */
+.ex-page {
+  /* Tela sempre clara (useForcedLightTheme): tokens do design valem só aqui dentro. */
+  --bg: #F2F6FF; --bg-card: #fff; --bdbd: #EDF2F8; --bg-hover: rgba(18,26,51,.04);
+  --t1: #121A33; --t2: #5B6784; --t3: #99A5BE;
+  --ex-accent: #1C48FF;   /* texto das pills */
+  --ex-in:     #117953;   /* valores de entrada */
+  --ex-mono:   ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+}
+
+.ex-hero {
+  background: #1C48FF;
+  color: #fff; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 46px;
+}
+.ex-title { font-family: var(--fd); font-weight: 800; font-size: 26px; margin: 0 0 16px; letter-spacing: -.01em; }
+
+/* Atalhos (Contas do mês, Parcelados) com setas que rolam a fileira */
+.ex-chips-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.ex-chip-arrow {
+  width: 34px; height: 34px; border-radius: 50%; border: none; background: #fff; color: #1C48FF;
+  display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;
+}
+.ex-chip-arrow:disabled { opacity: .35; cursor: default; }
+.ex-chips { flex: 1; min-width: 0; display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.ex-chips::-webkit-scrollbar { display: none; }
+.ex-chip {
+  display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 17px;
+  border: none; background: rgba(255,255,255,.18); color: #fff; font-family: inherit;
+  font-size: 12.5px; font-weight: 600; white-space: nowrap; flex-shrink: 0; cursor: pointer;
+}
+.ex-chip:hover { background: rgba(255,255,255,.26); }
+.ex-chip.on { background: #fff; color: #1C48FF; }
+
+/* Cartão do resultado do mês — sempre branco, em cima do azul da marca */
+.ex-result {
+  background: #fff; color: #121A33; border-radius: 20px; padding: 16px 18px 18px;
+  box-shadow: 0 10px 30px rgba(6,24,110,.28);
+}
+.ex-result-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ex-result-label { font-size: 12.5px; color: #5B6784; }
+.ex-month-nav { display: flex; gap: 6px; flex-shrink: 0; }
+.ex-month-nav button {
+  width: 26px; height: 26px; border-radius: 50%; border: none; background: #EAF0FF; color: #1C48FF;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.ex-month-nav button:disabled { opacity: .35; cursor: default; }
+.ex-result-val { font-family: var(--fd); font-weight: 800; font-size: 30px; line-height: 1.15; margin: 4px 0 14px; letter-spacing: -.01em; }
+.ex-result-val.pos { color: #117953; }
+.ex-result-val.neg { color: #D92D3A; }
+.ex-result-sub { display: flex; gap: 28px; }
+.ex-result-sub > div { display: flex; flex-direction: column; gap: 3px; }
+.ex-result-sub-lbl { font-size: 11.5px; color: #5B6784; }
+.ex-result-note { margin: 10px 0 0; font-size: 11.5px; line-height: 1.4; color: #5B6784; }
+.ex-mono { font-family: var(--ex-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13.5px; }
+.ex-mono.ex-in  { color: #117953; }
+.ex-mono.ex-out { color: #1C48FF; }
+
+.ex-body { background: var(--bg); border-radius: 26px 26px 0 0; margin-top: -26px; position: relative; padding: 20px; }
+
+.ex-search {
+  display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; margin-bottom: 14px;
+  background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 16px; color: var(--t3);
+}
+.ex-search-input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--t1); font-family: inherit; font-size: 14px; }
+.ex-search-input::placeholder { color: var(--t3); }
+.ex-search-clear { border: none; background: none; color: var(--t3); font-size: 20px; line-height: 1; cursor: pointer; padding: 0 2px; }
+
+.ex-pills { display: flex; gap: 8px; margin-bottom: 16px; }
+.ex-pill {
+  height: 34px; padding: 0 16px; border-radius: 17px; border: 1px solid var(--bdbd); background: var(--bg-card);
+  color: var(--ex-accent); font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.ex-pill.on { background: #1C48FF; border-color: #1C48FF; color: #fff; }
+
+/* Um cartão por dia: cabeçalho azul (dia + líquido do dia) e linhas brancas */
+.ex-day { background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 20px; overflow: hidden; margin-bottom: 14px; }
+.ex-day-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 16px;
+  background: #1C48FF; color: #fff; font-family: var(--ex-mono); font-size: 11px; font-weight: 700; letter-spacing: .06em;
+}
+.ex-day-total { font-variant-numeric: tabular-nums; }
+.ex-row { display: flex; align-items: center; border-top: 1px solid var(--bdbd); }
+.ex-day-head + .ex-row { border-top: none; }
+.ex-row-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 13px 4px 13px 16px;
+  background: none; border: none; text-align: left; font-family: inherit; color: inherit; cursor: pointer;
+}
+.ex-row-main:hover { background: var(--bg-hover); }
+.ex-row-ico {
+  width: 42px; height: 42px; border-radius: 13px; background: #1C48FF; color: #fff;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ex-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ex-row-name { font-size: 14.5px; font-weight: 700; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ex-row-cat { font-size: 12px; color: var(--t2); }
+.ex-row-val { font-family: var(--ex-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13.5px; flex-shrink: 0; }
+.ex-row-val.exp { color: var(--t1); }
+.ex-row-val.inc { color: var(--ex-in); }
+.ex-del {
+  width: 40px; align-self: stretch; border: none; background: none; color: var(--t3); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.ex-del:hover { color: #ff4757; }
+
+.ex-empty { text-align: center; padding: 36px 16px; }
+.ex-empty-title { font-size: 14px; font-weight: 600; color: var(--t2); margin-bottom: 4px; }
+.ex-empty-sub { font-size: 12px; color: var(--t3); }
+.ex-empty-link { margin-top: 12px; border: none; background: none; color: #1C48FF; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 10px; }
+
+.ex-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 6px; }
+.ex-btn-ghost, .ex-btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 14px;
+  border-radius: 12px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.ex-btn-ghost { background: var(--bg-card); border: 1px solid var(--bdbd); color: var(--t2); }
+.ex-btn-ghost:disabled { opacity: .5; cursor: default; }
+.ex-btn-primary { background: #1C48FF; border: none; color: #fff; }
+
+@media (max-width: 768px) {
+  .ex-actions { justify-content: stretch; }
+  .ex-actions .ex-btn-ghost { flex: 1; }
+  /* o "+" central da barra inferior é quem cria transações no celular */
+  .ex-btn-new { display: none; }
+}
+@media (min-width: 769px) {
+  .ex-page { max-width: 760px; margin: 0 auto; width: 100%; padding: 8px 24px 32px; }
+  .ex-hero { border-radius: 28px; padding-bottom: 54px; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   Barra de baixo (mobile) — design Nancy 2: Início · Extrato · "+" · Metas · Perfil.
+   Todas as telas redesenhadas são claras (tema imposto), então o design é o
+   tema claro: barra branca, item ativo azul, "+" quadrado arredondado menta.
+   No tema escuro (telas antigas) a barra mantém o visual anterior, só com os
+   novos itens e rótulos.
+   ═══════════════════════════════════════════════════════ */
+[data-theme="light"] .dsb-mobile-nav {
+  align-items: center; background: #fff; border-top: 1px solid #E5EBF5;
+  padding: 8px 6px calc(10px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -6px 20px rgba(20,40,110,.05);
+}
+[data-theme="light"] .dsb-mn-item { gap: 4px; padding: 4px 0; }
+[data-theme="light"] .dsb-mn-ico { width: 24px; height: 24px; border-radius: 0; background: none; border: none; color: #99A5BE; }
+[data-theme="light"] .dsb-mn-ico.active { background: none; border: none; color: #1C48FF; }
+[data-theme="light"] .dsb-mn-ico svg { width: 22px; height: 22px; }
+[data-theme="light"] .dsb-mn-lbl { font-size: 11px; font-weight: 600; color: #99A5BE; }
+[data-theme="light"] .dsb-mn-item.active .dsb-mn-lbl { color: #1C48FF; font-weight: 700; }
+[data-theme="light"] .dsb-mn-fab {
+  width: 54px; height: 54px; border-radius: 18px; margin: 0 6px; border: none;
+  background: #3DE29F; color: #0E3C2E; box-shadow: 0 6px 16px rgba(61,226,159,.38);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Menu do "+" (design Nancy 2): a tela atrás fica desfocada sob um véu azul-marinho
+   (#121A33 a 43%), cinco bolhas brancas com o ícone colorido e o rótulo em branco, e o
+   "+" central sobe por cima do véu virando "×" (halo menta). Medidas tiradas do print.
+   ═══════════════════════════════════════════════════════ */
+.dsb-qm-backdrop {
+  background: rgba(18,26,51,.43);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.dsb-qm-grid {
+  grid-template-columns: repeat(2, 88px); column-gap: 66px; row-gap: 22px;
+  bottom: calc(109px + env(safe-area-inset-bottom, 0px));
+}
+.dsb-qm-bubble { gap: 8px; width: 88px; }
+.dsb-qm-circle {
+  width: 66px; height: 66px; background: #fff; border: none; color: var(--qm-icon, #1C48FF);
+  box-shadow: 0 10px 26px rgba(10,20,80,.28);
+}
+.dsb-qm-circle svg { width: 24px; height: 24px; }
+.dsb-qm-lbl { color: #fff; font-size: 14px; font-weight: 700; line-height: 1.15; max-width: 112px; text-shadow: none; }
+
+/* Com o menu aberto a barra sobe acima do véu, mas só o "+" (agora "×") aparece */
+.dsb-mobile-nav.menu-open { z-index: 210; background: transparent; border-top-color: transparent; box-shadow: none; }
+.dsb-mobile-nav.menu-open .dsb-mn-item { visibility: hidden; }
+.dsb-mn-fab svg { transition: transform .2s ease; }
+.dsb-mn-fab.active { transform: none; }
+.dsb-mn-fab.active svg { transform: rotate(45deg); }
+[data-theme="light"] .dsb-mn-fab.active { box-shadow: 0 0 0 8px rgba(61,226,159,.24), 0 6px 16px rgba(61,226,159,.38); }
+
+/* ═══════════════════════════════════════════════════════
+   ntx-* — folha "Nova transação" (Nancy 2, tela 11): sobe do rodapé por cima da tela
+   atual (centralizada no desktop). Tudo escopado em ntx-* — .modal também é usado por
+   outros diálogos e não pode mudar. Medidas tiradas do print do design.
+   ═══════════════════════════════════════════════════════ */
+.modal-overlay.movl.ntx-overlay {
+  background: rgba(18,26,51,.5); backdrop-filter: none; -webkit-backdrop-filter: none;
+  align-items: flex-end; justify-content: center; padding: 0;
+}
+.modal.ntx-sheet {
+  background: #fff; border: none; border-radius: 28px 28px 0 0; width: 100%; max-width: 520px;
+  padding: 10px 20px calc(26px + env(safe-area-inset-bottom, 0px)); max-height: 92dvh; overflow-y: auto;
+  box-shadow: 0 -12px 40px rgba(10,20,80,.25); animation: ntxSheetUp .28s cubic-bezier(.2,.8,.2,1) both;
+}
+.modal.ntx-sheet::before { display: none; }
+@keyframes ntxSheetUp { from { transform: translateY(100%); } to { transform: none; } }
+@media (min-width: 769px) {
+  .modal-overlay.movl.ntx-overlay { align-items: center; }
+  .modal.ntx-sheet { border-radius: 28px; max-width: 460px; padding-bottom: 26px; animation: fadeIn .2s ease; }
+}
+
+.ntx-handle { width: 40px; height: 4px; border-radius: 2px; background: #D6DBE6; margin: 0 auto 14px; }
+.ntx-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.ntx-title { font-family: var(--fd); font-size: 21px; font-weight: 800; color: #121A33; margin: 0; letter-spacing: -.01em; }
+.ntx-close {
+  width: 32px; height: 32px; border: none; background: none; color: #7C86A2; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.ntx-close:hover { background: #F2F6FF; }
+
+.ntx-seg { display: flex; gap: 4px; padding: 4px; background: #EFF2FF; border-radius: 18px; margin-bottom: 22px; }
+.ntx-seg-btn {
+  flex: 1; height: 42px; border: none; border-radius: 15px; background: none; cursor: pointer;
+  color: #121A33; font-family: inherit; font-size: 15px; font-weight: 600;
+}
+.ntx-seg-btn.on { background: #1C48FF; color: #fff; font-weight: 700; }
+
+.ntx-amount-row { display: flex; align-items: baseline; gap: 10px; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 1px solid #E8ECF4; }
+.ntx-currency { font-family: var(--fd); font-size: 24px; font-weight: 800; color: #4A5068; }
+.ntx-amount {
+  flex: 1; min-width: 0; padding: 0; border: none; outline: none; background: none;
+  font-family: var(--fd); font-size: 44px; font-weight: 800; letter-spacing: -.02em; color: #121A33;
+}
+.ntx-amount::placeholder { color: #A3ABBF; }
+
+.ntx-field {
+  display: block; width: 100%; box-sizing: border-box; height: 52px; padding: 0 16px; margin-bottom: 16px;
+  border: none; outline: none; border-radius: 15px; background: #F4F8FD; color: #121A33;
+  font-family: inherit; font-size: 15px;
+}
+.ntx-field::placeholder { color: #A5AEC3; }
+.ntx-field:focus { box-shadow: 0 0 0 2px rgba(28,72,255,.35); }
+
+.ntx-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.ntx-chip {
+  display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: none; border-radius: 18px;
+  background: #EFF3FF; color: #2F3552; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.ntx-chip svg { color: #5B6A9A; }
+.ntx-chip.on { background: #1C48FF; color: #fff; }
+.ntx-chip.on svg { color: #fff; }
+
+.ntx-error { background: #FFECEE; color: #B42318; border-radius: 12px; padding: 11px 14px; font-size: 13px; margin-bottom: 14px; }
+.ntx-save {
+  display: block; width: 100%; height: 56px; border: none; border-radius: 18px; cursor: pointer;
+  background: #1C48FF; color: #fff; font-family: inherit; font-size: 17px; font-weight: 700;
+}
+.ntx-save:disabled { opacity: .7; cursor: default; }
+
+/* O véu do menu do "+" cobre também a bolha do chat (z-index 300) — o design não tem ela por cima */
+.dsb-qm-backdrop { z-index: 310; }
+.dsb-qm-grid { z-index: 311; }
+.dsb-mobile-nav.menu-open { z-index: 312; }
+
+/* ═══════════════════════════════════════════════════════
+   nia-* — Nancy IA (Nancy 2, tela 12): chat azul chapado #1C48FF, em tela cheia no
+   celular e janela flutuante no desktop. O botão flutuante só existe no desktop — no
+   celular o chat abre por "Falar com IA" (menu do "+"), pelo "Nancy IA" do Início e
+   pelo banner "Perguntar à Nancy". Medidas e cores tiradas do print do design.
+   ═══════════════════════════════════════════════════════ */
+.nancy-mark { display: block; flex-shrink: 0; }
+
+.agent-panel.nia-panel {
+  position: fixed; inset: 0; width: auto; height: auto; max-height: none;
+  background: #1C48FF; border: none; border-radius: 0; box-shadow: none; z-index: 330;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+@media (min-width: 901px) {
+  .agent-panel.nia-panel {
+    inset: auto 20px 92px auto; width: 400px; height: min(640px, calc(100dvh - 130px));
+    border-radius: 28px; box-shadow: 0 24px 60px rgba(10,20,80,.35);
+  }
+}
+@media (max-width: 900px) { .agent-fab { display: none; } }
+
+.nia-head {
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 16px 12px; border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.nia-head-txt { min-width: 0; }
+.nia-name { font-family: var(--fd); font-weight: 800; font-size: 15.5px; line-height: 1.25; color: #fff; }
+.nia-status { display: flex; align-items: center; gap: 5px; font-size: 11px; line-height: 1.15; font-weight: 500; color: #7DBBFF; }
+.nia-dot { width: 5px; height: 5px; border-radius: 50%; background: #7DBBFF; }
+.nia-close {
+  margin-left: auto; width: 38px; height: 38px; border: none; border-radius: 12px; cursor: pointer;
+  background: rgba(255,255,255,.14); color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.nia-close:hover { background: rgba(255,255,255,.22); }
+.nia-close { position: relative; }
+.nia-close::after { content: ''; position: absolute; inset: -3px; } /* área de toque de 44px sem mudar o desenho (38px) */
+
+.nia-msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; }
+.nia-msg { display: flex; }
+.nia-msg.user { justify-content: flex-end; }
+.nia-bubble {
+  max-width: min(300px, 86%); padding: 14px 13px; border-radius: 18px; background: rgba(255,255,255,.14); color: #fff;
+  font-size: 14px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.nia-msg.user .nia-bubble { background: #fff; color: #121A33; border-bottom-right-radius: 6px; }
+.nia-msg.err .nia-bubble { background: rgba(255,92,92,.3); }
+
+.nia-suggestions { display: flex; flex-direction: column; align-items: flex-start; gap: 7.5px; }
+.nia-suggestion {
+  border: 1px solid rgba(255,255,255,.35); background: transparent; color: #fff; border-radius: 20px;
+  padding: 10px 16px; font-family: inherit; font-size: 13px; font-weight: 500; text-align: left; cursor: pointer;
+}
+.nia-suggestion:hover { background: rgba(255,255,255,.1); }
+.nia-upgrade {
+  align-self: flex-start; height: 42px; padding: 0 20px; border: none; border-radius: 21px; cursor: pointer;
+  background: #fff; color: #1C48FF; font-family: inherit; font-size: 14px; font-weight: 700;
+}
+
+.nia-typing { display: flex; align-items: center; gap: 5px; padding: 15px 16px; }
+.nia-typing span { width: 7px; height: 7px; border-radius: 50%; background: #fff; opacity: .45; animation: niaDot 1s ease-in-out infinite; }
+.nia-typing span:nth-child(2) { animation-delay: .15s; }
+.nia-typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes niaDot { 0%, 100% { opacity: .35; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+
+.nia-voice-error {
+  margin: 0 16px 8px; padding: 10px 8px 10px 14px; border-radius: 12px; background: rgba(255,92,92,.3); color: #fff;
+  font-size: 12.5px; line-height: 1.4; display: flex; align-items: flex-start; gap: 8px;
+}
+.nia-voice-error span { flex: 1; min-width: 0; }
+.nia-voice-error button {
+  flex-shrink: 0; width: 28px; height: 28px; margin-top: -4px; border: none; border-radius: 8px; cursor: pointer;
+  background: transparent; color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.nia-voice-error button:hover { background: rgba(255,255,255,.18); }
+
+/* resposta formatada (negrito, lista, tabela) — ver utils/aiText.js */
+.nia-bubble.nia-rich-bubble { white-space: normal; }
+.nia-rich > * { margin: 0; }
+.nia-rich > * + * { margin-top: 8px; }
+.nia-rich p { white-space: pre-wrap; }
+.nia-rich .nia-heading { font-weight: 700; }
+.nia-rich ul, .nia-rich ol { padding-left: 18px; }
+.nia-rich li + li { margin-top: 3px; }
+.nia-rich strong { font-weight: 700; }
+.nia-table-wrap { overflow-x: auto; }
+.nia-table { border-collapse: collapse; font-size: 12.5px; line-height: 1.35; overflow-wrap: normal; }
+.nia-table th, .nia-table td { padding: 5px 12px 5px 0; text-align: left; vertical-align: top; border-bottom: 1px solid rgba(255,255,255,.2); }
+.nia-table th { font-weight: 700; }
+.nia-table tr:last-child td { border-bottom: none; }
+
+/* resposta com botões (Confirmar/Cancelar de edição e exclusão, Tentar de novo) */
+.nia-col { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: min(300px, 86%); }
+.nia-col .nia-bubble { max-width: 100%; }
+.nia-actions { display: flex; gap: 8px; }
+.nia-act-yes, .nia-act-no {
+  height: 44px; padding: 0 20px; border-radius: 22px; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 700;
+}
+.nia-act-yes { border: none; background: #fff; color: #1C48FF; }
+.nia-act-no { border: 1px solid rgba(255,255,255,.4); background: transparent; color: #fff; }
+.nia-act-yes:disabled, .nia-act-no:disabled { opacity: .55; cursor: default; }
+
+.nia-input-bar { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 12px 14px max(30px, calc(env(safe-area-inset-bottom, 0px) + 12px)); }
+.nia-input {
+  flex: 1; min-width: 0; height: 54px; box-sizing: border-box; resize: none; overflow: hidden;
+  border: none; outline: none; border-radius: 18px; background: #fff; color: #121A33;
+  padding: 17px 18px; font-family: inherit; font-size: 15px; line-height: 20px;
+}
+.nia-input::placeholder { color: #A5AEC3; }
+.nia-input.voice-active::placeholder { color: #E5484D; }
+.nia-mic, .nia-send {
+  width: 54px; height: 54px; flex-shrink: 0; border: none; border-radius: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.nia-mic { background: rgba(255,255,255,.16); color: #fff; }
+.nia-mic:hover { background: rgba(255,255,255,.24); }
+.nia-mic.listening { background: #E5484D; }
+.nia-mic.blocked { opacity: .6; }
+.nia-mic .agent-mic-spinner { border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+.nia-send { background: #3DE29F; color: #0E3C2E; }
+/* o design mostra o botão cheio mesmo com o campo vazio — só fica esmaecido enquanto a Nancy responde */
+.nia-send:disabled { cursor: default; }
+.nia-send.busy { opacity: .55; }
+
+/* ═══════════════════════════════════════════════════════
+   ntf-* — Notificações (Nancy 2, tela 13): cabeçalho azul chapado com botão de voltar,
+   corpo claro de cantos arredondados e um cartão branco com as linhas (ícone azul 42px,
+   título, texto e "quando" à direita). Tela sempre clara (useForcedLightTheme), então os
+   tokens do design valem só aqui dentro. Medidas tiradas do print.
+   ═══════════════════════════════════════════════════════ */
+.ntf-page {
+  --bg: #F2F6FF; --bg-card: #fff; --bdbd: #EDF2F8;
+  --t1: #121A33; --t2: #5B6784; --t3: #99A5BE;
+  background: #F2F6FF; min-height: 100%;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+}
+.ntf-hero {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #1C48FF; color: #fff; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 46px;
+}
+.ntf-back {
+  width: 42px; height: 42px; flex-shrink: 0; border: none; border-radius: 13px; cursor: pointer;
+  background: rgba(255,255,255,.14); color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.ntf-back:hover { background: rgba(255,255,255,.22); }
+.ntf-head-text { min-width: 0; }
+.ntf-title { font-family: var(--fd); font-weight: 800; font-size: 22px; line-height: 1.2; margin: 0; }
+.ntf-sub { margin: 4px 0 0; font-size: 12px; line-height: 1.3; color: rgba(255,255,255,.72); }
+
+.ntf-body { background: var(--bg); border-radius: 26px 26px 0 0; margin-top: -26px; position: relative; padding: 20px; }
+.ntf-card { list-style: none; margin: 0; padding: 16px 16px 10px; background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 24px; }
+.ntf-item { margin: 0; border-top: 1px solid var(--bdbd); }
+.ntf-row {
+  width: 100%; display: flex; align-items: flex-start; gap: 14px; padding: 14px 0;
+  border: none; background: none; font-family: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.ntf-row:active { opacity: .7; }
+.ntf-ico {
+  width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #1C48FF; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.ntf-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ntf-name { font-size: 14px; font-weight: 700; line-height: 1.35; letter-spacing: -.01em; color: var(--t1); }
+.ntf-text { font-size: 12px; line-height: 1.5; color: var(--t2); }
+.ntf-when { flex-shrink: 0; margin-left: -6px; padding-top: 2px; font-size: 10.5px; line-height: 1.3; color: var(--t3); }
+@media (hover: hover) { .ntf-row:hover .ntf-name { color: #1C48FF; } }
+
+.ntf-prefs {
+  display: block; width: 100%; height: 52px; margin-top: 16px; background: #fff; border: 1px solid #C4CDE0;
+  border-radius: 18px; color: #1C48FF; font-family: inherit; font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; cursor: pointer;
+}
+.ntf-prefs:hover { background: #F7F9FF; }
+
+.ntf-back:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.ntf-row:focus-visible, .ntf-prefs:focus-visible, .ntf-retry:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+.ntf-empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 36px 24px; }
+.ntf-empty-ico {
+  width: 56px; height: 56px; border-radius: 18px; margin-bottom: 14px; background: #EEF2FF; color: #1C48FF;
+  display: flex; align-items: center; justify-content: center;
+}
+.ntf-empty-title { font-size: 15px; font-weight: 700; color: var(--t1); margin: 0 0 6px; }
+.ntf-empty-sub { font-size: 12.5px; line-height: 1.5; color: var(--t2); margin: 0; max-width: 280px; }
+.ntf-retry {
+  margin-top: 16px; height: 40px; padding: 0 18px; border: none; border-radius: 12px; cursor: pointer;
+  background: #1C48FF; color: #fff; font-family: inherit; font-size: 13px; font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .pwnav.ntf-pwnav, [data-theme="light"] .pwnav.ntf-pwnav { background: #F2F6FF; }
+}
+@media (min-width: 769px) {
+  .ntf-page { max-width: 560px; margin: 0 auto; width: 100%; padding: 8px 24px 32px; background: none; min-height: 0; }
+  .ntf-hero { border-radius: 28px; padding-bottom: 54px; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   fin-* — Finanças (Nancy 2, tela 14): mesmo cabeçalho azul das Notificações e dois cartões
+   brancos (salário e contas fixas). As linhas das contas abrem um detalhe ao tocar
+   ("Marcar como paga", encerramento) — o design só mostra nome, vencimento e valor, e o
+   botão de pagar continua alcançável sem poluir a linha. O formulário de adicionar conta e os
+   campos de data mantêm as classes cfg-* (os testes E2E dependem delas), só reestilizados aqui.
+   ═══════════════════════════════════════════════════════ */
+.fin-page {
+  --bg: #F2F6FF; --bg-card: #fff; --bdbd: #EDF2F8;
+  --t1: #121A33; --t2: #5B6784; --t3: #99A5BE;
+  --fin-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  background: #F2F6FF; min-height: 100%;
+  padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+}
+.fin-hero {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #1C48FF; color: #fff; padding: calc(24px + env(safe-area-inset-top, 0px)) 20px 46px;
+}
+.fin-back {
+  width: 42px; height: 42px; flex-shrink: 0; border: none; border-radius: 13px; cursor: pointer;
+  background: rgba(255,255,255,.14); color: #fff; display: flex; align-items: center; justify-content: center;
+}
+.fin-back:hover { background: rgba(255,255,255,.22); }
+.fin-back:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.fin-hero-text { min-width: 0; }
+.fin-hero-title { font-family: var(--fd); font-weight: 800; font-size: 22px; line-height: 1.2; margin: 0; }
+.fin-hero-sub { margin: 4px 0 0; font-size: 12px; line-height: 1.3; color: rgba(255,255,255,.72); }
+.fin-body { background: var(--bg); border-radius: 26px 26px 0 0; margin-top: -26px; position: relative; padding: 20px 18px; }   /* margem lateral de 18px, medida nos prints */
+
+.fin-card { background: var(--bg-card); border: 1px solid var(--bdbd); border-radius: 24px; padding: 16px; margin-bottom: 16px; }
+.fin-head { display: flex; align-items: center; gap: 12px; }
+.fin-ico {
+  width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #EEF2FF; color: #1C48FF;
+  display: flex; align-items: center; justify-content: center;
+}
+.fin-head-text { flex: 1; min-width: 0; }
+.fin-title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; line-height: 1.35; color: var(--t1); margin: 0; }
+.fin-sub { font-size: 12.5px; line-height: 1.5; color: var(--t2); margin: 1px 0 0; }
+.fin-total { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14.5px; line-height: 1.3; color: #1C48FF; width: min-content; text-align: left; margin-right: 18px; }
+
+.fin-salary-row { display: flex; gap: 9px; margin-top: 12px; }
+.fin-field {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; height: 54px; padding: 0 14px;
+  background: #F2F6FF; border: 1px solid #E6ECF7; border-radius: 16px;
+}
+.fin-prefix { font-size: 15px; font-weight: 500; color: #6B7691; flex-shrink: 0; }
+.fin-inp {
+  flex: 1; min-width: 0; width: 100%; border: none; outline: none; background: none; padding: 0;
+  font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 16.8px; color: var(--t1);
+}
+.fin-inp::placeholder { color: var(--t3); font-weight: 500; }
+.fin-field:focus-within { border-color: #1C48FF; }
+.fin-btn {
+  width: 102px; height: 54px; flex-shrink: 0; border: none; border-radius: 16px; cursor: pointer;
+  background: #1C48FF; color: #fff; font-family: inherit; font-size: 15px; font-weight: 700;
+}
+.fin-btn:disabled { opacity: .6; cursor: default; }
+
+.fin-card-list .pub-wrap { margin-top: 14px; }
+.fin-list { list-style: none; margin: 16px 0 0; padding: 0; }
+.fin-row { border-top: 1px solid var(--bdbd); }
+.fin-row-line { display: flex; align-items: center; }
+.fin-row-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 13px 0;
+  background: none; border: none; text-align: left; font-family: inherit; color: inherit; cursor: pointer;
+}
+.fin-row-ico {
+  width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #1C48FF; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.fin-row-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fin-row-name { font-size: 14px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fin-row-due { font-size: 12.5px; line-height: 1.4; color: var(--t2); }
+.fin-paid { color: #117953; font-weight: 700; }
+.fin-row-val { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; color: var(--t1); }
+.fin-del {
+  width: 32px; height: 42px; flex-shrink: 0; margin-left: 2px; border: none; background: none; cursor: pointer;
+  color: #9AA7BD; display: flex; align-items: center; justify-content: center;
+}
+.fin-del:hover { color: #E5484D; }
+.fin-row-detail { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 0 14px 54px; }
+.fin-detail-txt { font-size: 12px; color: var(--t2); }
+.fin-pay {
+  height: 34px; padding: 0 14px; border-radius: 12px; border: 1px solid #C9D6FF; background: #fff; color: #1C48FF;
+  font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.fin-pay:disabled { opacity: .6; cursor: default; }
+.fin-row-main:focus-visible, .fin-del:focus-visible, .fin-pay:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* lançar pendentes + formulário de adicionar (classes cfg-* mantidas) */
+.fin-page .cfg-empty-hint { padding: 14px 0 4px; color: var(--t2); }
+.fin-page .cfg-launch-row { margin-top: 14px; }
+.fin-page .cfg-btn-launch, .fin-page .cfg-launched-ok {
+  border-radius: 16px; background: #EEF2FF; border: 1px solid #D6E0FF; color: #1C48FF; min-height: 46px;
+}
+.fin-page .cfg-launched-ok { color: #117953; background: #EAF8F2; border-color: #CDEFE0; }
+.fin-page .cfg-add-row { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--bdbd); }
+.fin-page .cfg-inp {
+  height: 46px; padding: 0 14px; background: #F2F6FF; border: 1px solid #E6ECF7; border-radius: 14px;
+  color: var(--t1); font-size: 14px;
+}
+.fin-page .cfg-inp:focus { border-color: #1C48FF; }
+.fin-page .cfg-btn-ghost { height: 46px; border-radius: 14px; background: #EEF2FF; border: 1px solid #D6E0FF; color: #1C48FF; font-weight: 600; }
+.fin-page .cfg-btn-ghost:hover { background: #E3EAFF; }
+.fin-page .cfg-enddate-label { color: var(--t2); }
+.fin-page .cfg-date-sep { color: var(--t3); }
+
+@media (max-width: 768px) {
+  .pwnav.fin-pwnav, [data-theme="light"] .pwnav.fin-pwnav { background: #F2F6FF; }
+}
+@media (min-width: 769px) {
+  .fin-page { max-width: 560px; margin: 0 auto; width: 100%; padding: 8px 24px 32px; background: none; min-height: 0; }
+  .fin-hero { border-radius: 28px; padding-bottom: 54px; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   inst-* — Compras parceladas (Nancy 2): usa o cabeçalho/cartões da Finanças (fin-*) e acrescenta
+   o cartão de compra (ícone, nome, valor da parcela, barra de progresso, "Restante" e o botão
+   "Pagar parcela" em verde claro) e o formulário "Nova compra parcelada".
+   ═══════════════════════════════════════════════════════ */
+.inst-head-text { min-width: 0; }
+.inst-card .fin-ico { background: #1C48FF; color: #fff; }
+.inst-head {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 0; background: none; border: none;
+  text-align: left; font-family: inherit; color: inherit; cursor: pointer;
+}
+.inst-head-text { flex: 1; display: flex; flex-direction: column; }
+.inst-val { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14.5px; color: #1C48FF; align-self: flex-start; padding-top: 2px; }
+.inst-track { height: 8px; margin-top: 14px; border-radius: 8px; background: #EEF2FF; overflow: hidden; }
+.inst-fill { height: 100%; border-radius: 8px; background: #1C48FF; }
+.inst-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; min-height: 34px; }
+.inst-rest { font-size: 13px; color: var(--t2); }
+.inst-pay {
+  height: 34px; padding: 0 16px; border: none; border-radius: 17px; cursor: pointer; flex-shrink: 0;
+  background: #E6F8F0; color: #117953; font-family: inherit; font-size: 13px; font-weight: 700;
+}
+.inst-pay:disabled { opacity: .6; cursor: default; }
+.inst-quit { font-size: 13px; font-weight: 700; color: #117953; }
+.inst-done .inst-fill { background: #19C884; }
+.inst-detail { display: flex; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--bdbd); }
+.inst-link { background: none; border: none; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #1C48FF; cursor: pointer; }
+.inst-link-del { color: #E5484D; margin-left: auto; }
+.inst-empty { display: flex; align-items: center; gap: 12px; }
+.inst-new-title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0 0 14px; }
+.inst-form { display: flex; flex-direction: column; gap: 12px; }
+.inst-row2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
+.inst-inp {
+  width: 100%; height: 52px; box-sizing: border-box; min-width: 0; padding: 0 16px; background: #F2F6FF;
+  border: 1px solid #E6ECF7; border-radius: 16px; outline: none; font-family: inherit; font-size: 15px; color: var(--t1);
+}
+.inst-inp::placeholder { color: #A5AEC3; }
+.inst-inp:focus { border-color: #1C48FF; }
+.inst-calc { margin: -2px 2px 0; font-size: 12.5px; color: var(--t2); }
+.inst-add {
+  height: 54px; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 16px;
+  background: #1C48FF; color: #fff; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.inst-add:disabled { opacity: .6; cursor: default; }
+.inst-head:focus-visible, .inst-pay:focus-visible, .inst-link:focus-visible, .inst-add:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   cm-* — Contas do mês (Nancy 2, tela 15): usa o cabeçalho/corpo da Finanças (fin-*), um cartão
+   azul de resumo (pagas / total / status) e a lista de contas com marcador de pago.
+   ═══════════════════════════════════════════════════════ */
+.cm-summary {
+  display: flex; align-items: flex-start; gap: 4px; padding: 24px 12px 20px; margin-bottom: 14px;
+  background: #1C48FF; color: #fff; border-radius: 22px;
+}
+.cm-stat { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center; }
+.cm-val { width: min-content; max-width: 100%; font-size: 20px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; }
+.cm-mono { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 15px; line-height: 1.25; }
+.cm-mint { font-size: 15px; font-weight: 800; line-height: 1.25; color: #3DE29F; }
+.cm-lbl { font-size: 9.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: rgba(255,255,255,.72); }
+
+.cm-list { list-style: none; margin-bottom: 0; padding: 14px 16px 6px; }
+.cm-item { border-top: 1px solid var(--bdbd); }
+.cm-row {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 0; background: none; border: none;
+  text-align: left; font-family: inherit; color: inherit; cursor: pointer;
+}
+.cm-check {
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; border: 1.5px solid #D5DCEB; background: #fff; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.cm-check.on { background: #19C884; border-color: #19C884; }
+.cm-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cm-name { font-size: 14px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-due { font-size: 12px; line-height: 1.4; color: var(--t2); }
+.cm-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.cm-amount { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; color: var(--t1); }
+.cm-pill { padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; line-height: 1.4; }
+.cm-pill.paid { background: #E6F8F0; color: #117953; }
+.cm-pill.pending { background: #E8EEFF; color: #1C48FF; }
+.cm-hint { margin: 16px 0 0; text-align: center; font-size: 12px; color: var(--t2); }
+.cm-empty .fin-btn { margin-top: 14px; width: 100%; }
+.cm-row:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   Telas de auth/onboarding (Nancy 2, 03–07) são só claras. As regras antigas
+   `[data-theme="light"] .auth-*` (do cartão de login antigo) escureciam o título em cima do
+   azul e trocavam o fundo dos campos quando o tema estava claro — o que acontece no onboarding,
+   que abre por cima do Início (tema claro imposto), e pra quem salvou o tema claro.
+   ═══════════════════════════════════════════════════════ */
+[data-theme="light"] .auth-card { background: none; }
+[data-theme="light"] .auth-hero .auth-title { color: #fff; }
+[data-theme="light"] .auth-sheet .auth-label { color: #0d0d0d; }
+[data-theme="light"] .auth-sheet .auth-input { background: #F7F9FC; border-color: #E5E9F2; color: #0d0d0d; }
+[data-theme="light"] .auth-sheet .auth-input:focus { border-color: #1546FF; background: #fff; }
+[data-theme="light"] .auth-sheet .auth-input.err { border-color: #e5484d; background: rgba(229,72,77,.05); }
+
+/* Onboarding — medidas do print: título grande, voltar de 42px (é um <button>, então sem a borda
+   padrão), folha de 26px de raio, campo do salário alto e, no celular, tela cheia. */
+.ob-hero { padding-bottom: 56px; }
+.ob-hero-top { margin-bottom: 22px; }
+.ob-hero .auth-back { width: 42px; height: 42px; border-radius: 13px; border: none; padding: 0; margin-bottom: 0; cursor: pointer; }
+.ob-hero .auth-title { font-size: 32px; line-height: 1.15; letter-spacing: -.01em; margin-bottom: 8px; }
+.ob-hero .auth-subtitle { font-size: 15px; }
+.ob-sheet { border-radius: 26px 26px 0 0; margin-top: -26px; padding-top: 28px; }
+.ob-currency-wrap { height: 64px; border: 1px solid #E6ECF7; background: #F2F6FF; border-radius: 16px; }
+.ob-currency-prefix { font-size: 18px; color: #5B6784; }
+.ob-currency-input { font-size: 28px; }
+.ob-skip-link { color: #5B6784; }
+@media (max-width: 768px) {
+  .ob-overlay { padding: 0; align-items: stretch; background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .ob-shell { max-width: none; min-height: 100dvh; border-radius: 0; box-shadow: none; }
+  .ob-hero { padding-top: calc(20px + env(safe-area-inset-top, 0px)); }
+  .ob-sheet { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   cl-* — Calendário (Nancy 2, tela 18): cabeçalho/corpo da Finanças (fin-*), cartão do mês com
+   dias e bolinhas (entrada = verde, saída = azul) e cartão com os eventos do dia escolhido.
+   ═══════════════════════════════════════════════════════ */
+.cl-card { padding: 16px 12px 17px; }
+.cl-head { display: flex; align-items: center; gap: 8px; padding: 0 4px; margin-bottom: 14px; }
+.cl-month { font-size: 19px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0; white-space: nowrap; }
+.cl-nav { display: flex; align-items: center; gap: 4px; }
+.cl-nav-btn {
+  width: 26px; height: 26px; border: none; border-radius: 9px; cursor: pointer; background: #EEF2FF; color: #1C48FF;
+  display: flex; align-items: center; justify-content: center;
+}
+.cl-today-btn { height: 26px; padding: 0 10px; border: none; border-radius: 9px; cursor: pointer; background: #1C48FF; color: #fff; font-family: inherit; font-size: 11.5px; font-weight: 700; }
+.cl-legend { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 10.5px; color: var(--t2); }
+.cl-leg { display: inline-flex; align-items: center; gap: 4px; }
+.cl-dot { display: inline-block; width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.cl-dot-in   { background: #19C884; }
+.cl-dot-out  { background: #1C48FF; }
+.cl-dot-goal { background: #F5A524; }
+.cl-legend .cl-dot { width: 6px; height: 6px; border-radius: 2px; }
+
+.cl-dow-row, .cl-cells { display: grid; grid-template-columns: repeat(7, 1fr); }
+.cl-dow-row { margin-bottom: 6px; }
+.cl-dow { text-align: center; font-family: var(--fin-mono); font-size: 9.5px; letter-spacing: .08em; color: var(--t3); }
+.cl-cells { row-gap: 4px; }
+.cl-cell {
+  height: 47px; margin: 0 auto; width: 42px; border: none; border-radius: 12px; background: none; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-family: inherit; color: var(--t1); cursor: pointer;
+}
+.cl-cell.empty { cursor: default; }
+.cl-num { font-size: 13px; font-weight: 600; line-height: 1; }
+.cl-cell.future .cl-num { color: var(--t3); font-weight: 500; }
+.cl-dots { display: flex; gap: 2px; height: 5px; }
+.cl-cell.today:not(.sel) { background: #EEF2FF; }
+.cl-cell.today:not(.sel) .cl-num { color: #1C48FF; }
+.cl-cell.sel { background: #1C48FF; color: #fff; }
+.cl-cell.sel .cl-num { color: #fff; font-weight: 800; }
+.cl-cell.sel .cl-dot { background: #fff; }
+.cl-cell.sel .cl-dot-in { background: #6FF0C0; }
+.cl-cell:focus-visible { outline: 2px solid #1C48FF; outline-offset: 1px; }
+.cl-loading { display: flex; justify-content: center; padding: 60px 0; }
+
+.cl-day-title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0; }
+.cl-day-empty { margin: 0; font-size: 12.5px; color: var(--t2); }
+.cl-ev-list { list-style: none; margin: 12px 0 0; padding: 0; }
+.cl-ev { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--bdbd); }
+.cl-ev-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #1C48FF; color: #fff; display: flex; align-items: center; justify-content: center; }
+.cl-ev-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cl-ev-name { font-size: 14px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-ev-sub { font-size: 12px; color: var(--t2); }
+.cl-ev-amt { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; color: var(--t1); }
+.cl-ev-amt.in { color: #117953; }
+
+/* ═══════════════════════════════════════════════════════
+   an-* — Análise do mês (Nancy 2, tela 17): cabeçalho/corpo da Finanças (fin-*), cartão azul do
+   maior gasto variável, lista de gastos por categoria com barras e o convite pra Nancy.
+   ═══════════════════════════════════════════════════════ */
+.an-state { text-align: center; padding: 28px 20px; }
+.an-state .fin-sub { max-width: 280px; margin: 6px auto 0; }
+.an-retry { margin-top: 16px; width: 100%; max-width: 220px; }
+.an-top { margin-bottom: 14px; padding: 20px 18px 20px; background: #1C48FF; color: #fff; border-radius: 22px; display: flex; flex-direction: column; gap: 8px; }
+.an-top-eyebrow { font-family: var(--fin-mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.72); }
+.an-top-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.an-top-name { font-family: var(--fd); font-size: 26px; font-weight: 800; line-height: 1.15; letter-spacing: -.01em; min-width: 0; overflow-wrap: anywhere; }
+.an-top-val { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14.5px; }
+.an-top-pill { align-self: flex-start; margin-top: 2px; padding: 3px 10px; border-radius: 11px; background: #3DE29F; color: #0E3C2E; font-size: 11px; font-weight: 700; }
+
+.an-cats { padding: 16px 16px 14px; }
+.an-cats-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0 0 12px; }
+.an-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.an-item-line { display: flex; align-items: center; gap: 8px; }
+.an-item-ico { display: flex; flex-shrink: 0; }
+.an-item-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-item-val { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; color: var(--t1); }
+.an-item-pct { flex-shrink: 0; width: 44px; text-align: right; font-family: var(--fin-mono); font-size: 10.5px; color: var(--t3); }
+.an-bar { height: 6px; margin-top: 6px; border-radius: 6px; background: #EEF2FF; overflow: hidden; }
+.an-bar-fill { height: 100%; border-radius: 6px; }
+
+.an-ask { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; font-family: inherit; color: var(--t1); cursor: pointer; margin-bottom: 0; }
+.an-ask-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #19C884; color: #fff; display: flex; align-items: center; justify-content: center; }
+.an-ask-text { flex: 1; font-size: 13.5px; font-weight: 500; line-height: 1.4; }
+.an-ask:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   gl-* — Metas (Nancy 2, tela 19): a tela toda é azul (#1C48FF) com o cabeçalho do Extrato
+   (título + atalhos), cartões brancos por meta e o cartão tracejado "Nova meta". As antigas abas
+   (Histórico, Assinaturas, Lembretes, Limites) viram atalhos do cabeçalho; o conteúdo delas ainda é o
+   de antes, num painel claro por cima do azul, até serem redesenhadas.
+   ═══════════════════════════════════════════════════════ */
+.gl-blue { background: #1C48FF; min-height: 100%; }
+.gl-hero { padding-bottom: 14px; }
+.gl-hero .ex-title { margin-bottom: 14px; }
+.gl-body { padding: 0 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.gl-loading { display: flex; justify-content: center; padding: 40px 0; }
+.gl-body .pub-wrap { margin: 0; }
+
+.gl-card { background: #fff; border-radius: 22px; padding: 18px 16px; }
+.gl-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.gl-card-edit { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 0; background: none; border: none; text-align: left; font-family: inherit; color: inherit; cursor: pointer; }
+.gl-card-title { font-size: 16px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; color: var(--t1); overflow-wrap: anywhere; }
+.gl-card-sub { font-size: 12px; color: var(--t2); }
+.gl-card-pct { flex-shrink: 0; font-family: var(--fd); font-size: 26px; font-weight: 800; line-height: 1.1; color: #19C884; }
+.gl-bar { height: 8px; margin-top: 14px; border-radius: 8px; background: color-mix(in srgb, var(--gc) 16%, #fff); overflow: hidden; }
+.gl-bar-fill { height: 100%; border-radius: 8px; background: var(--gc); }
+.gl-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.gl-amounts { font-family: var(--ex-mono); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; color: var(--t1); }
+.gl-dep { flex-shrink: 0; height: 32px; padding: 0 14px; border: none; border-radius: 16px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.gl-done { font-size: 12.5px; font-weight: 700; color: #117953; }
+
+.gl-new { border: 1.5px dashed rgba(255,255,255,.4); border-radius: 22px; padding: 18px 16px; }
+.gl-new-title { margin: 0 0 12px; font-size: 14px; font-weight: 700; color: #fff; }
+.gl-new-form { display: flex; flex-direction: column; gap: 10px; }
+.gl-inp { width: 100%; height: 48px; box-sizing: border-box; padding: 0 16px; border: none; outline: none; border-radius: 14px; background: #fff; color: var(--t1); font-family: inherit; font-size: 14.5px; }
+.gl-inp::placeholder { color: #A5AEC3; }
+.gl-inp:focus-within { box-shadow: 0 0 0 2px #3DE29F; }
+.gl-inp-money { display: flex; align-items: center; padding: 0; }
+.gl-inp-inner { flex: 1; min-width: 0; height: 100%; padding: 0 16px; border: none; outline: none; background: none; font-family: inherit; font-size: 14.5px; color: var(--t1); }
+.gl-inp-inner::placeholder { color: #A5AEC3; }
+.gl-create { height: 48px; border: none; border-radius: 14px; background: #3DE29F; color: #0E3C2E; font-family: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; }
+.gl-create:disabled { opacity: .55; cursor: default; }
+.gl-limit { margin: 0; font-size: 12px; color: rgba(255,255,255,.85); text-align: center; }
+
+.gls-remove-link { display: block; margin: 18px auto 0; padding: 4px 8px; background: none; border: none; color: #E5484D; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.gl-card-edit:focus-visible, .gl-dep:focus-visible, .gl-create:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+@media (max-width: 768px) {
+  .pwnav.goals-pwnav, [data-theme="light"] .pwnav.goals-pwnav { background: #1C48FF; }
+}
+@media (min-width: 769px) {
+  .gl-page { padding-bottom: 32px; }
+  .gl-blue { border-radius: 28px; padding-bottom: 8px; }
+  .gl-hero { border-radius: 28px 28px 0 0; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   hs-* — Histórico (Nancy 2, tela 20): cabeçalho/corpo da Finanças (fin-*), cartão com as barras do
+   resultado de cada mês (o mês atual em verde) e o cartão com a frase de destaque.
+   ═══════════════════════════════════════════════════════ */
+.hs-state { text-align: center; padding: 28px 20px; }
+.hs-state .fin-sub { max-width: 290px; margin: 6px auto 0; }
+.hs-btn { margin-top: 16px; width: 100%; max-width: 220px; }
+.hs-title { font-size: 15px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0; }
+.hs-chart { display: flex; align-items: flex-end; gap: 11px; margin-top: 24px; }
+.hs-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px; }
+.hs-val { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-size: 10.5px; font-weight: 500; color: var(--t1); }
+.hs-bar { width: 100%; border-radius: 10px; background: #CCD9FB; }
+.hs-bar.cur { background: #19C884; }
+.hs-bar.neg { background: #FFD3D6; }
+.hs-bar.cur.neg { background: #E5484D; }
+.hs-bar.off { background: #EEF2FF; }
+.hs-mon { font-size: 11px; color: var(--t2); margin-top: 2px; }
+.hs-insight { display: flex; align-items: center; gap: 12px; }
+.hs-insight-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #19C884; color: #fff; display: flex; align-items: center; justify-content: center; }
+.hs-insight-ico.down { background: #F5A524; }
+.hs-insight-title { font-size: 14px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); margin: 0; }
+.hs-insight-sub { font-size: 12px; line-height: 1.45; color: var(--t2); margin: 2px 0 0; }
+.hs-report-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.hs-select { flex: 1; min-width: 110px; height: 44px; padding: 0 12px; border: 1px solid #E6ECF7; border-radius: 14px; background: #F2F6FF; color: var(--t1); font-family: inherit; font-size: 14px; }
+.hs-gen { height: 44px; padding: 0 16px; border: none; border-radius: 14px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.hs-gen:disabled { opacity: .6; cursor: default; }
+.hs-report-text { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--bdbd); font-size: 13px; line-height: 1.6; color: var(--t1); white-space: pre-wrap; }
+
+/* ═══════════════════════════════════════════════════════
+   sb-* — Assinaturas (Nancy 2, tela 21): cabeçalho/corpo da Finanças (fin-*), cartão azul com o total
+   detectado, lista com ícone, nome, valor/última cobrança e o interruptor de "lembrar de cancelar".
+   ═══════════════════════════════════════════════════════ */
+.sb-state { text-align: center; padding: 28px 20px; }
+.sb-state .fin-sub { max-width: 290px; margin: 6px auto 0; }
+.sb-btn { margin-top: 16px; width: 100%; max-width: 220px; }
+.sb-sum { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 22px 18px; background: #1C48FF; color: #fff; border-radius: 22px; }
+.sb-sum-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: rgba(255,255,255,.14); color: #3DE29F; display: flex; align-items: center; justify-content: center; }
+.sb-sum-lbl { display: block; font-size: 12px; color: rgba(255,255,255,.8); }
+.sb-sum-val { display: block; font-family: var(--fd); font-size: 22px; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
+.sb-list { list-style: none; margin-bottom: 0; padding: 12px 16px 4px; }
+.sb-item { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--bdbd); }
+.sb-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #1C48FF; color: #fff; display: flex; align-items: center; justify-content: center; }
+.sb-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sb-name { font-size: 14px; font-weight: 500; letter-spacing: -.01em; line-height: 1.3; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sb-sub { font-size: 12px; line-height: 1.4; color: var(--t2); }
+.sb-sub.stale { color: #E5484D; }
+.sb-switch { position: relative; flex-shrink: 0; width: 50px; height: 30px; padding: 0; border: none; border-radius: 15px; cursor: pointer; background: #D5DCEB; transition: background .15s; }
+.sb-switch.on { background: #19C884; }
+.sb-knob { position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(18,26,51,.25); transition: transform .15s; }
+.sb-switch.on .sb-knob { transform: translateX(20px); }
+.sb-switch:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+.sb-hint { margin: 16px 0 0; text-align: center; font-size: 12px; color: var(--t2); }
+
+/* ═══════════════════════════════════════════════════════
+   rm-* — Lembretes (Nancy 2, tela 22): cabeçalho/corpo da Finanças (fin-*), cartão com uma linha por
+   vencimento (relógio, nome, "Dia 5 · 2 dias antes") e o interruptor (sb-switch, o mesmo das Assinaturas).
+   ═══════════════════════════════════════════════════════ */
+.rm-state { text-align: center; padding: 28px 20px; }
+.rm-state .fin-sub { max-width: 290px; margin: 6px auto 0; }
+.rm-btn { margin-top: 16px; width: 100%; max-width: 220px; }
+.rm-card { padding: 14px 16px 14px; }
+.rm-title { font-size: 15px; line-height: 24px; font-weight: 600; letter-spacing: -.01em; color: var(--t1); margin: 0 0 6px; }
+.rm-empty { margin: 8px 0 14px; font-size: 12.5px; line-height: 1.5; color: var(--t2); }
+.rm-list { list-style: none; margin: 0; padding: 0; }
+.rm-item { display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--bdbd); }
+.rm-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 13px 0; background: none; border: none; text-align: left; font-family: inherit; color: inherit; cursor: pointer; }
+.rm-ico { width: 42px; height: 42px; border-radius: 13px; flex-shrink: 0; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.rm-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rm-name { font-size: 14px; font-weight: 500; letter-spacing: -.01em; line-height: 1.3; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rm-sub { font-size: 12px; line-height: 1.4; color: var(--t2); }
+.rm-add { width: 100%; height: 48px; margin-top: 14px; border: 1.5px dashed #B8C6EE; border-radius: 16px; background: none; color: #1C48FF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.rm-sheet-lbl { margin: 0 0 10px; font-size: 12.5px; font-weight: 600; color: var(--t2); }
+.rm-leads { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rm-lead { height: 42px; border: 1px solid #E6ECF7; border-radius: 12px; background: #F2F6FF; color: var(--t1); font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; }
+.rm-lead.on { background: #1C48FF; border-color: #1C48FF; color: #fff; font-weight: 700; }
+.rm-err { margin-top: 10px; font-size: 12px; color: #E5484D; }
+.rm-row:focus-visible, .rm-add:focus-visible, .rm-lead:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   lm-* — Limites (Nancy 2): cabeçalho/corpo da Finanças (fin-*), cartão com uma linha por categoria
+   (ícone, nome, "gasto / teto" em mono, X, barra e situação) e o cartão "Novo limite" (chips + teto).
+   ═══════════════════════════════════════════════════════ */
+.lm-state { text-align: center; padding: 28px 20px; }
+.lm-state .fin-sub { max-width: 290px; margin: 6px auto 0; }
+.lm-state-btn { margin-top: 16px; width: 100%; max-width: 220px; }
+.lm-card { padding-top: 17px; margin-bottom: 14px; }
+.lm-empty { margin: 14px 0 2px; font-size: 12.5px; line-height: 1.5; color: var(--t2); }
+.lm-list { list-style: none; margin: 15px 0 0; padding: 0; }
+.lm-item { border-top: 1px solid var(--bdbd); padding: 12px 0 12px; }
+.lm-item:last-child { padding-bottom: 0; }
+.lm-top { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.lm-cat { width: 16px; height: 16px; flex-shrink: 0; color: #1C48FF; display: flex; }
+.lm-name { flex: 0 0 auto; font-size: 14px; font-weight: 600; letter-spacing: -.01em; color: var(--t1); }
+.lm-amt { margin-left: auto; min-width: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 13px; line-height: 1.5; color: var(--t2); }
+.lm-del { flex-shrink: 0; width: 22px; height: 24px; padding: 0; border: none; background: none; color: #99A5BE; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.lm-del:hover { color: #5B6784; }
+.lm-bar { height: 8px; margin-top: 4px; border-radius: 99px; background: #EDF3FF; overflow: hidden; }
+.lm-fill { display: block; height: 100%; border-radius: 99px; background: #19C884; }
+.lm-fill.warn { background: #E7B43D; }
+.lm-fill.over { background: #E5484D; }
+.lm-note { margin: 6px 0 0; font-size: 12px; line-height: 17px; color: var(--t2); }
+.lm-note.warn { color: #B67824; font-weight: 500; }
+.lm-note.over { color: #D64545; }
+.lm-new { padding: 17px 16px; margin-bottom: 0; }
+.lm-new-title { margin: 0; font-size: 15.5px; line-height: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.lm-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.lm-chip { height: 34px; padding: 0 12px; border: none; border-radius: 999px; background: #F4F7FC; color: var(--t1); font-family: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.lm-chip.on { background: #1C48FF; color: #fff; }
+.lm-chip.more { background: none; border: 1px dashed #B8C6EE; color: #1C48FF; }
+.lm-form { display: flex; gap: 8px; margin-top: 12px; }
+.lm-inp { flex: 1; min-width: 0; height: 53px; padding: 0 16px; border: 1px solid #E0E7F5; border-radius: 16px; background: #F4F7FC; font-family: inherit; font-size: 14.5px; color: var(--t1); outline: none; }
+.lm-inp::placeholder { color: var(--t3); }
+.lm-inp:focus { border-color: #1C48FF; }
+.lm-save { width: 101px; height: 53px; font-size: 15px; }
+.lm-msg { margin: 10px 0 0; font-size: 12.5px; line-height: 1.4; }
+.lm-msg.ok { color: #117953; }
+.lm-msg.err { color: #D64545; }
+.lm-del:focus-visible, .lm-chip:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   pf-* — Perfil (Nancy 2, tela 24): fundo azul chapado, avatar branco com as iniciais, nome, selo do
+   plano, cartão "Resumos mensais" em degradê e uma lista única de telas da conta em cartão branco.
+   ═══════════════════════════════════════════════════════ */
+.pf-page {
+  --t1: #121A33; --t2: #5B6784; --t3: #99A5BE; --bdbd: #EDF2F8;
+  background: #1C48FF; min-height: 100%; color: #fff;
+  padding: calc(35px + env(safe-area-inset-top, 0px)) 20px calc(104px + env(safe-area-inset-bottom, 0px));
+}
+.pf-hero { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.pf-av {
+  width: 88px; height: 88px; border-radius: 50%; background: #fff; color: #1C48FF;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 28px; letter-spacing: -.01em;
+}
+.pf-name { margin: 12px 0 0; font-size: 19px; line-height: 24px; font-weight: 700; letter-spacing: -.01em; color: #fff; }
+.pf-plan {
+  margin-top: 9px; height: 28px; padding: 0 12px; border: none; border-radius: 999px; cursor: pointer;
+  background: #3DE29F; color: #0B3D2B; font-family: inherit; font-size: 11px; font-weight: 700;
+}
+.pf-plan.free { background: rgba(255,255,255,.18); color: #fff; }
+.pf-stories {
+  margin-top: 22px; width: 100%; display: flex; align-items: center; gap: 14px; padding: 16.5px 16px; border: none; border-radius: 22px; cursor: pointer;
+  background: linear-gradient(100deg, #0F2F9E 0%, #0E8D67 100%); color: #fff; text-align: left; font-family: inherit;
+}
+.pf-stories-ico { width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px; background: rgba(255,255,255,.14); display: flex; align-items: center; justify-content: center; }
+.pf-stories-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pf-stories-title { font-size: 14px; font-weight: 700; line-height: 1.3; letter-spacing: -.01em; }
+.pf-stories-sub { font-size: 11.5px; line-height: 1.35; color: rgba(255,255,255,.72); }
+.pf-list { margin-top: 16px; background: #fff; border-radius: 24px; overflow: hidden; }
+.pf-row {
+  width: 100%; min-height: 54px; display: flex; align-items: center; gap: 13px; padding: 0 16px; border: none; background: none; cursor: pointer;
+  color: var(--t1); font-family: inherit; text-align: left;
+}
+.pf-row + .pf-row { border-top: 1px solid var(--bdbd); }
+.pf-row:hover { background: #F7FAFF; }
+.pf-row-ico { width: 20px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #1C48FF; }
+.pf-row-label { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
+.pf-row > svg { color: var(--t3); flex-shrink: 0; }
+.pf-row-out .pf-row-ico, .pf-row-out .pf-row-label { color: #E5484D; }
+.pf-plan:focus-visible, .pf-stories:focus-visible, .pf-row:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.pf-row:focus-visible { outline-color: #1C48FF; outline-offset: -2px; }
+@media (max-width: 768px) {
+  .pwnav.pf-pwnav, [data-theme="light"] .pwnav.pf-pwnav { background: #1C48FF; }
+}
+@media (min-width: 769px) {
+  .pf-page { max-width: 520px; margin: 8px auto 32px; border-radius: 28px; min-height: 0; padding-bottom: 28px; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   dp-* — Dados pessoais (Nancy 2, tela 25): cabeçalho/corpo da Finanças (fin-*), avatar azul com
+   "Alterar foto", cartão branco com Nome e E-mail (+ selo de verificação) e o botão "Salvar alterações".
+   ═══════════════════════════════════════════════════════ */
+.fin-body.dp-body { padding: 27px 18px 20px; }
+.dp-photo { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+.dp-av {
+  width: 88px; height: 88px; border-radius: 50%; background: #1C48FF; color: #fff; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--fd); font-weight: 800; font-size: 29px; letter-spacing: -.01em; transition: opacity .15s;
+}
+.dp-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dp-av.busy { opacity: .55; }
+.dp-photo-actions { margin-top: 10px; display: flex; align-items: center; gap: 14px; min-height: 16px; }
+.dp-link { border: none; background: none; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 600; line-height: 16px; color: #1C48FF; cursor: pointer; }
+.dp-link:disabled { opacity: .5; cursor: default; }
+.dp-link-muted { color: var(--t2); font-weight: 500; }
+.dp-file { display: none; }
+.dp-card { padding-bottom: 18px; }
+.dp-lbl { display: block; font-size: 12px; font-weight: 500; line-height: 16px; color: var(--t2); margin: 0 0 13px; }
+.dp-lbl-2 { margin-top: 14px; }
+.dp-inp {
+  display: block; width: 100%; box-sizing: border-box; height: 52px; padding: 0 16px; border: 1px solid #E6ECF7; border-radius: 16px;
+  background: #F4F7FC; font-family: inherit; font-size: 15px; color: var(--t1); outline: none;
+}
+.dp-inp:focus { border-color: #1C48FF; }
+.dp-inp::placeholder { color: var(--t3); }
+.dp-verify { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 14px; padding: 0 8px; }
+.dp-pill { display: inline-flex; align-items: center; height: 21px; padding: 0 7px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+.dp-pill.ok { background: #EDF9F3; color: #117953; }
+.dp-pill.warn { background: #FFF3DC; color: #B67824; }
+.dp-change { margin-left: auto; }
+.dp-note { margin: 10px 8px 0; font-size: 12px; line-height: 1.45; color: var(--t2); }
+.dp-email-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--bdbd); }
+.dp-secondary {
+  margin-top: 14px; width: 100%; height: 46px; border-radius: 14px; background: #EEF2FF; border: 1px solid #D6E0FF;
+  color: #1C48FF; font-family: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+}
+.dp-secondary:disabled { opacity: .6; cursor: default; }
+.dp-save { width: 100%; }
+.dp-status { margin: 12px 0 0; text-align: center; font-size: 12.5px; line-height: 1.4; }
+.dp-status.ok { color: #117953; }
+.dp-status.err { color: #D64545; }
+.dp-link:focus-visible, .dp-secondary:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+/* Perfil (tela 24): a foto, quando existe, ocupa o círculo do avatar */
+.pf-av { overflow: hidden; }
+.pf-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ═══════════════════════════════════════════════════════
+   sc-* — Segurança (Nancy 2, tela 26): cabeçalho/corpo da Finanças (fin-*), cartão "Alterar senha" com o
+   formulário aberto e barra de força, e o cartão "Autenticação em duas etapas" com interruptor (sb-switch).
+   ═══════════════════════════════════════════════════════ */
+.sc-title { margin: 0; font-size: 16px; line-height: 21px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.sc-sub { margin: 1px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--t2); }
+.sc-form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.sc-inp-wrap { position: relative; }
+.sc-inp {
+  display: block; width: 100%; box-sizing: border-box; height: 53px; padding: 0 44px 0 16px; border: 1px solid #E6ECF7; border-radius: 16px;
+  background: #F4F7FC; font-family: inherit; font-size: 15px; color: var(--t1); outline: none;
+}
+.sc-inp::placeholder { color: var(--t3); }
+.sc-inp:focus { border-color: #1C48FF; }
+.sc-inp.err { border-color: #E5484D; }
+.sc-eye { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: none; background: none; color: var(--t3); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.sc-eye:hover { color: var(--t2); }
+.sc-err { margin-top: 6px; padding-left: 4px; font-size: 12px; line-height: 1.4; color: #D64545; }
+.sc-meter { height: 5px; margin: 2px 0; border-radius: 3px; background: #EAEEFF; overflow: hidden; }
+.sc-meter-fill { display: block; height: 100%; border-radius: 3px; transition: width .2s, background .2s; }
+.sc-meter-label { margin: -6px 0 0 4px; font-size: 11px; font-weight: 600; }
+.sc-btn { width: 100%; margin-top: 1px; display: flex; align-items: center; justify-content: center; }
+.sc-2fa-row { display: flex; align-items: center; gap: 14px; }
+.sc-2fa-text { flex: 1; min-width: 0; }
+.sc-2fa-text .sc-sub { line-height: 1.6; }
+.sc-2fa-note { margin: 14px 0 0; padding-top: 14px; border-top: 1px solid var(--bdbd); font-size: 12px; line-height: 1.5; color: var(--t2); }
+.sc-2fa-note.warn { color: #B67824; }
+.sc-2fa-extra { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--bdbd); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sc-2fa-count { font-size: 12px; color: var(--t2); }
+.sc-2fa-count.low { color: #D64545; }
+.sc-link { border: none; background: none; padding: 0; font-family: inherit; font-size: 12.5px; font-weight: 600; color: #1C48FF; cursor: pointer; }
+.sc-link:focus-visible, .sc-eye:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+.sc-2fa .sb-switch:disabled { opacity: .6; cursor: default; }
+
+/* Modais do 2FA (QR code, desativar, regenerar e códigos de recuperação): usavam --s1/--s2 (que não
+   existem) e ficavam transparentes sobre a página. Aqui ganham as cores do design claro e o azul dos botões. */
+.tfa-overlay { --s1: #fff; --s2: #F4F7FC; --border: #E6ECF7; --cp: #1C48FF; --t1: #121A33; --t2: #5B6784; --t3: #99A5BE; background: rgba(18,26,51,.55); }
+.tfa-modal { background: #fff; border-color: #EDF2F8; border-radius: 24px; box-shadow: 0 24px 60px rgba(18,26,51,.28); color: #121A33; }
+.tfa-modal-head { border-bottom-color: #EDF2F8; }
+.tfa-overlay .cfg-btn-primary, .tfa-overlay .cfg-btn-secondary, .tfa-overlay .cfg-btn-danger {
+  min-height: 46px; padding: 0 16px; border-radius: 14px; font-family: inherit; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+}
+.tfa-overlay .cfg-btn-primary { background: #1C48FF; color: #fff; border: none; }
+.tfa-overlay .cfg-btn-primary:disabled { opacity: .45; }
+.tfa-overlay .cfg-btn-secondary { background: #EEF2FF; color: #1C48FF; border: 1px solid #D6E0FF; }
+.tfa-overlay .cfg-btn-danger { background: #FDECEC; color: #D64545; border: 1px solid #F8CFCF; }
+.tfa-overlay .tfa-backup-notice { background: #FFF6E5; border-color: #F6DDA8; color: #7A5413; }
+.tfa-overlay .tfa-backup-code { background: #F4F7FC; border-color: #E6ECF7; color: #121A33; }
+.tfa-overlay .tfa-backup-notice { display: block; line-height: 1.55; }
+.tfa-overlay .tfa-backup-notice svg { vertical-align: -2px; margin-right: 6px; }
+
+/* ═══════════════════════════════════════════════════════
+   fa-* — formulário "Adicionar conta fixa" (Finanças, Nancy 2): campos, linha da data de encerramento e
+   botão no mesmo padrão das telas novas (campo de 52, cantos de 16, botão azul de 54).
+   ═══════════════════════════════════════════════════════ */
+.fa-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--bdbd); display: flex; flex-direction: column; gap: 12px; }
+.fa-inp {
+  display: block; width: 100%; min-width: 0; box-sizing: border-box; height: 52px; padding: 0 16px; border: 1px solid #E6ECF7; border-radius: 16px;
+  background: #F4F7FC; font-family: inherit; font-size: 15px; color: var(--t1); outline: none; -moz-appearance: textfield;
+}
+.fa-inp::-webkit-outer-spin-button, .fa-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.fa-inp::placeholder { color: var(--t3); }
+.fa-inp:focus { border-color: #1C48FF; }
+.fa-two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fa-err { margin-top: -4px; padding-left: 4px; font-size: 12px; line-height: 1.4; color: #D64545; }
+.fa-date-toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 52px; padding: 0 16px; border: 1px solid #E6ECF7; border-radius: 16px;
+  background: #F4F7FC; color: var(--t3); font-family: inherit; font-size: 15px; text-align: left; cursor: pointer;
+}
+.fa-date-toggle svg { flex-shrink: 0; }
+.fa-date-text { flex: 1; min-width: 0; color: var(--t3); }
+.fa-date-hint { font-size: 12px; font-weight: 600; color: var(--t3); }
+.fa-date-toggle.on { border-color: #1C48FF; color: #1C48FF; background: #F4F7FF; }
+.fa-date-toggle.on .fa-date-text, .fa-date-toggle.on .fa-date-hint { color: #1C48FF; }
+.fa-date-row { display: flex; flex-direction: column; gap: 8px; }
+.fa-date-label { padding-left: 4px; font-size: 12px; font-weight: 500; line-height: 16px; color: var(--t2); }
+.fa-date-fields { display: grid; grid-template-columns: 1fr auto 1fr auto 1.6fr; align-items: center; gap: 8px; }
+.fa-date-part { text-align: center; padding: 0 8px; }
+.fa-date-sep { color: var(--t3); font-size: 16px; font-weight: 500; user-select: none; }
+.fa-submit { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 2px; }
+.fa-date-toggle:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════
+   pr-* — Preferências (Nancy 2, tela 27): cartão branco com uma linha por aviso (nome, descrição e o
+   interruptor das Assinaturas) e, abaixo, a linha dos avisos push deste aparelho.
+   ═══════════════════════════════════════════════════════ */
+.pr-card { padding: 16px 16px 13px; }
+.pr-list { list-style: none; margin: 0; padding: 0; }
+.pr-row { display: flex; align-items: center; gap: 14px; padding: 14px 0 13px; border-top: 1px solid var(--bdbd); }
+.pr-text { flex: 1; min-width: 0; }
+.pr-name { font-size: 14px; font-weight: 600; line-height: 20px; letter-spacing: -.01em; color: var(--t1); }
+.pr-desc { margin-top: 3px; font-size: 12.5px; line-height: 17px; color: var(--t2); }
+.pr-desc.err { color: #D64545; }
+.pr-device { padding-top: 3px; padding-bottom: 3px; }
+.pr-device .pr-row { border-top: none; }
+.pr-row .sb-switch:disabled { opacity: .6; cursor: default; }
+
+/* ═══════════════════════════════════════════════════════
+   bm-* — Balanço mensal (Nancy 2, tela 28): cartão azul com o resultado do mês, Entradas/Saídas, botão branco
+   de fechar o mês e a lista "Relatórios anteriores" (um PDF por mês fechado).
+   ═══════════════════════════════════════════════════════ */
+.bm-card { background: #1C48FF; color: #fff; border-radius: 28px; padding: 22px; margin-bottom: 16px; }
+.bm-label { font-family: var(--fin-mono); font-size: 11px; font-weight: 700; letter-spacing: .14em; line-height: 13px; text-transform: uppercase; color: rgba(255,255,255,.72); }
+.bm-value { margin-top: 19px; font-size: 32px; line-height: 40px; font-weight: 700; letter-spacing: -.02em; }
+.bm-sub { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.bm-box { background: rgba(255,255,255,.12); border-radius: 16px; padding: 12px 12px 13px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bm-box-lbl { font-size: 11.5px; line-height: 14px; color: rgba(255,255,255,.75); }
+.bm-box-val { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-size: 15.5px; font-weight: 700; line-height: 18px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-box-val.in { color: #3DE29F; }
+.bm-note { margin: 10px 2px 0; font-size: 11.5px; line-height: 1.4; color: rgba(255,255,255,.78); }
+.bm-close {
+  margin-top: 15px; width: 100%; height: 54px; border: none; border-radius: 16px; background: #fff; color: #1C48FF; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px; font-family: inherit; font-size: 15px; font-weight: 600;
+}
+.bm-close:disabled { opacity: .7; cursor: default; }
+.bm-close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.bm-list-title { margin: 0; font-size: 16px; line-height: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.bm-list { list-style: none; margin: 5px 0 0; padding: 0; }
+.bm-row { display: flex; align-items: center; gap: 13px; padding: 13px 0; border-top: 1px solid var(--bdbd); }
+.bm-doc { width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.bm-row-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; letter-spacing: -.01em; color: var(--t1); }
+.bm-dl { width: 34px; height: 34px; border: none; background: none; color: #1C48FF; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.bm-dl:disabled { opacity: .6; cursor: default; }
+.bm-dl:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; border-radius: 10px; }
+.bm-empty { margin: 8px 0 2px; font-size: 12.5px; line-height: 1.5; color: var(--t2); }
+
+/* ═══════════════════════════════════════════════════════
+   pl-* — Planos (Nancy 2, tela 29): cabeçalho/corpo da Finanças (fin-*), chamada com o alternador Mensal/Anual,
+   cartões Grátis (neutro), Pro (borda azul + "Recomendado") e Elite (botão escuro), comparativo, garantia e FAQ.
+   ═══════════════════════════════════════════════════════ */
+.pl-intro { text-align: center; padding-top: 4px; margin-bottom: 16px; }
+.pl-headline { margin: 0 auto; max-width: 300px; font-size: 27px; line-height: 30.7px; font-weight: 700; letter-spacing: -.02em; color: var(--t1); }
+.pl-headline span { color: #1C48FF; }
+.pl-lead { margin: 8px 0 0; font-size: 12.5px; line-height: 18px; color: var(--t2); }
+.pl-toggle { display: inline-flex; margin-top: 21px; padding: 4px; gap: 2px; background: #fff; border: 1px solid var(--bdbd); border-radius: 16px; }
+.pl-toggle button { height: 34px; padding: 0 14px; border: none; border-radius: 12px; background: none; color: var(--t2); font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.pl-toggle button.on { background: #1C48FF; color: #fff; font-weight: 700; }
+.pl-toggle button:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+.pl-card { background: #fff; border: 1px solid var(--bdbd); border-radius: 24px; padding: 22px; margin-bottom: 16px; }
+.pl-pro { border: 1.5px solid #1C48FF; padding: 21.5px; }
+.pl-tier-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pl-tier { margin: 0; font-size: 22px; line-height: 28px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.pl-badge { height: 23px; padding: 0 10px; border-radius: 999px; background: #3DE29F; color: #0B3D2B; font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; }
+.pl-badge-current { background: #EEF2FF; color: #1C48FF; }
+.pl-tagline { margin: 14px 0 0; font-size: 12.5px; line-height: 17px; color: var(--t2); }
+.pl-price { margin-top: 17px; display: flex; align-items: baseline; gap: 8px; }
+.pl-price-num { font-size: 32px; line-height: 32px; font-weight: 800; letter-spacing: -.02em; color: var(--t1); }
+.pl-price-note { font-size: 11px; color: var(--t2); }
+.pl-price-sub { margin: 6px 0 0; font-size: 11.5px; line-height: 16px; color: var(--t2); }
+.pl-feats { list-style: none; margin: 19px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.pl-feat { display: flex; align-items: flex-start; gap: 15px; font-size: 13.5px; line-height: 20px; color: var(--t1); }
+.pl-feat b { font-weight: 700; color: #1C48FF; }
+.pl-check { color: #3CCB9A; flex-shrink: 0; margin-top: 3px; }
+.pl-cta { margin-top: 14px; width: 100%; height: 48px; border: none; border-radius: 16px; font-family: inherit; font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
+.pl-cta:disabled { cursor: default; }
+.pl-cta-ghost { background: #F4F7FC; color: var(--t2); }
+.pl-cta-pro { background: #1C48FF; color: #fff; font-weight: 700; }
+.pl-cta-elite { background: #121A33; color: #fff; font-weight: 700; }
+.pl-cta-current { background: #EEF2FF; color: #1C48FF; font-weight: 700; }
+.pl-cta-pro:disabled, .pl-cta-elite:disabled { opacity: .65; }
+.pl-cta:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+.pl-cta-note { margin: 10px 0 0; text-align: center; font-size: 11px; line-height: 15px; color: var(--t3); }
+
+.pl-compare, .pl-guar, .pl-faq { padding: 18px 16px; }
+.pl-section-title { margin: 0 0 12px; font-size: 15px; line-height: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.pl-tr { display: grid; grid-template-columns: 1fr 44px 44px 62px; align-items: center; padding: 9px 0; border-top: 1px solid var(--bdbd); font-size: 12px; line-height: 16px; }
+.pl-th { border-top: none; padding-top: 0; font-size: 11px; font-weight: 700; color: var(--t2); }
+.pl-td-feat { color: var(--t1); padding-right: 6px; }
+.pl-th .pl-td-feat { color: var(--t2); }
+.pl-td { display: flex; justify-content: center; text-align: center; }
+.pl-td-pro { color: #1C48FF; }
+.pl-th .pl-td-pro { color: #1C48FF; }
+.pl-no { color: var(--t3); }
+.pl-cell-val { font-size: 10.5px; font-weight: 600; color: var(--t1); }
+.pl-group { margin-top: 12px; padding-bottom: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--t3); }
+.pl-guar-sub { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--t2); }
+.pl-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.pl-tags span { height: 26px; padding: 0 10px; border-radius: 999px; background: #EEF2FF; color: #1C48FF; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; }
+.pl-faq-item { border-top: 1px solid var(--bdbd); }
+.pl-faq-q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border: none; background: none; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--t1); text-align: left; cursor: pointer; }
+.pl-faq-arrow { color: var(--t3); font-size: 18px; transition: transform .15s; }
+.pl-faq-item.open .pl-faq-arrow { transform: rotate(90deg); }
+.pl-faq-a { margin: 0 0 14px; font-size: 12.5px; line-height: 1.55; color: var(--t2); }
+.pl-faq-q:focus-visible { outline: 2px solid #1C48FF; outline-offset: 2px; }
+
+.pl-modal-overlay { --t1: #121A33; --t2: #5B6784; --t3: #99A5BE; position: fixed; inset: 0; z-index: 9000; background: rgba(18,26,51,.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pl-modal { width: 100%; max-width: 400px; background: #fff; border-radius: 24px; padding: 24px; color: var(--t1); }
+.pl-modal-title { margin: 0; font-size: 16px; font-weight: 700; }
+.pl-modal-sub { margin: 4px 0 0; font-size: 12px; color: var(--t3); }
+.pl-modal-text { margin: 16px 0 0; font-size: 13px; line-height: 1.65; color: var(--t2); }
+.pl-modal-text strong { color: var(--t1); }
+.pl-modal-mail { margin: 14px 0 6px; padding: 10px 14px; border-radius: 12px; background: #FFF6E5; color: #7A5413; font-size: 12px; }
+.pl-modal .pl-cta { margin-top: 14px; }
+
+/* ═══════════════════════════════════════════════════════
+   pg-* — Pagamentos (Nancy 2, tela 30): cartão do plano atual (ícone verde, "Válido até", último valor), histórico
+   com uma linha por cobrança e o botão vazado de cancelar assinatura.
+   ═══════════════════════════════════════════════════════ */
+.pg-plan { display: flex; align-items: center; gap: 14px; margin-bottom: 13px; }
+.pg-plan-ico { width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.pg-plan-ico.paid { background: #19C884; color: #fff; }
+.pg-plan-text { flex: 1; min-width: 0; }
+.pg-plan-title { margin: 0; font-size: 16px; line-height: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.pg-plan-sub { margin: 2px 0 0; font-size: 12px; line-height: 19px; color: var(--t2); }
+.pg-plan-sub.warn { color: #B67824; }
+.pg-plan-amt { flex-shrink: 0; font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 700; color: var(--t1); white-space: nowrap; }
+.pg-plans-link { flex-shrink: 0; border: none; background: none; padding: 0; font-family: inherit; font-size: 13px; font-weight: 600; color: #1C48FF; cursor: pointer; }
+.pg-hist-title { margin: 0; font-size: 16px; line-height: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.pg-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.pg-row { display: flex; align-items: center; gap: 13px; padding: 13px 0; border-top: 1px solid var(--bdbd); }
+.pg-row-ico { width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.pg-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pg-row-date { font-size: 14px; font-weight: 600; line-height: 19px; letter-spacing: -.01em; color: var(--t1); }
+.pg-row-sub { font-size: 12px; line-height: 16px; color: var(--t2); }
+.pg-row-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.pg-row-amt { font-family: var(--fin-mono); font-variant-numeric: tabular-nums; font-size: 14.5px; font-weight: 700; line-height: 19px; color: var(--t1); white-space: nowrap; }
+.pg-row-ok { font-size: 11px; font-weight: 600; line-height: 16px; color: #117953; }
+.pg-state { margin: 10px 0 0; text-align: center; font-size: 12.5px; line-height: 1.5; color: var(--t2); display: flex; justify-content: center; }
+.pg-cancel {
+  width: 100%; height: 53px; border: 1px solid #F3C4C9; border-radius: 18px; background: #fff; color: #D64545; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 500;
+}
+.pg-cancel:hover { background: #FFF5F6; }
+.pg-cancel:focus-visible { outline: 2px solid #D64545; outline-offset: 2px; }
+.pg-cancelled { padding: 14px 16px; border-radius: 18px; background: #FFF6E5; border: 1px solid #F6DDA8; color: #7A5413; font-size: 12.5px; line-height: 1.5; }
+
+/* ── Indique e ganhe (Nancy 2, tela 31) ── */
+.rf-hero { margin-bottom: 18px; padding: 21px 24px 22px; border-radius: 24px; color: #fff; background: linear-gradient(160deg, #1C4BF0 0%, #1568D6 46%, #12986A 100%); }
+.rf-title { margin: 0; font-family: var(--fd); font-size: 26px; line-height: 29px; font-weight: 800; letter-spacing: -.03em; }
+.rf-sub { margin: 12px 0 0; font-size: 14px; line-height: 21px; letter-spacing: -.01em; color: rgba(255,255,255,.86); }
+.rf-code { margin-top: 15px; box-sizing: border-box; height: 54px; padding: 6px 6px 6px 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-radius: 27px; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.22); }
+.rf-code-text { font-family: var(--fin-mono); font-size: 16px; font-weight: 700; letter-spacing: 1.4px; color: #121A33; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-code-wait { font-size: 13px; color: #99A5BE; }
+.rf-copy { flex-shrink: 0; height: 42px; padding: 0 19px; border: none; border-radius: 15px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; transition: background .15s; }
+.rf-copy.done { background: #19C884; }
+.rf-copy:disabled { opacity: .6; cursor: default; }
+.rf-prog-head { display: flex; align-items: center; justify-content: space-between; }
+.rf-prog-title { margin: 0; font-size: 16px; line-height: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.rf-prog-count { font-family: var(--fin-mono); font-size: 14.5px; line-height: 20px; font-weight: 700; color: #117953; }
+.rf-bar { height: 8px; margin: 12px 0 13px; border-radius: 4px; background: #EDF1FB; overflow: hidden; }
+.rf-bar-fill { height: 100%; border-radius: 4px; background: #19C884; transition: width .3s; }
+.rf-note { margin: 0; font-size: 12px; line-height: 17px; color: var(--t2); }
+.rf-note + .rf-note { margin-top: 6px; }
+.rf-pending { color: #B67824; }
+.rf-err { color: #D64545; font-size: 12.5px; }
+.rf-wait { display: flex; justify-content: center; padding: 8px 0; }
+.rf-share { width: 100%; height: 54px; border: none; border-radius: 20px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 9px; cursor: pointer; }
+.rf-share:disabled { opacity: .6; cursor: default; }
+.rf-mail { display: block; margin: 14px auto 0; padding: 4px 8px; border: none; background: none; font-family: inherit; font-size: 12.5px; color: var(--t2); text-decoration: underline; cursor: pointer; }
+.rf-mail:disabled { opacity: .5; cursor: default; }
+
+/* ── Meus dados (Nancy 2, tela 32) ── */
+.dd-export { padding-bottom: 14px; margin-bottom: 18px; }
+.dd-head { display: flex; align-items: center; gap: 14px; }
+.dd-ico { width: 42px; height: 42px; flex-shrink: 0; border-radius: 13px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.dd-ico.danger { background: #FCEBEE; color: #D64545; }
+.dd-text { min-width: 0; }
+.dd-title { margin: 0; font-size: 16px; line-height: 21px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.dd-title.danger { color: #C83A4E; }
+.dd-sub { margin: 2px 0 0; font-size: 12.5px; line-height: 17px; color: var(--t2); }
+.dd-btns { display: flex; gap: 8px; margin-top: 14px; }
+.dd-fmt { flex: 1; height: 52px; border: 1.5px solid #D9E1F2; border-radius: 18px; background: #fff; color: #1C48FF; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.dd-fmt:disabled { opacity: .6; cursor: default; }
+.dd-danger { box-sizing: border-box; padding: 16px; border: 1.5px solid #F3C4C9; border-radius: 24px; background: var(--bg-card); }
+.dd-delete { width: 100%; height: 49px; margin-top: 16px; border: none; border-radius: 16px; background: #D63348; color: #fff; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.dd-delete:hover { background: #C42B40; }
+.dd-json { display: block; margin: 4px auto 0; padding: 15px 12px; /* área de toque de 44px, visual discreto */ border: none; background: none; font-family: inherit; font-size: 12px; color: var(--t2); text-decoration: underline; cursor: pointer; }
+.dd-json:disabled { opacity: .5; cursor: default; }
+
+.auth-notice { margin: 12px 0 0; padding: 9px 14px; border-radius: 12px; background: rgba(61,226,159,.24); color: #fff; font-size: 13px; font-weight: 600; line-height: 1.35; }
+
+/* ── Instalar app (Nancy 2, tela 33) ── */
+.ia-hero { display: flex; align-items: center; gap: 18px; margin-bottom: 16px; padding: 22px 24px; border-radius: 24px; background: #1C48FF; color: #fff; }
+.ia-mark { flex-shrink: 0; width: 48px; height: 48px; line-height: 0; border-radius: 12px; box-shadow: 0 6px 14px rgba(7,24,110,.35); }
+.ia-hero-text { min-width: 0; }
+.ia-title { margin: 0; font-family: var(--fd); font-size: 22px; line-height: 29px; font-weight: 800; letter-spacing: -.02em; }
+.ia-sub { margin: 6px 0 0; font-size: 13px; line-height: 17.6px; color: rgba(255,255,255,.64); }
+.ia-steps { list-style: none; margin: 0 0 18px; padding: 15px 16px; }
+.ia-step { display: flex; align-items: center; gap: 14px; min-height: 61px; box-sizing: border-box; padding: 15px 0; border-top: 1px solid var(--bdbd); }
+.ia-step-n { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: #EEF2FF; color: #1C48FF; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.ia-step-text { font-size: 13.7px; line-height: 19px; color: var(--t1); }
+.ia-install { width: 100%; height: 54px; border: none; border-radius: 20px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 9px; cursor: pointer; }
+.ia-install:disabled { opacity: .7; cursor: default; }
+.ia-note { margin: 12px 4px 0; font-size: 12px; line-height: 17px; color: var(--t2); text-align: center; }
+
+/* ── Páginas legais: Termos de Uso, Política de Privacidade (Nancy 2, telas 34-35) ── */
+.lg-card { padding: 14px 17px 15px; }
+.lg-meta { margin: 0 0 12px; font-size: 11.5px; line-height: 16px; color: #99A5BE; }
+.lg-h { margin: 17px 0 6px; font-size: 15px; line-height: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.lg-p { margin: 0 0 10px; font-size: 13.7px; line-height: 24px; color: var(--t2); }
+.lg-p strong, .lg-li strong { font-weight: 600; color: var(--t1); }
+.lg-ul { margin: 0 0 10px; padding-left: 20px; }
+.lg-ul-flush { margin-bottom: 0; }
+.lg-li { margin-bottom: 3px; font-size: 13.7px; line-height: 22px; color: var(--t2); }
+.lg-box { margin: 0 0 10px; padding: 12px 14px; border: 1px solid var(--bdbd); border-radius: 14px; background: #F6F8FD; }
+.lg-warn { margin: 0 0 10px; padding: 12px 14px; border: 1px solid #F6DDA8; border-radius: 14px; background: #FFF6E5; font-size: 13px; line-height: 1.6; color: #7A5413; }
+.lg-link { color: #1C48FF; text-decoration: none; }
+.lg-link:hover { text-decoration: underline; }
+.lg-foot { margin-top: 8px; text-align: center; }
+.lg-foot-line { margin: 0 0 4px; font-size: 12px; line-height: 17px; color: #99A5BE; }
+.lg-foot .lg-link { color: inherit; text-decoration: underline; }
+.lg-box .lg-p { margin: 0 0 4px; }
+.lg-box .lg-p:last-child { margin-bottom: 0; }
+
+/* ── Erro 404 (Nancy 2, tela 36) ── */
+.nf-body { display: flex; flex-direction: column; align-items: center; text-align: center; padding-top: 69px; }
+.nf-code { font-family: var(--fd); font-size: 98px; line-height: 98px; font-weight: 700; letter-spacing: -.08em; color: #1C48FF; user-select: none; }
+.nf-title { margin: 12px 0 0; font-size: 20px; line-height: 28px; font-weight: 700; letter-spacing: -.01em; color: var(--t1); }
+.nf-sub { margin: 13px 0 0; font-size: 12px; line-height: 18px; color: var(--t2); }
+.nf-home { margin-top: 24px; height: 54px; padding: 0 32px; border: none; border-radius: 18px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; }
+.home-body .alc { background: #fff; border-color: #EDF2F8; border-radius: 24px; }
+
+/* ── Aviso de cookies (Nancy 2) ── */
+.ck-banner {
+  position: fixed; z-index: 250; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  max-width: 560px; margin: 0 auto; box-sizing: border-box; padding: 12px 14px;
+  background: #fff; color: #121A33; border: 1px solid #EDF2F8; border-radius: 22px;
+  box-shadow: 0 16px 44px rgba(18,26,51,.24), 0 2px 8px rgba(18,26,51,.08);
+  font-family: var(--fb); animation: ckIn .28s cubic-bezier(.2,.8,.2,1) both;
+}
+@media (max-width: 768px) { .ck-banner.ck-nav { bottom: calc(82px + env(safe-area-inset-bottom, 0px)); } } /* logado: acima da barra de baixo */
+.ck-msg { display: flex; align-items: flex-start; gap: 12px; }
+.ck-ico { flex-shrink: 0; width: 32px; height: 32px; border-radius: 11px; background: #EEF2FF; color: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.ck-text { margin: 0; font-size: 12.5px; line-height: 18px; color: #5B6784; }
+.ck-link { color: #1C48FF; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.ck-actions { display: flex; gap: 8px; margin-top: 10px; }
+.ck-btn { flex: 1; height: 42px; border-radius: 14px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.ck-btn.ghost { background: #fff; border: 1.5px solid #D9E1F2; color: #5B6784; }
+.ck-btn.solid { flex: 1.5; border: none; background: #1C48FF; color: #fff; }
+html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espera a decisão dos cookies */
+@keyframes ckIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ck-banner { animation: none; } }
+
+/* ── Início: falha ao carregar (sem rede e sem nada guardado) ── */
+.home-error { margin-top: 8px; padding: 22px 20px; border-radius: 24px; background: #fff; text-align: center; box-shadow: 0 1px 0 #EDF2F8; }
+.home-error strong { display: block; font-size: 15px; line-height: 22px; color: #121A33; }
+.home-error p { margin: 6px 0 16px; font-size: 13px; line-height: 19px; color: #5B6784; }
+.home-error-btn { height: 44px; padding: 0 22px; border: none; border-radius: 14px; background: #1C48FF; color: #fff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+/* ── Área de toque mínima de 44x44 ───────────────────────────────────────────────────────────────────────────────────
+   QA (Passada 2): "Voltar" com 42px, interruptores com 30px de altura e o X de remover limite com 22x24 — o X fica colado ao
+   conteúdo do cartão num fluxo destrutivo. O visual não muda: o toque é aceito numa borda invisível ao redor do controle. */
+.fin-back, .ntf-back, .auth-back, .srch-back, .lm-del { position: relative; }   /* .sb-switch já é relative */
+.fin-back::after, .ntf-back::after { content: ''; position: absolute; inset: -1px; }        /* 42 -> 44 */
+.auth-back::after                  { content: ''; position: absolute; inset: -5px; }        /* 34 -> 44 */
+.srch-back::after                  { content: ''; position: absolute; inset: -4px; }        /* 36 -> 44 */
+.sb-switch::after                  { content: ''; position: absolute; inset: -7px -3px; }   /* 50x30 -> 56x44 */
+.lm-del::after                     { content: ''; position: absolute; inset: -10px -11px; } /* 22x24 -> 44x44 */
+
+/* ── Carregamento do app (AppLoader): azul chapado, ícone do Nancy e anel branco ──────────────────────────────────────── */
+.app-loader { min-height: 100vh; min-height: 100dvh; background: #1C48FF; display: flex; align-items: center; justify-content: center; }
+.app-loader-box { position: relative; width: 104px; height: 104px; display: flex; align-items: center; justify-content: center; }
+.app-loader-box .nancy-mark { border-radius: 16px; box-shadow: 0 8px 24px rgba(5, 20, 90, .35); }
+.app-loader-ring { position: absolute; inset: 0; border-radius: 50%; border: 3px solid rgba(255,255,255,.22); border-top-color: #fff; animation: spin .9s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .app-loader-ring { animation-duration: 2.6s; } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* ── iPhone: puxar a tela para baixo mostrava uma faixa cinza/branca acima do cabeçalho azul ────────────────────────────────
+   No celular quem rola é a PÁGINA (o .pwnav não rola), e o "elástico" do iOS revela a cor do FUNDO DO DOCUMENTO. O WebKit calcula essa
+   cor misturando o fundo do html com o do body POR CIMA (LocalFrameView::documentBackgroundColor): com o body cinza e opaco, o azul do
+   html nunca aparecia — foi por isso que só pintar o html não adiantou no iPhone do André. Então no celular (tema claro, telas do
+   Nancy 2): html azul, body TRANSPARENTE e o cinza da página passa para o #root (que ocupa a tela toda), então nada muda no uso normal
+   — só o espaço que o elástico abre fica azul. (Uma faixa position:fixed não serve: no iOS o elástico leva os elementos fixos junto.)
+   O iOS em si só se confere no aparelho; o E2E trava a estrutura (html azul, body transparente, #root cinza). */
+@media (max-width: 900px) {
+  html[data-theme="light"] { background: #1C48FF !important; }
+  html[data-theme="light"] body { background: transparent !important; }
+  html[data-theme="light"] #root { background: #f0f2f5; }
 }

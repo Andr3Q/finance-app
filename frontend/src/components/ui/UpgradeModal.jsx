@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser.js'
+import { useEscapeKey } from '../../hooks/useEscapeKey.js'
 
 const PRO_HIGHLIGHTS = [
   '35 transações por mês',
@@ -28,6 +29,7 @@ export default function UpgradeModal({ onClose, reason }) {
     setClosing(true)
     setTimeout(() => { setClosing(false); onClose() }, 200)
   }
+  useEscapeKey(() => { if (!closing) handleClose() })
 
   const goPlanos = () => {
     if (!user.emailVerified) {

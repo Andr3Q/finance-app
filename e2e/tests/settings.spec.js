@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { test, expect }          = require('@playwright/test')
+const { test, expect }          = require('../helpers/test')
 const { createMock }            = require('../helpers/mockApi')
 const { injectSession, FREE_USER, TEST_USER } = require('../helpers/session')
 
@@ -60,31 +60,29 @@ test.describe('Configurações — Alterar senha', () => {
   test.beforeEach(async ({ page }) => {
     await setupSettings(page)
     await page.goto('/settings/seguranca')
-    // Clica no toggle "Alterar senha" pra revelar os campos do formulário
-    await page.getByRole('button', { name: /^alterar senha$/i }).click()
+    // Nancy 2 (tela 26): o formulário de senha já vem aberto
   })
 
-  test('exibe campos do formulário de senha após clicar no toggle', async ({ page }) => {
-    // Placeholder real: '••••••••' para senha atual
-    await expect(page.getByPlaceholder('••••••••').first()).toBeVisible()
+  test('exibe os campos do formulário de senha já abertos', async ({ page }) => {
+    await expect(page.getByPlaceholder('Senha atual', { exact: true })).toBeVisible()
+    await expect(page.getByPlaceholder('Nova senha', { exact: true })).toBeVisible()
+    await expect(page.getByPlaceholder('Confirmar nova senha')).toBeVisible()
   })
 
   test('exibe erro quando senha atual está vazia ao submeter', async ({ page }) => {
-    // Deixa senha atual vazia, preenche nova e confirmação
-    const inputs = page.locator('input[type="password"], input[type="text"][placeholder="Mínimo 8 caracteres"]')
     // Preenche nova senha e confirmação mas deixa atual vazia
-    await page.getByPlaceholder('Mínimo 8 caracteres').fill('Nova@Senha99')
-    await page.getByPlaceholder('Repita a nova senha').fill('Nova@Senha99')
-    await page.getByRole('button', { name: /salvar nova senha/i }).click()
+    await page.getByPlaceholder('Nova senha', { exact: true }).fill('Nova@Senha99')
+    await page.getByPlaceholder('Confirmar nova senha').fill('Nova@Senha99')
+    await page.getByRole('button', { name: 'Atualizar senha' }).click()
 
     await expect(page.getByText(/informe a senha atual/i)).toBeVisible()
   })
 
   test('exibe erro quando senhas não coincidem', async ({ page }) => {
-    await page.getByPlaceholder('••••••••').first().fill('Atual@123')
-    await page.getByPlaceholder('Mínimo 8 caracteres').fill('Nova@Senha99')
-    await page.getByPlaceholder('Repita a nova senha').fill('SenhaDiferente9')
-    await page.getByRole('button', { name: /salvar nova senha/i }).click()
+    await page.getByPlaceholder('Senha atual', { exact: true }).fill('Atual@123')
+    await page.getByPlaceholder('Nova senha', { exact: true }).fill('Nova@Senha99')
+    await page.getByPlaceholder('Confirmar nova senha').fill('SenhaDiferente9')
+    await page.getByRole('button', { name: 'Atualizar senha' }).click()
 
     await expect(page.getByText(/não coincidem/i)).toBeVisible()
   })
@@ -95,10 +93,10 @@ test.describe('Configurações — Alterar senha', () => {
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: 'Senha alterada com sucesso!' }) })
     })
 
-    await page.getByPlaceholder('••••••••').first().fill('Atual@123')
-    await page.getByPlaceholder('Mínimo 8 caracteres').fill('Nova@Senha99')
-    await page.getByPlaceholder('Repita a nova senha').fill('Nova@Senha99')
-    await page.getByRole('button', { name: /salvar nova senha/i }).click()
+    await page.getByPlaceholder('Senha atual', { exact: true }).fill('Atual@123')
+    await page.getByPlaceholder('Nova senha', { exact: true }).fill('Nova@Senha99')
+    await page.getByPlaceholder('Confirmar nova senha').fill('Nova@Senha99')
+    await page.getByRole('button', { name: 'Atualizar senha' }).click()
 
     await expect(page.getByText(/senha alterada/i)).toBeVisible()
   })
@@ -109,72 +107,76 @@ test.describe('Configurações — Alterar senha', () => {
       route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: 'Senha atual incorreta.' }) })
     })
 
-    await page.getByPlaceholder('••••••••').first().fill('SenhaErrada1')
-    await page.getByPlaceholder('Mínimo 8 caracteres').fill('Nova@Senha99')
-    await page.getByPlaceholder('Repita a nova senha').fill('Nova@Senha99')
-    await page.getByRole('button', { name: /salvar nova senha/i }).click()
+    await page.getByPlaceholder('Senha atual', { exact: true }).fill('SenhaErrada1')
+    await page.getByPlaceholder('Nova senha', { exact: true }).fill('Nova@Senha99')
+    await page.getByPlaceholder('Confirmar nova senha').fill('Nova@Senha99')
+    await page.getByRole('button', { name: 'Atualizar senha' }).click()
 
     await expect(page.getByText(/senha atual incorreta/i)).toBeVisible()
   })
 })
 
 test.describe('Configurações — Cancelar plano', () => {
-  test('card "Cancelar plano Pro" visível para usuário Pro pago', async ({ page }) => {
+  test('botão "Não renovar" visível para usuário Pro pago', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await expect(page.getByText(/cancelar plano pro/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Não renovar' })).toBeVisible()
   })
 
-  test('card "Cancelar plano" NÃO aparece para usuário Free', async ({ page }) => {
+  test('botão de cancelar NÃO aparece para usuário Free', async ({ page }) => {
     await setupSettings(page, FREE_USER)
     await page.goto('/settings/pagamentos')
-    await expect(page.getByText(/cancelar plano/i)).not.toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Plano Grátis' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Não renovar' })).toHaveCount(0)
   })
 
-  test('abre modal de confirmação ao clicar em "Cancelar plano"', async ({ page }) => {
+  test('abre modal de confirmação ao clicar em "Não renovar"', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: /cancelar plano/i }).click()
-    await expect(page.getByText(/confirmar cancelamento/i)).toBeVisible()
+    await page.getByRole('button', { name: 'Não renovar' }).click()
+    await expect(page.getByText(/não renovar o plano/i)).toBeVisible()
   })
 
   test('fecha modal ao clicar em "Voltar"', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: /cancelar plano/i }).click()
-    // exact:true evita colidir com o link "Voltar para Mais" da casca da subtela
-    await page.getByRole('button', { name: 'Voltar', exact: true }).click()
-    await expect(page.getByText(/confirmar cancelamento/i)).not.toBeVisible()
+    await page.getByRole('button', { name: 'Não renovar' }).click()
+    // dentro do modal: o "Voltar" do cabeçalho da tela é outro botão
+    await page.locator('.gls-modal').getByRole('button', { name: 'Voltar', exact: true }).click()
+    await expect(page.getByText(/não renovar o plano/i)).not.toBeVisible()
   })
 
-  test('cancela plano com sucesso e exibe toast', async ({ page }) => {
-    await setupSettings(page, { ...TEST_USER, isOnTrial: false })
+  test('cancela plano com sucesso e troca o botão pelo aviso de acesso garantido', async ({ page }) => {
+    await setupSettings(page, { ...TEST_USER, isOnTrial: false, planExpiresAt: '2030-01-20T15:00:00Z' })
     page.route('**/api/auth/downgrade**', (route) => {
       if (route.request().method() !== 'POST') return route.continue()
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: 'Plano cancelado.' }) })
     })
 
     await page.goto('/settings/pagamentos')
-    await page.getByRole('button', { name: /cancelar plano/i }).click()
+    await page.getByRole('button', { name: 'Não renovar' }).click()
     await page.getByPlaceholder('Sua senha atual').fill('minhasenha')
-    await page.getByRole('button', { name: /sim, cancelar/i }).click()
+    await page.getByRole('button', { name: /sim, não renovar/i }).click()
 
-    await expect(page.getByText(/assinatura cancelada/i)).toBeVisible()
+    await expect(page.locator('.toast')).toContainText('seu plano não será renovado.')
+    await expect(page.locator('.pg-cancelled')).toContainText('Acesso premium garantido até')
+    await expect(page.getByRole('button', { name: 'Não renovar' })).toHaveCount(0)
   })
 })
 
-test.describe('Configurações — Fechar mês', () => {
-  test('card "Fechar o mês" visível para Pro', async ({ page }) => {
+test.describe('Configurações — Fechar mês (Balanço mensal)', () => {
+  test('tela "Balanço mensal" com o botão de fechar visível para Pro', async ({ page }) => {
     await setupSettings(page)
     await page.goto('/settings/fechamento')
-    await expect(page.getByText(/fechar o mês/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Balanço mensal' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /fechar mês e gerar pdf/i })).toBeVisible()
   })
 
-  test('mostra lock "Recurso Pro" para Free', async ({ page }) => {
+  test('plano grátis: o botão abre o convite "Recurso Pro"', async ({ page }) => {
     await setupSettings(page, FREE_USER)
     await page.goto('/settings/fechamento')
-    await expect(page.getByText(/fechar o mês/i)).toBeVisible()
-    await expect(page.getByText(/recurso pro/i).first()).toBeVisible()
+    await page.getByRole('button', { name: /fechar mês e gerar pdf/i }).click()
+    await expect(page.getByText(/exclusivo do plano pro/i).first()).toBeVisible()
   })
 
   test('fecha mês com sucesso e exibe toast', async ({ page }) => {
@@ -187,31 +189,71 @@ test.describe('Configurações — Fechar mês', () => {
       })
     })
 
-    await page.addInitScript(() => { window.confirm = () => true })
     await page.goto('/settings/fechamento')
-    await page.getByRole('button', { name: /fechar mês e enviar relatório/i }).click()
+    await page.getByRole('button', { name: /fechar mês e gerar pdf/i }).click()
+    // a confirmação é uma janela do app (não a caixa nativa do navegador)
+    await page.getByRole('dialog', { name: 'Fechar o mês?' }).getByRole('button', { name: 'Fechar mês' }).click()
 
-    await expect(page.getByText(/mês fechado|relatório enviado/i)).toBeVisible()
+    await expect(page.getByText(/mês fechado com sucesso/i)).toBeVisible()
   })
 })
 
 test.describe('Configurações — Histórico de pagamentos', () => {
-  test('exibe histórico para Pro com pagamentos anteriores', async ({ page }) => {
+  const PAYMENTS = [
+    { paymentId: 'pay_4', plan: 'elite', period: 'monthly', processedAt: '2026-10-20T15:00:00Z', amount: 34.9, method: 'card', cardLast4: '4021' },
+    { paymentId: 'pay_3', plan: 'elite', period: 'monthly', processedAt: '2026-09-20T15:00:00Z', amount: 34.9, method: 'card', cardLast4: '4021' },
+    { paymentId: 'pay_2', plan: 'elite', period: 'monthly', processedAt: '2026-08-20T15:00:00Z', amount: 34.9, method: 'pix', cardLast4: null },
+    { paymentId: 'pay_1', plan: 'pro',   period: 'monthly', processedAt: '2026-07-20T15:00:00Z', amount: 9.9,  method: null, cardLast4: null },
+  ]
+
+  test('layout do design: cartão do plano com o último valor e o histórico com uma linha por pagamento', async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-10-21T15:00:00Z'))
+    await page.setViewportSize({ width: 393, height: 852 })
+    await setupSettings(page, { ...TEST_USER, plan: 'elite', planExpiresAt: '2026-11-20T15:00:00Z' })
+    page.route('**/api/payments/history**', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PAYMENTS) }))
+    await page.goto('/settings/pagamentos')
+    await expect(page.locator('.fin-hero-sub')).toHaveText('Histórico e renovação')
+    await expect(page.locator('.pg-plan-title')).toHaveText('Plano Elite')
+    await expect(page.locator('.pg-plan-sub')).toHaveText('Válido até 20 nov 2026 · cartão •••• 4021')
+    await expect(page.locator('.pg-plan-amt')).toHaveText('R$ 34,90')
+    await expect(page.locator('.pg-row-date')).toHaveText(['20 out 2026', '20 set 2026', '20 ago 2026', '20 jul 2026'])
+    await expect(page.locator('.pg-row-sub')).toHaveText(['Elite · cartão', 'Elite · cartão', 'Elite · PIX', 'Pro · mensal'])
+    await expect(page.locator('.pg-row-amt')).toHaveText(['R$ 34,90', 'R$ 34,90', 'R$ 34,90', 'R$ 9,90'])
+    await expect(page.locator('.pg-row-ok')).toHaveCount(4)
+    await expect(page.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Perfil')
+    const m = await page.evaluate(() => {
+      const r = (s) => { const b = document.querySelector(s).getBoundingClientRect(); return [Math.round(b.left), Math.round(b.width), Math.round(b.height)] }
+      const cs = (s) => getComputedStyle(document.querySelector(s))
+      return { plan: r('.pg-plan'), hist: r('.pg-hist'), cancel: r('.pg-cancel'), ico: cs('.pg-plan-ico').backgroundColor, cancelColor: cs('.pg-cancel').color, theme: document.documentElement.getAttribute('data-theme') }
+    })
+    expect(m.plan.slice(0, 2)).toEqual([18, 357]) // 393 - 2 × 18 de margem
+    expect(m.hist.slice(0, 2)).toEqual([18, 357])
+    expect(m.cancel).toEqual([18, 357, 53])
+    expect(m.ico).toBe('rgb(25, 200, 132)')
+    expect(m.cancelColor).toBe('rgb(214, 69, 69)')
+    expect(m.theme).toBe('light')
+  })
+
+  test('exibe histórico para Pro com pagamentos anteriores (sem a forma de pagamento, mostra o período)', async ({ page }) => {
     await setupSettings(page)
     page.route('**/api/payments/history**', (route) => {
       route.fulfill({
         status: 200, contentType: 'application/json',
-        body: JSON.stringify([{ paymentId: 'pay_abc123456', plan: 'pro', period: 'monthly', processedAt: new Date('2026-03-15').toISOString() }]),
+        body: JSON.stringify([{ paymentId: 'pay_abc123456', plan: 'pro', period: 'monthly', processedAt: new Date('2026-03-15T15:00:00Z').toISOString(), amount: 9.9 }]),
       })
     })
     await page.goto('/settings/pagamentos')
-    await expect(page.getByText(/histórico de pagamentos/i)).toBeVisible()
-    await expect(page.getByText(/plano pro — mensal/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Histórico' })).toBeVisible()
+    await expect(page.locator('.pg-row-sub')).toHaveText('Pro · mensal')
+    await expect(page.locator('.pg-row-amt')).toHaveText('R$ 9,90')
   })
 
-  test('não exibe card para Free sem pagamentos', async ({ page }) => {
+  test('Free sem pagamentos: sem histórico, só o convite pros planos', async ({ page }) => {
     await setupSettings(page, FREE_USER)
     await page.goto('/settings/pagamentos')
-    await expect(page.getByText(/histórico de pagamentos/i)).not.toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Plano Grátis' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Histórico' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Ver planos' }).click()
+    await expect(page).toHaveURL(/\/planos$/)
   })
 })

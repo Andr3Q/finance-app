@@ -53,8 +53,20 @@ model User {
   trialReminderSent    Boolean   @default(false)
   weeklyDigestSentAt   DateTime?
   emailVerified        Boolean   @default(false)
+  // Foto de perfil (tela "Dados pessoais", Nancy 2): a imagem fica em UserAvatar (fora desta linha, pra
+  // não pesar nas leituras do usuário); aqui só a data da última troca — null = sem foto, e serve de
+  // versão no endereço da imagem (/auth/avatar?v=...).
+  avatarUpdatedAt      DateTime?
+  avatar               UserAvatar?
   emailVerifyToken     String?
   emailVerifyExpiry    DateTime?
+  // Verificação por código de 6 dígitos (tela "Confirme seu e-mail", Nancy 2) —
+  // caminho alternativo ao link acima, pro mesmo e-mail/evento. Expira rápido
+  // (15min, não 24h como o link) e conta tentativas erradas: 6 dígitos tem
+  // entropia baixa demais (1 em 1M) pra confiar só no rate limit por IP.
+  emailVerifyCode          String?
+  emailVerifyCodeExpiry    DateTime?
+  emailVerifyCodeAttempts  Int       @default(0)
   // Troca de e-mail de login: o e-mail novo só é aplicado (email = pendingEmail)
   // depois que o link de confirmação (enviado pro endereço NOVO) é clicado —
   // evita trocar pra um e-mail que a pessoa não tem acesso de verdade.
@@ -64,6 +76,12 @@ model User {
   planPeriod           String?   @default("monthly")
   notifBudgetAlert     Boolean   @default(true)
   notifBudgetReminder  Boolean   @default(true)
+  // Preferências da tela "Preferências" (Nancy 2). notifSalary/Stories/Tips mandam nos avisos dentro do app;
+  // notifWeeklyEmail liga o resumo semanal por e-mail (segunda-feira, job /api/cron/weekly-digest).
+  notifSalary          Boolean   @default(true)
+  notifStories         Boolean   @default(true)
+  notifTips            Boolean   @default(true)
+  notifWeeklyEmail     Boolean   @default(false)
   budgetAlertMonth     Int?
   budgetAlertYear      Int?
   budgetReminderSentAt DateTime?
@@ -148,6 +166,15 @@ model CategoryLimit {
   @@unique([userId, category])
 }
 
+// ── Tabela: foto de perfil (1 por usuário) ──────────────
+// JPEG 256x256 em data URL, já validado em PUT /auth/avatar (prefixo, base64 canônico, tamanho, assinatura).
+model UserAvatar {
+  userId    String   @id
+  image     String
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // ── Tabela: goals ───────────────────────────────────────
 model Goal {
   id            String    @id @default(uuid())
@@ -223,6 +250,11 @@ model ProcessedPayment {
   plan        String
   period      String
   processedAt DateTime @default(now())
+  // Detalhes vindos do webhook do Mercado Pago (nulos nos pagamentos antigos): valor cobrado, forma ('card' | 'pix')
+  // e final do cartão (4 dígitos, nunca o número).
+  amount      Decimal? @db.Decimal(10, 2)
+  method      String?
+  cardLast4   String?
 
   @@index([userId])
   @@map("processed_payments")

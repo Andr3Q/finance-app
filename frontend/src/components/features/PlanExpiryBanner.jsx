@@ -68,7 +68,6 @@ export default function PlanExpiryBanner() {
 
         {surveySent ? (
           <div data-testid="survey-sent" style={{ textAlign:'center', padding:'20px 0' }}>
-            <div style={{ fontSize:32, marginBottom:12 }}>🙏</div>
             <div style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:8 }}>Obrigado pelo feedback!</div>
             <div style={{ fontSize:13, color:'var(--t2)' }}>Isso nos ajuda a melhorar o Nancy.</div>
           </div>

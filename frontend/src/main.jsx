@@ -6,6 +6,8 @@ import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 import { initAnalytics } from './services/analytics.js'
 import { hasConsent } from './components/features/CookieBanner.jsx'
 import { SPLASH_MIN_MS } from './splashConfig.js'
+import { reloadOnceForNewVersion } from './utils/lazyWithReload.js'
+import { startStoriesEarly } from './services/storiesData.js'
 import './index.css'
 
 // ── Sentry — rastreamento de erros JavaScript no browser ────────────
@@ -21,9 +23,16 @@ if (import.meta.env.VITE_SENTRY_DSN) {
   })
 }
 
+// Vite avisa quando o pré-carregamento de um arquivo de tela falha (aba aberta antes de um deploy): recarrega uma vez pra pegar a versão nova.
+window.addEventListener('vite:preloadError', (e) => { if (reloadOnceForNewVersion()) e.preventDefault() })
+
 // Só inicializa analytics se o usuário já deu consentimento (LGPD Art. 5º)
 if (hasConsent()) initAnalytics()
 
+
+// Os resumos dos stories começam a ser buscados já na abertura (durante a splash), não depois de o Início carregar:
+// o banco leva alguns segundos e a pessoa não pode ver "Montando seu resumo…" ao tocar no círculo.
+startStoriesEarly()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -45,6 +54,8 @@ const splash = document.getElementById('app-splash')
 if (splash) {
   setTimeout(() => {
     splash.classList.add('splash-hide')
+    window.__nancySplashGone = true // quem espera a splash sair (formulário de login) é liberado — ver hooks/useSplashGone.js
+    window.dispatchEvent(new Event('nancy:splash-gone'))
     setTimeout(() => splash.remove(), 450) // espera a transição de opacidade (.4s) terminar
   }, SPLASH_MIN_MS)
 }

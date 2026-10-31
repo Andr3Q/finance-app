@@ -2,15 +2,25 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { agentAPI } from '../../services/api.js'
 import { useUser } from '../../hooks/useUser.js'
+import { useEscapeKey } from '../../hooks/useEscapeKey.js'
+import { useFocusTrap } from '../../hooks/useFocusTrap.js'
+import { chatError } from '../../utils/chatErrors.js'
+import { buildApiHistory } from '../../utils/chatHistory.js'
 import { analytics } from '../../services/analytics.js'
 import { invalidateCache } from '../../services/cache.js'
+import { MONTHS } from '../../constants/index.js'
+import NancyMark from '../ui/NancyMark.jsx'
+import AiMessage from './AiMessage.jsx'
 
-const SUGGESTIONS = [
-  'Quanto gastei esse mês?',
-  'Qual meu saldo atual?',
-  'Onde estou gastando mais?',
-  'Registrar gasto de R$ 50 em alimentação',
-]
+// Sugestões da conversa vazia (design Nancy 2, tela 12). A do meio usa o mês atual.
+function buildSuggestions(now = new Date()) {
+  return [
+    'Quanto gastei esse mês?',
+    'Onde estou gastando mais?',
+    `Vou conseguir guardar em ${MONTHS[now.getMonth()].toLowerCase()}?`,
+    'Registrar gasto de R$ 50 em alimentação',
+  ]
+}
 
 // Duração máxima de uma gravação — evita upload/transcrição gigante se o
 // usuário esquecer o microfone ligado (custo de Whisper cresce com a duração).
@@ -39,8 +49,30 @@ function getMicHelpText() {
   return 'Clique no ícone de cadeado/informações ao lado do endereço do site, libere o Microfone e recarregue a página.'
 }
 
+// Cartão de confirmação (excluir/editar): só o ÚLTIMO fica ativo. Um "Confirmar" antigo que sobrava na tela executava a
+// ação mesmo depois de a pessoa ter tocado em "Cancelar" num cartão repetido (achado do QA N2-7, rodada 2).
+const closeOpenPending = (list) => list.map(m => (m.pending?.state === 'open' ? { ...m, pending: { ...m.pending, state: 'closed' } } : m))
+const isExpired = (pending) => !!pending?.expiresAt && Date.now() > pending.expiresAt
+// A validade conta pelo RELÓGIO DO APARELHO a partir de agora (expiresInMs do servidor): comparar com o horário absoluto do servidor
+// "vencia" o cartão na hora em quem tem o relógio adiantado. (expiresAt só como reserva para respostas sem expiresInMs.)
+const expiresAtOf = (p) => (Number.isFinite(p.expiresInMs) ? Date.now() + p.expiresInMs : p.expiresAt)
+const hasOpenPending = (list) => list.some(m => m.pending?.state === 'open' && !isExpired(m.pending))
+// "sim", "ok", "pode"... digitado com um cartão aberto: não vai para a IA (ela repetiria a pergunta e deixaria dois
+// cartões) — só lembra de tocar no botão. Confirmar continua exigindo o toque.
+const AFFIRMATION = /^(sim|s|ok|okay|isso|pode|pode sim|claro|confirmo|confirma|confirmar|com certeza|pode excluir|pode alterar|pode apagar|vai|manda)$/
+const isAffirmation = (text) => AFFIRMATION.test(text.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[.!\s]+$/g, ''))
+// A frase fixa do servidor (ver composeReply em backend/src/routes/agent.js) deixa de valer depois que o cartão se resolve
+const WAITING = /Ainda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir\./
+const RESOLVED_TEXT = { done: 'Confirmado.', cancelled: 'Cancelado.', closed: 'Sem efeito.' }
+const displayContent = (m) => {
+  if (!m.pending) return m.content
+  const state = m.pending.state === 'open' && isExpired(m.pending) ? 'closed' : m.pending.state
+  return state === 'open' ? m.content : m.content.replace(WAITING, RESOLVED_TEXT[state] || 'Sem efeito.')
+}
+
 export default function AgentChat() {
   const [open,         setOpen]         = useState(false)
+  useEscapeKey(() => setOpen(false), open)
   const [input,        setInput]        = useState('')
   const [loading,      setLoading]      = useState(false)
   const [history,      setHistory]      = useState([])
@@ -59,17 +91,35 @@ export default function AgentChat() {
   const streamRef        = useRef(null)
   const maxDurationTimer = useRef(null)
   const navigate         = useNavigate()
+  const panelRef         = useRef(null)
+  // Em tela cheia (celular) o chat é modal: o foco do teclado fica dentro dele. No desktop é uma janela flutuante, sem trava.
+  const [fullScreen, setFullScreen] = useState(false)
+  useEffect(() => { if (open) setFullScreen(!!window.matchMedia?.('(max-width: 900px)').matches) }, [open])
+  useFocusTrap(panelRef, open && fullScreen)
 
   // Permite abrir o chat de fora (ex: menu rápido do "+" na barra de
   // navegação, que fica num componente irmão — Navbar/AgentChat são montados
   // separadamente em App.jsx, sem estado compartilhado hoje).
+  // Quem abre o chat pode mandar uma pergunta pronta (detail.message), ex.: o cartão "Quer que a
+  // Nancy sugira onde cortar?" da Análise do mês. Ela é enviada sozinha — só pra quem tem o
+  // chat (Elite); pros outros o chat abre mostrando o convite pro plano e a pergunta é descartada.
+  const [pendingMsg, setPendingMsg] = useState(null)
   useEffect(() => {
-    const openChat = () => setOpen(true)
+    const openChat = (e) => { setOpen(true); setPendingMsg(e?.detail?.message || null) }
     window.addEventListener('nancy:open-agent-chat', openChat)
     return () => window.removeEventListener('nancy:open-agent-chat', openChat)
   }, [])
   const user             = useUser()
   const isElite          = user.plan === 'elite'
+  const firstName        = user.name?.split(' ')[0] || ''
+  const suggestions      = buildSuggestions()
+
+  useEffect(() => {
+    if (!open || !pendingMsg) return
+    setPendingMsg(null)
+    if (isElite) send(pendingMsg)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pendingMsg, isElite])
 
   useEffect(() => {
     // MediaRecorder + getUserMedia são suportados de forma muito mais ampla e
@@ -87,7 +137,10 @@ export default function AgentChat() {
     navigator.permissions.query({ name: 'microphone' }).then(s => {
       status = s
       setMicPermission(s.state)
-      s.onchange = () => setMicPermission(s.state)
+      s.onchange = () => {
+        setMicPermission(s.state)
+        if (s.state === 'granted') setVoiceError('') // liberou nas configurações: o aviso de "bloqueado" não vale mais
+      }
     }).catch(() => {})
     return () => { if (status) status.onchange = null }
   }, [])
@@ -103,7 +156,10 @@ export default function AgentChat() {
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 120)
-    } else if (listening) {
+    } else {
+      setVoiceError('') // o aviso do microfone não fica esperando na próxima vez que o chat abrir
+    }
+    if (!open && listening) {
       // O painel esconde o botão de "parar gravação" ao fechar, mas o
       // componente continua montado (só o conteúdo interno é condicional) —
       // sem isso, o microfone ficaria gravando em segundo plano indefinidamente,
@@ -116,47 +172,81 @@ export default function AgentChat() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [history, loading])
 
-  const send = async (msg) => {
+  // dropLast: tira do fim da conversa a pergunta que falhou e o erro dela, para "Tentar de novo" não repetir a pergunta.
+  const send = async (msg, { dropLast = 0 } = {}) => {
     const text = (msg || input).trim()
     if (!text || loading || transcribing) return
     setInput('')
+
+    if (hasOpenPending(history) && isAffirmation(text)) {
+      setHistory([...history, { role: 'user', content: text }, { role: 'assistant', content: 'Toque em Confirmar, logo acima, para concluir — ou em Cancelar para desistir.' }])
+      return
+    }
     analytics.track('ai_message_sent')
 
+    // qualquer outra mensagem encerra os cartões abertos: a conversa seguiu, o botão antigo não pode mais agir
+    const base = closeOpenPending(history.slice(0, history.length - dropLast))
     const userMsg = { role: 'user', content: text }
-    setHistory(h => [...h, userMsg])
+    setHistory([...base, userMsg])
     setLoading(true)
 
     try {
-      const apiHistory = history
-        .filter(m => m.role && m.content && !m.error)
-        .map(m => ({ role: m.role, content: m.content }))
+      // Contexto da conversa: últimas mensagens, cortadas, sem os turnos que falharam (ver utils/chatHistory.js)
+      const apiHistory = buildApiHistory(base)
       const res = await agentAPI.chat(text, apiHistory)
-      setHistory(h => [...h, { role: 'assistant', content: res.data.reply }])
+      const { reply, pendingAction, dataChanged } = res.data
+      // pendingAction: a IA preparou uma edição/exclusão e NADA foi feito ainda — os botões Confirmar/Cancelar
+      // aparecem abaixo da resposta e só o toque em Confirmar executa (POST /agent/confirm).
+      setHistory(h => [...closeOpenPending(h), { role: 'assistant', content: reply, ...(pendingAction ? { pending: { token: pendingAction.token, expiresAt: expiresAtOf(pendingAction), state: 'open' } } : {}) }])
       // O chat pode criar/editar/excluir transação via tool-calling — sem isso,
       // Dashboard/Transações continuavam mostrando dado velho até o usuário
       // forçar um refresh manual (ex: trocar de mês e voltar).
-      if (res.data.dataChanged) {
-        invalidateCache('dashboard')
-        window.dispatchEvent(new CustomEvent('budget-updated'))
-      }
+      if (dataChanged) refreshApp()
     } catch (err) {
-      const status = err.response?.status
-      const serverMsg = err.response?.data?.error
-      const limitReached = err.response?.data?.limitReached
-      const errMsg =
-        status === 429 ? 'Muitas mensagens seguidas. Aguarde alguns segundos.' :
-        status === 503 ? 'Agente IA não configurado.' :
-        // 403 com limitReached é o gate de plano (agent.js requirePlan), não sessão
-        // expirada — o interceptor global (api.js) já sabe dessa distinção e não
-        // desloga o usuário nesse caso; a mensagem local precisa concordar.
-        limitReached ? (serverMsg || 'Recurso exclusivo do plano Elite.') :
-        status === 401 || status === 403 ? 'Sessão expirada. Faça login novamente.' :
-        !err.response ? 'Sem conexão com o servidor.' :
-        serverMsg || 'Erro ao processar mensagem.'
-      setHistory(h => [...h, { role: 'assistant', content: errMsg, error: true }])
+      const { message, retry } = chatError(err)
+      setHistory(h => [...h, { role: 'assistant', content: message, error: true, ...(retry ? { retryText: text } : {}) }])
     } finally {
       setLoading(false)
     }
+  }
+
+  const refreshApp = () => {
+    invalidateCache('dashboard')
+    window.dispatchEvent(new CustomEvent('budget-updated'))
+  }
+
+  const setPendingState = (index, state) =>
+    setHistory(h => h.map((m, i) => (i === index && m.pending ? { ...m, pending: { ...m.pending, state } } : m)))
+
+  const confirmPending = async (index) => {
+    const pending = history[index]?.pending
+    if (!pending || pending.state !== 'open' || loading || transcribing) return
+    if (isExpired(pending)) {
+      setPendingState(index, 'closed')
+      setHistory(h => [...h, { role: 'assistant', content: 'Essa confirmação expirou. Peça de novo à Nancy.', error: true }])
+      return
+    }
+    analytics.track('ai_action_confirmed')
+    setLoading(true)
+    try {
+      const res = await agentAPI.confirm(pending.token)
+      setPendingState(index, 'done')
+      setHistory(h => [...h, { role: 'assistant', content: res.data.message }])
+      if (res.data.dataChanged) refreshApp()
+    } catch (err) {
+      // 400 (token inválido/expirado) e 409 (a transação mudou ou o mês fechou) não adiantam tentar de novo
+      const final = [400, 409].includes(err.response?.status)
+      setPendingState(index, final ? 'closed' : 'open')
+      setHistory(h => [...h, { role: 'assistant', content: final ? (err.response.data?.error || chatError(err, { confirming: true }).message) : chatError(err, { confirming: true }).message, error: true }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const cancelPending = (index) => {
+    if (history[index]?.pending?.state !== 'open' || loading) return
+    analytics.track('ai_action_cancelled')
+    setHistory(h => [...closeOpenPending(h).map((m, i) => (i === index ? { ...m, pending: { ...m.pending, state: 'cancelled' } } : m)), { role: 'assistant', content: 'Tudo bem, não mexi em nada.' }])
   }
 
   const handleKey = (e) => {
@@ -291,141 +381,135 @@ export default function AgentChat() {
         )}
       </button>
 
-      {/* Painel do chat */}
+      {/* Painel do chat — tela cheia azul no celular, janela flutuante no desktop (tela 12) */}
       {open && (
-        <div className="agent-panel fade-in">
-          {/* Header */}
-          <div className="agent-header">
-            <div className="agent-header-ico">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+        <div ref={panelRef} className="agent-panel nia-panel fade-in" role="dialog" aria-label="Nancy IA" aria-modal={fullScreen ? 'true' : undefined}>
+          <div className="nia-head">
+            <NancyMark size={42} />
+            <div className="nia-head-txt">
+              <div className="nia-name">Nancy IA</div>
+              <div className="nia-status">{isElite ? <><span className="nia-dot" />online</> : 'disponível no Elite'}</div>
+            </div>
+            <button type="button" className="nia-close" onClick={() => setOpen(false)} aria-label="Fechar chat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
-            </div>
-            <div>
-              <div className="agent-header-title">Assistente IA</div>
-              <div className="agent-header-sub">Finance · Claude</div>
-            </div>
-            <div className="agent-header-dot" />
+            </button>
           </div>
 
-          {/* Mensagens */}
-          <div className="agent-messages">
+          <div className="nia-msgs">
             {!isElite ? (
-              <div className="agent-welcome">
-                <div className="agent-welcome-ico" style={{ background: 'rgba(123,47,255,.12)', border: '1px solid rgba(123,47,255,.25)' }}>
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7b2fff" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                  </svg>
+              <>
+                <div className="nia-msg bot">
+                  <div className="nia-bubble">
+                    Oi{firstName ? `, ${firstName}` : ''}! A Nancy IA analisa seus gastos, tira dúvidas e registra transações por texto ou áudio. Ela está disponível no plano Elite.
+                  </div>
                 </div>
-                <div className="agent-welcome-title">Assistente IA</div>
-                <div className="agent-welcome-sub" style={{ marginBottom: 16 }}>
-                  Analise gastos, tire dúvidas e registre transações por texto. Disponível no plano <strong style={{ color: '#a78bfa' }}>Elite</strong>.
-                </div>
-                <button
-                  onClick={() => { setOpen(false); navigate('/planos') }}
-                  style={{ background: 'linear-gradient(135deg,#a78bfa,#7c3aed)', border: 'none', borderRadius: 8, padding: '10px 20px', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}
-                >
+                <button type="button" className="nia-upgrade" onClick={() => { setOpen(false); navigate('/planos') }}>
                   Ver planos →
                 </button>
-              </div>
-            ) : history.length === 0 ? (
-              <div className="agent-welcome">
-                <div className="agent-welcome-ico">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                  </svg>
-                </div>
-                <div className="agent-welcome-title">Olá! Sou seu assistente financeiro.</div>
-                <div className="agent-welcome-sub">Posso analisar seus gastos, responder dúvidas e registrar transações por texto.</div>
-                <div className="agent-suggestions">
-                  {SUGGESTIONS.map((s, i) => (
-                    <button key={i} className="agent-suggestion" onClick={() => send(s)}>{s}</button>
-                  ))}
-                </div>
-              </div>
+              </>
             ) : (
-              history.map((m, i) => (
-                <div key={i} className={`agent-msg ${m.role}${m.error ? ' err' : ''}`}>
-                  {m.role === 'assistant' && (
-                    <div className="agent-msg-ico">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
-                      </svg>
-                    </div>
-                  )}
-                  <div className="agent-msg-bubble">{m.content}</div>
+              <>
+                <div className="nia-msg bot">
+                  <div className="nia-bubble">
+                    Oi{firstName ? `, ${firstName}` : ''}! Sou a Nancy. Pergunte sobre seus gastos ou peça para eu registrar uma despesa. Pode digitar ou mandar um áudio.
+                  </div>
                 </div>
-              ))
+                {history.length === 0 && (
+                  <div className="nia-suggestions">
+                    {suggestions.map((sug, i) => (
+                      <button key={i} type="button" className="nia-suggestion" onClick={() => send(sug)}>{sug}</button>
+                    ))}
+                  </div>
+                )}
+                {history.map((m, i) => {
+                  const isBot       = m.role !== 'user'
+                  const canRetry    = m.error && m.retryText && i === history.length - 1 && !loading
+                  const awaiting    = m.pending?.state === 'open' && !isExpired(m.pending)
+                  const hasActions  = awaiting || canRetry
+                  const shown       = displayContent(m)
+                  const bubble      = <div className={`nia-bubble${isBot && !m.error ? ' nia-rich-bubble' : ''}`}>{isBot && !m.error ? <AiMessage text={shown} /> : shown}</div>
+                  return (
+                    <div key={i} className={`nia-msg ${isBot ? 'bot' : 'user'}${m.error ? ' err' : ''}`}>
+                      {hasActions ? (
+                        <div className="nia-col">
+                          {bubble}
+                          {awaiting && (
+                            <div className="nia-actions" role="group" aria-label="Confirmar a ação">
+                              <button type="button" className="nia-act-yes" onClick={() => confirmPending(i)} disabled={loading}>Confirmar</button>
+                              <button type="button" className="nia-act-no" onClick={() => cancelPending(i)} disabled={loading}>Cancelar</button>
+                            </div>
+                          )}
+                          {canRetry && (
+                            <div className="nia-actions">
+                              <button type="button" className="nia-act-no" onClick={() => send(m.retryText, { dropLast: 2 })}>Tentar de novo</button>
+                            </div>
+                          )}
+                        </div>
+                      ) : bubble}
+                    </div>
+                  )
+                })}
+              </>
             )}
             {loading && (
-              <div className="agent-msg assistant">
-                <div className="agent-msg-ico">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
-                  </svg>
-                </div>
-                <div className="agent-typing">
-                  <span/><span/><span/>
-                </div>
+              <div className="nia-msg bot">
+                <div className="nia-bubble nia-typing" aria-label="Nancy está digitando"><span/><span/><span/></div>
               </div>
             )}
             <div ref={bottomRef} />
           </div>
 
-          {/* Input — só exibido para Elite */}
           {isElite && voiceError && (
-            <div className="agent-voice-error">{voiceError}</div>
-          )}
-          {isElite && <div className="agent-input-wrap">
-            <textarea
-              ref={inputRef}
-              className={`agent-input${listening ? ' voice-active' : ''}`}
-              placeholder={listening ? 'Ouvindo…' : transcribing ? 'Transcrevendo…' : 'Pergunte algo sobre suas finanças…'}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKey}
-              rows={1}
-              maxLength={2000}
-              disabled={loading || transcribing}
-            />
-            {voiceSupport && (
-              <button
-                className={`agent-mic${listening ? ' listening' : ''}${transcribing ? ' transcribing' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
-                onClick={toggleVoice}
-                disabled={loading || transcribing}
-                aria-label={listening ? 'Parar gravação' : transcribing ? 'Transcrevendo áudio' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
-                title={micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : undefined}
-                type="button"
-              >
-                {listening ? (
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="5" y="5" width="14" height="14" rx="2"/>
-                  </svg>
-                ) : transcribing ? (
-                  <span className="agent-mic-spinner" />
-                ) : (
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
-                    <path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
-                  </svg>
-                )}
+            <div className="nia-voice-error" role="status">
+              <span>{voiceError}</span>
+              <button type="button" onClick={() => setVoiceError('')} aria-label="Fechar aviso">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
-            )}
-            <button
-              className="agent-send"
-              onClick={() => send()}
-              disabled={!input.trim() || loading || transcribing}
-              aria-label="Enviar"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="22" y1="2" x2="11" y2="13"/>
-                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-              </svg>
-            </button>
-          </div>}
+            </div>
+          )}
+          {isElite && (
+            <div className="nia-input-bar">
+              <textarea
+                ref={inputRef}
+                className={`nia-input${listening ? ' voice-active' : ''}`}
+                placeholder={listening ? 'Ouvindo…' : transcribing ? 'Transcrevendo…' : 'Pergunte à Nancy…'}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKey}
+                rows={1}
+                maxLength={2000}
+                disabled={loading || transcribing}
+              />
+              {voiceSupport && (
+                <button
+                  className={`nia-mic${listening ? ' listening' : ''}${transcribing ? ' transcribing' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
+                  onClick={toggleVoice}
+                  disabled={loading || transcribing}
+                  aria-label={listening ? 'Parar gravação' : transcribing ? 'Transcrevendo áudio' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
+                  title={micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : undefined}
+                  type="button"
+                >
+                  {listening ? (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+                  ) : transcribing ? (
+                    <span className="agent-mic-spinner" />
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                      <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                      <path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+                    </svg>
+                  )}
+                </button>
+              )}
+              <button className={`nia-send${loading || transcribing ? ' busy' : ''}`} onClick={() => send()} disabled={!input.trim() || loading || transcribing} aria-label="Enviar">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>

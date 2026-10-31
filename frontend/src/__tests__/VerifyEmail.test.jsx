@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import VerifyEmail from '../pages/VerifyEmail.jsx'
 
@@ -9,7 +10,7 @@ vi.mock('react-router-dom', async (importActual) => {
 })
 
 vi.mock('../services/api.js', () => ({
-  authAPI: { verifyEmail: vi.fn() },
+  authAPI: { verifyEmail: vi.fn(), verifyEmailCode: vi.fn(), resendVerification: vi.fn() },
 }))
 
 let mockUser = {}
@@ -34,11 +35,69 @@ beforeEach(() => {
   sessionStorage.clear()
 })
 
-describe('VerifyEmail — link inválido', () => {
-  it('sem token na URL, mostra erro sem chamar a API', async () => {
+// Tela "Confirme seu e-mail" (Nancy 2): sem token na URL não é mais erro
+// automático — é a entrada do fluxo por código de 6 dígitos (chegou aqui
+// direto, ex. logo após se cadastrar), que exige sessão ativa pra saber de
+// qual conta é o código.
+describe('VerifyEmail — sem token na URL', () => {
+  it('sem sessão ativa, redireciona pro login sem chamar nenhuma API de verificação', async () => {
     setup('')
-    expect(await screen.findByText('Link inválido')).toBeInTheDocument()
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/login'))
     expect(authAPI.verifyEmail).not.toHaveBeenCalled()
+    expect(authAPI.verifyEmailCode).not.toHaveBeenCalled()
+  })
+
+  it('com sessão ativa, mostra o formulário de código em vez de redirecionar', async () => {
+    mockUser = { id: 'u1' }
+    setup('')
+    expect(await screen.findByText('Confirme seu e-mail')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar e-mail' })).toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+  })
+
+  // Achado N2-1: sem autocomplete, o celular não sugeria o código que acabou de chegar por e-mail/SMS.
+  it('o campo do código aceita o preenchimento automático do celular (one-time-code)', async () => {
+    mockUser = { id: 'u1' }
+    setup('')
+    const campo = await screen.findByPlaceholderText('000000')
+    expect(campo).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(campo).toHaveAttribute('inputmode', 'numeric')
+  })
+})
+
+describe('VerifyEmail — verificação por código', () => {
+  beforeEach(() => { mockUser = { id: 'u1' } })
+
+  it('código correto: chama a API e mostra "E-mail confirmado!"', async () => {
+    authAPI.verifyEmailCode.mockResolvedValue({ data: { ok: true } })
+    setup('')
+
+    await userEvent.type(screen.getByPlaceholderText('000000'), '123456')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar e-mail' }))
+
+    expect(authAPI.verifyEmailCode).toHaveBeenCalledWith('123456')
+    expect(await screen.findByText('E-mail confirmado!')).toBeInTheDocument()
+  })
+
+  it('código incorreto: mostra o erro do servidor e continua no formulário', async () => {
+    authAPI.verifyEmailCode.mockRejectedValue({ response: { data: { error: 'Código incorreto.' } } })
+    setup('')
+
+    await userEvent.type(screen.getByPlaceholderText('000000'), '999999')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar e-mail' }))
+
+    expect(await screen.findByText('Código incorreto.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirmar e-mail' })).toBeInTheDocument()
+  })
+
+  it('reenviar código: chama resendVerification e mostra confirmação', async () => {
+    authAPI.resendVerification.mockResolvedValue({ data: { ok: true } })
+    setup('')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reenviar código' }))
+
+    expect(authAPI.resendVerification).toHaveBeenCalled()
+    expect(await screen.findByText('Novo código enviado.')).toBeInTheDocument()
   })
 })
 

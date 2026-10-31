@@ -1,10 +1,18 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { useState } from 'react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 
 function setup(value = '', onChange = vi.fn()) {
   const result = render(<CurrencyInput value={value} onChange={onChange} />)
   return { input: screen.getByRole('textbox'), onChange, ...result }
+}
+
+// Pai de verdade: guarda o valor e pode limpá-lo de fora (como os formulários fazem depois de salvar).
+function Controlled({ initial = '', exposeReset }) {
+  const [v, setV] = useState(initial)
+  exposeReset(() => setV(''))
+  return <CurrencyInput value={v} onChange={setV} />
 }
 
 describe('CurrencyInput', () => {
@@ -16,6 +24,15 @@ describe('CurrencyInput', () => {
   it('formata valor inicial numérico em pt-BR', () => {
     const { input } = setup(1500)
     expect(input.value).toBe('1.500,00')
+  })
+
+  it('valor 0 não escreve "0,00" no campo (mostra o placeholder), pra dígitos digitados não caírem nos centavos', async () => {
+    const onChange = vi.fn()
+    const { input } = setup(0, onChange)
+    expect(input.value).toBe('')
+    await userEvent.type(input, '5000')
+    expect(input.value).toBe('5.000')
+    expect(onChange).toHaveBeenLastCalledWith(5000)
   })
 
   it('formata digitação de inteiro sem vírgula', async () => {
@@ -75,4 +92,36 @@ describe('CurrencyInput', () => {
     rerender(<CurrencyInput value={250} onChange={onChange} />)
     expect(input.value).toBe('250,00')
   })
+
+  describe('valor limpo por fora enquanto o campo está em foco', () => {
+    it('o formulário limpa o valor (ex.: Enter para salvar): o campo esvazia mesmo com o foco nele', async () => {
+      let reset
+      render(<Controlled exposeReset={fn => { reset = fn }} />)
+      const input = screen.getByRole('textbox')
+      await userEvent.type(input, '2000')
+      expect(input).toHaveFocus()
+      expect(input.value).toBe('2.000')
+      act(() => reset())
+      expect(input.value).toBe('')
+    })
+
+    it('digitar normalmente não é atrapalhado (o valor de fora acompanha o que está escrito)', async () => {
+      render(<Controlled exposeReset={() => {}} />)
+      const input = screen.getByRole('textbox')
+      await userEvent.type(input, '99,9')
+      expect(input.value).toBe('99,9')
+      await userEvent.type(input, '0')
+      expect(input.value).toBe('99,90')
+    })
+
+    it('digitar "0" e depois outro número funciona (zero não reseta o campo no meio da digitação)', async () => {
+      render(<Controlled exposeReset={() => {}} />)
+      const input = screen.getByRole('textbox')
+      await userEvent.type(input, '0')
+      expect(input.value).toBe('0')
+      await userEvent.type(input, '5')
+      expect(input.value).toBe('5')
+    })
+  })
 })
+

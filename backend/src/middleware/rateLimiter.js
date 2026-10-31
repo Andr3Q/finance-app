@@ -30,12 +30,26 @@ const loginLimiter = rateLimit({
   message:  { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 })
 
+// Pedido que falhou por culpa do provedor de IA (sobrecarga, fora do ar, tempo esgotado) não gasta a cota de quem perguntou: a
+// pessoa não recebeu nada, e a própria mensagem ("tente novamente") a empurrava para o limite por hora — ~8 tentativas com a IA
+// sobrecarregada levaram a cota de 12 a 4 (QA N2-7). handleGroqError (routes/agent.js) marca res.locals.aiProviderFailed.
+// Os demais erros (validação, plano) continuam contando: o limite existe para frear abuso.
+// ATENÇÃO ao nome: no express-rate-limit, skipSuccessfulRequests devolve ao contador os pedidos para os quais requestWasSuccessful
+// retorna TRUE — aqui "sucesso" quer dizer "o provedor falhou", justamente o que queremos devolver, e isso só acontece quando a
+// resposta termina ('finish'). NÃO usar skipFailedRequests: ele também devolve quando o cliente cancela o pedido ('close' sem
+// resposta) e em 'error' — a chamada ao Groq continua e o cancelamento recuperava a cota (teto de custo de 40/h deixava de valer).
+const refundProviderFailures = {
+  skipSuccessfulRequests: true,
+  requestWasSuccessful: (req, res) => !!res.locals?.aiProviderFailed,
+}
+
 // Agente IA: 40 mensagens / hora (limita custo de API)
 const agentLimiter = rateLimit({
   ...opts,
   windowMs: 60 * 60 * 1000,
   max:      40,
   message:  { error: 'Limite de mensagens para a IA atingido. Tente novamente em 1 hora.' },
+  ...refundProviderFailures,
 })
 
 // Transcrição de voz: 20 por hora por usuário — cada chamada envia áudio ao
@@ -46,6 +60,7 @@ const transcribeLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max:      20,
   message:  { error: 'Limite de transcrições de voz atingido. Tente novamente em 1 hora.' },
+  ...refundProviderFailures,
 })
 
 // Recuperação de senha: 3 tentativas / hora — reduzido de 5 para limitar spam de e-mail
@@ -115,11 +130,11 @@ const twoFALimiter = rateLimit({
   message:  { error: 'Muitas tentativas de verificação. Tente novamente em 15 minutos.' },
 })
 
-// Export de dados: 5 por hora por usuário — cada chamada faz 6 joins pesados
+// Export de dados: 10 por hora por usuário (CSV, PDF e JSON da tela "Meus dados") — cada chamada faz 6 joins pesados
 const exportLimiter = rateLimit({
   ...opts,
   windowMs:     60 * 60 * 1000,
-  max:          5,
+  max:          10,
   message:      { error: 'Limite de exportações atingido. Tente novamente em 1 hora.' },
 })
 
@@ -131,6 +146,21 @@ const verifyEmailLimiter = rateLimit({
   message:      { error: 'Muitas tentativas de reenvio. Tente novamente em 1 hora.' },
 })
 
+// Foto de perfil: 20 trocas / hora por usuário — cada chamada grava até ~48 KB no banco
+const avatarLimiter = rateLimit({
+  ...opts,
+  windowMs:     60 * 60 * 1000,
+  max:          20,
+  message:      { error: 'Muitas trocas de foto. Tente novamente em 1 hora.' },
+})
+
+// Baixar o PDF de um mês já fechado: 30 por hora por usuário (gera o PDF na hora; sem e-mail, bem mais leve que fechar)
+const reportDownloadLimiter = rateLimit({
+  ...opts,
+  windowMs:     60 * 60 * 1000,
+  max:          30,
+  message:      { error: 'Muitos downloads de relatório. Tente novamente em 1 hora.' },
+})
 
 module.exports = {
   apiLimiter,
@@ -147,4 +177,6 @@ module.exports = {
   twoFALimiter,
   exportLimiter,
   verifyEmailLimiter,
+  avatarLimiter,
+  reportDownloadLimiter,
 }

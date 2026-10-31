@@ -1,53 +1,44 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import Navbar from '../components/layout/Navbar.jsx'
+import { useUser } from '../hooks/useUser.js'
+import { useForcedLightTheme } from '../hooks/useTheme.js'
 
+const BackIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+)
+
+// Erro 404 (Nancy 2, tela 36). Página pública (qualquer endereço que não existe cai aqui): a barra de navegação só aparece
+// logado; o botão leva ao Dashboard (logado) ou à página inicial (visitante), e o "voltar" do cabeçalho desfaz o último passo.
 export default function NotFound() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const user = useUser()
+  useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
+  const loggedIn = !!user?.id
+  const home = loggedIn ? '/dashboard' : '/'
+
+  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate(home))
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--t1)', fontFamily: 'var(--fs)', display: 'flex', flexDirection: 'column' }}>
-
-      <header style={{ borderBottom: '1px solid var(--bd)', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', color: 'var(--t1)' }}>
-          <img src="/logo-icon.png" alt="Nancy" style={{ width: 28, height: 28 }} />
-          <span style={{ fontWeight: 700, fontSize: 15 }}>Nancy</span>
-        </Link>
-      </header>
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 24px', textAlign: 'center' }}>
-
-        <div style={{
-          fontSize: 96, fontWeight: 900, fontFamily: 'var(--fd)',
-          background: 'linear-gradient(135deg, var(--c), rgba(74,226,172,.3))',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          lineHeight: 1, marginBottom: 16, userSelect: 'none',
-        }}>
-          404
+    <>
+      {loggedIn && <Navbar />}
+      <div className={`pwnav fin-pwnav fade-in${loggedIn ? '' : ' lg-public'}`}>
+        <div className="fin-page">
+          <header className="fin-hero">
+            <button type="button" className="fin-back" onClick={goBack} aria-label="Voltar"><BackIcon /></button>
+            <div className="fin-hero-text">
+              <h1 className="fin-hero-title">Ops!</h1>
+              <p className="fin-hero-sub">Erro 404</p>
+            </div>
+          </header>
+          <div className="fin-body nf-body">
+            <div className="nf-code" aria-hidden="true">404</div>
+            <h2 className="nf-title">Essa página saiu do orçamento.</h2>
+            <p className="nf-sub">O link pode estar quebrado ou a página foi removida.</p>
+            <button type="button" className="nf-home" onClick={() => navigate(home)}>Voltar ao início</button>
+          </div>
         </div>
-
-        <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>
-          Página não encontrada
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--t2)', maxWidth: 360, lineHeight: 1.6, marginBottom: 32 }}>
-          O endereço que você acessou não existe ou foi removido.
-        </div>
-
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button
-            className="btn bp"
-            style={{ fontSize: 14, padding: '10px 20px' }}
-            onClick={() => navigate(-1)}
-          >
-            <svg viewBox="0 0 24 24" fill="none" width="14" height="14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6"/>
-            </svg>
-            Voltar
-          </button>
-          <Link to="/dashboard" className="btn bg" style={{ fontSize: 14, padding: '10px 20px', textDecoration: 'none' }}>
-            Ir para o dashboard
-          </Link>
-        </div>
-
       </div>
-    </div>
+    </>
   )
 }

@@ -51,7 +51,10 @@ export default class ErrorBoundary extends Component {
         fontFamily: 'sans-serif', color: 'var(--color-text, #ccc)',
         background: 'var(--color-bg, #0a0a0a)',
       }}>
-        <span style={{ fontSize: 40 }}>⚠️</span>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
         <p style={{ margin: 0, fontSize: 16 }}>Algo deu errado. Recarregue a página.</p>
         <button
           onClick={() => window.location.reload()}

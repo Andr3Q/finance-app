@@ -6,7 +6,7 @@ export const CATEGORY_LABELS = {
   leisure:    'Lazer',
   education:  'Educação',
   home:       'Casa',
-  fixed:      'Conta Fixa',
+  fixed:      'Contas fixas',
   income:     'Entrada Extra',
   other:      'Outros',
 }

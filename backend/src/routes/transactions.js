@@ -21,6 +21,10 @@ const { dashboardLimiter } = require('../middleware/rateLimiter')
 const { UUID_REGEX, MAX_AMOUNT, CATEGORY_LABELS, VALID_CATEGORIES, TRANSACTION_PLAN_LIMITS } = require('../utils/constants')
 const { nowBrasilia, partsBrasilia, parseDateInput, computeFixedCostsStatus } = require('../utils/helpers')
 const { reportError } = require('../lib/sentry')
+const { buildMonthlyRecap, computeMonthMetrics, shiftMonth } = require('../services/monthlyRecap')
+const { getStoriesBundle } = require('../services/storiesBundle')
+const { buildImportRows, MAX_CSV_ROWS } = require('../utils/csvImport')
+const { HISTORY_DAYS, DAY_MS, computeWeeklyTipStats } = require('../services/weeklyTip')
 
 const router = express.Router()
 
@@ -133,6 +137,10 @@ router.get('/dashboard', dashboardLimiter, async (req, res) => {
 // ── GET /transactions/monthly-history ──────────────────
 // Retorna resumo de receitas e despesas dos últimos N meses
 // Query: ?months=6 (padrão 6, máx 12)
+// Inclui as transações ARQUIVADAS: o fechamento do mês arquiva as dele, e um histórico que as
+// ignorasse zeraria justamente os meses já fechados. Além de income/expenses, cada mês traz o
+// `saved` (resultado do mês) pela MESMA fórmula do resumo em stories e do cartão do Extrato
+// (salário + entradas − contas fixas não pagas − saídas), pra os números baterem entre as telas.
 router.get('/monthly-history', dashboardLimiter, async (req, res) => {
   try {
     const months = Math.min(Math.max(parseInt(req.query.months) || 6, 1), 12)
@@ -146,29 +154,33 @@ router.get('/monthly-history', dashboardLimiter, async (req, res) => {
     }
 
     const startSlot = slots[0]
-    const txs = await prisma.transaction.findMany({
-      where: {
-        userId: req.userId,
-        archived: false,
-        OR: [
-          { year: { gt: startSlot.year } },
-          { year: startSlot.year, month: { gte: startSlot.month } },
-        ],
-      },
-      select: { type: true, amount: true, month: true, year: true },
-    })
+    const [txs, budgets, user] = await Promise.all([
+      prisma.transaction.findMany({
+        where: {
+          userId: req.userId,
+          OR: [
+            { year: { gt: startSlot.year } },
+            { year: startSlot.year, month: { gte: startSlot.month } },
+          ],
+        },
+        select: { type: true, amount: true, month: true, year: true, budgetId: true, category: true },
+      }),
+      prisma.budget.findMany({ where: { userId: req.userId }, select: { id: true, amount: true } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, autoLaunchMonth: true, autoLaunchYear: true } }),
+    ])
 
-    const map = {}
-    slots.forEach(s => { map[`${s.year}-${s.month}`] = { ...s, income: 0, expenses: 0 } })
+    const byMonth = {}
     txs.forEach(t => {
       const key = `${t.year}-${t.month}`
-      if (map[key]) {
-        if (t.type === 'income') map[key].income   += Number(t.amount)
-        else                     map[key].expenses += Number(t.amount)
-      }
+      ;(byMonth[key] = byMonth[key] || []).push(t)
     })
 
-    res.json(Object.values(map))
+    const salary = Number(user?.salary || 0)
+    res.json(slots.map(s => {
+      const legacyAllLaunched = user?.autoLaunchMonth === s.month && user?.autoLaunchYear === s.year // mesma regra do Início
+      const m = computeMonthMetrics({ transactions: byMonth[`${s.year}-${s.month}`] || [], budgets, salary, legacyAllLaunched })
+      return { ...s, income: m.totalIncome, expenses: m.totalExpenses, saved: m.balance, active: m.active }
+    }))
   } catch (err) {
     reportError(err, { tag: 'Erro no histórico mensal' })
     res.status(500).json({ error: 'Erro ao carregar histórico.' })
@@ -176,23 +188,40 @@ router.get('/monthly-history', dashboardLimiter, async (req, res) => {
 })
 
 // ── GET /transactions/subscriptions ────────────────────
-// Detecta gastos recorrentes nos últimos 3 meses
+// Detecta gastos recorrentes nos últimos 3 meses.
+//
+// ?strict=1 (story "Dicas IA", que afirma "N assinaturas somam R$ X/mês"; só
+// plano Elite, como o detector de assinaturas da página de planos):
+// devolve só o que se parece com assinatura de verdade — sem contas fixas
+// (aluguel, luz... pagas por budgetId ou category 'fixed'), no máximo UMA
+// cobrança por mês e valor estável (±10%). Sem isso, "Mercado" lançado todo
+// mês ou o aluguel virariam "assinatura". Nesse modo inclui também meses
+// já fechados (archived), senão quem usa o fechamento mensal nunca teria os
+// 2 meses necessários. Sem o parâmetro, o comportamento é o de sempre.
+const SUBSCRIPTION_MAX_VARIATION = 0.1
+
 router.get('/subscriptions', dashboardLimiter, async (req, res) => {
   try {
-    const now   = new Date()
-    const start = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+    const strict = req.query.strict === '1' || req.query.strict === 'true'
+    // A detecção automática de assinaturas é um recurso do plano Elite (página
+    // de planos) — a story "Dicas IA" a usa, então o modo strict respeita o
+    // mesmo plano, no servidor. Quem não é Elite recebe lista vazia (a story
+    // simplesmente não mostra o slide), sem erro nem modal de upgrade.
+    if (strict && req.userPlan !== 'elite') return res.json([])
+    const now    = new Date()
+    const start  = new Date(now.getFullYear(), now.getMonth() - 2, 1)
 
     const txs = await prisma.transaction.findMany({
       where: {
         userId:   req.userId,
         type:     'expense',
-        archived: false,
+        ...(strict ? {} : { archived: false }),
         OR: [
           { year: { gt: start.getFullYear() } },
           { year: start.getFullYear(), month: { gte: start.getMonth() + 1 } },
         ],
       },
-      select: { description: true, amount: true, category: true, month: true, year: true, date: true },
+      select: { description: true, amount: true, category: true, month: true, year: true, date: true, budgetId: true },
       orderBy: { date: 'desc' },
     })
 
@@ -200,15 +229,24 @@ router.get('/subscriptions', dashboardLimiter, async (req, res) => {
     const groups = {}
     txs.forEach(t => {
       const key = t.description.trim().toLowerCase()
-      if (!groups[key]) groups[key] = { description: t.description, category: t.category, amounts: [], months: new Set(), lastDate: t.date }
+      if (!groups[key]) groups[key] = { description: t.description, category: t.category, amounts: [], months: new Set(), perMonth: {}, fixedLinked: false, lastDate: t.date }
       groups[key].amounts.push(Number(t.amount))
       groups[key].months.add(`${t.year}-${t.month}`)
+      groups[key].perMonth[`${t.year}-${t.month}`] = (groups[key].perMonth[`${t.year}-${t.month}`] || 0) + 1
+      if (t.budgetId || t.category === 'fixed') groups[key].fixedLinked = true
       if (new Date(t.date) > new Date(groups[key].lastDate)) groups[key].lastDate = t.date
     })
 
-    // Filtra: mínimo 2 meses distintos
+    // Filtra: mínimo 2 meses distintos (e, no modo strict, o que parece assinatura)
+    const looksLikeSubscription = (g) => {
+      if (g.fixedLinked) return false
+      if (Object.values(g.perMonth).some(c => c > 1)) return false
+      const avg = g.amounts.reduce((s, a) => s + a, 0) / g.amounts.length
+      return avg > 0 && (Math.max(...g.amounts) - Math.min(...g.amounts)) / avg <= SUBSCRIPTION_MAX_VARIATION
+    }
     const subscriptions = Object.values(groups)
       .filter(g => g.months.size >= 2)
+      .filter(g => !strict || looksLikeSubscription(g))
       .map(g => {
         const avg = g.amounts.reduce((s, a) => s + a, 0) / g.amounts.length
         return { description: g.description, amount: Math.round(avg * 100) / 100, category: g.category, occurrences: g.amounts.length, months: g.months.size, lastDate: g.lastDate }
@@ -219,6 +257,73 @@ router.get('/subscriptions', dashboardLimiter, async (req, res) => {
   } catch (err) {
     reportError(err, { tag: 'Erro nas assinaturas' })
     res.status(500).json({ error: 'Erro ao detectar assinaturas.' })
+  }
+})
+
+// ── GET /transactions/monthly-recap ────────────────────
+// Dados do "Resumo em stories" (tela 09). ?offset=0 (mês atual) até -11.
+// Diferente do monthly-history, inclui transações ARQUIVADAS (meses já
+// fechados) — é justamente o mês passado que o resumo costuma mostrar.
+router.get('/monthly-recap', dashboardLimiter, async (req, res) => {
+  try {
+    const offset = req.query.offset === undefined ? 0 : Number(req.query.offset)
+    if (!Number.isInteger(offset) || offset > 0 || offset < -11)
+      return res.status(400).json({ error: 'offset deve ser um inteiro entre -11 e 0.' })
+
+    const target = shiftMonth(nowBrasilia(), offset)
+
+    const [transactions, budgets, goals, user] = await Promise.all([
+      prisma.transaction.findMany({
+        where: { userId: req.userId, year: { gte: target.year - 1 } },
+        select: { type: true, amount: true, category: true, month: true, year: true, budgetId: true },
+      }),
+      prisma.budget.findMany({ where: { userId: req.userId }, select: { id: true, amount: true } }),
+      prisma.goal.findMany({ where: { userId: req.userId }, select: { title: true, targetAmount: true, currentAmount: true } }),
+      prisma.user.findUnique({ where: { id: req.userId }, select: { salary: true, autoLaunchMonth: true, autoLaunchYear: true } }),
+    ])
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    res.json(buildMonthlyRecap({
+      target, transactions, budgets, goals, salary: Number(user.salary),
+      autoLaunch: { month: user.autoLaunchMonth, year: user.autoLaunchYear }, // mesma regra do Início
+    }))
+  } catch (err) {
+    reportError(err, { tag: 'Erro no resumo mensal' })
+    res.status(500).json({ error: 'Erro ao montar o resumo.' })
+  }
+})
+
+// ── GET /transactions/stories-bundle ───────────────────
+// Resumo do mês, resumo do mês anterior e metas — o que os círculos do Início abrem — numa resposta só e com uma ida ao
+// banco (ver services/storiesBundle.js). O app pede isto assim que abre, durante a splash, para o story já estar pronto
+// quando a pessoa tocar. Mesmos números de monthly-recap (offset 0 e -1) e de GET /goals.
+router.get('/stories-bundle', dashboardLimiter, async (req, res) => {
+  try {
+    const bundle = await getStoriesBundle(prisma, req.userId)
+    if (!bundle) return res.status(404).json({ error: 'Usuário não encontrado.' })
+    res.json(bundle)
+  } catch (err) {
+    reportError(err, { tag: 'Erro no pacote dos stories' })
+    res.status(500).json({ error: 'Erro ao montar os resumos.' })
+  }
+})
+
+// ── GET /transactions/weekly-tip-available ─────────────
+// A "Dica da Nancy IA" só existe quando há base de comparação (gasto nos últimos 30 dias E em algum dos 3 períodos anteriores,
+// com alguma categoria passando dos limites). O Início e as Notificações usam isto pra só anunciar a dica (anel do story, aviso)
+// quando ela existe — antes anunciavam sempre e o story abria vazio ("Ainda sem dicas por aqui"). Só a conta, sem IA e sem
+// passar pelo limite de mensagens do chat (GET /agent/weekly-tip faz parte dele).
+router.get('/weekly-tip-available', dashboardLimiter, async (req, res) => {
+  try {
+    const now = new Date()
+    const expenses = await prisma.transaction.findMany({
+      where:  { userId: req.userId, type: 'expense', date: { gte: new Date(now.getTime() - HISTORY_DAYS * DAY_MS) } },
+      select: { category: true, amount: true, date: true },
+    })
+    res.json({ available: computeWeeklyTipStats(expenses, now) !== null })
+  } catch (err) {
+    reportError(err, { tag: 'Erro na disponibilidade da dica' })
+    res.status(500).json({ error: 'Erro ao verificar a dica.' })
   }
 })
 
@@ -353,7 +458,7 @@ router.post('/', dashboardLimiter, async (req, res) => {
         const descLabel      = description ? ` — ${description}` : ''
 
         await sendPushToUser(req.userId, {
-          title: type === 'income' ? '💰 Entrada registrada' : '💸 Gasto registrado',
+          title: type === 'income' ? 'Entrada registrada' : 'Gasto registrado',
           body:  `${type === 'income' ? '+' : '−'}R$ ${amountFmt} em ${catLabel}${descLabel}\nSaldo: R$ ${balanceFmt}`,
           url:   '/dashboard',
         })
@@ -363,7 +468,8 @@ router.post('/', dashboardLimiter, async (req, res) => {
           const limit = await prisma.categoryLimit.findUnique({
             where: { userId_category: { userId: req.userId, category } },
           })
-          if (limit && Number(limit.amount) > 0) {
+          // "Alerta de limite" (Preferências) desliga também o aviso por categoria; sem a preferência carregada, avisa
+          if (limit && Number(limit.amount) > 0 && user?.notifBudgetAlert !== false) {
             const catTotal = await prisma.transaction.aggregate({
               where:  { userId: req.userId, type: 'expense', category, month: currentMonth, year: currentYear, archived: false },
               _sum:   { amount: true },
@@ -376,14 +482,14 @@ router.post('/', dashboardLimiter, async (req, res) => {
 
             if (pct >= 1) {
               await sendPushToUser(req.userId, {
-                title: `🚨 Limite de ${catLabel} atingido`,
+                title: `Limite de ${catLabel} atingido`,
                 body:  `Você gastou R$ ${spentFmt} de R$ ${limitFmt} (100%).`,
                 url:   '/transactions',
               })
             } else if (pct >= 0.8) {
               const pctLabel = Math.round(pct * 100)
               await sendPushToUser(req.userId, {
-                title: `⚠️ ${pctLabel}% do limite de ${catLabel}`,
+                title: `${pctLabel}% do limite de ${catLabel}`,
                 body:  `R$ ${spentFmt} gastos de R$ ${limitFmt} neste mês.`,
                 url:   '/transactions',
               })
@@ -403,7 +509,7 @@ router.post('/', dashboardLimiter, async (req, res) => {
                 const pct      = Math.round((totalExpenses / monthlyIncome) * 100)
                 const expFmt   = totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
                 await sendPushToUser(req.userId, {
-                  title: `⚠️ ${pct}% do orçamento mensal usado`,
+                  title: `${pct}% do orçamento mensal usado`,
                   body:  `Você gastou R$ ${expFmt} este mês. Fique de olho!`,
                   url:   '/dashboard',
                 })
@@ -565,7 +671,7 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
     })
 
     res.json({
-      message:         `✅ ${result.count} ${result.count === 1 ? 'conta fixa lançada' : 'contas fixas lançadas'} com sucesso!`,
+      message:         `${result.count} ${result.count === 1 ? 'conta fixa lançada' : 'contas fixas lançadas'} com sucesso!`,
       count:           result.count,
       alreadyLaunched: false,
     })
@@ -577,28 +683,6 @@ router.post('/auto-launch', dashboardLimiter, async (req, res) => {
 
 // ── POST /transactions/import ───────────────────────────
 // Importa transações de um arquivo CSV (ex: extrato bancário)
-
-// Detecta o separador decimal em vez de assumir sempre pt-BR — um CSV com
-// decimal americano ("1234.56") teria o ponto removido pela lógica antiga
-// e o valor virava 100x maior (123456), silenciosamente, sem erro.
-function parseCsvAmount(raw) {
-  let s = raw.toString().replace('R$', '').trim()
-  const lastComma = s.lastIndexOf(',')
-  const lastDot   = s.lastIndexOf('.')
-
-  if (lastComma === -1 && lastDot === -1) return parseFloat(s)
-
-  if (lastComma > lastDot) {
-    // ',' é o separador mais à direita → decimal pt-BR ("1.234,56"). '.' = milhar.
-    s = s.replace(/\./g, '').replace(',', '.')
-  } else {
-    // '.' é o separador mais à direita (ou único). 3 dígitos após ele = milhar
-    // pt-BR sem decimais ("1.234" → 1234); qualquer outra contagem = decimal ("1234.56").
-    const digitsAfter = s.length - lastDot - 1
-    s = digitsAfter === 3 ? s.replace(/\./g, '') : s.replace(/,/g, '')
-  }
-  return parseFloat(s)
-}
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -612,12 +696,23 @@ const upload = multer({
   }
 })
 
-router.post('/import', dashboardLimiter, upload.single('file'), async (req, res) => {
+// Erro do upload (arquivo que não é CSV, grande demais) é erro do CLIENTE: 400 com mensagem clara. Antes caía no handler
+// global e virava 500 "Erro interno do servidor".
+const csvUpload = (req, res, next) => upload.single('file')(req, res, (err) => {
+  if (!err) return next()
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'O arquivo é grande demais (máximo 2 MB).' })
+  return res.status(400).json({ error: 'Envie um arquivo CSV (.csv).' })
+})
+
+router.post('/import', dashboardLimiter, csvUpload, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'Nenhum arquivo enviado.' })
     }
 
+    if (req.file.buffer.includes(0)) { // byte nulo: é imagem/PDF/planilha binária, não texto
+      return res.status(400).json({ error: 'O arquivo não parece ser um CSV. Exporte o extrato em CSV (texto) e tente de novo.' })
+    }
     const fileContent  = req.file.buffer.toString('utf-8')
     const now          = new Date()
     const currentMonth = now.getMonth() + 1
@@ -653,48 +748,34 @@ router.post('/import', dashboardLimiter, upload.single('file'), async (req, res)
         columns:          true,
         skip_empty_lines: true,
         delimiter:        [',', ';'],
+        bom:              true, // o CSV que o próprio app exporta começa com BOM; sem isso o 1º cabeçalho ("Data") não é reconhecido
+        relax_column_count: true,
       })
     } catch {
       return res.status(400).json({ error: 'Erro ao processar o arquivo CSV.' })
     }
 
-    const MAX_CSV_ROWS = 500
     if (records.length > MAX_CSV_ROWS) {
       return res.status(400).json({ error: `O arquivo CSV deve ter no máximo ${MAX_CSV_ROWS} transações.` })
     }
 
-    const transactions = []
-    for (const record of records) {
-      if (importLimit !== null && transactions.length >= importLimit) break
-
-      const description = (
-        record['Descrição'] || record['Historico'] || record['description'] ||
-        record['HISTÓRICO'] || record['Detalhes'] || 'Importação'
-      )
-      const amountRaw = record['Valor'] || record['amount'] || record['VALOR'] || record['Lançamento'] || '0'
-      const amount    = parseCsvAmount(amountRaw)
-
-      if (!isNaN(amount) && amount !== 0 && Math.abs(amount) <= MAX_AMOUNT) {
-        transactions.push({
-          description: String(description).replace(/[\x00-\x1F\x7F]/g, ' ').trim().substring(0, 255) || 'Importação',
-          amount:      Math.abs(amount),
-          type:        amount > 0 ? 'income' : 'expense',
-          category:    'other',
-          month:       currentMonth,
-          year:        currentYear,
-          userId:      req.userId,
-        })
-      }
+    const { rows, skipped, hasAmountColumn } = buildImportRows(records, { now, limit: importLimit })
+    if (!hasAmountColumn) {
+      return res.status(400).json({ error: 'Não encontrei a coluna de valor no arquivo. Use o CSV exportado pelo Nancy ou um extrato com uma coluna "Valor".' })
     }
+    const transactions = rows.map(r => ({ ...r, userId: req.userId }))
 
     if (transactions.length === 0) {
       return res.status(400).json({ error: 'Nenhuma transação válida encontrada no arquivo.' })
     }
 
     await prisma.transaction.createMany({ data: transactions })
+    const n = transactions.length
+    const ignoradas = skipped > 0 ? ` ${skipped} ${skipped === 1 ? 'linha foi ignorada' : 'linhas foram ignoradas'} (valor ou data inválidos).` : ''
     res.json({
-      message: `✅ ${transactions.length} transações importadas com sucesso!`,
-      count:   transactions.length,
+      message: `${n === 1 ? '1 transação importada' : `${n} transações importadas`} com sucesso.${ignoradas}`,
+      count:   n,
+      skipped,
     })
 
   } catch (error) {

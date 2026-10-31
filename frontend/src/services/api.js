@@ -67,6 +67,8 @@ export const authAPI = {
   forgotPassword: (email)           => api.post('/auth/forgot-password', { email }),
   resetPassword:  (token, password) => api.post('/auth/reset-password', { token, password }),
   updateProfile:  (data)            => api.put('/auth/profile', data),
+  updateAvatar:   (image)           => api.put('/auth/avatar', { image }),
+  removeAvatar:   ()                => api.delete('/auth/avatar'),
   upgradePro:     ()                => api.post('/auth/upgrade'),
   downgradeFree:  (data)            => api.post('/auth/downgrade', data),
   changePassword:      (currentPassword, newPassword) => api.put('/auth/password', { currentPassword, newPassword }),
@@ -80,8 +82,9 @@ export const authAPI = {
   twoFAUseBackupCode:      (tempToken, backupCode) => api.post('/auth/2fa/use-backup-code', { tempToken, backupCode }),
   twoFABackupCodesCount:   ()                    => api.get('/auth/2fa/backup-codes-count'),
   twoFARegenerateCodes:    (password)            => api.post('/auth/2fa/regenerate-backup-codes', { password }),
-  exportData:              ()                    => api.get('/auth/export-data', { responseType: 'blob' }),
+  exportData:              (format = 'json')     => api.get('/auth/export-data', { responseType: 'blob', params: { format } }),
   verifyEmail:             (token)               => api.post('/auth/verify-email', { token }),
+  verifyEmailCode:         (code)                => api.post('/auth/verify-email-code', { code }),
   resendVerification:      ()                    => api.post('/auth/resend-verification'),
   changeEmail:             (newEmail, password)  => api.post('/auth/change-email', { newEmail, password }),
   confirmEmailChange:      (token)               => api.post('/auth/confirm-email-change', { token }),
@@ -100,7 +103,11 @@ export const transactionsAPI = {
   autoLaunch:     ()           => api.post('/transactions/auto-launch'),
   importCSV:      (formData)   => api.post('/transactions/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   monthlyHistory: (months = 6) => api.get('/transactions/monthly-history', { params: { months } }),
-  subscriptions:  ()           => api.get('/transactions/subscriptions'),
+  subscriptions:  (params)     => api.get('/transactions/subscriptions', { params }),
+  weeklyTipAvailable: ()       => api.get('/transactions/weekly-tip-available'),
+  monthlyRecap:   (offset = 0) => api.get('/transactions/monthly-recap', { params: { offset } }),
+  // resumo do mês + resumo do mês anterior + metas numa chamada só (uma ida ao banco) — o que os círculos do Início abrem
+  storiesBundle:  ()            => api.get('/transactions/stories-bundle'),
 }
 
 // ── Funções de orçamento (contas fixas) ─────────────────
@@ -120,7 +127,8 @@ export const budgetAPI = {
 // ── Funções de relatórios ───────────────────────────────
 export const reportsAPI = {
   monthlyClose: () => api.post('/reports/monthly-close'),
-  history:      () => api.get('/reports/history')
+  history:      () => api.get('/reports/history'),
+  pdf:          (month, year) => api.get('/reports/pdf', { params: { month, year }, responseType: 'blob' }),
 }
 
 // ── Funções de notificações push ────────────────────────
@@ -132,10 +140,14 @@ export const notificationsAPI = {
 
 // ── Agente IA ───────────────────────────────────────────
 export const agentAPI = {
-  chat:          (message, history) => api.post('/agent/chat', { message, history }),
+  // O servidor dá até 90 s à conversa (a IA encadeia consultas): com o limite padrão de 15 s o app desistia antes e
+  // mostrava "sem conexão" enquanto o servidor ainda registrava o que foi pedido.
+  chat:          (message, history) => api.post('/agent/chat', { message, history }, { timeout: 95_000 }),
+  confirm:       (token)            => api.post('/agent/confirm', { token }),
   predict:       ()                 => api.post('/agent/predict', {}),
+  weeklyTip:     ()                 => api.get('/agent/weekly-tip'),
   monthlyReport: (month, year)      => api.post('/agent/monthly-report', { month, year }),
-  transcribe:    (formData)         => api.post('/agent/transcribe', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  transcribe:    (formData)         => api.post('/agent/transcribe', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 65_000 }),
 }
 
 // ── Funções de metas financeiras ────────────────────────

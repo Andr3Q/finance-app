@@ -78,7 +78,7 @@ Aplicação web de controle financeiro pessoal com agente de IA, suporte a PWA, 
 │  Prisma ORM                                                       │
 │  └─────────────────────────────────────────────► Supabase        │
 │                                                   PostgreSQL     │
-│                                                   (sa-east-1)    │
+│                                                   (us-west-1)    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -470,7 +470,7 @@ Todas as rotas ficam sob `/api/`. Rotas protegidas exigem cookie `token` (JWT).
 
 ## Banco de Dados
 
-**ORM:** Prisma 5 · **Banco:** PostgreSQL (Supabase, sa-east-1)
+**ORM:** Prisma 5 · **Banco:** PostgreSQL (Supabase, produção em us-west-1)
 
 ```
 User

@@ -1,32 +1,18 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
 import { saveUser } from '../hooks/useUser.js'
 import PasswordStrength from '../components/ui/PasswordStrength.jsx'
+import { peekReturnTo, clearReturnTo } from '../utils/returnTo.js'
+import { useSplashGone } from '../hooks/useSplashGone.js'
 
-const EmailIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-    <polyline points="22,6 12,13 2,6"/>
+const IconChevronLeft = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
   </svg>
 )
-const LockIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-    <path d="M7 11V7a5 5 0 0110 0v4"/>
-  </svg>
-)
-const UserIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-  </svg>
-)
-const MoneyIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-  </svg>
-)
+
 const ErrIcon = () => (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -48,13 +34,6 @@ const EyeOffIcon = () => (
 const EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/
 
-function parseSalary(raw) {
-  let s = raw.trim().replace(/R\$\s*/g, '').replace(/\s/g, '')
-  // Formato BR (2.000,50): ponto é separador de milhar, vírgula é decimal
-  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.')
-  return parseFloat(s)
-}
-
 export default function Login({ isRegister = false }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -64,17 +43,27 @@ export default function Login({ isRegister = false }) {
   // de cobrança apontando pra /settings/pagamentos). Só aceita rotas
   // internas (começando com "/") — nunca uma URL externa vinda de state.
   const fromPath = location.state?.from?.pathname
+  // Sessão que expirou com o app já aberto no aparelho: a conferência com o servidor recarrega a página para o login e o state
+  // some — o destino ficou guardado (utils/returnTo.js). Só no login: conta nova começa pelo Início.
+  const splashGone = useSplashGone() // o formulário só entra na página depois da splash (senão o gerenciador de senhas abre por cima do vídeo)
+  const [savedReturn] = useState(() => (isRegister ? null : peekReturnTo()))
   const redirectTo = (typeof fromPath === 'string' && fromPath.startsWith('/'))
     ? `${fromPath}${location.state.from.search || ''}`
-    : '/dashboard'
+    : savedReturn || '/dashboard'
+  const goAfterAuth = () => { clearReturnTo(); navigate(redirectTo) }
+  // Aviso vindo de outra tela (ex: "Conta excluída") — aparece uma vez; o state do histórico é limpo para não voltar no recarregar.
+  const [notice, setNotice] = useState(() => (typeof location.state?.notice === 'string' ? location.state.notice : ''))
+  useEffect(() => { if (notice) navigate(location.pathname, { replace: true, state: null }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const refCode  = useRef(new URLSearchParams(window.location.search).get('ref') || '')
-  const [mode,       setMode]       = useState(isRegister ? 'register' : 'login')
+  // Rotas /login e /register montam <Login key=.../> separadas (App.jsx)
+  // justamente pra cada uma remontar do zero — então "mode" é fixo pro
+  // tempo de vida do componente, não precisa ser state.
+  const mode = isRegister ? 'register' : 'login'
   const [loading,    setLoading]    = useState(false)
   const [serverErr,  setServerErr]  = useState('')
   const [fieldErrs,  setFieldErrs]  = useState({})
-  const [showPass,        setShowPass]        = useState(false)
-  const [showConfirmPass, setShowConfirmPass] = useState(false)
-  const [form,            setForm]            = useState({ name: '', email: '', password: '', confirmPassword: '', salary: '' })
+  const [showPass,   setShowPass]   = useState(false)
+  const [form,       setForm]       = useState({ name: '', email: '', password: '' })
   const [termsOk,    setTermsOk]    = useState(false)
   const [twoFA,      setTwoFA]      = useState({ active: false, tempToken: '', code: '', useBackup: false, backupCode: '' })
 
@@ -83,9 +72,8 @@ export default function Login({ isRegister = false }) {
     setForm(f => ({ ...f, [name]: value }))
     if (fieldErrs[name]) setFieldErrs(f => ({ ...f, [name]: '' }))
     if (serverErr) setServerErr('')
+    if (notice) setNotice('') // o aviso de "Conta excluída" já cumpriu o papel: não fica ao lado de um erro de login
   }
-
-  const switchMode = (m) => { setMode(m); setFieldErrs({}); setServerErr('') }
 
   const validate = () => {
     const errs = {}
@@ -94,20 +82,15 @@ export default function Login({ isRegister = false }) {
       if (!trimmedName)            errs.name = 'Nome obrigatório'
       else if (trimmedName.length < 2) errs.name = 'O nome deve ter pelo menos 2 caracteres.'
     }
-    if (!EMAIL_RE.test(form.email.trim())) errs.email = 'E-mail inválido'
+    if (!form.email.trim()) errs.email = 'Informe seu e-mail'
+    else if (!EMAIL_RE.test(form.email.trim())) errs.email = 'E-mail inválido'
     if (mode === 'register') {
       if (!PASSWORD_RE.test(form.password))
         errs.password = 'Mínimo 8 caracteres com letra maiúscula, minúscula e número'
-      if (form.password !== form.confirmPassword)
-        errs.confirmPassword = 'As senhas não coincidem.'
       if (!termsOk) errs.terms = 'Você precisa aceitar os termos para continuar'
-      if (form.salary.trim()) {
-        const parsed = parseSalary(form.salary)
-        if (isNaN(parsed) || parsed <= 0)
-          errs.salary = 'Por favor, insira um valor numérico válido para o seu salário.'
-      }
     } else {
-      if (form.password.length < 8) errs.password = 'Mínimo 8 caracteres'
+      if (!form.password) errs.password = 'Informe sua senha'
+      else if (form.password.length < 8) errs.password = 'Mínimo 8 caracteres'
     }
     setFieldErrs(errs)
     return Object.keys(errs).length === 0
@@ -115,13 +98,14 @@ export default function Login({ isRegister = false }) {
 
   const handleSubmit = async e => {
     e.preventDefault()
+    setNotice('')
     if (!validate()) return
     setLoading(true)
     try {
       const fn   = mode === 'login' ? authAPI.login : authAPI.register
       const data = mode === 'login'
         ? { email: form.email.trim(), password: form.password }
-        : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: form.salary.trim() ? parseSalary(form.salary) : 0, referralCode: refCode.current || undefined }
+        : { name: form.name.trim(), email: form.email.trim(), password: form.password, salary: 0, referralCode: refCode.current || undefined }
       const res = await fn(data)
       if (res.data.requires2FA) {
         // Merge, não substitui — preserva useBackup/backupCode do estado
@@ -140,7 +124,7 @@ export default function Login({ isRegister = false }) {
         analytics.track('user_signed_up')
         analytics.track('trial_started', { plan: res.data.user.plan })
       }
-      navigate(redirectTo)
+      goAfterAuth()
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Ocorreu um erro. Tente novamente.')
     } finally {
@@ -157,7 +141,7 @@ export default function Login({ isRegister = false }) {
       saveUser(res.data.user)
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true })
-      navigate(redirectTo)
+      goAfterAuth()
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Código inválido.')
     } finally {
@@ -175,7 +159,7 @@ export default function Login({ isRegister = false }) {
       saveUser(res.data.user)
       analytics.identify(res.data.user.id, { plan: res.data.user.plan })
       analytics.track('user_logged_in', { plan: res.data.user.plan, twoFA: true, backupCode: true })
-      navigate(redirectTo)
+      goAfterAuth()
     } catch (err) {
       setServerErr(err.response?.data?.error || 'Código de recuperação inválido.')
     } finally {
@@ -265,267 +249,178 @@ export default function Login({ isRegister = false }) {
     )
   }
 
-  return (
-    <div className="lauth-split">
-
-      {/* ── Painel esquerdo ── */}
-      <div className="lauth-left">
-        <div className="lauth-geo" aria-hidden="true">
-          <div className="lauth-g-ring lauth-g-r1" />
-          <div className="lauth-g-ring lauth-g-r2" />
-          <div className="lauth-g-ring lauth-g-r3" />
-          <div className="lauth-g-lines" />
-        </div>
-
-        <div className="r1">
-          <Link to="/" className="lauth-logo">
-            <img src="/logo-icon.png" alt="Nancy" style={{ width: 32, height: 32 }} />
-            <span className="lauth-logo-name">Nancy</span>
-          </Link>
-
-          <div className="lauth-brand-copy r2">
-            <div className="lauth-eyebrow">
-              <div className="lauth-eyebrow-line" />
-              Bem-vindo de volta
-            </div>
-            <h1 className="lauth-headline">
-              Seu dinheiro<br />
-              <em>sob controle.</em>
-            </h1>
-            <p className="lauth-tagline">
-              Registre gastos, acompanhe entradas e receba relatórios mensais em PDF. Simples, rápido e 100% privado.
-            </p>
-          </div>
-        </div>
-
-        <div className="lauth-stats r3">
-          <div className="lauth-stat-row">
-            <span className="lauth-stat-label">Plano grátis</span>
-            <span className="lauth-stat-value">R$ 0</span>
-          </div>
-          <div className="lauth-stat-row">
-            <span className="lauth-stat-label">Privacidade total</span>
-            <span className="lauth-stat-value">100%</span>
-          </div>
-          <div className="lauth-stat-row">
-            <span className="lauth-stat-label">Relatório mensal</span>
-            <span className="lauth-stat-value">PDF</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Painel direito ── */}
-      <div className="lauth-right">
-        <div className="lauth-form-wrap">
-
-          <div className="lauth-form-head r2">
-            <h2 className="lauth-form-title">
-              {mode === 'login' ? <>Entre na<br /><span>sua conta</span></> : <>Crie sua<br /><span>conta grátis</span></>}
-            </h2>
-            <p className="lauth-form-sub">
-              {mode === 'login' ? 'Ou crie uma conta gratuitamente' : 'Comece a organizar suas finanças hoje'}
-            </p>
+  // Telas 03 (Entrar) e 04 (Criar conta) do Nancy 2 — mesmo invólucro de
+  // página da Landing (lw-page). Navegação entre as duas é por rota
+  // (/login <-> /register), não mais abas no mesmo formulário.
+  if (mode === 'login') {
+    return (
+      <div className="lw-page">
+        <div className="auth-card">
+          <div className="auth-hero">
+            <Link to="/" className="auth-back" aria-label="Voltar">
+              <IconChevronLeft />
+            </Link>
+            <h1 className="auth-title">Bem-vindo de volta</h1>
+            <p className="auth-subtitle">Entre para ver como estão suas finanças.</p>
+            {notice && <p className="auth-notice" role="status">{notice}</p>}
           </div>
 
-          {/* Segment tabs */}
-          <div className="lauth-segment r3">
-            <button
-              type="button"
-              className={`lauth-seg-btn${mode === 'login' ? ' active' : ''}`}
-              onClick={() => switchMode('login')}
-            >
-              Entrar
-            </button>
-            <button
-              type="button"
-              className={`lauth-seg-btn${mode === 'register' ? ' active' : ''}`}
-              onClick={() => switchMode('register')}
-            >
-              Criar conta
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} noValidate>
-
-            {/* Nome — só no cadastro */}
-            {mode === 'register' && (
-              <div className="lauth-field r4">
-                <div className="lauth-field-hdr">
-                  <label className="lauth-field-lbl" htmlFor="f-name">Nome completo</label>
-                </div>
-                <div className="lauth-inp-wrap">
-                  <span className="lauth-inp-ico"><UserIcon /></span>
-                  <input
-                    id="f-name" name="name" type="text"
-                    placeholder="André Pereira"
-                    autoComplete="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    className={fieldErrs.name ? 'err' : ''}
-                  />
-                </div>
-                {fieldErrs.name && (
-                  <div className="lauth-field-err"><ErrIcon /> {fieldErrs.name}</div>
-                )}
-              </div>
-            )}
-
-            {/* E-mail */}
-            <div className={`lauth-field${mode === 'register' ? '' : ' r4'}`}>
-              <div className="lauth-field-hdr">
-                <label className="lauth-field-lbl" htmlFor="f-email">E-mail</label>
-              </div>
-              <div className="lauth-inp-wrap">
-                <span className="lauth-inp-ico"><EmailIcon /></span>
+          <div className="auth-sheet">
+            {splashGone && <form onSubmit={handleSubmit} noValidate>
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="f-email">E-mail</label>
                 <input
                   id="f-email" name="email" type="email"
-                  placeholder="seu@email.com"
+                  placeholder="voce@email.com"
                   autoComplete="email" inputMode="email"
                   value={form.email}
                   onChange={handleChange}
-                  className={fieldErrs.email ? 'err' : ''}
+                  className={`auth-input${fieldErrs.email ? ' err' : ''}`}
                 />
+                {fieldErrs.email && <div className="auth-field-err"><ErrIcon /> {fieldErrs.email}</div>}
               </div>
-              {fieldErrs.email && (
-                <div className="lauth-field-err"><ErrIcon /> {fieldErrs.email}</div>
-              )}
+
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="f-pass">Senha</label>
+                <div className="auth-pass-wrap">
+                  <input
+                    id="f-pass" name="password"
+                    type={showPass ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    value={form.password}
+                    onChange={handleChange}
+                    className={`auth-input${fieldErrs.password ? ' err' : ''}`}
+                  />
+                  <button
+                    type="button"
+                    className="auth-eye"
+                    onClick={() => setShowPass(v => !v)}
+                    aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {showPass ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+                {fieldErrs.password && <div className="auth-field-err"><ErrIcon /> {fieldErrs.password}</div>}
+              </div>
+
+              <div className="auth-forgot-row">
+                <Link to="/forgot-password" className="auth-link-sm">Esqueci a senha</Link>
+              </div>
+
+              {serverErr && <div className="auth-server-err"><ErrIcon />{serverErr}</div>}
+
+              <button type="submit" className="auth-btn-primary" disabled={loading}>
+                {loading ? <div className="auth-spinner" /> : <span>Entrar</span>}
+              </button>
+            </form>}
+
+            <div className="auth-divider"><span>ou</span></div>
+
+            <button
+              type="button"
+              className="auth-btn-google"
+              disabled
+              title="Login com Google — em breve"
+            >
+              Continuar com Google
+            </button>
+
+            <p className="auth-foot">Não tem conta? <Link to="/register">Criar conta</Link></p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Tela 04 (Criar conta)
+  return (
+    <div className="lw-page">
+      <div className="auth-card">
+        <div className="auth-hero">
+          <Link to="/" className="auth-back" aria-label="Voltar">
+            <IconChevronLeft />
+          </Link>
+          <h1 className="auth-title">Crie sua conta</h1>
+          <p className="auth-subtitle">Grátis para sempre. Leva menos de 1 minuto.</p>
+        </div>
+
+        <div className="auth-sheet">
+          {splashGone && <form onSubmit={handleSubmit} noValidate>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="f-name">Nome</label>
+              <input
+                id="f-name" name="name" type="text"
+                placeholder="Como quer ser chamado?"
+                autoComplete="name"
+                value={form.name}
+                onChange={handleChange}
+                className={`auth-input${fieldErrs.name ? ' err' : ''}`}
+              />
+              {fieldErrs.name && <div className="auth-field-err"><ErrIcon /> {fieldErrs.name}</div>}
             </div>
 
-            {/* Senha */}
-            <div className={`lauth-field${mode === 'register' ? '' : ' r5'}`}>
-              <div className="lauth-field-hdr">
-                <label className="lauth-field-lbl" htmlFor="f-pass">Senha</label>
-                {mode === 'login' && (
-                  <Link to="/forgot-password" className="lauth-field-link">Esqueci minha senha</Link>
-                )}
-              </div>
-              <div className="lauth-inp-wrap">
-                <span className="lauth-inp-ico"><LockIcon /></span>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="f-email">E-mail</label>
+              <input
+                id="f-email" name="email" type="email"
+                placeholder="voce@email.com"
+                autoComplete="email" inputMode="email"
+                value={form.email}
+                onChange={handleChange}
+                className={`auth-input${fieldErrs.email ? ' err' : ''}`}
+              />
+              {fieldErrs.email && <div className="auth-field-err"><ErrIcon /> {fieldErrs.email}</div>}
+            </div>
+
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="f-pass">Senha</label>
+              <div className="auth-pass-wrap">
                 <input
                   id="f-pass" name="password"
                   type={showPass ? 'text' : 'password'}
-                  placeholder={mode === 'register' ? 'Mínimo 8 caracteres' : '••••••••'}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  placeholder="Mínimo 8 caracteres"
+                  autoComplete="new-password"
                   value={form.password}
                   onChange={handleChange}
-                  className={`has-eye${fieldErrs.password ? ' err' : ''}`}
+                  className={`auth-input${fieldErrs.password ? ' err' : ''}`}
                 />
                 <button
                   type="button"
-                  className="lauth-inp-eye"
+                  className="auth-eye"
                   onClick={() => setShowPass(v => !v)}
-                  aria-label="Mostrar senha"
+                  aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
                 >
                   {showPass ? <EyeOffIcon /> : <EyeIcon />}
                 </button>
               </div>
-              {fieldErrs.password && (
-                <div className="lauth-field-err"><ErrIcon /> {fieldErrs.password}</div>
-              )}
-              {mode === 'register' && <PasswordStrength password={form.password} />}
+              {fieldErrs.password && <div className="auth-field-err"><ErrIcon /> {fieldErrs.password}</div>}
+              <PasswordStrength password={form.password} />
             </div>
 
-            {/* Confirmar senha — só no cadastro */}
-            {mode === 'register' && (
-              <div className="lauth-field">
-                <div className="lauth-field-hdr">
-                  <label className="lauth-field-lbl" htmlFor="f-confirm-pass">Confirme sua senha</label>
-                </div>
-                <div className="lauth-inp-wrap">
-                  <span className="lauth-inp-ico"><LockIcon /></span>
-                  <input
-                    id="f-confirm-pass" name="confirmPassword"
-                    type={showConfirmPass ? 'text' : 'password'}
-                    placeholder="Repita a senha"
-                    autoComplete="new-password"
-                    value={form.confirmPassword}
-                    onChange={handleChange}
-                    className={`has-eye${fieldErrs.confirmPassword ? ' err' : ''}`}
-                  />
-                  <button
-                    type="button"
-                    className="lauth-inp-eye"
-                    onClick={() => setShowConfirmPass(v => !v)}
-                    aria-label="Mostrar confirmação de senha"
-                  >
-                    {showConfirmPass ? <EyeOffIcon /> : <EyeIcon />}
-                  </button>
-                </div>
-                {fieldErrs.confirmPassword && (
-                  <div className="lauth-field-err"><ErrIcon /> {fieldErrs.confirmPassword}</div>
-                )}
-              </div>
-            )}
+            <label className="auth-terms">
+              <input
+                type="checkbox"
+                checked={termsOk}
+                onChange={e => { setTermsOk(e.target.checked); if (fieldErrs.terms) setFieldErrs(f => ({ ...f, terms: '' })) }}
+              />
+              <span>
+                Li e aceito os{' '}
+                <Link to="/termos" target="_blank" rel="noopener noreferrer">Termos de Uso</Link>
+                {' '}e a{' '}
+                <Link to="/privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</Link>
+              </span>
+            </label>
+            {fieldErrs.terms && <div className="auth-field-err"><ErrIcon /> {fieldErrs.terms}</div>}
 
-            {/* Salário — só no cadastro */}
-            {mode === 'register' && (
-              <div className="lauth-field">
-                <div className="lauth-field-hdr">
-                  <label className="lauth-field-lbl" htmlFor="f-salary">Salário mensal (opcional)</label>
-                </div>
-                <div className="lauth-inp-wrap">
-                  <span className="lauth-inp-ico"><MoneyIcon /></span>
-                  <input
-                    id="f-salary" name="salary" type="text"
-                    placeholder="0,00"
-                    inputMode="decimal"
-                    autoComplete="off"
-                    value={form.salary}
-                    onChange={handleChange}
-                  />
-                </div>
-                {fieldErrs.salary
-                  ? <div className="lauth-field-err"><ErrIcon /> {fieldErrs.salary}</div>
-                  : <div className="lauth-field-hint">Pode ser alterado depois nas configurações</div>
-                }
-              </div>
-            )}
+            {serverErr && <div className="auth-server-err"><ErrIcon />{serverErr}</div>}
 
-            {/* Erro do servidor */}
-            {serverErr && (
-              <div className="lauth-server-err">
-                <ErrIcon />
-                {serverErr}
-              </div>
-            )}
-
-            <button type="submit" className="lauth-btn-sub" disabled={loading}>
-              {loading
-                ? <div className="lauth-spinner" />
-                : <span>{mode === 'login' ? 'Entrar na conta' : 'Criar minha conta grátis'}</span>
-              }
+            <button type="submit" className="auth-btn-primary" disabled={loading}>
+              {loading ? <div className="auth-spinner" /> : <span>Criar conta</span>}
             </button>
+          </form>}
 
-            {mode === 'register' && (
-              <div style={{ marginTop: 14 }}>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={termsOk}
-                    onChange={e => { setTermsOk(e.target.checked); if (fieldErrs.terms) setFieldErrs(f => ({ ...f, terms: '' })) }}
-                    style={{ marginTop: 2, accentColor: 'var(--c)', width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
-                  />
-                  <span style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.5 }}>
-                    Li e aceito os{' '}
-                    <Link to="/termos" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--c)', textDecoration: 'none' }}>Termos de Uso</Link>
-                    {' '}e a{' '}
-                    <Link to="/privacidade" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--c)', textDecoration: 'none' }}>Política de Privacidade</Link>
-                  </span>
-                </label>
-                {fieldErrs.terms && (
-                  <div className="lauth-field-err" style={{ marginTop: 6 }}><ErrIcon /> {fieldErrs.terms}</div>
-                )}
-              </div>
-            )}
-          </form>
-
-          <Link to="/" className="lauth-back">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>
-            </svg>
-            Voltar para a página inicial
-          </Link>
-
+          <p className="auth-foot">Já tem conta? <Link to="/login">Entrar</Link></p>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@ const request  = require('supertest')
 const bcrypt   = require('bcryptjs')
 const jwt      = require('jsonwebtoken')
 jest.mock('../src/lib/prisma', () => require('./__mocks__/prisma'))
+jest.mock('../src/services/pushService', () => ({ sendPushToUser: jest.fn().mockResolvedValue(true) }))
 jest.mock('../src/services/emailService', () => {
   const fn = () => jest.fn().mockResolvedValue(true)
   return {
@@ -61,6 +62,26 @@ describe('POST /api/auth/register', () => {
     expect(res.body).not.toHaveProperty('token')
     expect(res.body.user).toHaveProperty('email', 'test@example.com')
     expect(res.body.user).not.toHaveProperty('password')
+  })
+
+  // Tela "Confirme seu e-mail" (Nancy 2): além do link de sempre, o cadastro
+  // agora também gera um código de 6 dígitos (caminho alternativo, mesmo evento).
+  test('gera código de verificação de 6 dígitos junto com o link e envia por e-mail', async () => {
+    prisma.user.findUnique.mockResolvedValue(null)
+    prisma.user.findFirst.mockResolvedValue(null)
+    prisma.user.create.mockResolvedValue(mockUser())
+
+    await request(app)
+      .post('/api/auth/register')
+      .send({ name: 'Test User', email: 'test@example.com', password: 'Password123' })
+
+    const createArgs = prisma.user.create.mock.calls[0][0].data
+    expect(createArgs.emailVerifyCode).toMatch(/^[a-f0-9]{64}$/) // sha256 hex — nunca o código em texto puro
+    expect(createArgs.emailVerifyCodeExpiry).toBeInstanceOf(Date)
+
+    const emailService = require('../src/services/emailService')
+    const sentCode = emailService.sendVerificationEmail.mock.calls[0][3]
+    expect(sentCode).toMatch(/^\d{6}$/)
   })
 
   test('rejeita email duplicado → 400', async () => {
@@ -397,7 +418,28 @@ describe('PUT /api/auth/password', () => {
     expect(res.status).toBe(200)
   })
 
-  test('senha atual errada retorna 401', async () => {
+  test('depois da troca, ESTE aparelho continua logado: o cookie novo traz o tokenVersion novo (os JWTs antigos morrem, os outros aparelhos caem)', async () => {
+    const user = mockUser()
+    prisma.user.findUnique.mockResolvedValue(user)
+    prisma.user.update.mockResolvedValue({ id: 'user-123', tokenVersion: 5 })
+
+    const res = await request(app)
+      .put('/api/auth/password')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+      .send({ currentPassword: 'Password123', newPassword: 'NewPassword456' })
+
+    expect(res.status).toBe(200)
+    const update = prisma.user.update.mock.calls.at(-1)[0]
+    expect(update.data.tokenVersion).toEqual({ increment: 1 }) // a invalidação dos outros aparelhos continua
+    const cookie = (res.headers['set-cookie'] || []).find(c => c.startsWith('token='))
+    expect(cookie).toBeTruthy()
+    expect(cookie).toMatch(/HttpOnly/i)
+    const jwt = require('jsonwebtoken')
+    const decoded = jwt.verify(cookie.split(';')[0].replace('token=', ''), process.env.JWT_SECRET)
+    expect(decoded).toMatchObject({ userId: 'user-123', tokenVersion: 5 })
+  })
+
+  test('senha atual errada retorna 401 e NÃO emite cookie novo', async () => {
     const user = mockUser()
     prisma.user.findUnique.mockResolvedValue(user)
 
@@ -407,6 +449,7 @@ describe('PUT /api/auth/password', () => {
       .send({ currentPassword: 'WrongPass123', newPassword: 'NewPassword456' })
 
     expect(res.status).toBe(401)
+    expect(res.headers['set-cookie']).toBeUndefined()
   })
 
   test('nova senha fraca retorna 400', async () => {
@@ -632,7 +675,13 @@ describe('POST /api/auth/verify-email', () => {
     expect(res.status).toBe(200)
     expect(prisma.user.updateMany).toHaveBeenCalledWith({
       where: { id: 'user-456', emailVerifyToken: HASH, emailVerifyExpiry: { gt: expect.any(Date) } },
-      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
+      // Limpa também o código de 6 dígitos (caminho alternativo pro mesmo
+      // evento) — sem isso ele continuaria válido/tentável após o e-mail já
+      // verificado pelo link.
+      data:  {
+        emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null,
+        emailVerifyCode: null, emailVerifyCodeExpiry: null, emailVerifyCodeAttempts: 0,
+      },
     })
     expect(sendReferralRewardEmail).not.toHaveBeenCalled()
   })
@@ -840,6 +889,348 @@ describe('PUT /api/auth/profile', () => {
 })
 
 // ══════════════════════════════════════════════════════════
+// PREFERÊNCIAS DE NOTIFICAÇÃO (tela "Preferências", Nancy 2)
+// ══════════════════════════════════════════════════════════
+describe('PUT /api/auth/notifications', () => {
+  const cookie = () => `token=${makeToken('user-123')}`
+  const put = (body) => request(app).put('/api/auth/notifications').set('Cookie', cookie()).send(body)
+  beforeEach(() => { prisma.user.findUnique.mockResolvedValue(mockUser()); prisma.user.update.mockResolvedValue({ id: 'user-123' }) })
+
+  test('salva cada preferência booleana conhecida', async () => {
+    const all = { notifBudgetAlert: false, notifBudgetReminder: false, notifSalary: false, notifStories: false, notifTips: false, notifWeeklyEmail: true }
+    const res = await put(all)
+    expect(res.status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-123' }, data: all })
+  })
+
+  test('uma preferência por vez também vale', async () => {
+    expect((await put({ notifWeeklyEmail: true })).status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-123' }, data: { notifWeeklyEmail: true } })
+  })
+
+  test('ignora o que não é preferência conhecida e o que não é booleano (nada de mexer em plano ou e-mail por aqui)', async () => {
+    const res = await put({ notifTips: false, notifSalary: 'sim', plan: 'elite', email: 'x@y.com', emailVerified: true })
+    expect(res.status).toBe(200)
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'user-123' }, data: { notifTips: false } })
+  })
+
+  test('sem nenhum campo válido: 400 e nada é gravado', async () => {
+    expect((await put({ notifSalary: 'sim', plan: 'elite' })).status).toBe(400)
+    expect((await put({})).status).toBe(400)
+    expect(prisma.user.update).not.toHaveBeenCalled()
+  })
+
+  test('sem login: 401', async () => {
+    expect((await request(app).put('/api/auth/notifications').send({ notifTips: false })).status).toBe(401)
+  })
+
+  test('/me devolve as preferências para o app (e login também)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ notifSalary: false, notifStories: true, notifTips: false, notifWeeklyEmail: true }))
+    const res = await request(app).get('/api/auth/me').set('Cookie', cookie())
+    expect(res.body).toMatchObject({ notifSalary: false, notifStories: true, notifTips: false, notifWeeklyEmail: true })
+  })
+})
+
+describe('GET /api/auth/me — lembrete de conta que vence (push), 2 dias antes', () => {
+  const { sendPushToUser } = require('../src/services/pushService')
+  const flush = () => new Promise(r => setTimeout(r, 30))
+  const inDays = (k) => { const now = new Date(); const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate(); return ((now.getDate() - 1 + k) % dim) + 1 }
+
+  const me = async (dueDay, over = {}) => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ notifBudgetReminder: true, budgetReminderSentAt: null, ...over }))
+    // o mesmo método também busca contas encerradas (outro aviso); aqui só a consulta por dia de vencimento devolve a conta
+    prisma.budget.findMany.mockImplementation(async ({ where }) => (where && where.dueDay ? [{ id: 'b1', name: 'Aluguel', amount: 1500, dueDay }] : []))
+    prisma.transaction.findMany.mockResolvedValue([])
+    await request(app).get('/api/auth/me').set('Cookie', `token=${makeToken('user-123')}`)
+    await flush()
+  }
+  const billPushes = () => sendPushToUser.mock.calls.filter(([, p]) => /Aluguel vence/.test(p.title))
+
+  test('conta que vence hoje, amanhã ou em 2 dias avisa, e o aviso abre as Contas do mês', async () => {
+    for (const k of [0, 1, 2]) {
+      sendPushToUser.mockClear()
+      await me(inDays(k))
+      expect(billPushes().length).toBe(1)   // em k dias: 0, 1 e 2
+      expect(billPushes()[0][1].url).toBe('/contas-do-mes')
+    }
+  })
+
+  test('conta que vence daqui a 3 dias ainda não avisa', async () => {
+    sendPushToUser.mockClear()
+    await me(inDays(3))
+    expect(billPushes()).toHaveLength(0)
+  })
+
+  test('com "Vencimento de contas" desligado, não avisa', async () => {
+    sendPushToUser.mockClear()
+    await me(inDays(1), { notifBudgetReminder: false })
+    expect(billPushes()).toHaveLength(0)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// FOTO DE PERFIL (tela "Dados pessoais", Nancy 2)
+// ══════════════════════════════════════════════════════════
+describe('Foto de perfil — /api/auth/avatar', () => {
+  const jpegBytes = (n = 300) => {
+    const b = Buffer.alloc(n, 0x41)
+    b[0] = 0xFF; b[1] = 0xD8; b[2] = 0xFF; b[3] = 0xE0
+    b[n - 2] = 0xFF; b[n - 1] = 0xD9
+    return b
+  }
+  const PREFIX  = 'data:image/jpeg;base64,'
+  const dataUrl = (buf, mime = 'image/jpeg') => `data:${mime};base64,${buf.toString('base64')}`
+  const cookie  = () => `token=${makeToken('user-123')}`
+  const put = (body, token = cookie()) => request(app).put('/api/auth/avatar').set('Cookie', token).send(body)
+  const binary = (res, cb) => { const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks))) }
+
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.user.update.mockResolvedValue({ id: 'user-123' })
+  })
+
+  describe('PUT', () => {
+    test('salva um JPEG válido na tabela da foto, marca a data na linha do usuário e devolve só a data', async () => {
+      const image = dataUrl(jpegBytes())
+      const res = await put({ image })
+      expect(res.status).toBe(200)
+      expect(res.body.avatar).toBeUndefined()
+      expect(new Date(res.body.avatarUpdatedAt).toString()).not.toBe('Invalid Date')
+      expect(prisma.userAvatar.upsert).toHaveBeenCalledWith({ where: { userId: 'user-123' }, create: { userId: 'user-123', image }, update: { image } })
+      expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'user-123' }, data: { avatarUpdatedAt: expect.any(Date) } }))
+    })
+
+    test('aceita o tamanho máximo (48 KB) — o corpo cabe no teto próprio da rota', async () => {
+      expect((await put({ image: dataUrl(jpegBytes(48 * 1024)) })).status).toBe(200)
+    })
+
+    test('sem login: 401 e nada é gravado', async () => {
+      const res = await request(app).put('/api/auth/avatar').send({ image: dataUrl(jpegBytes()) })
+      expect(res.status).toBe(401)
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test.each([
+      ['sem o campo image', {}],
+      ['image que não é texto', { image: 123 }],
+      ['PNG', { image: `data:image/png;base64,${jpegBytes().toString('base64')}` }],
+      ['SVG', { image: `data:image/svg+xml;base64,${Buffer.from('<svg onload="alert(1)"/>').toString('base64')}` }],
+      ['URL externa', { image: 'https://exemplo.com/foto.jpg' }],
+      ['base64 com caracteres inválidos', { image: `${PREFIX}/9j/<script>alert(1)</script>` }],
+      ['base64 vazio', { image: PREFIX }],
+    ])('recusa %s com 400', async (_nome, body) => {
+      expect((await put(body)).status).toBe(400)
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test('recusa base64 fora do padrão: sobra de caractere, sem padding e bits sobrando', async () => {
+      const b64 = jpegBytes(301).toString('base64')                    // termina em "xx=="
+      expect(b64.endsWith('==')).toBe(true)
+      const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+      const bitsSobrando = b64.slice(0, -3) + ALPHA[ALPHA.indexOf(b64.slice(-3, -2)) + 1] + '=='
+      expect(Buffer.from(bitsSobrando, 'base64').equals(Buffer.from(b64, 'base64'))).toBe(true)   // decodifica igual, mas não é o canônico
+      for (const ruim of [b64 + 'A', b64.replace(/=+$/, ''), bitsSobrando]) {
+        expect((await put({ image: PREFIX + ruim })).status).toBe(400)
+      }
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test('recusa bytes que não são JPEG, JPEG cortado (sem FFD9) e arquivo minúsculo', async () => {
+      const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4E, 0x47]), Buffer.alloc(300, 1), Buffer.from([0xFF, 0xD9])])
+      expect((await put({ image: dataUrl(png) })).status).toBe(400)
+      const cortado = jpegBytes(); cortado[cortado.length - 1] = 0x00
+      expect((await put({ image: dataUrl(cortado) })).status).toBe(400)
+      expect((await put({ image: dataUrl(Buffer.from([0xFF, 0xD8, 0xFF, 0xFF, 0xD9])) })).status).toBe(400)
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test('recusa JPEG acima de 48 KB (400) e corpo gigante (413)', async () => {
+      expect((await put({ image: dataUrl(jpegBytes(48 * 1024 + 3)) })).status).toBe(400)
+      expect((await put({ image: dataUrl(jpegBytes(120 * 1024)) })).status).toBe(413)
+      expect(prisma.userAvatar.upsert).not.toHaveBeenCalled()
+    })
+
+    test('o teto maior vale só para /avatar: o resto da API continua com 10 KB', async () => {
+      const res = await request(app).put('/api/auth/profile').set('Cookie', cookie()).send({ name: 'A'.repeat(11 * 1024) })
+      expect(res.status).toBe(413)
+    })
+  })
+
+  describe('DELETE', () => {
+    test('remove a foto e zera a data', async () => {
+      const res = await request(app).delete('/api/auth/avatar').set('Cookie', cookie())
+      expect(res.status).toBe(200)
+      expect(res.body.avatarUpdatedAt).toBeNull()
+      expect(prisma.userAvatar.deleteMany).toHaveBeenCalledWith({ where: { userId: 'user-123' } })
+      expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'user-123' }, data: { avatarUpdatedAt: null } }))
+    })
+  })
+
+  describe('GET', () => {
+    const when = new Date('2026-10-22T15:00:00Z')
+
+    test('devolve a própria foto como JPEG, com cabeçalhos de segurança e ETag da versão', async () => {
+      const buf = jpegBytes(500)
+      prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: when }))
+      prisma.userAvatar.findUnique.mockResolvedValue({ image: dataUrl(buf) })
+      const res = await request(app).get('/api/auth/avatar').set('Cookie', cookie()).buffer(true).parse(binary)
+      expect(res.status).toBe(200)
+      expect(res.headers['content-type']).toBe('image/jpeg')
+      expect(res.headers['x-content-type-options']).toBe('nosniff')
+      expect(res.headers['content-security-policy']).toBe("default-src 'none'; sandbox")
+      expect(res.headers['cross-origin-resource-policy']).toBe('same-origin')
+      expect(res.headers['cache-control']).toBe('private, no-cache')
+      expect(res.headers.etag).toBe(`"av-${when.getTime()}"`)
+      expect(res.body.equals(buf)).toBe(true)
+      expect(prisma.userAvatar.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'user-123' } }))
+    })
+
+    test('com If-None-Match igual à versão: 304 e a imagem nem é lida do banco', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: when }))
+      const res = await request(app).get('/api/auth/avatar').set('Cookie', cookie()).set('If-None-Match', `"av-${when.getTime()}"`)
+      expect(res.status).toBe(304)
+      expect(prisma.userAvatar.findUnique).not.toHaveBeenCalled()
+    })
+
+    test('sem foto: 404', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: null }))
+      expect((await request(app).get('/api/auth/avatar').set('Cookie', cookie())).status).toBe(404)
+    })
+
+    test('linha da foto ausente ou com conteúdo que não é JPEG válido: 404 (nunca serve lixo)', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: when }))
+      prisma.userAvatar.findUnique.mockResolvedValue(null)
+      expect((await request(app).get('/api/auth/avatar').set('Cookie', cookie())).status).toBe(404)
+      prisma.userAvatar.findUnique.mockResolvedValue({ image: 'data:text/html;base64,PHNjcmlwdD4=' })
+      expect((await request(app).get('/api/auth/avatar').set('Cookie', cookie())).status).toBe(404)
+    })
+
+    test('sem login: 401', async () => {
+      expect((await request(app).get('/api/auth/avatar')).status).toBe(401)
+    })
+  })
+
+  test('/me devolve a data da foto, nunca a imagem', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ avatarUpdatedAt: new Date('2026-10-22T15:00:00Z') }))
+    const res = await request(app).get('/api/auth/me').set('Cookie', cookie())
+    expect(res.status).toBe(200)
+    expect(res.body.avatarUpdatedAt).toBe('2026-10-22T15:00:00.000Z')
+    expect(res.body.avatar).toBeUndefined()
+  })
+
+  test('a exportação de dados (LGPD) inclui a foto', async () => {
+    const image = dataUrl(jpegBytes())
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    prisma.userAvatar.findUnique.mockResolvedValue({ image })
+    const res = await request(app).get('/api/auth/export-data').set('Cookie', cookie())
+    expect(res.status).toBe(200)
+    expect(res.body.profile.avatar).toBe(image)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// EXPORTAÇÃO DE DADOS em CSV / PDF (tela "Meus dados") — mesmo conteúdo do JSON da LGPD
+// ══════════════════════════════════════════════════════════
+describe('GET /api/auth/export-data?format=csv|pdf', () => {
+  const get = (q = '') => request(app).get(`/api/auth/export-data${q}`).set('Cookie', `token=${makeToken('user-123')}`)
+    .buffer(true).parse((res, cb) => { const chunks = []; res.on('data', c => chunks.push(c)); res.on('end', () => cb(null, Buffer.concat(chunks))) })
+  const TX = (over = {}) => ({ id: 't1', description: 'Mercado', amount: 123.4, type: 'expense', category: 'food', date: new Date('2026-10-20T15:00:00Z'), archived: false, month: 10, year: 2026, ...over })
+
+  beforeEach(() => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ name: 'Ana', email: 'ana@x.com' }))
+    prisma.transaction.findMany.mockResolvedValue([TX()])
+    prisma.goal.findMany.mockResolvedValue([{ title: 'Viagem', targetAmount: 5000, currentAmount: 1250.5, deadline: new Date('2027-01-10T15:00:00Z'), createdAt: new Date('2026-05-01T15:00:00Z') }])
+    prisma.budget.findMany.mockResolvedValue([{ name: 'Aluguel', amount: 1800, dueDay: 5, endDate: null }])
+    prisma.installmentPlan.findMany.mockResolvedValue([{ name: 'Celular', amount: 250, paidInstallments: 3, totalInstallments: 12, startMonth: 8, startYear: 2026 }])
+    prisma.categoryLimit.findMany.mockResolvedValue([{ category: 'food', amount: 900 }])
+  })
+
+  test('CSV: BOM, ";" e vírgula decimal, uma seção por tipo de dado, anexo .csv', async () => {
+    const res = await get('?format=csv')
+    expect(res.status).toBe(200)
+    expect(res.headers['content-type']).toMatch(/^text\/csv/)
+    expect(res.headers['content-disposition']).toMatch(/^attachment; filename="nancy-dados-\d{4}-\d{2}-\d{2}\.csv"$/)
+    expect(res.headers['cache-control']).toMatch(/no-store/)
+    const csv = res.body.toString('utf8')
+    expect(csv.charCodeAt(0)).toBe(0xFEFF)
+    const lines = csv.slice(1).split('\r\n')
+    expect(lines).toContain('Transações')
+    expect(lines).toContain('Data;Descrição;Categoria;Tipo;Valor (R$);Mês fechado')
+    expect(lines).toContain('20/10/2026;Mercado;Alimentação;Gasto;123,40;Não')
+    expect(lines).toContain('Viagem;5000,00;1250,50;10/01/2027;01/05/2026')
+    expect(lines).toContain('Aluguel;1800,00;5;')
+    expect(lines).toContain('Celular;250,00;3;12;08/2026')
+    expect(lines).toContain('Alimentação;900,00')
+    expect(lines).toContain('Conta;Ana;ana@x.com')
+  })
+
+  test('CSV: descrição com ; aspas e quebra de linha vira uma célula entre aspas, sem quebrar as colunas', async () => {
+    prisma.transaction.findMany.mockResolvedValue([TX({ description: 'Bar "do Zé"; 2 chopes\nconta' })])
+    const csv = (await get('?format=csv')).body.toString('utf8')
+    expect(csv).toContain('20/10/2026;"Bar ""do Zé""; 2 chopes\nconta";Alimentação;Gasto;123,40;Não')
+  })
+
+  test('CSV: texto que começa com = + - @ ganha apóstrofo (não vira fórmula na planilha); números não', async () => {
+    prisma.transaction.findMany.mockResolvedValue([
+      TX({ description: '=HYPERLINK("http://x.test","a")' }), TX({ id: 't2', description: '+55 11 9999' }),
+      TX({ id: 't3', description: '-cmd' }), TX({ id: 't4', description: '@SOMA(A1)' }), TX({ id: 't5', description: 'normal', amount: -5 }),
+    ])
+    prisma.goal.findMany.mockResolvedValue([{ title: '=1+1', targetAmount: 10, currentAmount: 0, deadline: null, createdAt: new Date('2026-05-01T15:00:00Z') }])
+    const lines = (await get('?format=csv')).body.toString('utf8').split('\r\n')
+    expect(lines).toContain('20/10/2026;"\'=HYPERLINK(""http://x.test"",""a"")";Alimentação;Gasto;123,40;Não')
+    expect(lines).toContain("20/10/2026;'+55 11 9999;Alimentação;Gasto;123,40;Não")
+    expect(lines).toContain("20/10/2026;'-cmd;Alimentação;Gasto;123,40;Não")
+    expect(lines).toContain("20/10/2026;'@SOMA(A1);Alimentação;Gasto;123,40;Não")
+    expect(lines).toContain('20/10/2026;normal;Alimentação;Gasto;-5,00;Não')
+    expect(lines).toContain("'=1+1;10,00;0,00;;01/05/2026")
+  })
+
+  test('CSV sem dados: cada seção avisa que não há nada registrado', async () => {
+    prisma.transaction.findMany.mockResolvedValue([]); prisma.goal.findMany.mockResolvedValue([])
+    prisma.budget.findMany.mockResolvedValue([]); prisma.installmentPlan.findMany.mockResolvedValue([]); prisma.categoryLimit.findMany.mockResolvedValue([])
+    const lines = (await get('?format=csv')).body.toString('utf8').split('\r\n')
+    expect(lines.filter(l => l === '(nada registrado)')).toHaveLength(5)
+  })
+
+  test('PDF: arquivo PDF de verdade, anexo .pdf, e a lista enorme não derruba a geração', async () => {
+    prisma.transaction.findMany.mockResolvedValue(Array.from({ length: 2100 }, (_, i) => TX({ id: `t${i}`, description: `Compra ${i} 😀` })))
+    const res = await get('?format=pdf')
+    expect(res.status).toBe(200)
+    expect(res.headers['content-type']).toBe('application/pdf')
+    expect(res.headers['content-disposition']).toMatch(/\.pdf"$/)
+    expect(res.body.subarray(0, 5).toString()).toBe('%PDF-')
+    expect(res.body.length).toBeGreaterThan(1000)
+  })
+
+  test('CSV e PDF não carregam a foto do perfil; JSON (padrão e explícito) continua completo com a foto', async () => {
+    await get('?format=csv'); await get('?format=pdf')
+    expect(prisma.userAvatar.findUnique).not.toHaveBeenCalled()
+    prisma.userAvatar.findUnique.mockResolvedValue({ image: 'data:image/jpeg;base64,AAAA' })
+    for (const q of ['', '?format=json']) {
+      const res = await request(app).get(`/api/auth/export-data${q}`).set('Cookie', `token=${makeToken('user-123')}`)
+      expect(res.status).toBe(200)
+      expect(res.headers['content-type']).toMatch(/^application\/json/)
+      expect(res.body.profile.avatar).toBe('data:image/jpeg;base64,AAAA')
+      expect(res.body.transactions).toHaveLength(1)
+    }
+  })
+
+  test('formato desconhecido ou repetido é recusado antes de buscar qualquer dado', async () => {
+    for (const q of ['?format=xml', '?format=', '?format=csv&format=pdf', '?format[a]=1', '?format=CSV']) {
+      const res = await request(app).get(`/api/auth/export-data${q}`).set('Cookie', `token=${makeToken('user-123')}`)
+      expect(res.status).toBe(400)
+    }
+    expect(prisma.transaction.findMany).not.toHaveBeenCalled()
+  })
+
+  test('sem login: 401; usuário que não existe mais: 404', async () => {
+    expect((await request(app).get('/api/auth/export-data?format=csv')).status).toBe(401)
+    prisma.user.findUnique.mockResolvedValueOnce(mockUser()).mockResolvedValueOnce(null)
+    expect((await get('?format=csv')).status).toBe(404)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
 // TROCA DE E-MAIL (login) — 2 passos: pedir (com senha) + confirmar (token
 // enviado pro e-mail NOVO). Regressão do bug onde PUT /profile recebia
 // `email` do frontend mas nunca aplicava (só lia name/reportEmail do body).
@@ -1004,5 +1395,226 @@ describe('POST /api/auth/confirm-email-change', () => {
       .send({ token })
 
     expect(res.status).toBe(409)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// VERIFICAÇÃO DE E-MAIL POR CÓDIGO (6 dígitos) — caminho alternativo ao
+// link acima pro mesmo evento. Cobertura do link já existe no describe
+// 'POST /api/auth/verify-email' (bloco de cima).
+// ══════════════════════════════════════════════════════════
+describe('POST /api/auth/verify-email-code', () => {
+  const authCookie = () => `token=${makeToken('user-123')}`
+
+  test('sem sessão → 401', async () => {
+    const res = await request(app).post('/api/auth/verify-email-code').send({ code: '123456' })
+    expect(res.status).toBe(401)
+  })
+
+  test('formato inválido (não são 6 dígitos) → 400', async () => {
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '12345' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/inválido/i)
+  })
+
+  test('e-mail já verificado → 400', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ emailVerified: true }))
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/já verificado/i)
+  })
+
+  test('sem código ativo → 400 código expirado', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false, emailVerifyCode: null, emailVerifyCodeExpiry: null,
+    }))
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/expirado/i)
+  })
+
+  test('código expirado (expiry no passado) → 400', async () => {
+    const crypto = require('crypto')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: crypto.createHash('sha256').update('123456').digest('hex'),
+      emailVerifyCodeExpiry: new Date(Date.now() - 1000),
+      emailVerifyCodeAttempts: 0,
+    }))
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/expirado/i)
+  })
+
+  // Reserva a tentativa de forma atômica (updateMany condicionado) ANTES de
+  // comparar o código — achado de auditoria de segurança, 2026-10-21: a
+  // versão original lia emailVerifyCodeAttempts solto e só incrementava
+  // depois de decidir comparar, então requisições concorrentes liam o
+  // mesmo contador defasado e todas passavam do teto antes de qualquer
+  // escrita aterrissar. Essa suíte cobre a versão corrigida.
+  test('teto de tentativas já estourado → 429 sem nem tentar verificar o código', async () => {
+    const crypto = require('crypto')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: crypto.createHash('sha256').update('123456').digest('hex'),
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+    }))
+    // where: { emailVerifyCodeAttempts: { lt: MAX } } não acha a linha — já no teto
+    prisma.user.updateMany.mockResolvedValue({ count: 0 })
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' }) // mesmo o código certo não passa — limite já estourado
+
+    expect(res.status).toBe(429)
+    // Só a reserva de tentativa foi chamada — nunca chegou no updateMany de
+    // verificação (que teria emailVerifyCode no where).
+    expect(prisma.user.updateMany).toHaveBeenCalledTimes(1)
+  })
+
+  test('código incorreto (abaixo do limite) → 400 e reserva/consome uma tentativa', async () => {
+    const crypto = require('crypto')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: crypto.createHash('sha256').update('999999').digest('hex'),
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+    }))
+    prisma.user.updateMany.mockResolvedValue({ count: 1 })
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '111111' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/incorreto/i)
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'user-123', emailVerifyCodeAttempts: { lt: 5 } },
+      data:  { emailVerifyCodeAttempts: { increment: 1 } },
+    })
+  })
+
+  // A 5ª tentativa errada ainda reserva normalmente (4 < 5) e responde
+  // "incorreto" — só a PRÓXIMA requisição (6ª) encontra o teto já estourado
+  // e vira 429. Diferente da versão antiga, que tentava detectar "acabei de
+  // estourar" dentro da mesma requisição; a nova versão não precisa disso
+  // porque o próprio where da reserva já barra pra sempre a partir daqui.
+  test('5ª tentativa errada (última dentro do limite) ainda responde "incorreto", não 429', async () => {
+    const crypto = require('crypto')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: crypto.createHash('sha256').update('999999').digest('hex'),
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+    }))
+    prisma.user.updateMany.mockResolvedValue({ count: 1 }) // where lt:5 ainda bate (attempts era 4)
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '111111' })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/incorreto/i)
+  })
+
+  test('código correto → 200, verifica e limpa token/código/tentativas', async () => {
+    const crypto = require('crypto')
+    const hash   = crypto.createHash('sha256').update('123456').digest('hex')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false, referredBy: null,
+      emailVerifyCode: hash,
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+      emailVerifyCodeAttempts: 1,
+    }))
+    prisma.user.updateMany.mockResolvedValue({ count: 1 })
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ ok: true })
+    expect(prisma.user.updateMany).toHaveBeenCalledWith({
+      where: { id: 'user-123', emailVerifyCode: hash },
+      data:  {
+        emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null,
+        emailVerifyCode: null, emailVerifyCodeExpiry: null, emailVerifyCodeAttempts: 0,
+      },
+    })
+  })
+
+  test('código correto mas corrida na verificação final (updateMany conta 0) → 400, não 200', async () => {
+    const crypto = require('crypto')
+    const hash   = crypto.createHash('sha256').update('123456').digest('hex')
+    prisma.user.findUnique.mockResolvedValue(mockUser({
+      emailVerified: false,
+      emailVerifyCode: hash,
+      emailVerifyCodeExpiry: new Date(Date.now() + 10 * 60 * 1000),
+    }))
+    // 1ª chamada (reserva de tentativa) passa normalmente; 2ª (verificação
+    // final, condicionada ao emailVerifyCode) perde a corrida.
+    prisma.user.updateMany
+      .mockResolvedValueOnce({ count: 1 })
+      .mockResolvedValueOnce({ count: 0 })
+
+    const res = await request(app)
+      .post('/api/auth/verify-email-code')
+      .set('Cookie', authCookie())
+      .send({ code: '123456' })
+
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('POST /api/auth/resend-verification', () => {
+  test('sem sessão → 401', async () => {
+    const res = await request(app).post('/api/auth/resend-verification')
+    expect(res.status).toBe(401)
+  })
+
+  test('e-mail já verificado → 400', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ emailVerified: true }))
+    const res = await request(app)
+      .post('/api/auth/resend-verification')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/já verificado/i)
+  })
+
+  test('sucesso: regenera link e código juntos, zera tentativas', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ emailVerified: false }))
+
+    const res = await request(app)
+      .post('/api/auth/resend-verification')
+      .set('Cookie', `token=${makeToken('user-123')}`)
+
+    expect(res.status).toBe(200)
+    const updateArgs = prisma.user.update.mock.calls[0][0]
+    expect(updateArgs.data.emailVerifyToken).toMatch(/^[a-f0-9]{64}$/)
+    expect(updateArgs.data.emailVerifyCode).toMatch(/^[a-f0-9]{64}$/)
+    expect(updateArgs.data.emailVerifyCodeAttempts).toBe(0)
+
+    const emailService = require('../src/services/emailService')
+    const call = emailService.sendVerificationEmail.mock.calls.at(-1)
+    expect(call[3]).toMatch(/^\d{6}$/) // código de 6 dígitos em texto puro só no e-mail
   })
 })

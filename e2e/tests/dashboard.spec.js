@@ -1,6 +1,6 @@
 // @ts-nocheck
-const { test, expect } = require('@playwright/test')
-const { createMock }   = require('../helpers/mockApi')
+const { test, expect } = require('../helpers/test')
+const { injectSession, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
 // Dados de mock — completos para o contrato atual da API
@@ -15,23 +15,25 @@ const mockUser = {
   notifBudgetAlert: true, notifBudgetReminder: true,
 }
 
-// 7 transações em 5 datas distintas — garante que "Ver mais" aparece (FEED_PREVIEW=3)
+// 7 transações — "Últimas" mostra só as 5 mais recentes (slice(0,5))
 const mockTxList = [
-  { id: 't1', description: 'Aluguel',     amount: 2000, type: 'expense', category: 'housing',  date: '2026-06-01T10:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't2', description: 'Salário',      amount: 5000, type: 'income',  category: 'salary',   date: '2026-06-01T09:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't3', description: 'Supermercado', amount:  450, type: 'expense', category: 'food',     date: '2026-06-02T12:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't4', description: 'Internet',     amount:  120, type: 'expense', category: 'utilities',date: '2026-06-03T08:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't5', description: 'Freelance',    amount: 1500, type: 'income',  category: 'freelance',date: '2026-06-04T14:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't6', description: 'Luz',          amount:  180, type: 'expense', category: 'utilities',date: '2026-06-05T10:00:00Z', month: 6, year: 2026, archived: false },
-  { id: 't7', description: 'Academia',     amount:   90, type: 'expense', category: 'health',   date: '2026-06-05T11:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't1', description: 'Aluguel',     amount: 2000, type: 'expense', category: 'housing',  date: '2026-06-05T10:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't2', description: 'Academia',    amount:   90, type: 'expense', category: 'health',   date: '2026-06-05T11:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't3', description: 'Supermercado',amount:  450, type: 'expense', category: 'food',     date: '2026-06-04T12:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't4', description: 'Internet',    amount:  120, type: 'expense', category: 'utilities',date: '2026-06-03T08:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't5', description: 'Freelance',   amount: 1500, type: 'income',  category: 'freelance',date: '2026-06-02T14:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't6', description: 'Luz',         amount:  180, type: 'expense', category: 'utilities',date: '2026-06-01T10:00:00Z', month: 6, year: 2026, archived: false },
+  { id: 't7', description: 'Salário',     amount: 5000, type: 'income',  category: 'salary',   date: '2026-06-01T09:00:00Z', month: 6, year: 2026, archived: false },
 ]
 
-// Resposta do /api/transactions/dashboard — shape correto esperado pelo componente
+// Resposta do /api/transactions/dashboard — mesmo shape que o backend real
+// envia (backend/src/routes/transactions.js) — score/saúde financeira são
+// computados no client a partir destes campos, não vêm prontos do backend.
 const mockDashboard = {
   summary: {
-    currentBalance: 5660, totalAvailable: 6500, salary: 5000,
-    totalExpenses: 2840, totalIncome: 1500, percentUsed: 57,
-    financialScore: 72, healthLabel: 'Saudável', extras: 1500,
+    salary: 5000, totalIncome: 1500, totalFixedCosts: 2000, unpaidFixedCosts: 0,
+    unpaidBudgetIds: [], totalExpenses: 2840, totalAvailable: 6500,
+    currentBalance: 3660, percentUsed: 44,
   },
   transactions: mockTxList,
   limits: [],
@@ -51,13 +53,13 @@ async function goDashboard(page) {
   })
 
   // 2. Rotas específicas (maior prioridade — sobrepõem o wildcard)
-  // LIFO — ordem: geral ANTES, específico DEPOIS (específico ganha)
   await page.route('**/api/auth/me**',            r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockUser) }))
   await page.route('**/api/transactions**',        r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockTxList) }))
   await page.route('**/api/transactions/dashboard**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard) }))
   await page.route('**/api/budget**',              r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard.budgets) }))
   await page.route('**/api/budget/category-limits**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
   await page.route('**/api/goals**',               r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+  await page.route('**/api/transactions/weekly-tip-available**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ available: true }) })) // há base pra dica: o anel do story aparece
   await page.route('**/api/installments**',        r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
   await page.route('**/api/agent/predict**',       r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ prediction: 'Sem dados suficientes.' }) }))
   await page.route('**/health**',                  r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ok', db_ms: 5 }) }))
@@ -101,10 +103,10 @@ test.describe('Dashboard — Responsividade Mobile (375px)', () => {
     expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth)
   })
 
-  test('.hb-feed-card não ultrapassa a borda da tela', async ({ page }) => {
+  test('.home-recent não ultrapassa a borda da tela', async ({ page }) => {
     await goDashboard(page)
     const cardRight = await page.evaluate(() => {
-      const card = document.querySelector('.hb-feed-card')
+      const card = document.querySelector('.home-recent')
       if (!card) return null
       return card.getBoundingClientRect().right
     })
@@ -114,190 +116,343 @@ test.describe('Dashboard — Responsividade Mobile (375px)', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 2. HERO MOBILE — tabs e card (hb-kpi-block)
+// 2. CABEÇALHO — saldo e ações rápidas (Nancy 2, tela 08)
 // ─────────────────────────────────────────────────────────────────
-test.describe('Dashboard — Hero Mobile', () => {
+test.describe('Dashboard — Início: cabeçalho e ações rápidas', () => {
   test.use({ viewport: { width: 393, height: 852 } })
 
-  test('bloco kpi-block visível no mobile', async ({ page }) => {
+  test('saldo disponível visível com o valor do resumo', async ({ page }) => {
     await goDashboard(page)
-    await expect(page.locator('.hb-kpi-block')).toBeVisible()
+    await expect(page.locator('.home-balance-lbl')).toContainText('Saldo disponível')
+    await expect(page.locator('.home-balance-val')).toContainText('3.660')
   })
 
-  test('4 tabs visíveis (Saldo, Entradas, Gastos, Score)', async ({ page }) => {
+  test('4 ações rápidas visíveis (Adicionar, Extrato, Metas, Nancy IA)', async ({ page }) => {
     await goDashboard(page)
-    const tabs = page.locator('.hb-btab')
-    await expect(tabs).toHaveCount(4)
-    await expect(tabs.nth(0)).toContainText('Saldo')
-    await expect(tabs.nth(1)).toContainText('Entradas')
-    await expect(tabs.nth(2)).toContainText('Gastos')
-    await expect(tabs.nth(3)).toContainText('Score')
+    const actions = page.locator('.home-qa-btn')
+    await expect(actions).toHaveCount(4)
+    await expect(actions.nth(0)).toContainText('Adicionar')
+    await expect(actions.nth(1)).toContainText('Extrato')
+    await expect(actions.nth(2)).toContainText('Metas')
+    await expect(actions.nth(3)).toContainText('Nancy IA')
   })
 
-  test('tab Saldo ativa por padrão — underline verde', async ({ page }) => {
+  test('botão "Adicionar" abre o formulário de nova transação', async ({ page }) => {
     await goDashboard(page)
-    const saldoTab = page.locator('.hb-btab').first()
-    const borderColor = await saldoTab.evaluate(el =>
-      window.getComputedStyle(el).borderBottomColor
-    )
-    // Deve ter border-bottom colorido (não transparente)
-    expect(borderColor).not.toBe('rgba(0, 0, 0, 0)')
-    expect(borderColor).not.toBe('transparent')
+    await page.locator('.home-qa-btn', { hasText: 'Adicionar' }).click()
+    await expect(page.locator('.modal-overlay.movl')).toBeVisible({ timeout: 5000 })
   })
 
-  test('clicar tab Score muda conteúdo do card', async ({ page }) => {
+  test('ocultar/mostrar saldo mascara os valores sensíveis', async ({ page }) => {
     await goDashboard(page)
-    await page.locator('.hb-btab').nth(3).click()
-    await page.waitForTimeout(200)
-    const scoreLabel = page.locator('.hb-pane-lbl')
-    await expect(scoreLabel).toContainText(/score/i)
-  })
+    const balance = page.locator('.home-balance-val')
+    await expect(balance).toContainText('3.660')
 
-  test('botão Nova Transação visível no hero mobile', async ({ page }) => {
-    await goDashboard(page)
-    const btn = page.locator('.hb-btn-main')
-    await expect(btn).toBeVisible()
-    await expect(btn).toContainText('Nova Transação')
-  })
+    await page.locator('.home-iconbtn[aria-label="Ocultar valores"]').click()
+    await expect(balance).toContainText('••')
+    await expect(balance).not.toContainText('3.660')
 
-  test('hb-desktop-only oculto em 393px', async ({ page }) => {
-    await goDashboard(page)
-    const desktop = page.locator('.hb-desktop-only').first()
-    const isHidden = await desktop.evaluate(el =>
-      window.getComputedStyle(el).display === 'none'
-    )
-    expect(isHidden).toBe(true)
+    await page.locator('.home-iconbtn[aria-label="Mostrar valores"]').click()
+    await expect(balance).toContainText('3.660')
   })
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 3. HERO DESKTOP — tabs + gráfico
+// 3. RESUMOS, SAÚDE FINANCEIRA E ESTATÍSTICAS
 // ─────────────────────────────────────────────────────────────────
-test.describe('Dashboard — Hero Desktop (1280px)', () => {
-  test.use({ viewport: { width: 1280, height: 800 } })
+test.describe('Dashboard — Resumos, saúde financeira e estatísticas', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
 
-  test('hero section visível no desktop', async ({ page }) => {
+  test('4 círculos de resumo visíveis', async ({ page }) => {
     await goDashboard(page)
-    await expect(page.locator('.hb-hero-section')).toBeVisible()
+    await expect(page.locator('.home-story')).toHaveCount(4)
   })
 
-  test('4 tabs desktop visíveis', async ({ page }) => {
+  test('card de saúde financeira mostra uma pontuação de 0 a 100', async ({ page }) => {
     await goDashboard(page)
-    const tabs = page.locator('.hb-htab')
-    await expect(tabs).toHaveCount(4)
+    const scoreText = await page.locator('.home-health-score').textContent()
+    const score = parseInt(scoreText, 10)
+    expect(score).toBeGreaterThanOrEqual(0)
+    expect(score).toBeLessThanOrEqual(100)
+    await expect(page.locator('.home-health-title')).toContainText('Saúde financeira')
   })
 
-  test('gráfico SVG renderizado no hero', async ({ page }) => {
+  test('3 estatísticas visíveis (Entradas, Saídas, Contas fixas)', async ({ page }) => {
     await goDashboard(page)
-    const hasSvg = await page.evaluate(() => !!document.querySelector('.hb-chart-svg'))
-    expect(hasSvg).toBe(true)
-  })
-
-  test('hb-kpi-block oculto em 1280px', async ({ page }) => {
-    await goDashboard(page)
-    const mobile = page.locator('.hb-kpi-block').first()
-    const isHidden = await mobile.evaluate(el =>
-      window.getComputedStyle(el).display === 'none'
-    )
-    expect(isHidden).toBe(true)
+    const stats = page.locator('.home-stat')
+    await expect(stats).toHaveCount(3)
+    await expect(stats.nth(0)).toContainText('Entradas')
+    await expect(stats.nth(1)).toContainText('Saídas')
+    await expect(stats.nth(2)).toContainText('Contas fixas')
   })
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 4. FEED DE ATIVIDADE — Ver mais / Ver menos
+// Stories — os 4 círculos de "Resumos" abrem a tela 09 (cada um um fluxo)
 // ─────────────────────────────────────────────────────────────────
-test.describe('Dashboard — Feed de Atividade (Ver mais / Ver menos)', () => {
+test.describe('Dashboard — Stories (círculos de resumo)', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
 
-  test('botão "Ver mais" aparece quando há mais de 3 grupos de data', async ({ page }) => {
+  const json = (body) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  const mockRecap = {
+    month: 10, year: 2026, hasData: true, saved: 9500, savedDeltaPct: 32, prevMonth: 9, isBestOfYear: true,
+    belowAverage: { category: 'transport', label: 'Transporte', pct: 12 },
+    topExpenses: [{ category: 'fixed', label: 'Contas fixas', amount: 5080 }, { category: 'food', label: 'Alimentação', amount: 1165 }],
+    totalExpenses: 6245, fixedSharePct: 81, fixedPaid: 9, fixedTotal: 9, expensesDeltaPct: null,
+    score: 82, scorePrev: 76, scoreNext: null, nextStep: null, suggestedGoal: 10000,
+  }
+
+  async function mockStories(page) {
+    await page.route('**/api/transactions/monthly-recap**', r => r.fulfill(json(mockRecap)))
+    await page.route('**/api/agent/weekly-tip**', r => r.fulfill(json({
+      category: 'food', label: 'Alimentação', pct: 18, excess: 90, source: 'rule',
+      tip: 'Voltar à sua média em alimentação poupa cerca de R$ 90 por mês.',
+    })))
+    await page.route('**/api/transactions/subscriptions**', r => r.fulfill(json([
+      { description: 'Netflix', amount: 55.9 }, { description: 'Spotify', amount: 21.9 }, { description: 'Academia', amount: 41.2 },
+    ])))
+    await page.route('**/api/goals**', r => r.fulfill(json([
+      { id: 'g1', title: 'Reserva de emergência', targetAmount: 29500, currentAmount: 17900, createdAt: '2026-01-01T12:00:00Z', deadline: null },
+    ])))
+    // O Início já pré-carregou os stories com as respostas genéricas do goDashboard (estes mocks ainda não existiam). Avisa que os dados
+    // mudaram — o mesmo 'budget-updated' que todo ponto do app dispara — pra o guardado ser descartado e os stories usarem estes mocks.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('budget-updated')))
+  }
+
+  test('círculo do mês atual abre o resumo completo (6 histórias)', async ({ page }) => {
     await goDashboard(page)
-    const btn = page.locator('.hb-feed-toggle')
-    await expect(btn).toBeVisible({ timeout: 8000 })
-    await expect(btn).toContainText('Ver mais')
+    await mockStories(page)
+    await page.locator('button.home-story-blue').click()
+    await expect(page).toHaveURL(/\/resumo-stories$/)
+    await expect(page.getByText('Resumo de outubro')).toBeVisible()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(6)
   })
 
-  test('clicar "Ver mais" expande o feed e exibe "Ver menos"', async ({ page }) => {
+  // Achado do André (iPhone): tocar nos stories deixava uma "sombra" cinza do sistema sobre 40% da tela (as zonas de avançar/voltar).
+  test('as zonas de toque dos stories não deixam o destaque cinza do iOS', async ({ page }) => {
     await goDashboard(page)
-    const toggle = page.locator('.hb-feed-toggle')
-    await expect(toggle).toContainText('Ver mais', { timeout: 8000 })
-
-    await toggle.click()
-    await expect(toggle).toContainText('Ver menos')
+    await mockStories(page)
+    await page.locator('button.home-story-blue').click()
+    await expect(page.getByText('Resumo de outubro')).toBeVisible()
+    for (const sel of ['.stories-tap-left', '.stories-tap-right', '.stories-iconbtn']) {
+      const cor = await page.locator(sel).first().evaluate(el => getComputedStyle(el).webkitTapHighlightColor)
+      expect(cor, sel).toBe('rgba(0, 0, 0, 0)')
+    }
   })
 
-  test('clicar "Ver menos" volta ao estado colapsado', async ({ page }) => {
+  test('círculo do mês anterior abre a versão curta (2 histórias)', async ({ page }) => {
     await goDashboard(page)
-    const toggle = page.locator('.hb-feed-toggle')
-    await toggle.click()
-    await expect(toggle).toContainText('Ver menos')
-    await toggle.click()
-    await expect(toggle).toContainText('Ver mais')
+    await mockStories(page)
+    await page.locator('button.home-story-navy').click()
+    await expect(page.getByText('Você guardou')).toBeVisible()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(2)
   })
 
-  test('trocar filtro "Gastos" reseta feed para colapsado', async ({ page }) => {
+  test('Dicas IA abre a dica da semana e as assinaturas', async ({ page }) => {
     await goDashboard(page)
-    const toggle = page.locator('.hb-feed-toggle')
-    await toggle.click()
-    await expect(toggle).toContainText('Ver menos')
-
-    // Clica no filtro do feed (não no tab do hero)
-    await page.locator('.hb-feed-tab', { hasText: /^Gastos$/i }).click()
-    await expect(toggle).toContainText('Ver mais', { timeout: 5000 })
+    await mockStories(page)
+    await page.locator('button.home-story-light').click()
+    await expect(page.getByText('Alimentação está 18% acima da média.')).toBeVisible()
+    await expect(page.getByText('Dicas da Nancy')).toBeVisible()
+    await page.getByRole('button', { name: 'Avançar' }).click()
+    await expect(page.getByText('3 assinaturas somam R$ 119/mês.')).toBeVisible()
   })
 
-  test('lista original de transações não é mutada', async ({ page }) => {
+  test('"Revisar com a Nancy" volta pro Início e abre o chat (que fica sob as stories)', async ({ page }) => {
     await goDashboard(page)
-    const countBefore = await page.locator('.hb-feed-item').count()
-    await page.locator('.hb-feed-toggle').click()
-    const countAfter = await page.locator('.hb-feed-item').count()
-    expect(countAfter).toBeGreaterThanOrEqual(countBefore)
-    expect(countAfter).toBeLessThanOrEqual(mockTxList.length)
+    await mockStories(page)
+    await page.locator('button.home-story-light').click()
+    await page.getByRole('button', { name: 'Avançar' }).click()
+    await page.evaluate(() => window.addEventListener('nancy:open-agent-chat', e => { window.__asked = e.detail?.message }))
+    await page.getByRole('button', { name: 'Revisar com a Nancy' }).click()
+    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page.locator('.agent-panel')).toBeVisible()
+    // achado N2-2: o botão prometia uma revisão e o chat abria vazio — agora leva a pergunta pronta
+    await expect.poll(() => page.evaluate(() => window.__asked)).toBe('Quais das minhas assinaturas vale a pena revisar ou cancelar?')
   })
 
+  // Achado da revisão independente: "Tentar de novo" ficava dentro de .stories-content (pointer-events: none): o toque caía na zona de
+  // "avançar", que fecha o story sem histórias. O teste unitário não vê isso (jsdom não carrega o CSS): só um clique de verdade.
+  test('story com erro: "Tentar de novo" recebe o toque (não fecha o story) e refaz a busca', async ({ page }) => {
+    await goDashboard(page)
+    let falhar = true
+    const foraDoAr = { status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'fora do ar' }) } // (o json() daqui é sempre 200)
+    await page.route('**/api/transactions/stories-bundle**', r => r.fulfill(foraDoAr))
+    await page.route('**/api/transactions/monthly-recap**', r => (falhar ? r.fulfill(foraDoAr) : r.fulfill(json(mockRecap))))
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('budget-updated'))) // descarta o que o Início já tinha pré-carregado
+    await page.locator('button.home-story-blue').click()
+    await expect(page.getByText('Não foi possível carregar o resumo.')).toBeVisible()
+    falhar = false
+    await page.getByRole('button', { name: 'Tentar de novo' }).click({ timeout: 5000 }) // o clique falha se outra camada cobrir o botão
+    await expect(page).toHaveURL(/\/resumo-stories$/)            // não fechou o story
+    await expect(page.getByText('Resumo de outubro')).toBeVisible()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(6)
+  })
+
+  test('Metas abre a meta mais relevante com quanto falta', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-ring').click()
+    await expect(page.getByText('Suas metas')).toBeVisible()
+    await expect(page.getByText('Faltam 39%.')).toBeVisible()
+    await expect(page.getByText('R$ 11.600')).toBeVisible()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(1)
+  })
+
+  test('story aberta apaga o anel do círculo (e só o dela)', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    // nenhuma aberta ainda: os 4 círculos com anel
+    await expect(page.locator('.home-story.is-seen')).toHaveCount(0)
+    await page.locator('button.home-story-blue').click()
+    await expect(page.locator('.stories-progress-track')).toHaveCount(6)
+    await page.getByRole('button', { name: 'Fechar' }).click()
+    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page.locator('button.home-story-blue')).toHaveClass(/is-seen/)
+    await expect(page.locator('.home-story.is-seen')).toHaveCount(1)
+  })
+
+  test('sem base pra dica da semana, o círculo "Dicas IA" fica sem anel (não anuncia algo que não existe)', async ({ page }) => {
+    await goDashboard(page)
+    await page.route('**/api/transactions/weekly-tip-available**', r => r.fulfill(json({ available: false })))
+    await page.reload()
+    await expect(page.locator('.home-story')).toHaveCount(4, { timeout: 20000 })
+    await expect(page.locator('button.home-story-light')).toHaveClass(/is-seen/)
+    await expect(page.locator('button.home-story-blue')).not.toHaveClass(/is-seen/) // os outros continuam com anel
+  })
+
+  test('story vazia ou com erro não conta como vista', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.route('**/api/goals**', r => r.fulfill(json([])))   // sem metas → story vazia
+    await page.locator('button.home-story-ring').click()
+    await expect(page.getByText('Nenhuma meta em andamento.')).toBeVisible()
+    await page.getByRole('button', { name: 'Fechar' }).click()
+    await expect(page.locator('.home-story.is-seen')).toHaveCount(0)
+  })
+
+  test('fechar volta pro Início', async ({ page }) => {
+    await goDashboard(page)
+    await mockStories(page)
+    await page.locator('button.home-story-ring').click()
+    await page.getByRole('button', { name: 'Fechar' }).click()
+    await expect(page).toHaveURL(/\/dashboard$/)
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 5. TOKEN DE COR var(--c)
+// 4. ÚLTIMAS — lista de transações recentes
 // ─────────────────────────────────────────────────────────────────
-test.describe('Dashboard — Token de cor var(--c)', () => {
+test.describe('Dashboard — Últimas transações', () => {
 
-  test('--c está definido no :root', async ({ page }) => {
+  test('mostra no máximo as 5 transações mais recentes', async ({ page }) => {
     await goDashboard(page)
-    const color = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--c').trim()
-    )
-    expect(color).not.toBe('')
-    expect(color.startsWith('#') || color.startsWith('rgb')).toBeTruthy()
+    const rows = page.locator('.home-recent-row')
+    await expect(rows.first()).toBeVisible({ timeout: 8000 })
+    const count = await rows.count()
+    expect(count).toBeLessThanOrEqual(5)
+    expect(count).toBeGreaterThan(0)
   })
 
-  test('botão Nova Transação mobile usa var(--c) — não hardcoded #4ac46e', async ({ page }) => {
-    await page.setViewportSize({ width: 393, height: 852 })
+  test('"Ver extrato" navega para /transactions', async ({ page }) => {
     await goDashboard(page)
-
-    // Mobile: .hb-btn-main
-    const btnBg = await page.evaluate(() => {
-      const btn = document.querySelector('.hb-btn-main')
-      return btn ? getComputedStyle(btn).backgroundColor : null
-    })
-    expect(btnBg).not.toBeNull()
-    expect(btnBg).not.toBe('rgb(74, 196, 110)')   // antigo #4ac46e hardcoded
+    await page.locator('.home-recent-link', { hasText: 'Ver extrato' }).click()
+    await page.waitForURL(/\/transactions/, { timeout: 5000 })
   })
 
-  test('botão Nova Transação desktop usa var(--c) — não hardcoded', async ({ page }) => {
-    await goDashboard(page) // viewport padrão 1280px
-
-    // Desktop: .hb-hero-btn
-    const btnBg = await page.evaluate(() => {
-      const btn = document.querySelector('.hb-hero-btn')
-      return btn ? getComputedStyle(btn).backgroundColor : null
-    })
-    expect(btnBg).not.toBeNull()
-    expect(btnBg).not.toBe('rgb(74, 196, 110)')
+  test('as linhas mostram "categoria · data" e valor com sinal, sem botão de remover (a exclusão vive no Extrato)', async ({ page }) => {
+    await goDashboard(page)
+    const first = page.locator('.home-recent-row').first()
+    await expect(first.locator('.home-recent-meta')).toContainText(/ · \d{2} [a-zç]{3}$/)
+    await expect(first.locator('.home-recent-amt')).toContainText(/^[+−]R\$ /)
+    await expect(page.locator('.home-recent-del')).toHaveCount(0)
   })
-
 })
 
 // ─────────────────────────────────────────────────────────────────
-// 6. MOCK LIFO — Isolamento em execução paralela
+// Nancy 2 é desenhado só no claro: as telas ignoram o tema escuro salvo, sem
+// apagar a preferência (ela só volta a valer se alguma tela deixar de forçar o claro).
+// ─────────────────────────────────────────────────────────────────
+test.describe('Dashboard — tema claro imposto e barra de baixo', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
+
+  test('com o tema escuro salvo, as telas saem claras e a preferência escura continua guardada', async ({ page }) => {
+    await goDashboard(page)
+    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    const bg = await page.evaluate(() => getComputedStyle(document.querySelector('.home-body')).backgroundColor)
+    expect(bg).toBe('rgb(242, 246, 255)') // #F2F6FF do design
+
+    // todas as telas logadas já são Nancy 2: Perfil → Meus dados continua claro, sem apagar a preferência salva
+    await page.locator('.dsb-mobile-nav').getByRole('button', { name: 'Perfil' }).click()
+    await page.waitForURL(/\/settings$/)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    await page.getByRole('button', { name: 'Meus dados', exact: true }).click()
+    await page.waitForURL(/\/settings\/dados/)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
+
+    await page.locator('.dsb-mobile-nav').getByRole('button', { name: 'Início' }).click()
+    await page.waitForURL(/\/dashboard/)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+    expect(await page.evaluate(() => localStorage.getItem('theme'))).toBe('dark')
+  })
+
+  test('barra de baixo: Início · Extrato · + · Metas · Perfil, com o item atual em destaque', async ({ page }) => {
+    await goDashboard(page)
+    const nav = page.locator('.dsb-mobile-nav')
+    await expect(nav.locator('.dsb-mn-lbl')).toHaveText(['Início', 'Extrato', 'Metas', 'Perfil'])
+    await expect(nav.locator('.dsb-mn-fab')).toBeVisible()
+    await expect(nav.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Início')
+  })
+
+  test('cabeçalho: só olho e sino (sem tema/busca) e selo do mês com o crescimento do saldo', async ({ page }) => {
+    await goDashboard(page)
+    await expect(page.locator('.home-hero-actions .home-iconbtn')).toHaveCount(2)
+    await expect(page.locator('.home-iconbtn[aria-label="Alternar tema"]')).toHaveCount(0)
+    // mock: salário 5000 − contas fixas 2000 = 3000 no início; saldo 3660 → +22,0%
+    await expect(page.locator('.home-badge')).toHaveText('+22,0% no mês')
+  })
+
+  test('banner "No ritmo atual" aparece a partir do 3º dia do mês, com o mês e a ação de perguntar à Nancy', async ({ page }) => {
+    await goDashboard(page)
+    const banner = page.locator('.home-insight')
+    if (new Date().getDate() < 3) { await expect(banner).toHaveCount(0); return }
+    await expect(banner).toContainText('No ritmo atual, você termina')
+    await expect(banner).toContainText('Perguntar à Nancy')
+  })
+
+  // Achado N2-7: tocar no cartão abria o chat vazio — o botão promete perguntar, então já leva uma pergunta ligada ao que o cartão diz.
+  test('tocar no banner "No ritmo atual" leva uma pergunta pronta ao chat', async ({ page }) => {
+    await goDashboard(page)
+    if (new Date().getDate() < 3) return
+    await page.evaluate(() => window.addEventListener('nancy:open-agent-chat', e => { window.__asked = e.detail?.message }))
+    await page.locator('.home-insight').click()
+    const asked = await page.evaluate(() => window.__asked)
+    expect(['Como posso sobrar ainda mais este mês?', 'Como posso fechar este mês no azul?']).toContain(asked)
+  })
+
+  // Achado N2-2: as linhas de "Últimas" não faziam nada ao toque.
+  test('tocar numa linha de "Últimas" abre o Extrato', async ({ page }) => {
+    await goDashboard(page)
+    const rows = page.locator('.home-recent-row')
+    await expect(rows).toHaveCount(5)
+    await expect(rows.first()).toHaveJSProperty('tagName', 'BUTTON') // é um botão de verdade (teclado e leitor de tela)
+    await rows.first().click()
+    await expect(page).toHaveURL(/\/transactions$/)
+  })
+
+  test('estatísticas em número inteiro, sem R$ nem "k" (Entradas = salário + entradas)', async ({ page }) => {
+    await goDashboard(page)
+    const vals = page.locator('.home-stat-val')
+    await expect(vals.nth(0)).toHaveText('6.500')   // 5000 de salário + 1500 de entradas
+    await expect(vals.nth(1)).toHaveText('2.840')
+    await expect(vals.nth(2)).toHaveText('2.000')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
+// 5. MOCK LIFO — Isolamento em execução paralela
 // ─────────────────────────────────────────────────────────────────
 test.describe('Dashboard — Isolamento de mocks (LIFO / paralelo)', () => {
 
@@ -343,4 +498,78 @@ test.describe('Dashboard — Isolamento de mocks (LIFO / paralelo)', () => {
     await page2.close()
   })
 
+})
+
+// ─────────────────────────────────────────────────────────────────
+// Falha ao carregar o Início: antes, sem rede (e sem nada guardado), a tela mostrava saldo R$ 0,00, "Saúde financeira —" e
+// "Nenhuma transação" como se fossem reais depois que o aviso sumia — o cliente achava que estava sem dinheiro.
+// ─────────────────────────────────────────────────────────────────
+test.describe('Início — falha ao carregar', () => {
+  test.use({ viewport: { width: 393, height: 852 } })
+
+  const setupInicio = async (page, atrasoMs = 0) => {
+    await injectSession(page, { ...TEST_USER, plan: 'elite' })
+    await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+    await page.route('**/api/auth/me**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_USER) }))
+    await page.route('**/api/transactions/dashboard**', async r => {
+      if (atrasoMs) await new Promise(res => setTimeout(res, atrasoMs))
+      r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard) })
+    })
+  }
+
+  // Achado do André (iPhone): a tela de espera era cinza, com um spinner e texto — parecia uma tela em branco e é do visual antigo.
+  test('enquanto carrega, a espera é a tela azul do app com o ícone do Nancy e o anel (não a tela cinza)', async ({ page }) => {
+    await setupInicio(page, 3500)
+    await page.goto('/dashboard')
+    // a espera do app (PageLoader) e a do Início são duas instâncias em sequência: espera pela do Início (a que tem o texto) e mede tudo de uma vez
+    await expect(page.getByText('Carregando suas finanças…')).toBeAttached({ timeout: 20000 }) // texto só para leitor de tela
+    await expect.poll(() => page.evaluate(() => {
+      const el = document.querySelector('.app-loader')
+      if (!el) return null
+      return { bg: getComputedStyle(el).backgroundColor, marca: el.querySelectorAll('svg.nancy-mark').length, anel: el.querySelectorAll('.app-loader-ring').length }
+    })).toEqual({ bg: 'rgb(28, 72, 255)', marca: 1, anel: 1 })
+    await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
+    await expect(page.locator('.app-loader')).toHaveCount(0)
+  })
+
+  // Achado do André (iPhone, 2 tentativas): puxar a tela para baixo mostrava uma faixa cinza acima do cabeçalho azul. No celular quem rola
+  // é a PÁGINA e o "elástico" revela a cor do FUNDO DO DOCUMENTO, que o WebKit calcula misturando o fundo do html com o do body POR CIMA.
+  // Com o body cinza e opaco o azul do html nunca aparecia (só pintar o html não adiantou). Agora: html azul, body transparente, #root
+  // cinza. O teste refaz a conta do WebKit; o iOS em si só se confere no aparelho.
+  test('celular: a cor do fundo do documento (html + body por cima) é azul; o cinza da página vem do #root; no desktop não muda', async ({ page }) => {
+    await setupInicio(page)
+    await page.goto('/dashboard')
+    await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
+    const cores = () => page.evaluate(() => {
+      const cor = (el) => getComputedStyle(el).backgroundColor
+      const rgba = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1 } }
+      const sobre = (base, topo) => ({ r: Math.round(base.r * (1 - topo.a) + topo.r * topo.a), g: Math.round(base.g * (1 - topo.a) + topo.g * topo.a), b: Math.round(base.b * (1 - topo.a) + topo.b * topo.a), a: 1 })
+      const doc = sobre(rgba(cor(document.documentElement)), rgba(cor(document.body)))
+      return { documento: `rgb(${doc.r}, ${doc.g}, ${doc.b})`, root: cor(document.getElementById('root')), rootCobreODocumento: document.getElementById('root').getBoundingClientRect().height >= Math.max(innerHeight, document.documentElement.scrollHeight) - 1 }
+    })
+    // expect.poll: a página entra com um deslize de 16px (fade-in, .4s) que, no meio, aumenta a altura rolável além do #root
+    await expect.poll(cores).toEqual({ documento: 'rgb(28, 72, 255)', root: 'rgb(240, 242, 245)', rootCobreODocumento: true })
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await expect.poll(cores).toMatchObject({ documento: 'rgb(240, 242, 245)', root: 'rgba(0, 0, 0, 0)' })
+  })
+
+  test('sem conexão e sem nada guardado: avisa, não mostra R$ 0,00, e "Tentar de novo" carrega os dados', async ({ page }) => {
+    await injectSession(page, { ...TEST_USER, plan: 'elite' })
+    let fail = true
+    await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
+    await page.route('**/api/auth/me**', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(TEST_USER) }))
+    await page.route('**/api/transactions/dashboard**', r => fail
+      ? r.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"fora do ar"}' })
+      : r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockDashboard) }))
+    await page.goto('/dashboard')
+    const err = page.locator('.home-error')
+    await expect(err).toContainText('Não foi possível carregar suas finanças.', { timeout: 20000 })
+    await expect(page.locator('.home-balance-val')).toHaveText('—')
+    await expect(page.getByText('R$ 0,00')).toHaveCount(0)
+    await expect(page.locator('.home-stat')).toHaveCount(0) // sem cartões de Entradas/Saídas zerados
+    fail = false
+    await page.getByRole('button', { name: 'Tentar de novo' }).click()
+    await expect(page.locator('.home-balance-val')).toHaveText('R$ 3.660,00', { timeout: 20000 })
+    await expect(page.locator('.home-error')).toHaveCount(0)
+  })
 })

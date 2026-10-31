@@ -30,7 +30,7 @@
 ### Backend
 - Node.js + Express
 - Prisma ORM
-- PostgreSQL no **Supabase** (sa-east-1, plano free — pausa após 7 dias sem acesso)
+- PostgreSQL no **Supabase** (produção na AWS **us-west-1, Califórnia** — confirmado em 2026-10-30 pelo IP do banco; o Cloud Run fica em São Paulo; plano free — pausa após 7 dias sem acesso, **sem backup automático**: backup manual com `scripts/backup-prod.sh` e prova de restauração com `scripts/restore-test.sh`)
 - Autenticação JWT
 
 ### Infraestrutura
@@ -176,6 +176,8 @@ Desde 07/08, `main` exige 1 aprovação de PR antes de mergear (`enforce_admins:
 - **axios interceptor 401:** qualquer mock 401 dispara `window.location.href='/login'` → usar 400
 - **Botão de remover:** há dois botões com a mesma classe → usar `[title="Remover"]`
 - **Toast "Depósito registrado!"** — não contém "depositado/sucesso/atualizado"
+- **Splash por cima de tudo:** o vídeo de abertura (`#app-splash`, ~4 s a cada carga) cobre a tela inteira — `elementFromPoint` devolve o `<video>` e o clique/medição vai para o lugar errado. Espere `#app-splash` ficar oculto antes de medir ou clicar por coordenada.
+- **Flag "já teve conta" em init script:** `addInitScript(() => localStorage.setItem('nancy_has_account','1'))` recoloca a flag a CADA recarga; com sessão expirada o app apaga a flag e recarrega para o login, o init script a recoloca e a abertura entra em loop de reload. Coloque a flag só no primeiro carregamento (guarde um marcador na `sessionStorage`).
 
 ---
 

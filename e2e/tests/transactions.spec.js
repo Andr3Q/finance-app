@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { test, expect }                      = require('@playwright/test')
+const { test, expect }                      = require('../helpers/test')
 const { TX_EXPENSE, TX_INCOME } = require('../helpers/mockApi')
 const { injectSession, TEST_USER }          = require('../helpers/session')
 
@@ -142,10 +142,10 @@ test.describe('Transações — Criar transação', () => {
     await page.getByPlaceholder('0,00').fill('85')
 
     // Preenche descrição
-    await page.getByPlaceholder(/ex: almoço/i).fill('Jantar sushi')
+    await page.getByPlaceholder(/ex\.: mercado/i).fill('Jantar sushi')
 
-    // Botão de submit: "Registrar Gasto"
-    await page.getByRole('button', { name: /registrar gasto|registrar entrada/i }).click()
+    // Botão de submit: "Salvar"
+    await page.getByRole('button', { name: /^salvar$/i }).click()
 
     // onSuccess() fecha o modal — sem toast neste fluxo
     await expect(page.locator('.modal')).not.toBeVisible({ timeout: 5000 })
@@ -156,9 +156,9 @@ test.describe('Transações — Criar transação', () => {
     await page.locator('.modal').first().waitFor()
 
     // Deixa valor vazio, preenche só a descrição
-    await page.getByPlaceholder(/ex: almoço/i).fill('Sem valor')
+    await page.getByPlaceholder(/ex\.: mercado/i).fill('Sem valor')
 
-    await page.getByRole('button', { name: /registrar gasto|registrar entrada/i }).click()
+    await page.getByRole('button', { name: /^salvar$/i }).click()
 
     // Valor obrigatório — modal permanece aberto
     await expect(page.locator('.modal').first()).toBeVisible()
@@ -178,7 +178,7 @@ test.describe('Transações — Excluir transação', () => {
     await page.goto('/transactions')
     await page.getByText('Almoço').waitFor()
 
-    await page.locator('button.tx1-del[title="Remover"]').first().click()
+    await page.locator('button.ex-del[title="Remover"]').first().click()
 
     // Modal customizado substitui window.confirm
     await expect(page.getByText('Remover transação')).toBeVisible()

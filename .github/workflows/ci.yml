@@ -37,7 +37,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   dependency-review:
     name: 🔒 Dependency Review
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     continue-on-error: true  # Requer GitHub Advanced Security (GHAS) — não disponível em repo privado free
     steps:
@@ -54,7 +54,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   test-backend:
     name: 🧪 Backend · Jest (201 testes)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -83,7 +83,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   test-frontend:
     name: 🧪 Frontend · Vitest (141 testes)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -110,7 +110,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   build-check:
     name: 🏗️ Build de Produção (Vite)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -144,7 +144,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   test-e2e:
     name: 🎭 E2E · Playwright (91 testes)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-frontend, build-check]
 
     steps:

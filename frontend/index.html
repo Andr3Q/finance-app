@@ -24,7 +24,7 @@
 
     <!-- PWA: manifest e tema -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#111111" />
+    <meta name="theme-color" content="#1C48FF" />
 
     <!-- PWA: instalável no iOS (Safari) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -37,12 +37,8 @@
 
     <title>Nancy — Seu Gestor Financeiro Inteligente</title>
 
-    <!-- Fonte: Sora -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" id="font-preload" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" as="style" />
-    <script src="/font-init.js"></script>
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" /></noscript>
+    <!-- Fonte: Sora, hospedada no app (@font-face em src/index.css). Pré-carrega o subconjunto latino, que cobre o português. -->
+    <link rel="preload" href="/src/assets/fonts/sora-latin.woff2" as="font" type="font/woff2" crossorigin />
 
     <!-- Ícone do app (aparece na aba do navegador) -->
     <link rel="icon" href="/logo-icon.png" type="image/png" sizes="200x200" />

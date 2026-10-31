@@ -71,13 +71,19 @@ export default function InstallBanner() {
     }
   }
 
-  // Configurações → Instalar já oferece a mesma ação (InstallCard) — mostrar
+  // Configurações → Instalar app já oferece a mesma ação — mostrar
   // os dois ao mesmo tempo é redundante e confuso (dois botões "Instalar").
   // Nas telas de autenticação o banner (ancorado embaixo) fica por cima do
   // campo de senha e do botão de entrar em viewports de celular, bloqueando
   // o login por toque — QA de homologação, 2026-10-19.
   const AUTH_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-email']
-  if (!visible || pathname === '/settings/instalar' || AUTH_ROUTES.includes(pathname)) return null
+  // Resumo em stories (tela 09) é tela cheia por cima de tudo (z-index maior
+  // que esse banner) e tem o próprio botão "Fechar" — o banner aparecendo
+  // junto duplicava o rótulo "Fechar" e cobria parte da zona de toque.
+  // Boas-vindas (deslogado, "/"): é uma tela só, com "Já tenho conta" colado embaixo. O banner fica ancorado 88px acima do fim
+  // (por causa da barra de baixo, que ali não existe) e cobria o botão inteiro — QA de homologação, 2026-10-29. Instalar o app
+  // continua no banner das telas logadas e em Perfil → Instalar app.
+  if (!visible || pathname === '/' || pathname === '/settings/instalar' || pathname === '/resumo-stories' || AUTH_ROUTES.includes(pathname)) return null
 
   const posDesktop = { position: 'fixed', bottom: 24, right: 84, width: 300, zIndex: 210 }
   const posMobile  = {
@@ -92,7 +98,7 @@ export default function InstallBanner() {
   const props = { hasPrompt: hasNativePrompt, installing, platform, isDesktop, onInstall: handleInstall, onClose: handleClose }
 
   return (
-    <div style={isMobile ? posMobile : posDesktop}>
+    <div className="ib-wrap" style={isMobile ? posMobile : posDesktop}>
       <div style={anim}>
         {isMobile ? <MobileBanner {...props} /> : <DesktopBanner {...props} />}
       </div>
@@ -112,14 +118,14 @@ function Instructions({ platform, isDesktop }) {
   if (isDesktop) {
     return (
       <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.7 }}>
-        <span style={{ display: 'block' }}>Clique em <strong style={{ color: 'var(--c)' }}>⊕</strong> na barra de endereço do Chrome</span>
+        <span style={{ display: 'block' }}>Clique em <PlusCircleIcon /> na barra de endereço do Chrome</span>
         <span style={{ display: 'block' }}>e selecione <strong style={{ color: 'var(--c)' }}>"Instalar"</strong></span>
       </div>
     )
   }
   return (
     <div style={{ fontSize: 12, color: 'var(--t2)', lineHeight: 1.7 }}>
-      <span style={{ display: 'block' }}>1. Toque no menu <strong style={{ color: 'var(--t1)', fontSize: 15 }}>⋮</strong> do Chrome</span>
+      <span style={{ display: 'block' }}>1. Toque no menu <MenuDotsIcon /> do Chrome</span>
       <span style={{ display: 'block' }}>2. Escolha <strong style={{ color: 'var(--c)' }}>"Instalar app"</strong></span>
     </div>
   )
@@ -162,7 +168,7 @@ function MobileBanner({ hasPrompt, installing, platform, isDesktop, onInstall, o
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>📲</div>
+          <span style={{ flexShrink: 0, marginTop: 2, display: 'flex' }}><PhoneDownloadIcon size={24} /></span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: 6 }}>
               Instalar Nancy
@@ -188,7 +194,7 @@ function DesktopBanner({ hasPrompt, installing, platform, isDesktop, onInstall, 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: hasPrompt ? 12 : 0 }}>
         {hasPrompt
           ? <img src="/icon-192.png" alt="" style={{ width: 36, height: 36, borderRadius: 9, flexShrink: 0 }} />
-          : <span style={{ fontSize: 20 }}>📲</span>
+          : <PhoneDownloadIcon size={22} />
         }
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)', marginBottom: hasPrompt ? 2 : 6 }}>
@@ -217,10 +223,41 @@ function DesktopBanner({ hasPrompt, installing, platform, isDesktop, onInstall, 
           onMouseDown={e => { if (!installing) e.currentTarget.style.transform = 'scale(.97)' }}
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
-          {installing ? <><Spinner /> Aguarde...</> : '⚡ Instalar app'}
+          {installing ? <><Spinner /> Aguarde...</> : 'Instalar app'}
         </button>
       )}
     </div>
+  )
+}
+
+// Sem emoji (o design do Nancy não usa): ícones desenhados no mesmo traço dos outros.
+function PhoneDownloadIcon({ size = 22 }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"
+      width={size} height={size} aria-hidden="true" style={{ color: 'var(--c)' }}>
+      <rect x="6" y="2" width="12" height="20" rx="2.5" />
+      <path d="M12 7v6" /><path d="M9.5 10.5L12 13l2.5-2.5" />
+      <line x1="10" y1="18" x2="14" y2="18" />
+    </svg>
+  )
+}
+
+// Os mesmos botões que a pessoa vai procurar no navegador: menu de três pontos e "instalar" (mais dentro do círculo).
+function MenuDotsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" aria-label="menu"
+      style={{ display: 'inline', verticalAlign: 'middle', margin: '0 2px', color: 'var(--t1)' }}>
+      <circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" />
+    </svg>
+  )
+}
+
+function PlusCircleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" width="14" height="14" aria-label="instalar"
+      style={{ display: 'inline', verticalAlign: 'middle', margin: '0 2px', color: 'var(--c)' }}>
+      <circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
   )
 }
 

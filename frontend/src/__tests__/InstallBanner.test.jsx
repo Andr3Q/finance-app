@@ -34,3 +34,55 @@ test('continua renderizando fora das telas de autenticação', async () => {
   await renderAt('/dashboard')
   expect(await screen.findByText('Instalar Nancy')).toBeInTheDocument()
 })
+
+// O design do Nancy não usa emoji: o aviso de instalar tinha 📲, ⚡, ⋮ e ⊕ no texto.
+const EMOJI_OR_GLYPH = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{2295}\u{22EE}]/u
+
+describe('aviso de instalar — sem emoji', () => {
+  it('celular, instruções do Chrome: sem emoji nem símbolos soltos; o menu e o "instalar" são ícones', async () => {
+    window.innerWidth = 390
+    await renderAt('/dashboard')
+    const banner = (await screen.findByText('Instalar Nancy')).closest('div[style]').parentElement
+    expect(banner.textContent).not.toMatch(EMOJI_OR_GLYPH)
+    expect(banner.querySelector('svg[aria-label="menu"]')).not.toBeNull() // o ⋮ virou ícone
+    expect(banner.textContent).toContain('Escolha "Instalar app"')
+  })
+
+  it('computador, instruções: sem emoji; o ⊕ virou ícone', async () => {
+    window.innerWidth = 1280
+    await renderAt('/dashboard')
+    const banner = (await screen.findByText('Instalar Nancy')).closest('div[style]').parentElement
+    expect(banner.textContent).not.toMatch(EMOJI_OR_GLYPH)
+  })
+
+  it('com o prompt nativo disponível, o botão é só "Instalar app" (sem ⚡) e o ícone é o do app', async () => {
+    window.innerWidth = 1280
+    await renderAt('/dashboard')
+    await screen.findByText('Instalar Nancy')
+    const evt = new Event('beforeinstallprompt', { cancelable: true })
+    evt.prompt = vi.fn(); evt.userChoice = Promise.resolve({ outcome: 'dismissed' })
+    window.dispatchEvent(evt)
+    const btn = await screen.findByRole('button', { name: 'Instalar app' })
+    expect(btn.textContent).not.toMatch(EMOJI_OR_GLYPH)
+  })
+})
+
+// ── Onde o aviso NÃO aparece (achado N2-1) ────────────────────────────────────────────────────────────────────────────
+// Na boas-vindas (uma tela só) ele ficava em cima do botão "Já tenho conta" e interceptava o toque.
+describe('aviso de instalar — onde aparece', () => {
+  it('na boas-vindas (/) não aparece', async () => {
+    await renderAt('/')
+    expect(screen.queryByText('Instalar Nancy')).not.toBeInTheDocument()
+  })
+
+  it.each(['/settings/instalar', '/resumo-stories'])('em %s não aparece (a tela já tem a própria ação / é tela cheia)', async (path) => {
+    await renderAt(path)
+    expect(screen.queryByText('Instalar Nancy')).not.toBeInTheDocument()
+  })
+
+  it('dispensado há menos de 7 dias: não aparece em lugar nenhum', async () => {
+    localStorage.setItem('install-banner-dismissed', String(Date.now()))
+    await renderAt('/dashboard')
+    expect(screen.queryByText('Instalar Nancy')).not.toBeInTheDocument()
+  })
+})

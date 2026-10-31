@@ -53,7 +53,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   setup-and-test-backend:
     name: 🗄️ Setup Staging + 🧪 Backend Jest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     services:
       postgres:
@@ -115,7 +115,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   test-e2e-staging:
     name: 🎭 E2E Playwright · Staging Stack Completa
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: setup-and-test-backend
 
     services:
@@ -202,7 +202,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   smoke-api:
     name: 🔥 Smoke Tests — Endpoints Críticos
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: setup-and-test-backend
 
     services:

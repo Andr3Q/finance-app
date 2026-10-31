@@ -4,13 +4,14 @@ const jwt            = require('jsonwebtoken')
 const crypto         = require('crypto')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
-const { sendResetEmail, sendWelcomeEmail, sendReferralRewardEmail, sendWeeklyDigest, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail, sendEmailChangeVerification, sendEmailChangeAlert } = require('../services/emailService')
+const { sendResetEmail, sendWelcomeEmail, sendReferralRewardEmail, sendPlanExpiredEmail, sendVerificationEmail, sendPasswordChangedAlert, sendNewIpLoginAlert, sendAccountUnlockEmail, sendEmailChangeVerification, sendEmailChangeAlert } = require('../services/emailService')
 const { sendPushToUser } = require('../services/pushService')
-const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter } = require('../middleware/rateLimiter')
+const { forgotPasswordLimiter, resetPasswordLimiter, registerLimiter, loginLimiter, exportLimiter, verifyEmailLimiter, avatarLimiter } = require('../middleware/rateLimiter')
 
 const { EMAIL_REGEX, PASSWORD_REGEX, isProd } = require('../utils/constants')
 const { computeEffectivePlan } = require('../utils/helpers')
 const { remindUserIfDue } = require('../jobs/planReminders')
+const { buildCsv, generateDataPDF } = require('../services/dataExport')
 const { reportError } = require('../lib/sentry')
 
 // Mesmo fallback usado em server.js/emailService.js/payments.js — sem ele,
@@ -24,6 +25,12 @@ const APP_URL = process.env.APP_URL || 'https://myfinancepro.com.br'
 // quais e-mails estão cadastrados (email enumeration via response time).
 const DUMMY_HASH = bcrypt.hashSync('__timing_guard__', 12)
 
+// Verificação de e-mail por código (6 dígitos, 1 em 1M) tem entropia baixa
+// demais pra confiar só no rate limit por IP — invalida o código depois de
+// poucas tentativas erradas, forçando reenvio em vez de permitir brute-force
+// distribuído entre IPs diferentes.
+const MAX_EMAIL_CODE_ATTEMPTS = 5
+
 // Campos do usuário que o frontend precisa pra decidir o que mostrar sem
 // esperar o próximo /auth/me (que só roda 1x no boot do app, não depois de
 // um login client-side) — onboarding pendente, e-mail não verificado, 2FA,
@@ -31,7 +38,7 @@ const DUMMY_HASH = bcrypt.hashSync('__timing_guard__', 12)
 // tanto por /me quanto por /login, pra nunca mais divergir os dois (foi
 // assim que o onboarding passou a aparecer à toa depois de um login normal:
 // /login não mandava onboardingComplete, só /me mandava).
-const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, budgetReminderSentAt: true, pendingEmail: true }
+const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, avatarUpdatedAt: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, notifSalary: true, notifStories: true, notifTips: true, notifWeeklyEmail: true, budgetReminderSentAt: true, pendingEmail: true }
 
 // user já carregado (com ou sem `select`) → objeto raso só com os campos de
 // ME_SELECT, prontos pra ir na resposta. Number(salary) porque Prisma.Decimal
@@ -177,6 +184,12 @@ router.post('/register', registerLimiter, async (req, res) => {
     const verifyToken  = crypto.randomBytes(32).toString('hex')
     const verifyHash   = crypto.createHash('sha256').update(verifyToken).digest('hex')
     const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    // Código de 6 dígitos — caminho alternativo ao link acima pro mesmo
+    // evento (tela "Confirme seu e-mail"). Expira em 15min, bem mais curto
+    // que o link, já que é pra digitar na hora, não guardar pra depois.
+    const verifyCode       = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
+    const verifyCodeHash   = crypto.createHash('sha256').update(verifyCode).digest('hex')
+    const verifyCodeExpiry = new Date(Date.now() + 15 * 60 * 1000)
     const user = await prisma.user.create({
       data: {
         name:               name.trim(),
@@ -191,6 +204,8 @@ router.post('/register', registerLimiter, async (req, res) => {
         emailVerified:      false,
         emailVerifyToken:   verifyHash,
         emailVerifyExpiry:  verifyExpiry,
+        emailVerifyCode:       verifyCodeHash,
+        emailVerifyCodeExpiry: verifyCodeExpiry,
       }
     })
 
@@ -198,7 +213,7 @@ router.post('/register', registerLimiter, async (req, res) => {
 
     // Welcome + verification emails — fire-and-forget
     sendWelcomeEmail(user.email, user.name, trialEndsAt).catch(() => {})
-    sendVerificationEmail(user.email, user.name, verifyLink).catch(() => {})
+    sendVerificationEmail(user.email, user.name, verifyLink, verifyCode).catch(() => {})
 
     const token = jwt.sign({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: '24h' })
     setAuthCookie(res, token)
@@ -366,29 +381,10 @@ router.get('/me', authMiddleware, async (req, res) => {
     // aberto agora. Não bloqueia a resposta do /me.
     remindUserIfDue(user, now).catch(err => reportError(err, { tag: '[auth/me] remindUserIfDue', userId: req.userId }))
 
-    // Digest semanal lazy: dispara na primeira visita após 7+ dias do último envio
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    if (!user.weeklyDigestSentAt || user.weeklyDigestSentAt < sevenDaysAgo) {
-      const since = user.weeklyDigestSentAt || sevenDaysAgo
-      prisma.transaction.findMany({
-        where: { userId: req.userId, date: { gte: since }, archived: false },
-      }).then(async (txs) => {
-        if (txs.length === 0) return
-        const totalExpenses = txs.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0)
-        const totalIncome   = txs.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0)
-        const catCount = {}
-        txs.filter(t => t.type === 'expense').forEach(t => { catCount[t.category] = (catCount[t.category] || 0) + Number(t.amount) })
-        const topCategory = Object.keys(catCount).sort((a, b) => catCount[b] - catCount[a])[0] || null
-        await prisma.user.update({ where: { id: req.userId }, data: { weeklyDigestSentAt: now } })
-        sendWeeklyDigest(user.email, user.name, {
-          totalExpenses, totalIncome, topCategory,
-          transactionCount: txs.length,
-          balance: Number(user.salary || 0) + totalIncome - totalExpenses,
-        }).catch(() => {})
-      }).catch(() => {})
-    }
+    // O resumo semanal por e-mail deixou de sair daqui (na 1ª visita após 7 dias, para todos): agora é o job de
+    // segunda-feira (backend/src/jobs/weeklyDigest.js), só para quem ligou "Relatório por e-mail".
 
-    // Lembrete de contas fixas lazy: uma vez por dia, avisa sobre vencimentos em até 3 dias
+    // Lembrete de contas fixas lazy: uma vez por dia, avisa sobre vencimentos em até 2 dias (como diz a tela Preferências)
     if (user.notifBudgetReminder) {
       // "hoje" calculado no fuso de São Paulo (UTC-3) para não disparar o lembrete
       // um dia antes/depois da meia-noite local caso o servidor esteja em UTC.
@@ -411,16 +407,16 @@ router.get('/me', authMiddleware, async (req, res) => {
                   : daysInMonth - todayDay + b.dueDay
                 return { ...b, daysLeft: diff }
               })
-              .filter(b => b.daysLeft <= 3)
+              .filter(b => b.daysLeft <= 2)
             if (!upcoming.length) return
             await prisma.user.update({ where: { id: req.userId }, data: { budgetReminderSentAt: now } })
             for (const b of upcoming) {
               const when = b.daysLeft === 0 ? 'vence hoje' : b.daysLeft === 1 ? 'vence amanhã' : `vence em ${b.daysLeft} dias`
               const amt  = Number(b.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
               await sendPushToUser(req.userId, {
-                title: `📅 ${b.name} ${when}`,
+                title: `${b.name} ${when}`,
                 body:  `R$ ${amt} — não esqueça de pagar.`,
-                url:   '/settings',
+                url:   '/contas-do-mes',
               })
             }
           }).catch(() => {})
@@ -437,7 +433,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       }).then(async expiradas => {
         for (const b of expiradas) {
           await sendPushToUser(req.userId, {
-            title: `📅 ${b.name} encerrou`,
+            title: `${b.name} encerrou`,
             body:  `Essa conta fixa chegou ao fim. Você pode removê-la agora.`,
             url:   '/settings',
           })
@@ -637,6 +633,89 @@ router.put('/profile', authMiddleware, async (req, res) => {
   } catch (error) {
     reportError(error, { tag: '[auth] profile' })
     res.status(500).json({ error: 'Erro ao atualizar perfil.' })
+  }
+})
+
+// ── Foto de perfil ───────────────────────────────────────
+// O app já reduz a imagem (256x256, JPEG) antes de enviar; aqui só se aceita exatamente isso: data URL
+// JPEG, base64 CANÔNICO (o que se grava é o re-encode dos bytes validados, nunca a string recebida),
+// entre 128 B e 48 KB, com assinatura de JPEG (começa em FFD8FF e termina em FFD9). Nada de SVG/HTML/
+// outros tipos. A imagem fica em UserAvatar (fora da linha de User); em User só avatarUpdatedAt, que o
+// app usa pra saber que há foto e como versão do endereço GET /auth/avatar?v=...
+const AVATAR_PREFIX    = 'data:image/jpeg;base64,'
+const AVATAR_MIN_BYTES = 128
+const AVATAR_MAX_BYTES = 48 * 1024
+
+// → Buffer com o JPEG validado, ou null se a imagem não for aceitável
+function parseAvatar(image) {
+  if (typeof image !== 'string' || !image.startsWith(AVATAR_PREFIX)) return null
+  const b64 = image.slice(AVATAR_PREFIX.length)
+  if (b64.length === 0 || b64.length > Math.ceil(AVATAR_MAX_BYTES / 3) * 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return null
+  const buf = Buffer.from(b64, 'base64')
+  if (buf.toString('base64') !== b64) return null   // base64 fora do padrão (ex.: sobra de bits) não passa
+  if (buf.length < AVATAR_MIN_BYTES || buf.length > AVATAR_MAX_BYTES) return null
+  const isJpeg = buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF && buf[buf.length - 2] === 0xFF && buf[buf.length - 1] === 0xD9
+  return isJpeg ? buf : null
+}
+
+// ── PUT /auth/avatar ─────────────────────────────────────
+router.put('/avatar', authMiddleware, avatarLimiter, async (req, res) => {
+  try {
+    const buf = parseAvatar(req.body && req.body.image)
+    if (!buf) return res.status(400).json({ error: 'Imagem inválida ou grande demais. Envie um JPEG de até 48 KB.' })
+    const image = AVATAR_PREFIX + buf.toString('base64')
+    const now = new Date()
+    await prisma.$transaction([
+      prisma.userAvatar.upsert({ where: { userId: req.userId }, create: { userId: req.userId, image }, update: { image } }),
+      prisma.user.update({ where: { id: req.userId }, data: { avatarUpdatedAt: now }, select: { id: true } }),
+    ])
+    res.json({ avatarUpdatedAt: now.toISOString() })
+  } catch (error) {
+    reportError(error, { tag: '[auth] avatar' })
+    res.status(500).json({ error: 'Erro ao salvar a foto.' })
+  }
+})
+
+// ── DELETE /auth/avatar ──────────────────────────────────
+router.delete('/avatar', authMiddleware, avatarLimiter, async (req, res) => {
+  try {
+    await prisma.$transaction([
+      prisma.userAvatar.deleteMany({ where: { userId: req.userId } }),
+      prisma.user.update({ where: { id: req.userId }, data: { avatarUpdatedAt: null }, select: { id: true } }),
+    ])
+    res.json({ avatarUpdatedAt: null })
+  } catch (error) {
+    reportError(error, { tag: '[auth] avatar-delete' })
+    res.status(500).json({ error: 'Erro ao remover a foto.' })
+  }
+})
+
+// ── GET /auth/avatar ─────────────────────────────────────
+// Devolve a própria foto como imagem (o app usa em <img src="/api/auth/avatar?v=<avatarUpdatedAt>">; o
+// cookie de sessão vai junto). Só a do usuário logado — não há id na rota. Revalida por ETag (a versão é
+// a data da última troca), então a imagem só trafega quando muda. Cabeçalhos fecham o uso do arquivo:
+// tipo fixo, sem sniffing, sem script e sem uso cross-origin.
+router.get('/avatar', authMiddleware, async (req, res) => {
+  try {
+    const meta = await prisma.user.findUnique({ where: { id: req.userId }, select: { avatarUpdatedAt: true } })
+    if (!meta || !meta.avatarUpdatedAt) return res.status(404).json({ error: 'Sem foto de perfil.' })
+    const etag = `"av-${new Date(meta.avatarUpdatedAt).getTime()}"`
+    res.setHeader('ETag', etag)
+    res.setHeader('Cache-Control', 'private, no-cache')
+    if (req.headers['if-none-match'] === etag) return res.status(304).end()
+    const row = await prisma.userAvatar.findUnique({ where: { userId: req.userId }, select: { image: true } })
+    const buf = row && parseAvatar(row.image)
+    if (!buf) return res.status(404).json({ error: 'Sem foto de perfil.' })
+    res.setHeader('Content-Type', 'image/jpeg')
+    res.setHeader('Content-Length', String(buf.length))
+    res.setHeader('Content-Disposition', 'inline; filename="avatar.jpg"')
+    res.setHeader('X-Content-Type-Options', 'nosniff')
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox")
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin')
+    res.end(buf)
+  } catch (error) {
+    reportError(error, { tag: '[auth] avatar-get' })
+    res.status(500).json({ error: 'Erro ao carregar a foto.' })
   }
 })
 
@@ -849,7 +928,16 @@ router.put('/password', authMiddleware, async (req, res) => {
     sendPasswordChangedAlert(user.email, user.name).catch(() => {})
 
     const hashed = await bcrypt.hash(newPassword, 12)
-    await prisma.user.update({ where: { id: req.userId }, data: { password: hashed, tokenVersion: { increment: 1 } } })
+    const updated = await prisma.user.update({
+      where:  { id: req.userId },
+      data:   { password: hashed, tokenVersion: { increment: 1 } },
+      select: { id: true, tokenVersion: true },
+    })
+
+    // O tokenVersion novo invalida TODOS os JWTs antigos — de propósito, pra derrubar os outros aparelhos. Mas quem acabou
+    // de provar a senha atual não pode ser jogado pra fora do app sem aviso: emite um JWT novo só para este aparelho.
+    const token = jwt.sign({ userId: updated.id ?? req.userId, tokenVersion: updated.tokenVersion ?? 0 }, process.env.JWT_SECRET, { expiresIn: '24h' })
+    setAuthCookie(res, token)
 
     res.json({ ok: true })
   } catch (err) {
@@ -883,7 +971,10 @@ router.post('/verify-email', verifyEmailLimiter, async (req, res) => {
     // abaixo) como se fossem 2 verificações legítimas.
     const claim = await prisma.user.updateMany({
       where: { id: user.id, emailVerifyToken: hash, emailVerifyExpiry: { gt: new Date() } },
-      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null },
+      // Limpa também o código de 6 dígitos (caminho alternativo pro mesmo
+      // evento) — sem isso, um código emitido junto com esse link continuaria
+      // válido e tentável mesmo depois do e-mail já verificado pelo link.
+      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null, emailVerifyCode: null, emailVerifyCodeExpiry: null, emailVerifyCodeAttempts: 0 },
     })
     if (claim.count === 0) return res.status(400).json({ error: 'Link inválido ou expirado. Solicite um novo na página de configurações.' })
 
@@ -898,6 +989,76 @@ router.post('/verify-email', verifyEmailLimiter, async (req, res) => {
     res.json({ ok: true })
   } catch (err) {
     reportError(err, { tag: '[auth] verify-email' })
+    res.status(500).json({ error: 'Erro ao verificar e-mail.' })
+  }
+})
+
+// ── POST /auth/verify-email-code ────────────────────────
+// Autenticada — ao contrário do link (que pode ser aberto em outro
+// navegador/dispositivo sem sessão), o código de 6 dígitos é digitado na
+// própria tela logo após o cadastro, com o usuário já logado — precisa
+// saber de QUAL conta é o código, não dá pra resolver isso só pelo valor
+// digitado (ao contrário do token de 32 bytes, que é único o bastante pra
+// servir de identificador por si só).
+router.post('/verify-email-code', authMiddleware, verifyEmailLimiter, async (req, res) => {
+  try {
+    const { code } = req.body
+    if (!code || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: 'Código inválido.' })
+    }
+
+    const user = await prisma.user.findUnique({
+      where:  { id: req.userId },
+      select: { name: true, emailVerified: true, referredBy: true, emailVerifyCode: true, emailVerifyCodeExpiry: true },
+    })
+    if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+    if (user.emailVerified) return res.status(400).json({ error: 'E-mail já verificado.' })
+    if (!user.emailVerifyCode || !user.emailVerifyCodeExpiry || user.emailVerifyCodeExpiry < new Date()) {
+      return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
+    }
+
+    // Reserva uma tentativa de forma atômica, condicionada a ainda não ter
+    // estourado o teto — ANTES de comparar o código. A versão original lia
+    // emailVerifyCodeAttempts solto (findUnique acima) e só incrementava
+    // depois de já ter decidido comparar, então requisições concorrentes
+    // liam o mesmo contador defasado e todas passavam do teto antes de
+    // qualquer escrita aterrissar (achado de auditoria de segurança,
+    // 2026-10-21) — exatamente a race que o lockout de login
+    // (failedLoginCount) já tinha sido corrigido pra evitar, só que esse
+    // raciocínio não tinha sido aplicado de verdade aqui ainda. Como efeito
+    // colateral, também não precisa mais invalidar o código explicitamente
+    // ao estourar o teto: a própria condição do where já barra qualquer
+    // tentativa futura pra sempre, até um reenvio zerar o contador.
+    const attemptClaim = await prisma.user.updateMany({
+      where: { id: req.userId, emailVerifyCodeAttempts: { lt: MAX_EMAIL_CODE_ATTEMPTS } },
+      data:  { emailVerifyCodeAttempts: { increment: 1 } },
+    })
+    if (attemptClaim.count === 0) return res.status(429).json({ error: 'Muitas tentativas. Solicite um novo código.' })
+
+    const hash = crypto.createHash('sha256').update(code).digest('hex')
+    if (hash !== user.emailVerifyCode) {
+      return res.status(400).json({ error: 'Código incorreto.' })
+    }
+
+    // updateMany condicionado ao código ainda ser o mesmo — mesmo raciocínio
+    // do /verify-email por link: uma 2ª requisição concorrente com o mesmo
+    // código certo não encontra mais nada pra atualizar depois que a 1ª já
+    // limpou emailVerifyCode, evitando reprocessar a recompensa de indicação.
+    const claim = await prisma.user.updateMany({
+      where: { id: req.userId, emailVerifyCode: hash },
+      data:  { emailVerified: true, emailVerifyToken: null, emailVerifyExpiry: null, emailVerifyCode: null, emailVerifyCodeExpiry: null, emailVerifyCodeAttempts: 0 },
+    })
+    if (claim.count === 0) return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
+
+    if (user.referredBy) {
+      rewardReferrer(req.userId, user.referredBy).then(referrer => {
+        if (referrer) sendReferralRewardEmail(referrer.email, referrer.name, user.name).catch(() => {})
+      }).catch(err => reportError(err, { tag: '[auth] rewardReferrer call' }))
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    reportError(err, { tag: '[auth] verify-email-code' })
     res.status(500).json({ error: 'Erro ao verificar e-mail.' })
   }
 })
@@ -944,14 +1105,20 @@ router.post('/resend-verification', authMiddleware, verifyEmailLimiter, async (r
     const rawToken  = crypto.randomBytes(32).toString('hex')
     const hash      = crypto.createHash('sha256').update(rawToken).digest('hex')
     const expiry    = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const code       = String(crypto.randomInt(0, 1_000_000)).padStart(6, '0')
+    const codeHash   = crypto.createHash('sha256').update(code).digest('hex')
+    const codeExpiry = new Date(Date.now() + 15 * 60 * 1000)
 
     await prisma.user.update({
       where: { id: req.userId },
-      data:  { emailVerifyToken: hash, emailVerifyExpiry: expiry },
+      data:  {
+        emailVerifyToken: hash, emailVerifyExpiry: expiry,
+        emailVerifyCode: codeHash, emailVerifyCodeExpiry: codeExpiry, emailVerifyCodeAttempts: 0,
+      },
     })
 
     const verifyLink = `${APP_URL}/verify-email?token=${rawToken}`
-    sendVerificationEmail(user.email, user.name, verifyLink).catch(() => {})
+    sendVerificationEmail(user.email, user.name, verifyLink, code).catch(() => {})
 
     res.json({ ok: true })
   } catch (err) {
@@ -961,26 +1128,33 @@ router.post('/resend-verification', authMiddleware, verifyEmailLimiter, async (r
 })
 
 // ── GET /auth/export-data ───────────────────────────────
-// LGPD Art. 15: direito de acesso. Retorna todos os dados do usuário em JSON.
+// LGPD Art. 15: direito de acesso. Retorna todos os dados do usuário — JSON (padrão, completo, com a foto) ou,
+// com ?format=csv|pdf, o mesmo conteúdo em planilha / PDF (sem a foto) da tela "Meus dados".
+const EXPORT_FORMATS = ['json', 'csv', 'pdf']
 router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
+  const format = req.query.format === undefined ? 'json' : req.query.format
+  if (typeof format !== 'string' || !EXPORT_FORMATS.includes(format)) {
+    return res.status(400).json({ error: 'Formato inválido. Use json, csv ou pdf.' })
+  }
   try {
-    const [user, transactions, budgets, goals, installments, categoryLimits] = await Promise.all([
+    const [user, transactions, budgets, goals, installments, categoryLimits, avatarRow] = await Promise.all([
       prisma.user.findUnique({
         where:  { id: req.userId },
-        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, referredBy: true, createdAt: true, twoFactorEnabled: true, onboardingComplete: true },
+        select: { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, referredBy: true, createdAt: true, twoFactorEnabled: true, onboardingComplete: true, avatarUpdatedAt: true },
       }),
       prisma.transaction.findMany({ where: { userId: req.userId }, orderBy: { date: 'desc' } }),
       prisma.budget.findMany({ where: { userId: req.userId } }),
       prisma.goal.findMany({ where: { userId: req.userId } }),
       prisma.installmentPlan.findMany({ where: { userId: req.userId } }),
       prisma.categoryLimit.findMany({ where: { userId: req.userId } }),
+      format === 'json' ? prisma.userAvatar.findUnique({ where: { userId: req.userId }, select: { image: true } }) : null,
     ])
 
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
     const exportData = {
       exportedAt:     new Date().toISOString(),
-      profile:        user,
+      profile:        { ...user, avatar: (avatarRow && avatarRow.image) || null },
       transactions,
       budgets,
       goals,
@@ -988,10 +1162,20 @@ router.get('/export-data', authMiddleware, exportLimiter, async (req, res) => {
       categoryLimits,
     }
 
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.setHeader('Content-Disposition', `attachment; filename="nancy-dados-${new Date().toISOString().slice(0,10)}.json"`)
+    const stamp = new Date().toISOString().slice(0, 10)
+    res.setHeader('Content-Disposition', `attachment; filename="nancy-dados-${stamp}.${format}"`)
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
     res.setHeader('Pragma', 'no-cache')
+    if (format === 'csv') {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+      return res.send(buildCsv(exportData))
+    }
+    if (format === 'pdf') {
+      const pdf = await generateDataPDF(exportData)
+      res.setHeader('Content-Type', 'application/pdf')
+      return res.send(pdf)
+    }
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.json(exportData)
   } catch (err) {
     reportError(err, { tag: '[auth] export-data' })
@@ -1027,12 +1211,14 @@ router.get('/referral-stats', authMiddleware, async (req, res) => {
 })
 
 // ── PUT /auth/notifications ──────────────────────────────
+// Preferências da tela "Preferências": só booleanos conhecidos, os demais campos são ignorados.
+const NOTIF_PREF_KEYS = ['notifBudgetAlert', 'notifBudgetReminder', 'notifSalary', 'notifStories', 'notifTips', 'notifWeeklyEmail']
 router.put('/notifications', authMiddleware, async (req, res) => {
   try {
-    const { notifBudgetAlert, notifBudgetReminder } = req.body
     const data = {}
-    if (typeof notifBudgetAlert   === 'boolean') data.notifBudgetAlert   = notifBudgetAlert
-    if (typeof notifBudgetReminder === 'boolean') data.notifBudgetReminder = notifBudgetReminder
+    for (const key of NOTIF_PREF_KEYS) {
+      if (typeof req.body?.[key] === 'boolean') data[key] = req.body[key]
+    }
     if (!Object.keys(data).length) return res.status(400).json({ error: 'Nenhum campo válido.' })
     await prisma.user.update({ where: { id: req.userId }, data })
     res.json({ ok: true })

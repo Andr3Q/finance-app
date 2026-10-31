@@ -54,7 +54,7 @@ jobs:
   # ── 1. Testes Backend ────────────────────────────────────────
   test-backend:
     name: 🧪 Backend · Jest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event.inputs.modo != 'rollback'
     defaults:
       run:
@@ -75,7 +75,7 @@ jobs:
   # ── 2. Testes Frontend ───────────────────────────────────────
   test-frontend:
     name: 🧪 Frontend · Vitest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event.inputs.modo != 'rollback'
     defaults:
       run:
@@ -94,7 +94,7 @@ jobs:
   # ── 3. Build de Produção ─────────────────────────────────────
   build-check:
     name: 🏗️ Build de Produção
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event.inputs.modo != 'rollback'
     defaults:
       run:
@@ -113,7 +113,7 @@ jobs:
   # ── 4. Testes E2E ────────────────────────────────────────────
   test-e2e:
     name: 🎭 E2E · Playwright
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-backend, test-frontend, build-check]
     # Pula apenas em rollback ou deploy-skip-e2e (emergência)
     if: |
@@ -163,7 +163,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   validate-schema:
     name: 🗄️ Schema · Validar sincronismo com Supabase
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-backend, test-frontend, test-e2e]
     if: |
       github.event.inputs.modo != 'rollback' &&
@@ -226,7 +226,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   migrate-prod:
     name: 🗄️ Migration · Aplicar no Supabase
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [validate-schema]
     if: github.event.inputs.modo != 'rollback'
     timeout-minutes: 10
@@ -295,7 +295,7 @@ jobs:
   # ─────────────────────────────────────────────────────────────
   deploy:
     name: 🚀 Deploy · Cloud Run
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-backend, test-frontend, build-check, test-e2e, migrate-prod]
     environment: production
 

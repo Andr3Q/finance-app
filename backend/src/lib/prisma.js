@@ -1,56 +1,9 @@
 const { PrismaClient } = require('@prisma/client')
+const { buildUrl, resolveConnectionLimit } = require('./databaseUrl')
 
 const isProd      = process.env.NODE_ENV === 'production'
 const isPgBouncer = (process.env.DATABASE_URL || '').includes(':6543') ||
                     (process.env.DATABASE_URL || '').includes('pgbouncer=true')
-
-function buildUrl() {
-  const base = process.env.DATABASE_URL || ''
-  if (!base) return base
-
-  const params = new URLSearchParams()
-
-  if (!base.includes('connection_limit')) {
-    params.set('connection_limit', isPgBouncer ? '1' : (isProd ? '3' : '5'))
-  }
-  if (!base.includes('pool_timeout'))    params.set('pool_timeout',    '30')
-  if (!base.includes('connect_timeout')) params.set('connect_timeout', '10')
-
-  // TCP keepalive no nível do driver (libpq): evita que NAT/firewall do Cloud Run
-  // ou do Supabase feche conexões ociosas silenciosamente.
-  // keepalives_idle=60: envia probe TCP depois de 60s sem tráfego
-  // keepalives_interval=10: reenvio a cada 10s se não houver resposta
-  // keepalives_count=3: após 3 falhas consecutivas, considera conexão morta
-  if (!base.includes('keepalives')) {
-    params.set('keepalives',          '1')
-    params.set('keepalives_idle',     '60')
-    params.set('keepalives_interval', '10')
-    params.set('keepalives_count',    '3')
-  }
-
-  if (isPgBouncer && !base.includes('pgbouncer=true')) {
-    params.set('pgbouncer', 'true')
-  }
-
-  // Só adiciona `options=` se a URL ainda não tiver — Neon usa options=endpoint%3D...
-  // para roteamento interno; adicionar um segundo `options=` causa P1000 (auth fail).
-  if (!base.includes('options=')) {
-    if (!isPgBouncer && !base.includes('statement_timeout')) {
-      const pgOpts = [
-        'statement_timeout=15000',
-        'idle_in_transaction_session_timeout=20000',
-        'application_name=nancy',
-      ].join(' -c ')
-      params.set('options', `-c ${pgOpts}`)
-    } else if (isPgBouncer) {
-      params.set('options', '-c application_name=nancy')
-    }
-  }
-
-  const sep = base.includes('?') ? '&' : '?'
-  const qs  = params.toString()
-  return qs ? `${base}${sep}${qs}` : base
-}
 
 // Log de queries lentas (>2s) em produção para identificar gargalos
 const logConfig = isProd
@@ -88,10 +41,9 @@ if (!isProd) {
   prisma.$on('warn', (e) => console.warn('[Prisma] WARN:', e.message))
 }
 
-if (isPgBouncer) {
-  console.log('[Prisma] Modo PgBouncer ativo (connection_limit=1)')
-} else {
-  console.log('[Prisma] Conexão direta (connection_limit=' + (isProd ? 3 : 5) + ')')
+{
+  const { value, source } = resolveConnectionLimit(process.env)
+  console.log(`[Prisma] ${isPgBouncer ? 'Modo PgBouncer ativo' : 'Conexão direta'} (connection_limit=${value}, origem: ${source})`)
 }
 
 // Códigos de erro Prisma que indicam falha transitória — recuperáveis com retry
@@ -117,7 +69,7 @@ function isRetryable(err) {
 // explicitamente e com comentário.
 const TENANT_MODELS = new Set([
   'Transaction', 'Budget', 'CategoryLimit', 'Goal', 'PushSubscription',
-  'InstallmentPlan', 'TwoFactorBackupCode', 'ProcessedPayment', 'AccountUnlockToken',
+  'InstallmentPlan', 'TwoFactorBackupCode', 'ProcessedPayment', 'AccountUnlockToken', 'UserAvatar',
 ])
 
 // findUnique/findUniqueOrThrow ficam de fora de propósito — são lookups por

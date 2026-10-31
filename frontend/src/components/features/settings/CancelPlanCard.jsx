@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useUser, saveUser } from '../../../hooks/useUser.js'
+import { useEscapeKey } from '../../../hooks/useEscapeKey.js'
 import { authAPI } from '../../../services/api.js'
 import { analytics } from '../../../services/analytics.js'
 
@@ -18,6 +19,7 @@ export default function CancelPlanCard({ onMessage }) {
 
   const openModal  = () => { setModal(true); setConfirmPwd(''); setPwdErr('') }
   const closeModal = () => { setModal(false); setConfirmPwd(''); setPwdErr('') }
+  useEscapeKey(closeModal, modal)
 
   if (!isPaid) return null
 
@@ -41,11 +43,14 @@ export default function CancelPlanCard({ onMessage }) {
       closeModal()
       onMessage(
         expiryFormatted
-          ? `Assinatura cancelada. Seu acesso premium continua até ${expiryFormatted}.`
-          : 'Assinatura cancelada. Seu acesso premium continua até o fim do período pago.'
+          ? `Pronto: seu plano não será renovado. Seu acesso premium continua até ${expiryFormatted}.`
+          : 'Pronto: seu plano não será renovado. Seu acesso premium continua até o fim do período pago.'
       )
     } catch (err) {
-      onMessage(err.response?.data?.error || 'Erro ao cancelar plano.', 'error')
+      const msg = err.response?.data?.error || 'Erro ao registrar. Tente de novo.'
+      // senha errada: o erro aparece EMBAIXO do campo (não numa faixa atrás da janela) e o campo esvazia pra redigitar direto
+      if (err.response?.status === 401) { setPwdErr(msg); setConfirmPwd('') }
+      else onMessage(msg, 'error')
     } finally {
       setLoading(false)
     }
@@ -53,56 +58,21 @@ export default function CancelPlanCard({ onMessage }) {
 
   return (
     <>
-      <div className="cfg-card">
-        <div className="cfg-card-head">
-          <div className="cfg-ch-ico">
-            {isCancelledWithAccess ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/>
-                <line x1="9" y1="9" x2="15" y2="15"/>
-              </svg>
-            )}
-          </div>
-          <div style={{ flex:1 }}>
-            {isCancelledWithAccess ? (
-              <>
-                <div className="cfg-ch-title">Assinatura cancelada</div>
-                <div className="cfg-ch-sub" style={{ color:'#f59e0b' }}>
-                  Acesso premium garantido até {expiryFormatted}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="cfg-ch-title">Cancelar plano {planLabel}</div>
-                <div className="cfg-ch-sub">Cancela a renovação automática; acesso premium mantido até o fim do período pago.</div>
-              </>
-            )}
-          </div>
+      {isCancelledWithAccess ? (
+        <div className="pg-cancelled" role="status">
+          <strong>Plano não será renovado.</strong> Acesso premium garantido até {expiryFormatted}.
         </div>
-        {!isCancelledWithAccess && (
-          <div className="cfg-card-body" style={{ paddingTop: 0 }}>
-            <button
-              className="cfg-btn-danger"
-              onClick={openModal}
-              style={{ width: '100%', justifyContent: 'center' }}
-            >
-              Cancelar plano
-            </button>
-          </div>
-        )}
-      </div>
+      ) : (
+        <button type="button" className="pg-cancel" onClick={openModal}>
+          Não renovar
+        </button>
+      )}
 
       {modal && createPortal(
         <div className="gls-modal-overlay" onClick={closeModal}>
           <div className="gls-modal" style={{ maxWidth:440 }} onClick={e => e.stopPropagation()}>
             <div className="gls-modal-head">
-              <span>Confirmar cancelamento</span>
+              <span>Não renovar o plano</span>
               <button className="gls-modal-close" onClick={closeModal}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -118,13 +88,13 @@ export default function CancelPlanCard({ onMessage }) {
                   </svg>
                 </div>
                 <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
-                  Ao confirmar, a renovação automática é cancelada. Você mantém acesso a todos os recursos premium até o fim do período já pago
+                  O plano não renova sozinho: ao fim do período pago ele volta para o Grátis. Ao confirmar, registramos que você não vai renovar. Você mantém acesso a todos os recursos premium até o fim do período já pago
                   {expiryFormatted && <> (<strong style={{ color:'var(--t1)' }}>{expiryFormatted}</strong>)</>}.
                 </div>
               </div>
 
               <div style={{ background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>
-                Seus dados ficam salvos. Você pode reativar o plano a qualquer momento em <strong style={{ color:'var(--c)' }}>Planos</strong>.
+                Seus dados ficam salvos. Você pode assinar de novo a qualquer momento em <strong style={{ color:'var(--c)' }}>Planos</strong>.
               </div>
 
               <div>
@@ -150,7 +120,7 @@ export default function CancelPlanCard({ onMessage }) {
                 onClick={handleConfirm}
                 disabled={loading || !confirmPwd.trim()}
               >
-                {loading ? 'Cancelando…' : 'Sim, cancelar plano'}
+                {loading ? 'Salvando…' : 'Sim, não renovar'}
               </button>
             </div>
           </div>

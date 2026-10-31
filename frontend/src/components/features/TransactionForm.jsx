@@ -1,19 +1,15 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { transactionsAPI } from '../../services/api.js'
+import { CATEGORY_LABELS } from '../../constants/index.js'
 import CurrencyInput from '../ui/CurrencyInput.jsx'
+import { CategoryIcon } from '../ui/icons.jsx'
+import { useEscapeKey } from '../../hooks/useEscapeKey.js'
 
-const CATEGORIES = [
-  { value: 'food',      label: 'Alimentação' },
-  { value: 'shopping',  label: 'Shopping'    },
-  { value: 'transport', label: 'Transporte'  },
-  { value: 'health',    label: 'Saúde'       },
-  { value: 'leisure',   label: 'Lazer'       },
-  { value: 'education', label: 'Educação'    },
-  { value: 'home',      label: 'Casa'        },
-  { value: 'fixed',     label: 'Conta Fixa'  },
-  { value: 'other',     label: 'Outros'      },
-]
+// Ordem do design (Alimentação, Transporte, Shopping, Saúde, Contas fixas) e, depois,
+// as categorias que o app tem e o design não mostra — nenhuma delas pode sumir da
+// escolha, senão não dá mais pra classificar um gasto como Lazer, Educação, Casa ou Outros.
+const EXPENSE_CATEGORIES = ['food', 'transport', 'shopping', 'health', 'fixed', 'leisure', 'education', 'home', 'other']
 
 // Converte Date/ISO string → "YYYY-MM-DD" para input[type=date], no fuso de
 // Brasília — igual ao nowBrasilia() do backend. .toISOString() usaria UTC,
@@ -55,6 +51,9 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
 
   const handleClose = () => isDirty ? setShowDiscardConfirm(true) : onClose()
 
+  // Esc: com a pergunta "Descartar alterações?" aberta ela é que fecha (continua editando); senão fecha a folha.
+  useEscapeKey(() => (showDiscardConfirm ? setShowDiscardConfirm(false) : handleClose()))
+
   const handleChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
   const handleSubmit = async e => {
@@ -65,6 +64,12 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
     }
     if (parseFloat(form.amount) > 99999999) {
       setError('O valor máximo permitido por transação é de R$ 99.999.999,00.')
+      return
+    }
+    // Campo de data vazio/incompleto (o navegador entrega ''): avisa aqui em vez de mandar pro servidor,
+    // que responderia com o texto técnico "Use o formato YYYY-MM-DD".
+    if (isEdit && !/^\d{4}-\d{2}-\d{2}$/.test(form.date)) {
+      setError('Informe uma data válida (dd/mm/aaaa).')
       return
     }
     setLoading(true)
@@ -94,132 +99,101 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
   return (
     <>
     <div
-      className="modal-overlay movl"
+      className="modal-overlay movl ntx-overlay"
       style={{ display: 'flex' }}
       onClick={e => e.target === e.currentTarget && handleClose()}
     >
-      <div className="modal">
-        {/* Header */}
-        <div className="mhdr">
-          <div className="mtitle">
-            {isEdit ? 'Editar Transação' : isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
-          </div>
-          <button className="mcls" onClick={handleClose}>
+      <div className="modal ntx-sheet" role="dialog" aria-modal="true" aria-label={isEdit ? 'Editar transação' : 'Nova transação'}>
+        <div className="ntx-handle" aria-hidden="true" />
+
+        <div className="ntx-head">
+          <h2 className="ntx-title">{isEdit ? 'Editar transação' : 'Nova transação'}</h2>
+          <button type="button" className="ntx-close" onClick={handleClose} aria-label="Fechar">
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
             </svg>
           </button>
         </div>
 
-        {/* Tabs Gasto / Entrada */}
-        <div className="mtabs">
-          <div
-            className={`mtab exp${isExp ? ' on' : ''}`}
-            onClick={() => { setType('expense'); setError('') }}
-          >
-            Gasto
-          </div>
-          <div
-            className={`mtab inc${!isExp ? ' on' : ''}`}
-            onClick={() => { setType('income'); setError('') }}
-          >
+        {/* Saída / Entrada */}
+        <div className="ntx-seg" role="group" aria-label="Tipo da transação">
+          <button type="button" className={`ntx-seg-btn${isExp ? ' on' : ''}`} aria-pressed={isExp}
+            onClick={() => { setType('expense'); setError('') }}>
+            Saída
+          </button>
+          <button type="button" className={`ntx-seg-btn${!isExp ? ' on' : ''}`} aria-pressed={!isExp}
+            onClick={() => { setType('income'); setError('') }}>
             Entrada
-          </div>
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          {/* Input de valor em destaque */}
-          <CurrencyInput
-            className="amtinp"
-            value={form.amount}
-            onChange={v => setForm(f => ({ ...f, amount: v }))}
-            autoFocus
-            style={{ color: isExp ? 'var(--red)' : 'var(--c)' }}
-          />
-
-          {/* Categoria (só gastos) */}
-          {isExp && (
-            <div className="fg">
-              <label className="lbl">Categoria</label>
-              <select className="inp" name="category" value={form.category} onChange={handleChange}>
-                {CATEGORIES.map(c => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Descrição */}
-          <div className="fg">
-            <label className="lbl">Descrição (opcional)</label>
-            <input
-              className="inp"
-              name="description"
-              type="text"
-              placeholder={isExp ? 'Ex: Almoço no restaurante' : 'Ex: Freelance, 13° salário'}
-              value={form.description}
-              onChange={handleChange}
-              maxLength={255}
+          {/* Valor em destaque */}
+          <div className="ntx-amount-row">
+            <span className="ntx-currency">R$</span>
+            <CurrencyInput
+              className="ntx-amount"
+              value={form.amount}
+              onChange={v => setForm(f => ({ ...f, amount: v }))}
+              autoFocus
             />
           </div>
 
-          {/* Data — só exibida na edição */}
+          <input
+            className="ntx-field"
+            name="description"
+            type="text"
+            placeholder={isExp ? 'Descrição (ex.: Mercado)' : 'Descrição (ex.: Salário)'}
+            aria-label="Descrição"
+            value={form.description}
+            onChange={handleChange}
+            maxLength={255}
+          />
+
+          {/* Categoria (só saídas) */}
+          {isExp && (
+            <div className="ntx-chips" role="group" aria-label="Categoria">
+              {EXPENSE_CATEGORIES.map(value => (
+                <button
+                  key={value}
+                  type="button"
+                  className={`ntx-chip${form.category === value ? ' on' : ''}`}
+                  aria-pressed={form.category === value}
+                  onClick={() => setForm(f => ({ ...f, category: value }))}
+                >
+                  <CategoryIcon category={value} size={14} color="currentColor" />
+                  {CATEGORY_LABELS[value]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Data — só exibida na edição (nova transação é sempre de hoje) */}
           {isEdit && (
-            <div className="fg">
-              <label className="lbl">Data</label>
-              <input
-                className="inp"
-                name="date"
-                type="date"
-                value={form.date}
-                onChange={handleChange}
-              />
-            </div>
+            <input
+              className="ntx-field"
+              name="date"
+              type="date"
+              aria-label="Data"
+              value={form.date}
+              onChange={handleChange}
+            />
           )}
 
-          {error && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'rgba(255,71,87,.07)', border: '1px solid rgba(255,71,87,.2)',
-              borderRadius: 'var(--rmd)', padding: '10px 14px',
-              color: 'var(--red)', fontSize: 13, marginBottom: 14,
-            }}>
-              {error}
-            </div>
-          )}
+          {error && <div className="ntx-error" role="alert">{error}</div>}
 
-          {/* Ações */}
-          <div className="macts">
-            <button type="button" className="btn bg" onClick={onClose} style={{ flex: 1, justifyContent: 'center' }}>
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              className={`btn ${isExp ? 'bd' : 'bp'}`}
-              disabled={loading}
-              style={{ flex: 2, justifyContent: 'center' }}
-            >
-              {loading ? (
-                <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Salvando...</>
-              ) : (
-                <>
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                  </svg>
-                  {isEdit ? 'Salvar alterações' : isExp ? 'Registrar Gasto' : 'Registrar Entrada'}
-                </>
-              )}
-            </button>
-          </div>
+          <button type="submit" className="ntx-save" disabled={loading}>
+            {loading ? 'Salvando…' : isEdit ? 'Salvar alterações' : 'Salvar'}
+          </button>
         </form>
       </div>
     </div>
 
     {showDiscardConfirm && createPortal(
       <div className="gls-modal-overlay" onClick={() => setShowDiscardConfirm(false)}>
-        <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+        <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="ntx-discard-title" onClick={e => e.stopPropagation()}>
           <div className="gls-modal-head">
-            <span>Descartar alterações?</span>
+            <span id="ntx-discard-title">Descartar alterações?</span>
             <button className="gls-modal-close" onClick={() => setShowDiscardConfirm(false)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

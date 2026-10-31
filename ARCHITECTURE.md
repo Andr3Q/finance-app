@@ -140,6 +140,27 @@ frontend/src/
 
 ---
 
+## Regras do frontend (Nancy 2) — cada uma tem um teste que a protege
+
+1. **Quem muda dado avisa o app.** Início, Extrato e stories guardam o que buscaram e só descartam quando alguém dispara
+   `window.dispatchEvent(new CustomEvent('budget-updated'))` (ou chama `invalidateStories()`). Qualquer arquivo novo que crie/edite/
+   apague lançamento, conta fixa, meta ou parcelado precisa fazer isso — `frontend/src/__tests__/dataChangeSignal.test.js` varre o
+   código e reprova se algum esquecer (foi assim que o "Lançar agora" do Início deixou o story do mês velho).
+2. **Diálogos modais** são `role="dialog"` + `aria-modal="true"` e **não** têm armadilha de foco própria: `hooks/useDialogFocus.js`
+   (montado uma vez no `App`) leva o foco para dentro, faz Tab/Shift+Tab darem a volta e devolve o foco a quem abriu ao fechar.
+   Não crie um trap por diálogo.
+3. **Avisos no topo da tela** usam a classe `toast toast-top` (+ `tok`/`terr`/`twarn`), nunca estilo inline: a classe centraliza sem
+   `transform` (o `fadeUp` anima o transform e o aviso pulava de lado) e dá a largura do texto. No tema claro o texto é branco.
+4. **Sessão expirada com link para tela protegida**: a conferência da sessão no boot recarrega a página para o login (perde o state do
+   roteador). `PrivateRoute` guarda o destino em `utils/returnTo.js` (sessionStorage) enquanto a sessão é conferida e o `Login` devolve
+   a pessoa a ele (só no login, nunca no cadastro).
+5. **Alvos de toque ≥ 44×44 px.** Controles menores ganham uma borda invisível (`::after`, bloco no fim do `index.css`) sem mudar o
+   visual; o teste `e2e/helpers/touch.js` (`touchTarget44`) mede com `elementFromPoint`.
+6. **Cota de IA**: o pedido que falha por culpa do provedor (sobrecarga, fora do ar, tempo esgotado) não gasta a cota por hora —
+   `handleGroqError` marca `res.locals.aiProviderFailed` e os limiters de `middleware/rateLimiter.js` devolvem a mensagem à cota.
+
+---
+
 ## Como criar um novo domínio
 
 ### Backend (siga esta ordem):

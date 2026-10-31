@@ -145,6 +145,13 @@ app.get('/sitemap.xml', (req, res) => {
 </urlset>`)
 })
 
+// /favicon.ico: o navegador usa os <link rel="icon"> do index.html, mas leitores de feed, prévias de link e crawlers pedem este
+// caminho direto. Sem a rota ele caía no catch-all do SPA e devolvia a página do app (HTML, 200) no lugar de um ícone.
+app.get('/favicon.ico', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=86400')
+  res.redirect(301, '/icon-192.png')
+})
+
 // ── Arquivos estáticos com CORS aberto ──────────────────
 // Vite gera <script type="module" crossorigin> — o browser exige
 // Access-Control-Allow-Origin mesmo em same-origin. Solução: cors(*)
@@ -213,6 +220,11 @@ app.use('/api/', cors({
 
 // ── Cookies + Body + Rate limit ────────────────────────
 app.use(cookieParser())
+// Foto de perfil (JPEG 256x256 em base64, até ~64 KB + invólucro) precisa de um teto maior que o global; vem ANTES
+// do parser de 10kb, que então só pula este corpo (já lido). Qualquer outra rota segue com 10kb.
+app.use('/api/auth/avatar', express.json({ limit: '80kb' }))
+// Chat da IA: até 10 mensagens de contexto (cada uma limitada a 2000 caracteres pelo servidor) + a pergunta — passa de 10kb.
+app.use('/api/agent/chat', express.json({ limit: '32kb' }))
 app.use(express.json({ limit: '10kb' }))
 app.use(express.urlencoded({ extended: true, limit: '10kb' }))
 app.use('/api/', apiLimiter)

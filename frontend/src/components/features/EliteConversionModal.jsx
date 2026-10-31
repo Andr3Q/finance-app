@@ -28,19 +28,21 @@ export default function EliteConversionModal({ onClose }) {
       <div className="ecm-card">
         {/* Header */}
         <div className="ecm-header">
-          <span className="ecm-emoji">🎉</span>
           <div>
             <div className="ecm-title">Seu período gratuito encerrou</div>
             <div className="ecm-sub">Você explorou o Nancy Elite. O que deseja fazer agora?</div>
           </div>
-          <button className="ecm-close" onClick={close} aria-label="Fechar">✕</button>
+          <button className="ecm-close" onClick={close} aria-label="Fechar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
         {/* Opções */}
         <div className="ecm-options">
           {/* Elite — primário */}
           <button className="ecm-btn ecm-btn-elite" onClick={() => goTo('elite')}>
-            <span className="ecm-btn-ico">🏆</span>
             <div className="ecm-btn-info">
               <span className="ecm-btn-label">Continuar no Elite</span>
               <span className="ecm-btn-price">R$ 34,90 / mês</span>
@@ -50,7 +52,6 @@ export default function EliteConversionModal({ onClose }) {
 
           {/* Pro — secundário */}
           <button className="ecm-btn ecm-btn-pro" onClick={() => goTo('pro')}>
-            <span className="ecm-btn-ico">⚡</span>
             <div className="ecm-btn-info">
               <span className="ecm-btn-label">Assinar Pro</span>
               <span className="ecm-btn-price">R$ 9,90 / mês</span>

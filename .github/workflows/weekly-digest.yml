@@ -1,0 +1,55 @@
+name: Resumo Semanal por E-mail
+
+on:
+  schedule:
+    - cron: '0 11 * * 1'   # toda segunda-feira às 11h UTC (8h Brasília)
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Ambiente alvo'
+        type: choice
+        default: production
+        options: [production, staging]
+
+permissions:
+  contents: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Disparar o resumo semanal
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          TARGET_ENV: ${{ inputs.environment || 'production' }}
+        run: |
+          if [ "$TARGET_ENV" = "staging" ]; then
+            URL="https://finance-app-staging-vzcnezphtq-rj.a.run.app/api/cron/weekly-digest"
+          else
+            URL="https://finance-app-1042158013294.southamerica-east1.run.app/api/cron/weekly-digest"
+          fi
+
+          # Cada chamada tem um orçamento de ~4 min (o Cloud Run corta a requisição em 300s) e devolve "done": false quando ainda
+          # há gente na fila — chama de novo até terminar (quem já recebeu não entra de novo). Falha em série (cota da Resend,
+          # chave inválida) também devolve done=false: depois de 10 chamadas o workflow falha e o GitHub avisa.
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /tmp/response.json -w "%{http_code}" --max-time 330 \
+              -X POST "$URL" \
+              -H "x-cron-secret: $CRON_SECRET")
+
+            echo "Chamada $i — HTTP status: $STATUS"
+            cat /tmp/response.json
+            echo
+
+            if [ "$STATUS" != "200" ]; then
+              echo "Falha no resumo semanal: status $STATUS"
+              exit 1
+            fi
+            if [ "$(jq -r '.done' /tmp/response.json)" = "true" ]; then
+              echo "Resumo semanal concluído."
+              exit 0
+            fi
+          done
+          echo "O resumo semanal não terminou depois de 10 chamadas (fila grande demais ou falha em série)."
+          exit 1

@@ -9,7 +9,7 @@ const prisma = require('../src/lib/prisma')
 
 const TENANT_MODELS = [
   'transaction', 'budget', 'categoryLimit', 'goal', 'pushSubscription',
-  'installmentPlan', 'twoFactorBackupCode', 'processedPayment', 'accountUnlockToken',
+  'installmentPlan', 'twoFactorBackupCode', 'processedPayment', 'accountUnlockToken', 'userAvatar',
 ]
 
 describe('Guarda multi-tenant (lib/prisma.js)', () => {

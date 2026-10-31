@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { test, expect }     = require('@playwright/test')
+const { test, expect }     = require('../helpers/test')
 const { createMock }       = require('../helpers/mockApi')
 const { injectSession, TEST_USER, FREE_USER } = require('../helpers/session')
 
@@ -16,19 +16,21 @@ async function gotoPlanos(page, user = FREE_USER, search = '') {
 test.describe('Planos — Renderização', () => {
   test('exibe os três cards de plano (Grátis, Pro, Elite)', async ({ page }) => {
     await gotoPlanos(page)
-    await expect(page.locator('.pp1-card')).toHaveCount(3)
+    await expect(page.locator('.pl-card.pl-free, .pl-card.pl-pro, .pl-card.pl-elite')).toHaveCount(3)
   })
 
   test('badge "Plano atual" aparece no card correto para usuário Free', async ({ page }) => {
     await gotoPlanos(page, FREE_USER)
-    const freeCard = page.locator('.pp1-card.pp1-free')
-    await expect(freeCard.locator('.pp1-current-badge')).toBeVisible()
+    const freeCard = page.locator('.pl-card.pl-free')
+    await expect(freeCard).toHaveAttribute('aria-current', 'true')
+    await expect(freeCard.getByRole('button', { name: 'Plano básico' })).toBeDisabled()
   })
 
   test('badge "Plano atual" aparece no card Pro para usuário Pro', async ({ page }) => {
     await gotoPlanos(page, TEST_USER)
-    const proCard = page.locator('.pp1-card.pp1-pro')
-    await expect(proCard.locator('.pp1-current-badge')).toBeVisible()
+    const proCard = page.locator('.pl-card.pl-pro')
+    await expect(proCard).toHaveAttribute('aria-current', 'true')
+    await expect(proCard.locator('.pl-badge')).toHaveText('Plano atual')
   })
 
   test('exibe botão "Assinar Pro" e "Assinar Elite"', async ({ page }) => {
@@ -46,10 +48,10 @@ test.describe('Planos — Renderização', () => {
 })
 
 test.describe('Planos — Toggle Anual', () => {
-  test('clicar em "Anual" exibe badge de economia (20%)', async ({ page }) => {
+  test('o alternador mostra "Anual · 2 meses grátis" e clicar nele troca os preços para o anual', async ({ page }) => {
     await gotoPlanos(page)
     await page.getByRole('button', { name: /anual/i }).click()
-    await expect(page.getByText(/economize 20%/i)).toBeVisible()
+    await expect(page.getByText('R$ 8,25')).toBeVisible()
   })
 
   test('alternar para anual muda o botão para "Mensal"', async ({ page }) => {

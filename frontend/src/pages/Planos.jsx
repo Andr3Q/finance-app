@@ -2,14 +2,16 @@ import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { useUser, saveUser } from '../hooks/useUser.js'
+import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import { paymentsAPI, authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
 
+// A pergunta "Quando o Pro estará disponível?" saiu: o Pro já é vendido (a resposta dizia que ainda estava em desenvolvimento).
 const FAQ = [
-  ['Quando o Pro estará disponível?',   'O plano Pro está em desenvolvimento final. Você será notificado por e-mail assim que for lançado com acesso antecipado.'],
   ['O plano Grátis tem limite de tempo?','Não. O plano Grátis é gratuito para sempre, sem expiração. Use sem pressa.'],
   ['Meus dados ficam seguros?',          'Sim. Seus dados são 100% privados e nunca compartilhados com terceiros. Você é o único dono das suas informações.'],
-  ['Posso cancelar sem taxas?',          'Sim. Cancele a qualquer momento, sem multa, diretamente nas configurações da conta.'],
+  ['Posso cancelar sem taxas?',          'Sim. O plano não renova sozinho: ele vale pelo período pago e depois volta para o Grátis, sem multa. Se quiser registrar que não vai renovar, use "Não renovar" em Perfil → Pagamentos.'],
 ]
 
 const FREE_FEATS = [
@@ -17,7 +19,6 @@ const FREE_FEATS = [
   'Até 20 transações por mês',
   'Categorias de gastos',
   'Exportação CSV',
-  'Contas fixas automáticas',
 ]
 
 const PRO_FEATS = [
@@ -25,17 +26,14 @@ const PRO_FEATS = [
   { text: 'Contas fixas', hi: 'Até 35' },
   { text: 'Limites por categoria' },
   { text: 'Relatório PDF mensal automático' },
-  null,
   { text: 'Histórico completo de meses' },
   { text: 'Suporte prioritário' },
 ]
 
 const ELITE_FEATS = [
   { text: 'Tudo do Pro', hi: 'incluído' },
-  null,
   { text: 'Previsão IA mensal' },
   { text: 'Relatório IA detalhado' },
-  null,
   { text: 'Metas financeiras', hi: 'Ilimitadas' },
   { text: 'Lembretes de vencimento' },
   { text: 'Detector de assinaturas' },
@@ -84,39 +82,32 @@ const COMPARE_GROUPS = [
   },
 ]
 
-const CheckYes = () => (
-  <div className="plp-check-yes">
-    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
-      <path d="M2 6l3 3 5-5"/>
-    </svg>
-  </div>
+const Check = () => (
+  <svg className="pl-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
 )
-const CheckYesElite = () => (
-  <div className="plp-check-yes plp-check-elite">
-    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="#a78bfa" strokeWidth="2" strokeLinecap="round">
-      <path d="M2 6l3 3 5-5"/>
-    </svg>
-  </div>
+const BackIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
 )
-const CheckNo = () => (
-  <div className="plp-check-no">
-    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.2)" strokeWidth="2" strokeLinecap="round">
-      <line x1="3" y1="3" x2="9" y2="9"/><line x1="9" y1="3" x2="3" y2="9"/>
-    </svg>
-  </div>
+const BoltIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
 )
+const Cell = ({ v }) => (v === true ? <Check /> : v === false ? <span className="pl-no" aria-label="não">—</span> : <span className="pl-cell-val">{v}</span>)
 
+// Planos (Nancy 2, tela 29). A lógica de pagamento é a de sempre (checkout pelo Mercado Pago em janela aberta no
+// clique, retorno com ?payment=, polling do plano, aviso de rebaixamento de Elite) — só a casca e os textos mudaram.
 export default function Planos() {
   const [billing,           setBilling]          = useState('mensal')
   const [openFaq,           setOpenFaq]          = useState(null)
   const [toast,             setToast]            = useState(null)
   const [loading,           setLoading]          = useState(null) // 'pro_monthly' | 'pro_annual' | etc.
   const [showDowngradeModal,setShowDowngradeModal] = useState(false)
+  useEscapeKey(() => setShowDowngradeModal(false), showDowngradeModal)
 
   const user     = useUser()
   const plan     = user.plan || 'free'
   const location = useLocation()
   const navigate = useNavigate()
+  useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const pollRef = useRef(null)
 
@@ -126,7 +117,7 @@ export default function Planos() {
     if (status === 'pending') showToast('Pagamento pendente. Você receberá confirmação em breve.', 'warn')
     if (status === 'failure') showToast('Pagamento não aprovado. Tente novamente.', 'error')
     if (status === 'success') {
-      showToast('Pagamento aprovado! Seu plano foi ativado. 🎉', 'success')
+      showToast('Pagamento aprovado! Seu plano foi ativado.', 'success')
       analytics.track('payment_completed')
       // Polling: verifica se o plano foi atualizado (webhook pode demorar alguns segundos)
       const initialPlan = user.plan
@@ -183,9 +174,12 @@ export default function Planos() {
         if (parsed.protocol !== 'https:' || parsed.hostname !== 'www.mercadopago.com.br') throw new Error()
       } catch { throw new Error('URL inválida') }
       win.location.href = data.checkoutUrl
-    } catch {
+    } catch (err) {
       win.close()
-      showToast('Erro ao iniciar pagamento. Tente novamente.', 'error')
+      // 503 = pagamentos fora do ar: pedir pra "tentar novamente" não ajuda
+      showToast(err?.response?.status === 503
+        ? 'Pagamentos indisponíveis no momento. Tente mais tarde ou fale com o suporte.'
+        : 'Erro ao iniciar pagamento. Tente novamente.', 'error')
     } finally {
       setLoading(null)
     }
@@ -195,366 +189,177 @@ export default function Planos() {
     pro:   { mensal: 9.90,  anual: 8.25  },
     elite: { mensal: 34.90, anual: 27.90 },
   }
-  const toInt = v => String(Math.floor(v))
   const toCts = v => ',' + String(Math.round((v % 1) * 100)).padStart(2, '0')
-
-  const proPrice    = toInt(PRICES.pro[billing])
-  const proCents    = toCts(PRICES.pro[billing])
-  const properiod   = billing === 'mensal'
-    ? 'por mês · Cancele quando quiser'
-    : 'por mês · Cobrado anualmente (R$ 99,00/ano)'
-
-  const elitePrice  = toInt(PRICES.elite[billing])
-  const eliteCents  = toCts(PRICES.elite[billing])
-  const elitePeriod = billing === 'mensal'
-    ? 'por mês · Cancele quando quiser'
-    : 'por mês · Cobrado anualmente (R$ 334,80/ano)'
 
   const period = billing === 'mensal' ? 'monthly' : 'annual'
 
   const toggleFaq = (i) => setOpenFaq(openFaq === i ? null : i)
+
+
+  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/settings'))
+  const price = (v) => 'R$ ' + String(Math.floor(v)) + toCts(v)
+  const Feats = ({ list }) => (
+    <ul className="pl-feats">
+      {list.map(f => (
+        <li key={f.text} className="pl-feat">
+          <Check />
+          <span>{f.text}{f.hi && <> — <b>{f.hi}</b></>}</span>
+        </li>
+      ))}
+    </ul>
+  )
 
   return (
     <>
       <Navbar />
 
       {toast && (
-        <div className={`toast ${toast.type === 'error' ? 'terr' : toast.type === 'warn' ? 'twarn' : 'tok'}`}
-          style={{ position:'fixed', top:16, left:'50%', transform:'translateX(-50%)', zIndex:9001, whiteSpace:'nowrap' }}>
+        <div className={`toast toast-top ${toast.type === 'error' ? 'terr' : toast.type === 'warn' ? 'twarn' : 'tok'}`}>
           {toast.msg}
         </div>
       )}
 
-      <div className="pwnav fade-in">
-        <div className="pp1-page">
-
-          {/* ── Hero ── */}
-          <div className="pp1-hero">
-            <div className="pp1-eyebrow">
-              <span className="pp1-eyebrow-dot" />
-              Escolha seu plano
+      <div className="pwnav fin-pwnav fade-in">
+        <div className="fin-page">
+          <header className="fin-hero">
+            <button type="button" className="fin-back" onClick={goBack} aria-label="Voltar"><BackIcon /></button>
+            <div className="fin-hero-text">
+              <h1 className="fin-hero-title">Planos</h1>
+              <p className="fin-hero-sub">Assinatura Pro e Elite</p>
             </div>
-            <h1 className="pp1-title">
-              Controle total do<br />
-              <span className="pp1-title-green">seu dinheiro.</span>
-            </h1>
-            <p className="pp1-sub">Comece grátis e faça upgrade quando precisar de mais poder.</p>
-            <div className="pp1-toggle-wrap">
-              <div className="pp1-toggle">
-                <button className={`pp1-toggle-btn${billing === 'mensal' ? ' on' : ''}`} onClick={() => setBilling('mensal')}>Mensal</button>
-                <button className={`pp1-toggle-btn${billing === 'anual' ? ' on' : ''}`} onClick={() => setBilling('anual')}>Anual</button>
+          </header>
+
+          <div className="fin-body pl-body">
+            <div className="pl-intro">
+              <h2 className="pl-headline">Controle total do <span>seu dinheiro.</span></h2>
+              <p className="pl-lead">Comece grátis e faça upgrade quando quiser.</p>
+              <div className="pl-toggle" role="group" aria-label="Periodicidade">
+                <button type="button" className={billing === 'mensal' ? 'on' : ''} aria-pressed={billing === 'mensal'} onClick={() => setBilling('mensal')}>Mensal</button>
+                <button type="button" className={billing === 'anual' ? 'on' : ''} aria-pressed={billing === 'anual'} onClick={() => setBilling('anual')}>Anual · 2 meses grátis</button>
               </div>
-              {billing === 'anual' && <span className="pp1-save-badge">Economize 20%</span>}
             </div>
-          </div>
-
-          {/* ── Cards ── */}
-          <div className="pp1-cards">
 
             {/* GRÁTIS */}
-            <div className="pp1-card pp1-free">
-              <div className="pp1-card-tier">Grátis</div>
-              <div className="pp1-card-tagline">Ideal para começar</div>
-              {plan === 'free' && <div className="pp1-current-badge">Plano atual</div>}
-
-              <div className="pp1-price-block">
-                <div className="pp1-price">
-                  <span className="pp1-price-cur">R$</span>
-                  <span className="pp1-price-num">0</span>
-                </div>
-                <div className="pp1-price-note">Para sempre grátis</div>
-              </div>
-
-              <div className="pp1-divider" />
-
-              <ul className="pp1-feats">
-                {FREE_FEATS.map(f => (
-                  <li key={f} className="pp1-feat">
-                    <div className="pp1-feat-ico pp1-feat-ico-muted">
-                      <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="rgba(255,255,255,.4)" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
-                    </div>
-                    <span className="pp1-feat-text pp1-feat-muted">{f}</span>
-                  </li>
-                ))}
+            <section className="pl-card pl-free" aria-label="Plano Grátis" aria-current={plan === 'free' ? 'true' : undefined}>
+              <h3 className="pl-tier">Grátis</h3>
+              <p className="pl-tagline">Para começar a se organizar</p>
+              <div className="pl-price"><span className="pl-price-num">R$ 0</span><span className="pl-price-note">para sempre</span></div>
+              <ul className="pl-feats">
+                {FREE_FEATS.map(f => <li key={f} className="pl-feat"><Check /><span>{f}</span></li>)}
               </ul>
-
               {plan === 'free' ? (
-                <button className="pp1-cta-ghost" disabled>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Plano atual
-                </button>
+                <button type="button" className="pl-cta pl-cta-ghost" disabled>Plano básico</button>
               ) : (
-                <button className="pp1-cta-ghost pp1-cta-cancel" onClick={() => showToast('Para cancelar sua assinatura, acesse o Mercado Pago ou envie um e-mail para suporte@finance.com.br', 'warn')}>
-                  Cancelar assinatura
+                <button type="button" className="pl-cta pl-cta-ghost" onClick={() => navigate('/settings/pagamentos')}>
+                  Não renovar
                 </button>
               )}
-            </div>
+            </section>
 
             {/* PRO */}
-            <div className="pp1-card pp1-pro">
-              {/* Gradiente + partículas */}
-              <div className="pp1-pro-glow" />
-              <div className="grad-particles" aria-hidden="true">
-                {[5,14,23,34,45,56,65,76,85,94].map((left, i) => (
-                  <span key={i} className="grad-particle" style={{
-                    left:`${left}%`,
-                    width:`${2+(i%3)}px`, height:`${2+(i%3)}px`,
-                    animationDelay:`${(i*0.52)%3}s`,
-                    animationDuration:`${2.2+(i%4)*0.6}s`,
-                    opacity: 0.3+(i%3)*0.15,
-                  }}/>
-                ))}
+            <section className="pl-card pl-pro" aria-label="Plano Pro" aria-current={plan === 'pro' ? 'true' : undefined}>
+              <div className="pl-tier-row">
+                <h3 className="pl-tier">Pro</h3>
+                {plan === 'pro'
+                  ? <span className="pl-badge pl-badge-current">Plano atual</span>
+                  : <span className="pl-badge">Recomendado</span>}
               </div>
-
-              <div className="pp1-rec-badge">
-                <svg width="9" height="9" viewBox="0 0 12 12" fill="currentColor"><polygon points="6 1 7.5 4.5 11 5 8.5 7.5 9 11 6 9.5 3 11 3.5 7.5 1 5 4.5 4.5"/></svg>
-                Recomendado
-              </div>
-
-              {plan === 'pro' && <div className="pp1-current-badge pp1-current-badge-pro">Plano atual</div>}
-              <div className="pp1-card-tier pp1-tier-pro">Pro</div>
-              <div className="pp1-card-tagline pp1-tagline-pro">Para quem quer controle total</div>
-
-              <div className="pp1-price-block">
-                <div className="pp1-price">
-                  <span className="pp1-price-cur pp1-cur-pro">R$</span>
-                  <span className="pp1-price-num pp1-num-pro">{proPrice}</span>
-                  <span className="pp1-price-dec">{proCents}</span>
-                </div>
-                <div className="pp1-price-note pp1-note-pro">{properiod}</div>
-                <div className="pp1-price-cancel">Sem fidelidade · Sem cartão para testar</div>
-              </div>
-
-              <div className="pp1-divider pp1-divider-pro" />
-
-              <ul className="pp1-feats">
-                {PRO_FEATS.map((f, i) =>
-                  f === null ? <li key={i} className="pp1-feat-sep" /> : (
-                    <li key={i} className="pp1-feat">
-                      <div className="pp1-feat-ico pp1-feat-ico-pro">
-                        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#4ae2ac" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
-                      </div>
-                      <span className="pp1-feat-text">
-                        {f.text}{f.hi && <> — <span className="pp1-feat-hi">{f.hi}</span></>}
-                      </span>
-                    </li>
-                  )
-                )}
-              </ul>
-
+              <p className="pl-tagline">Para quem quer controle total</p>
+              <div className="pl-price"><span className="pl-price-num">{price(PRICES.pro[billing])}</span><span className="pl-price-note">por mês</span></div>
+              <p className="pl-price-sub">{billing === 'mensal' ? 'Cancele quando quiser' : 'Cobrado anualmente (R$ 99,00/ano)'}</p>
+              <Feats list={PRO_FEATS} />
               {plan === 'pro' ? (
-                <div className="pp1-cta-is-pro">✨ Plano atual</div>
+                <button type="button" className="pl-cta pl-cta-current" disabled>Plano atual</button>
               ) : (
-                <button
-                  className="pp1-cta-pro"
-                  onClick={() => plan === 'elite' ? setShowDowngradeModal(true) : handleCheckout('pro', period)}
-                  disabled={!!loading}
-                >
-                  {loading === `pro_${period}` ? 'Aguarde…' : (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                      </svg>
-                      {plan === 'elite' ? 'Mudar para Pro' : 'Assinar Pro'}
-                    </>
-                  )}
+                <button type="button" className="pl-cta pl-cta-pro"
+                  onClick={() => plan === 'elite' ? setShowDowngradeModal(true) : handleCheckout('pro', period)} disabled={!!loading}>
+                  {loading === `pro_${period}` ? 'Aguarde…' : (<><BoltIcon /> {plan === 'elite' ? 'Mudar para Pro' : 'Assinar Pro'}</>)}
                 </button>
               )}
-              <div className="pp1-cta-note">PIX ou cartão · Cancele quando quiser</div>
-            </div>
+              <p className="pl-cta-note">PIX ou cartão · Cancele quando quiser</p>
+            </section>
 
             {/* ELITE */}
-            <div className="pp1-card pp1-elite">
-              <div className="pp1-elite-glow" />
-              <div className="grad-particles" aria-hidden="true">
-                {[5,14,23,34,45,56,65,76,85,94].map((left, i) => (
-                  <span key={i} className="grad-particle pp1-elite-particle" style={{
-                    left:`${left}%`,
-                    width:`${2+(i%3)}px`, height:`${2+(i%3)}px`,
-                    animationDelay:`${(i*0.48)%3}s`,
-                    animationDuration:`${2+(i%4)*0.65}s`,
-                    opacity: 0.25+(i%3)*0.12,
-                  }}/>
-                ))}
+            <section className="pl-card pl-elite" aria-label="Plano Elite" aria-current={plan === 'elite' ? 'true' : undefined}>
+              <div className="pl-tier-row">
+                <h3 className="pl-tier">Elite</h3>
+                {plan === 'elite' && <span className="pl-badge pl-badge-current">Plano atual</span>}
               </div>
+              <p className="pl-tagline">Para quem quer o poder da IA</p>
+              <div className="pl-price"><span className="pl-price-num">{price(PRICES.elite[billing])}</span><span className="pl-price-note">por mês</span></div>
+              <p className="pl-price-sub">{billing === 'mensal' ? 'Cancele quando quiser' : 'Cobrado anualmente (R$ 334,80/ano)'}</p>
+              <Feats list={ELITE_FEATS} />
+              {plan === 'elite' ? (
+                <button type="button" className="pl-cta pl-cta-current" disabled>Plano atual</button>
+              ) : (
+                <>
+                  <button type="button" className="pl-cta pl-cta-elite" onClick={() => handleCheckout('elite', period)} disabled={!!loading}>
+                    {loading === `elite_${period}` ? 'Aguarde…' : (<><BoltIcon /> {plan === 'pro' ? 'Fazer upgrade para Elite' : 'Assinar Elite'}</>)}
+                  </button>
+                  <p className="pl-cta-note">PIX ou cartão · Cancele quando quiser</p>
+                </>
+              )}
+            </section>
 
-
-              {plan === 'elite' && <div className="pp1-current-badge pp1-current-badge-elite">Plano atual</div>}
-              <div className="pp1-card-tier pp1-tier-elite">Elite</div>
-              <div className="pp1-card-tagline pp1-tagline-elite">Para quem quer o poder da IA</div>
-
-              <div className="pp1-price-block">
-                <div className="pp1-price">
-                  <span className="pp1-price-cur pp1-cur-elite">R$</span>
-                  <span className="pp1-price-num pp1-num-elite">{elitePrice}</span>
-                  <span className="pp1-price-dec pp1-dec-elite">{eliteCents}</span>
+            {/* Comparativo */}
+            <section className="pl-card pl-compare" aria-label="Comparativo completo">
+              <h3 className="pl-section-title">Comparativo completo</h3>
+              <div className="pl-table" role="table">
+                <div className="pl-tr pl-th" role="row">
+                  <div className="pl-td-feat" role="columnheader">Funcionalidade</div>
+                  <div className="pl-td" role="columnheader">Grátis</div>
+                  <div className="pl-td pl-td-pro" role="columnheader">Pro</div>
+                  <div className="pl-td" role="columnheader">Elite</div>
                 </div>
-                <div className="pp1-price-note pp1-note-elite">{elitePeriod}</div>
-                <div className="pp1-price-cancel pp1-cancel-elite">Sem fidelidade · Sem cartão para testar</div>
-              </div>
-
-              <div className="pp1-divider pp1-divider-elite" />
-
-              <ul className="pp1-feats">
-                {ELITE_FEATS.map((f, i) =>
-                  f === null ? <li key={i} className="pp1-feat-sep pp1-feat-sep-elite" /> : (
-                    <li key={i} className="pp1-feat">
-                      <div className="pp1-feat-ico pp1-feat-ico-elite">
-                        <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="#a78bfa" strokeWidth="2.2" strokeLinecap="round"><path d="M2 6l3 3 5-5"/></svg>
+                {COMPARE_GROUPS.map(g => (
+                  <div key={g.label} role="rowgroup">
+                    <div className="pl-group">{g.label}</div>
+                    {g.rows.map(r => (
+                      <div key={r.feat} className="pl-tr" role="row">
+                        <div className="pl-td-feat" role="cell">{r.feat}</div>
+                        <div className="pl-td" role="cell"><Cell v={r.free} /></div>
+                        <div className="pl-td pl-td-pro" role="cell"><Cell v={r.pro} /></div>
+                        <div className="pl-td" role="cell"><Cell v={r.elite} /></div>
                       </div>
-                      <span className="pp1-feat-text pp1-feat-text-elite">
-                        {f.text}{f.hi && <> — <span className="pp1-feat-hi-elite">{f.hi}</span></>}
-                      </span>
-                    </li>
-                  )
-                )}
-              </ul>
-
-              {plan === 'elite'
-                ? <div className="pp1-cta-is-pro">⚡ Plano atual</div>
-                : <>
-                    <button className="pp1-cta-elite" onClick={() => handleCheckout('elite', period)} disabled={!!loading}>
-                      {loading === `elite_${period}` ? 'Aguarde…' : (
-                        <>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                          </svg>
-                          {plan === 'pro' ? 'Fazer upgrade para Elite' : 'Assinar Elite'}
-                        </>
-                      )}
-                    </button>
-                    <div className="pp1-cta-note pp1-cta-note-elite">PIX ou cartão · Cancele quando quiser</div>
-                  </>
-              }
-            </div>
-
-          </div>
-
-          {/* ── Tabela comparativa ── */}
-          <div className="pp1-compare">
-            <div className="pp1-compare-title">Comparativo completo</div>
-            <div className="pp1-table">
-              <div className="pp1-table-head">
-                <div className="pp1-th-feat">Funcionalidade</div>
-                <div className="pp1-th">Grátis</div>
-                <div className="pp1-th pp1-th-pro">Pro</div>
-                <div className="pp1-th pp1-th-elite">Elite</div>
-              </div>
-              {COMPARE_GROUPS.map(group => (
-                <div key={group.label}>
-                  <div className="pp1-tr-group">{group.label}</div>
-                  {group.rows.map(row => (
-                    <div key={row.feat} className="pp1-tr">
-                      <div className="pp1-td-feat">{row.feat}</div>
-                      <div className="pp1-td">
-                        {row.free === true  ? <CheckYes /> :
-                         row.free === false ? <CheckNo  /> :
-                         <span className="pp1-td-val">{row.free}</span>}
-                      </div>
-                      <div className="pp1-td pp1-td-pro-col">
-                        {row.pro === true  ? <CheckYes /> :
-                         row.pro === false ? <CheckNo  /> :
-                         <span className="pp1-td-val pp1-td-val-g">{row.pro}</span>}
-                      </div>
-                      <div className="pp1-td pp1-td-elite-col">
-                        {row.elite === true  ? <CheckYesElite /> :
-                         row.elite === false ? <CheckNo  /> :
-                         <span className="pp1-td-val pp1-td-val-e">{row.elite}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Bottom: garantia + FAQ ── */}
-          <div className="pp1-bottom">
-
-            <div className="pp1-guarantee">
-              <div className="pp1-guar-glow" />
-              <div className="grad-particles" aria-hidden="true">
-                {[6,18,30,44,56,68,80,92].map((left, i) => (
-                  <span key={i} className="grad-particle" style={{
-                    left:`${left}%`,
-                    width:`${2+(i%2)}px`, height:`${2+(i%2)}px`,
-                    animationDelay:`${(i*0.6)%3}s`,
-                    animationDuration:`${2+(i%3)*0.7}s`,
-                    opacity: 0.2+(i%3)*0.12,
-                  }}/>
-                ))}
-              </div>
-              <div className="pp1-guar-ico">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-              </div>
-              <div className="pp1-guar-title">Cancele quando quiser</div>
-              <div className="pp1-guar-sub">Sem contratos, sem fidelidade. Cancele a qualquer momento, sem taxas ou complicações.</div>
-              <div className="pp1-guar-tags">
-                <span className="pp1-guar-tag">Sem contrato</span>
-                <span className="pp1-guar-tag">100% privado</span>
-                <span className="pp1-guar-tag">Sem cartão agora</span>
-              </div>
-            </div>
-
-            <div className="pp1-faq">
-              <div className="pp1-faq-title">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-                Perguntas frequentes
-              </div>
-              {FAQ.map(([q, a], i) => (
-                <div key={q} className={`pp1-faq-item${openFaq === i ? ' open' : ''}`} onClick={() => toggleFaq(i)}>
-                  <div className="pp1-faq-q">
-                    <span>{q}</span>
-                    <span className={`pp1-faq-arrow${openFaq === i ? ' open' : ''}`}>›</span>
+                    ))}
                   </div>
-                  <div className="pp1-faq-a">{a}</div>
+                ))}
+              </div>
+            </section>
+
+            {/* Garantia + FAQ */}
+            <section className="pl-card pl-guar" aria-label="Cancele quando quiser">
+              <h3 className="pl-section-title">Cancele quando quiser</h3>
+              <p className="pl-guar-sub">Sem contratos, sem fidelidade. Cancele a qualquer momento, sem taxas ou complicações.</p>
+              <div className="pl-tags"><span>Sem contrato</span><span>100% privado</span><span>Sem cartão agora</span></div>
+            </section>
+
+            <section className="pl-card pl-faq" aria-label="Perguntas frequentes">
+              <h3 className="pl-section-title">Perguntas frequentes</h3>
+              {FAQ.map(([q, a], i) => (
+                <div key={q} className={`pl-faq-item${openFaq === i ? ' open' : ''}`}>
+                  <button type="button" className="pl-faq-q" aria-expanded={openFaq === i} onClick={() => toggleFaq(i)}>
+                    <span>{q}</span><span className="pl-faq-arrow" aria-hidden="true">›</span>
+                  </button>
+                  {openFaq === i && <p className="pl-faq-a">{a}</p>}
                 </div>
               ))}
-            </div>
-
+            </section>
           </div>
-
         </div>
       </div>
 
       {/* ── Modal: Elite tentando fazer downgrade para Pro ── */}
       {showDowngradeModal && (
-        <div
-          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:9000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
-          onClick={() => setShowDowngradeModal(false)}
-        >
-          <div
-            style={{ background:'var(--bg-card)', border:'1px solid var(--bd)', borderRadius:16, padding:28, width:'100%', maxWidth:440 }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16 }}>
-              <div style={{ width:44, height:44, borderRadius:12, background:'rgba(251,191,36,.1)', border:'1px solid rgba(251,191,36,.25)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
-              </div>
-              <div>
-                <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)' }}>Atenção: downgrade de plano</div>
-                <div style={{ fontSize:12, color:'var(--t3)', marginTop:2 }}>Você possui o plano Elite ativo</div>
-              </div>
-            </div>
-            <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.7, marginBottom:16 }}>
-              Você já possui o plano Elite ativo. Para alterar sua assinatura para o Pro sem perder seus dias restantes, <strong style={{ color:'var(--t1)' }}>aguarde o fim do seu ciclo de faturamento atual</strong> ou fale com nosso suporte.
-            </div>
-            <div style={{ background:'rgba(251,191,36,.06)', border:'1px solid rgba(251,191,36,.15)', borderRadius:10, padding:'10px 14px', marginBottom:20, fontSize:12, color:'var(--t2)' }}>
-              📧 suporte@finance.com.br
-            </div>
-            <button
-              onClick={() => setShowDowngradeModal(false)}
-              style={{ width:'100%', padding:'11px 0', borderRadius:8, border:'none', background:'var(--c)', color:'#0a0a0a', fontSize:14, fontWeight:700, cursor:'pointer' }}
-            >
-              Entendido
-            </button>
+        <div className="pl-modal-overlay" onClick={() => setShowDowngradeModal(false)}>
+          <div className="pl-modal" role="dialog" aria-label="Atenção: downgrade de plano" onClick={e => e.stopPropagation()}>
+            <h3 className="pl-modal-title">Atenção: downgrade de plano</h3>
+            <p className="pl-modal-sub">Você possui o plano Elite ativo</p>
+            <p className="pl-modal-text">
+              Você já possui o plano Elite ativo. Para alterar sua assinatura para o Pro sem perder seus dias restantes, <strong>aguarde o fim do seu ciclo de faturamento atual</strong> ou fale com nosso suporte.
+            </p>
+            <p className="pl-modal-mail">suporte@finance.com.br</p>
+            <button type="button" className="pl-cta pl-cta-pro" onClick={() => setShowDowngradeModal(false)}>Entendido</button>
           </div>
         </div>
       )}

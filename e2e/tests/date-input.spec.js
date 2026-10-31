@@ -1,5 +1,5 @@
 // @ts-nocheck
-const { test, expect } = require('@playwright/test')
+const { test, expect } = require('../helpers/test')
 const { injectSession, TEST_USER } = require('../helpers/session')
 
 // ─────────────────────────────────────────────────────────────────
@@ -27,21 +27,21 @@ async function setupSettings(page) {
   await page.goto('/financas', { waitUntil: 'networkidle' })
   await page.waitForTimeout(800)
 
-  // Scroll até o formulário de contas fixas e clicar no toggle 📅
-  const toggle = page.locator('.cfg-enddate-toggle').first()
+  // Scroll até o formulário de contas fixas e clicar no toggle "Data de encerramento"
+  const toggle = page.locator('.fa-date-toggle').first()
   await toggle.scrollIntoViewIfNeeded()
   await toggle.click()
   await page.waitForTimeout(300)
 }
 
 // Locators dos 3 campos de data
-const dd   = (page) => page.locator('.cfg-date-part').nth(0)
-const mm   = (page) => page.locator('.cfg-date-part').nth(1)
-const aaaa = (page) => page.locator('.cfg-date-part.cfg-date-year').first()
+const dd   = (page) => page.locator('.fa-date-part').nth(0)
+const mm   = (page) => page.locator('.fa-date-part').nth(1)
+const aaaa = (page) => page.locator('.fa-date-part.fa-date-year').first()
 
 test.describe('Input de Data — Visibilidade e Estrutura', () => {
 
-  test('campos DD, MM, AAAA ficam visíveis após clicar no 📅', async ({ page }) => {
+  test('campos DD, MM, AAAA ficam visíveis após clicar em "Data de encerramento"', async ({ page }) => {
     await setupSettings(page)
     await expect(dd(page)).toBeVisible()
     await expect(mm(page)).toBeVisible()
@@ -50,7 +50,7 @@ test.describe('Input de Data — Visibilidade e Estrutura', () => {
 
   test('separadores "/" visíveis entre os campos', async ({ page }) => {
     await setupSettings(page)
-    const seps = page.locator('.cfg-date-sep')
+    const seps = page.locator('.fa-date-sep')
     await expect(seps.first()).toBeVisible()
     await expect(seps.nth(1)).toBeVisible()
     // Texto dos separadores é "/"
@@ -59,7 +59,7 @@ test.describe('Input de Data — Visibilidade e Estrutura', () => {
 
   test('label "Data de encerramento" visível', async ({ page }) => {
     await setupSettings(page)
-    await expect(page.locator('.cfg-enddate-label')).toBeVisible()
+    await expect(page.locator('.fa-date-label')).toBeVisible()
   })
 
   test('campos ocultos antes de clicar no toggle', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('Input de Data — Visibilidade e Estrutura', () => {
     await page.route('**/api/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
     await page.goto('/financas', { waitUntil: 'networkidle' })
     // Sem clicar no toggle, campos devem estar ocultos
-    const field = page.locator('.cfg-date-part').first()
+    const field = page.locator('.fa-date-part').first()
     await expect(field).not.toBeVisible()
   })
 
@@ -76,7 +76,7 @@ test.describe('Input de Data — Visibilidade e Estrutura', () => {
     await expect(dd(page)).toBeVisible()
 
     // Clica de novo para fechar
-    await page.locator('.cfg-enddate-toggle').first().click()
+    await page.locator('.fa-date-toggle').first().click()
     await page.waitForTimeout(300)
     await expect(dd(page)).not.toBeVisible()
   })
@@ -226,7 +226,7 @@ async function setupSettingsNoToggle(page, budgetPostHandler) {
     body: JSON.stringify({ ...TEST_USER, notifBudgetAlert: true, notifBudgetReminder: true }) }))
   await page.goto('/financas', { waitUntil: 'networkidle' })
   await page.waitForTimeout(1000)
-  const toggle = page.locator('.cfg-enddate-toggle').first()
+  const toggle = page.locator('.fa-date-toggle').first()
   await toggle.scrollIntoViewIfNeeded()
 }
 
@@ -243,12 +243,12 @@ test.describe('Input de Data — Integração com Formulário', () => {
     })
 
     // 1) Preencher nome e valor ANTES de clicar no toggle
-    await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Aluguel')
-    await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().fill('1200')
+    await page.locator('.fa-form input[placeholder="Nome da conta"]').fill('Aluguel')
+    await page.locator('.fa-form input[placeholder="Valor"]').first().fill('1200')
     await page.waitForTimeout(100)
 
     // 2) Clicar no toggle para exibir campos de data (hasEndDate=true)
-    await page.locator('.cfg-enddate-toggle').first().click()
+    await page.locator('.fa-date-toggle').first().click()
     await page.waitForTimeout(300)
 
     // 3) Preencher datas com click+type (mesmo padrão dos tests 87/102 que passam)
@@ -261,16 +261,16 @@ test.describe('Input de Data — Integração com Formulário', () => {
     await page.waitForTimeout(100)
 
     // 4) Verificações diagnósticas — se falharem, o erro mostra os valores reais nos inputs
-    expect(await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').inputValue(), 'nome deve ser Aluguel').toBe('Aluguel')
+    expect(await page.locator('.fa-form input[placeholder="Nome da conta"]').inputValue(), 'nome deve ser Aluguel').toBe('Aluguel')
     expect(await dd(page).inputValue(),   'DD deve ser 31')   .toBe('31')
     expect(await mm(page).inputValue(),   'MM deve ser 12')   .toBe('12')
     expect(await aaaa(page).inputValue(), 'AAAA deve ser 2027').toBe('2027')
-    expect(await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().inputValue(), 'valor não deve estar vazio').not.toBe('')
+    expect(await page.locator('.fa-form input[placeholder="Valor"]').first().inputValue(), 'valor não deve estar vazio').not.toBe('')
 
     // 5) Ler estado React real via fiber tree ANTES do submit (confirma o que React vê, não só o DOM)
     const fiberState = await page.evaluate(() => {
       try {
-        const form = document.querySelector('form.cfg-add-row')
+        const form = document.querySelector('form.fa-form')
         if (!form) return { err: 'no form' }
         const key = Object.keys(form).find(k => /^__reactFiber/.test(k))
         if (!key) return { err: 'no fiber' }
@@ -295,7 +295,7 @@ test.describe('Input de Data — Integração com Formulário', () => {
     expect(fiberState.newBudget, 'dd deve ser "31" no React state').toContain('"dd":"31"')
 
     // 6) Clicar no botão submit (mais próximo do comportamento real do usuário)
-    await page.locator('form.cfg-add-row button[type="submit"]').click()
+    await page.locator('form.fa-form button[type="submit"]').click()
     await page.waitForTimeout(2000)
 
     // 7) Se capturedBody é null, handleAdd retornou sem POST.
@@ -325,11 +325,11 @@ test.describe('Input de Data — Integração com Formulário', () => {
         body: JSON.stringify({ id: 'b-new', name: 'Internet', amount: 120 }) })
     })
 
-    await page.locator('.cfg-add-row input[placeholder="Nome da conta"]').fill('Internet')
-    await page.locator('.cfg-add-row .cfg-inp-num[type="text"]').first().fill('120')
+    await page.locator('.fa-form input[placeholder="Nome da conta"]').fill('Internet')
+    await page.locator('.fa-form input[placeholder="Valor"]').first().fill('120')
 
     // NÃO ativa o toggle — endDate não deve ser enviado
-    await page.locator('.cfg-add-row button[type="submit"]').click()
+    await page.locator('.fa-form button[type="submit"]').click()
     await page.waitForTimeout(500)
 
     expect(capturedBody?.endDate).toBeFalsy()

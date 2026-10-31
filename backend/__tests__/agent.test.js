@@ -140,16 +140,21 @@ describe('POST /api/agent/chat — gate de plano', () => {
 // ══════════════════════════════════════════════════════════
 // Ferramentas da IA — editar e excluir transação
 // ══════════════════════════════════════════════════════════
-describe('Ferramenta update_transaction (via /api/agent/chat)', () => {
-  test('atualiza valor da transação e confirma na resposta', async () => {
+// Pedir a alteração NÃO altera nada: a IA só prepara a ação (com os valores reais do banco) e devolve um token; quem
+// executa é POST /api/agent/confirm, depois do toque do usuário em "Confirmar". Achado crítico da rodada de QA N2-7
+// (2026-10-28): a IA apagava e alterava transações sem perguntar.
+const txRow = (overrides = {}) => ({
+  id: TX_ID, userId: 'user-123', type: 'expense', amount: new Prisma.Decimal('400.00'), category: 'food',
+  description: 'Mercado', date: new Date('2026-10-10T15:00:00.000Z'), archived: false, ...overrides,
+})
+
+describe('Ferramenta update_transaction (via /api/agent/chat) — só prepara, o usuário confirma', () => {
+  test('NÃO altera: devolve a ação pendente com o token e o texto fixo do servidor', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
-    prisma.transaction.updateMany.mockResolvedValue({ count: 1 })
-    prisma.transaction.findUnique.mockResolvedValue({
-      id: TX_ID, type: 'expense', amount: 300, category: 'food', description: 'Mercado',
-    })
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
     mockCreate
       .mockResolvedValueOnce(toolCallReply('update_transaction', { id: TX_ID, amount: 300 }))
-      .mockResolvedValueOnce(simpleReply('Atualizei para R$ 300,00.'))
+      .mockResolvedValueOnce(simpleReply('Pronto, atualizei para R$ 300,00!')) // o modelo "mentindo": o servidor não deixa passar
 
     const res = await request(app)
       .post('/api/agent/chat')
@@ -157,31 +162,64 @@ describe('Ferramenta update_transaction (via /api/agent/chat)', () => {
       .send({ message: 'Muda a conta de alimentação de 400 para 300' })
 
     expect(res.status).toBe(200)
-    expect(prisma.transaction.updateMany).toHaveBeenCalledWith({
-      where: { id: TX_ID, userId: 'user-123', archived: false },
-      data:  { amount: 300 },
+    expect(prisma.transaction.updateMany).not.toHaveBeenCalled()
+    expect(prisma.transaction.findFirst).toHaveBeenCalledWith({ where: { id: TX_ID, userId: 'user-123', archived: false } })
+    expect(res.body.dataChanged).toBe(false)
+    expect(res.body.pendingAction).toEqual({
+      token: expect.any(String), kind: 'update',
+      summary: 'Alterar “Mercado” de 10/10/2026: valor de R$ 400,00 para R$ 300,00',
+      expiresAt: expect.any(Number), expiresInMs: 600_000,
     })
-    // O resultado da ferramenta (não a resposta final) precisa confirmar sucesso —
-    // é o que o 2º turno do modelo recebe pra formular a resposta ao usuário.
+    // o app fecha sozinho o botão depois da validade (10 min), sem esperar o servidor recusar
+    expect(res.body.pendingAction.expiresAt).toBeGreaterThan(Date.now() + 9 * 60 * 1000)
+    expect(res.body.pendingAction.expiresAt).toBeLessThanOrEqual(Date.now() + 10 * 60 * 1000)
+    expect(res.body.reply).toBe('Alterar “Mercado” de 10/10/2026: valor de R$ 400,00 para R$ 300,00?\nAinda não fiz nada: toque em Confirmar para concluir ou em Cancelar para desistir.')
+    // o modelo só fica sabendo que está pendente — o token fica com o app
     const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
-    expect(toolResult.success).toBe(true)
+    expect(toolResult.pending_confirmation).toBe(true)
+    expect(toolResult.success).toBeUndefined()
+    expect(JSON.stringify(toolResult)).not.toContain(res.body.pendingAction.token)
   })
 
-  test('transação de mês já fechado (archived) não é editada', async () => {
+  test('descreve só o que muda (categoria e descrição também)', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
-    prisma.transaction.updateMany.mockResolvedValue({ count: 0 }) // archived:false não bateu nenhuma linha
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('update_transaction', { id: TX_ID, amount: 400, category: 'home', description: 'Feira' }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Muda o mercado para casa' })
+
+    expect(res.body.pendingAction.summary).toBe('Alterar “Mercado” de 10/10/2026: categoria de Alimentação para Casa; descrição para “Feira”')
+  })
+
+  test('alteração que não muda nada devolve erro, sem ação pendente', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('update_transaction', { id: TX_ID, amount: 400 }))
+      .mockResolvedValueOnce(simpleReply('Já está assim.'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Muda o mercado para 400' })
+
+    expect(res.body.pendingAction).toBeNull()
+    expect(res.body.reply).toBe('Já está assim.')
+    expect(JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content).error).toMatch(/nada para alterar/i)
+  })
+
+  test('transação inexistente, de outro usuário ou de mês fechado (archived): erro, sem ação pendente', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null) // userId + archived:false não bateram nenhuma linha
     mockCreate
       .mockResolvedValueOnce(toolCallReply('update_transaction', { id: TX_ID, amount: 300 }))
       .mockResolvedValueOnce(simpleReply('Não consegui editar — mês já fechado.'))
 
-    await request(app)
-      .post('/api/agent/chat')
-      .set(authHeader())
-      .send({ message: 'Muda essa transação' })
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Muda essa transação' })
 
     const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
     expect(toolResult.error).toMatch(/mês fechado|não encontrada/i)
-    expect(prisma.transaction.findUnique).not.toHaveBeenCalled()
+    expect(res.body.pendingAction).toBeNull()
+    expect(prisma.transaction.updateMany).not.toHaveBeenCalled()
   })
 
   test('id inválido (não-UUID) é rejeitado sem consultar o banco', async () => {
@@ -190,11 +228,9 @@ describe('Ferramenta update_transaction (via /api/agent/chat)', () => {
       .mockResolvedValueOnce(toolCallReply('update_transaction', { id: 'nao-existe', amount: 300 }))
       .mockResolvedValueOnce(simpleReply('id inválido.'))
 
-    await request(app)
-      .post('/api/agent/chat')
-      .set(authHeader())
-      .send({ message: 'Muda a transação x' })
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Muda a transação x' })
 
+    expect(prisma.transaction.findFirst).not.toHaveBeenCalled()
     expect(prisma.transaction.updateMany).not.toHaveBeenCalled()
   })
 })
@@ -274,6 +310,487 @@ describe('Ferramenta get_summary (via /api/agent/chat)', () => {
     // Internet já paga (não desconta de novo) — só Claro (49) continua pendente
     expect(toolResult.unpaidFixedCosts).toBe(49)
     expect(toolResult.balance).toBeCloseTo(5000 - 49 - 89, 2)
+  })
+})
+
+// Achado N2-7 (rodada final): com a IA sobrecarregada, cada "Tentar de novo" gastava uma das 40 mensagens por hora — ~8 tentativas
+// levaram a cota de 12 a 4, sem nenhuma resposta. Falha do PROVEDOR não pode custar cota (nos testes o limiter fica desligado;
+// aqui ele é ligado só durante o teste, e o cabeçalho ratelimit-remaining mostra quanto sobrou).
+describe('Cota de mensagens por hora e falhas do provedor de IA', () => {
+  const asUser = (id) => ({ Cookie: `token=${makeToken(id)}` })
+  const withLimiter = async (fn) => {
+    const prev = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'
+    try { await fn() } finally { process.env.NODE_ENV = prev; mockCreate.mockReset() }
+  }
+
+  test('pedido que falha por culpa do provedor NÃO gasta a cota: a segunda tentativa vê a mesma sobra', () => withLimiter(async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockRejectedValue(Object.assign(new Error('boom'), { status: 500 }))
+    const first  = await request(app).post('/api/agent/chat').set(asUser('quota-falha')).send({ message: 'oi' })
+    const second = await request(app).post('/api/agent/chat').set(asUser('quota-falha')).send({ message: 'oi de novo' })
+    expect(first.status).toBe(500)
+    expect(first.headers['ratelimit-remaining']).toBe('39')
+    expect(second.headers['ratelimit-remaining']).toBe('39') // se a falha custasse cota, seria 38
+  }))
+
+  test('resposta boa gasta a cota (o limite continua valendo para quem usa)', () => withLimiter(async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValue(simpleReply('Olá!'))
+    const first  = await request(app).post('/api/agent/chat').set(asUser('quota-ok')).send({ message: 'oi' })
+    const second = await request(app).post('/api/agent/chat').set(asUser('quota-ok')).send({ message: 'oi de novo' })
+    expect(first.status).toBe(200)
+    expect(first.headers['ratelimit-remaining']).toBe('39')
+    expect(second.headers['ratelimit-remaining']).toBe('38')
+  }))
+
+  test('pedido inválido (400) continua contando: o limite existe para frear abuso', () => withLimiter(async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    const first  = await request(app).post('/api/agent/chat').set(asUser('quota-400')).send({})
+    const second = await request(app).post('/api/agent/chat').set(asUser('quota-400')).send({})
+    expect(first.status).toBe(400)
+    expect(Number(second.headers['ratelimit-remaining'])).toBe(Number(first.headers['ratelimit-remaining']) - 1)
+  }))
+})
+
+// Se a IA falhar DEPOIS de uma ação já feita, o usuário não pode ver só um erro: "Tentar de novo" lançaria em dobro.
+describe('Falha da IA depois de uma ação (QA N2-7, rodada 2)', () => {
+  test('gasto registrado e o 2º turno do modelo falha: responde 200 avisando, com dataChanged', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null)
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-novo', description: null })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 30, category: 'transport', date: '2026-10-20' }))
+      .mockRejectedValueOnce(Object.assign(new Error('Too Many Requests'), { status: 429 }))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Registra 30 de transporte' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.dataChanged).toBe(true)
+    expect(res.body.reply).toBe('Fiz o que você pediu, mas não consegui escrever a resposta agora. Confira no Extrato.')
+    expect(prisma.transaction.create).toHaveBeenCalledTimes(1)
+  })
+
+  test('ação preparada e o 2º turno do modelo falha: o cartão de confirmação continua valendo', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('delete_transaction', { id: TX_ID }))
+      .mockRejectedValueOnce(Object.assign(new Error('boom'), { status: 500 }))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Exclui o mercado' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.pendingAction.kind).toBe('delete')
+    expect(res.body.reply).toContain('Ainda não fiz nada')
+    expect(res.body.dataChanged).toBe(false)
+  })
+
+  test('falha da IA SEM nenhuma ação feita continua sendo erro (o usuário pode tentar de novo sem risco)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockRejectedValueOnce(Object.assign(new Error('timeout'), { name: 'APITimeoutError' }))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Quanto gastei?' })
+
+    expect(res.status).toBe(504)
+    expect(res.body.error).toMatch(/demorou muito/i)
+  })
+
+  test('leitura (sem mudar nada) seguida de falha também é erro comum', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.budget.findMany.mockResolvedValue([])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_summary', {}))
+      .mockRejectedValueOnce(Object.assign(new Error('boom'), { status: 500 }))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Qual meu saldo?' })
+
+    expect(res.status).toBe(500)
+  })
+})
+
+// Achados do revisor independente
+describe('Revisão independente — chat', () => {
+  test('ação feita mas o modelo respondeu vazio: NÃO manda "tente novamente" (levaria a lançar em dobro)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null)
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-novo', description: 'Alimentação' })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 50, category: 'food', description: 'Mercado' }))
+      .mockResolvedValueOnce({ choices: [{ message: { content: '', tool_calls: [] } }] })
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Registra 50 de mercado' })
+
+    expect(res.status).toBe(200)
+    expect(res.body.dataChanged).toBe(true)
+    expect(res.body.reply).toBe('Fiz o que você pediu, mas não consegui escrever a resposta agora. Confira no Extrato.')
+    expect(res.body.reply).not.toMatch(/tente novamente/i)
+  })
+
+  test('nada feito e o modelo respondeu vazio: aí sim "tente novamente" (é seguro)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValueOnce({ choices: [{ message: { content: '', tool_calls: [] } }] })
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'oi' })
+
+    expect(res.body.reply).toBe('Não consegui gerar uma resposta. Tente novamente.')
+    expect(res.body.dataChanged).toBe(false)
+  })
+
+  test.each([[undefined], [null], [''], ['   ']])('registrar gasto sem descrição (%p) grava o nome da categoria: a coluna é NOT NULL', async (description) => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null)
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-novo', description: 'Alimentação' })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 50, category: 'food', description }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Registrar gasto de R$ 50 em alimentação' })
+
+    expect(prisma.transaction.create.mock.calls[0][0].data.description).toBe('Alimentação')
+  })
+
+  test('com descrição, ela é usada (cortada em 255)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null)
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-novo', description: 'x' })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 5, category: 'food', description: `  ${'a'.repeat(400)}  ` }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'x' })
+
+    expect(prisma.transaction.create.mock.calls[0][0].data.description).toBe('a'.repeat(255))
+  })
+
+  // O parser global é de 10kb; um histórico de 10 mensagens longas (a IA responde listas de vários KB) estourava → 413 para sempre.
+  test('histórico longo (10 mensagens de 2000 caracteres + pergunta) cabe: 200, não 413', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValueOnce(simpleReply('ok'))
+    const history = Array.from({ length: 10 }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: 'x'.repeat(2000) }))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'y'.repeat(2000), history })
+
+    expect(res.status).toBe(200)
+    // 10 x 2000 passa de 12000 caracteres: o servidor (sanitizeHistory) fica só com as 4 últimas — sistema + 4 + a pergunta
+    expect(mockCreate.mock.calls[0][0].messages).toHaveLength(6)
+  })
+
+  test('mas o teto é o do chat (32kb): um corpo gigante continua sendo recusado', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'oi', history: [{ role: 'user', content: 'z'.repeat(40_000) }] })
+    expect(res.status).toBe(413)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+})
+
+describe('Mensagens das ferramentas e aviso do 2º pedido', () => {
+  test('dois pedidos de exclusão: a resposta avisa que só a primeira foi preparada', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
+    mockCreate
+      .mockResolvedValueOnce(multiToolCallReply([
+        { name: 'delete_transaction', args: { id: TX_ID } },
+        { name: 'delete_transaction', args: { id: TX_ID2 } },
+      ]))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Exclui a farmácia e o sushi' })
+
+    expect(res.body.reply).toMatch(/Ainda não fiz nada[\s\S]*Preparei só esta ação: peça a outra numa mensagem separada\./)
+  })
+
+  test('uma exclusão só: sem o aviso de "só esta ação"', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('delete_transaction', { id: TX_ID }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Exclui o mercado' })
+
+    expect(res.body.reply).not.toContain('Preparei só esta ação')
+  })
+
+  test('registrar gasto devolve ao modelo uma frase no padrão do app (R$ 1.234,56, data brasileira)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null)
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-novo', description: 'Uber' })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('create_transaction', { type: 'expense', amount: 1234.5, category: 'transport', description: 'Uber', date: '2026-10-20' }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Registra 1234,50 de uber' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(toolResult.message).toBe('Registrado: saída de R$ 1.234,50 em Transporte (Uber), 20/10/2026.')
+  })
+
+  test('pagar conta fixa devolve o valor no padrão do app', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null)
+    prisma.transaction.count.mockResolvedValue(0)
+    prisma.budget.findFirst.mockResolvedValue({ id: 'bud-1', userId: 'user-123', name: 'Condomínio', amount: 600 })
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-pg', amount: new Prisma.Decimal('600.00'), description: 'Condomínio' })
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('pay_fixed_bill', { budgetName: 'Condomínio' }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Paga o condomínio' })
+
+    const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    if (toolResult.success) expect(toolResult.message).toBe('Pagamento de "Condomínio" registrado: R$ 600,00.')
+  })
+})
+
+// Achado N2-7 (2026-10-28): a IA dizia "Entradas R$ 1.800,00" (só as receitas, sem o salário) enquanto o Início e o
+// Extrato mostravam R$ 16.800,00 — e o "Resultado" dela usava os 16.800, então os números da própria resposta não fechavam.
+describe('Ferramenta get_summary — Entradas e Resultado iguais aos do Início/Extrato', () => {
+  test('entradas = salário + receitas; resultado = entradas − saídas − fixas a pagar; valores já formatados', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', salary: new Prisma.Decimal('15000.00') }))
+    prisma.transaction.findMany.mockResolvedValue([
+      { type: 'income',  amount: new Prisma.Decimal('1800.00') },
+      { type: 'expense', amount: new Prisma.Decimal('7377.80') },
+      { type: 'expense', amount: new Prisma.Decimal('629.10') },
+    ])
+    prisma.budget.findMany.mockResolvedValue([])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_summary', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Quanto entrou e qual meu resultado?' })
+
+    const r = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(r.entradas).toBe(16800)
+    expect(r.saidas).toBe(8006.9)
+    expect(r.resultado).toBe(8793.1)
+    expect(r.balance).toBe(8793.1) // nome antigo mantido
+    expect(r.totalIncome).toBe(1800) // só as receitas lançadas — NÃO são as "Entradas" do app
+    expect(r.texto).toEqual({
+      entradas: 'R$ 16.800,00', salario: 'R$ 15.000,00', receitas: 'R$ 1.800,00',
+      saidas: 'R$ 8.006,90', contasFixasAPagar: 'R$ 0,00', resultado: 'R$ 8.793,10',
+    })
+  })
+
+  test('a conta fixa ainda não paga entra no resultado, e os nomes das contas vêm formatados', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite', salary: new Prisma.Decimal('5000.00') }))
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.budget.findMany.mockResolvedValue([{ id: 'b1', name: 'Condomínio', amount: new Prisma.Decimal('600.00') }])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_summary', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Qual meu resultado?' })
+
+    const r = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(r.resultado).toBe(4400)
+    expect(r.texto.contasFixasAPagar).toBe('R$ 600,00')
+    expect(r.budgets).toEqual([{ name: 'Condomínio', amount: 600, amountText: 'R$ 600,00' }])
+  })
+})
+
+describe('Ferramenta get_transactions — totais completos mesmo com a lista cortada', () => {
+  const row = (i) => ({
+    id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, type: i % 10 === 0 ? 'income' : 'expense',
+    amount: new Prisma.Decimal('100.00'), category: i % 2 ? 'food' : 'transport',
+    description: `Item ${i}`, date: new Date('2026-10-10T15:00:00.000Z'),
+  })
+  const group = (category, type, sum, n) => ({ category, type, _sum: { amount: new Prisma.Decimal(sum) }, _count: { _all: n } })
+
+  test('150 transações: total e por categoria vêm da agregação do banco (todas); a lista mostra só as 40 mais recentes e avisa', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue(Array.from({ length: 40 }, (_, i) => row(i)))
+    // 150 transações de R$ 100: 15 receitas (food), 135 saídas (70 food + 65 transport)
+    prisma.transaction.groupBy.mockResolvedValue([
+      group('food', 'expense', '6700.00', 67), group('transport', 'expense', '6800.00', 68), group('food', 'income', '1500.00', 15),
+    ])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_transactions', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Onde estou gastando mais?' })
+
+    const content = mockCreate.mock.calls[1][0].messages.at(-1).content
+    const r = JSON.parse(content) // JSON válido: não foi cortado no meio
+    expect(r.count).toBe(150)
+    expect(r.truncated).toBe(true)
+    expect(r.transactions).toHaveLength(40)
+    expect(r.totalIncome).toBe(1500)
+    expect(r.totalExpenses).toBe(13500)
+    expect(r.texto).toEqual({ saidas: 'R$ 13.500,00', receitas: 'R$ 1.500,00' })
+    expect(r.byCategory.map(c => [c.category, c.expenses, c.count])).toEqual([['Transporte', 6800, 68], ['Alimentação', 6700, 82]]) // maior gasto primeiro
+    expect(r.byCategory.find(c => c.category === 'Alimentação').income).toBe(1500)
+    expect(r.transactions[0]).toEqual({
+      id: expect.any(String), type: 'income', amount: 100, amountText: 'R$ 100,00',
+      category: expect.any(String), description: 'Item 0', date: '10/10/2026',
+    })
+    expect(content.length).toBeLessThan(12000)
+  })
+
+  // Achado do revisor independente: os totais eram somados sobre as 200 primeiras linhas (take: 200) — quem importou muitos
+  // lançamentos recebia totais menores que os reais.
+  test('mais de 200 transações no mês: os totais NÃO são limitados a 200 linhas', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue(Array.from({ length: 40 }, (_, i) => row(i)))
+    prisma.transaction.groupBy.mockResolvedValue([group('food', 'expense', '123456.78', 1234)])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_transactions', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Quanto gastei?' })
+
+    const r = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(r.count).toBe(1234)
+    expect(r.totalExpenses).toBe(123456.78)
+    expect(r.texto.saidas).toBe('R$ 123.456,78')
+    expect(r.truncated).toBe(true)
+  })
+
+  test('a lista pede só as 40 mais recentes (não 200) e a agregação usa o MESMO filtro, sempre do usuário', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.transaction.groupBy.mockResolvedValue([])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_transactions', { search: '  ALIMENT ' }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Quanto gastei com alimentação?' })
+
+    const list = prisma.transaction.findMany.mock.calls[0][0]
+    const agg  = prisma.transaction.groupBy.mock.calls[0][0]
+    expect(list.take).toBe(40)
+    expect(list.where.userId).toBe('user-123')
+    expect(list.where.OR).toEqual([
+      { description: { contains: 'aliment', mode: 'insensitive' } },
+      { category: { in: ['food'] } },
+    ])
+    expect(agg.where).toEqual(list.where)   // totais e lista olham exatamente as mesmas transações
+    expect(agg.by).toEqual(['category', 'type'])
+  })
+
+  test('sem busca não filtra nada além do usuário e do mês', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.transaction.groupBy.mockResolvedValue([])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_transactions', { month: 9, year: 2026 }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'E em setembro?' })
+
+    expect(Object.keys(prisma.transaction.findMany.mock.calls[0][0].where).sort()).toEqual(['date', 'userId'])
+    expect(Object.keys(prisma.transaction.groupBy.mock.calls[0][0].where).sort()).toEqual(['date', 'userId'])
+  })
+
+  test('mês sem transações: totais zerados, sem lista e sem aviso de corte', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue([])
+    prisma.transaction.groupBy.mockResolvedValue([])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_transactions', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Quanto gastei?' })
+
+    const r = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(r).toMatchObject({ count: 0, totalExpenses: 0, totalIncome: 0, byCategory: [], transactions: [], truncated: false })
+  })
+})
+
+// Achado N2-7: "A IA não enxerga as metas do usuário".
+describe('Ferramenta get_goals (via /api/agent/chat)', () => {
+  test('devolve as metas do usuário e o mesmo percentual do círculo "Metas" do Início', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.goal.findMany.mockResolvedValue([
+      { title: 'Viagem', targetAmount: new Prisma.Decimal('5000.00'), currentAmount: new Prisma.Decimal('1000.00'), deadline: new Date('2027-01-15T03:00:00.000Z') },
+      { title: 'Reserva', targetAmount: new Prisma.Decimal('10000.00'), currentAmount: new Prisma.Decimal('12000.00'), deadline: null }, // passou da meta: conta 100%
+    ])
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_goals', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Quantas metas eu tenho?' })
+
+    expect(prisma.goal.findMany.mock.calls[0][0].where).toEqual({ userId: 'user-123' })
+    const r = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
+    expect(r.count).toBe(2)
+    expect(r.overallPercent).toBe(60) // (0,2 + 1) / 2 = 60%
+    expect(r.goals[0]).toEqual({ title: 'Viagem', target: 5000, targetText: 'R$ 5.000,00', saved: 1000, savedText: 'R$ 1.000,00', percent: 20, deadline: '15/01/2027' })
+    expect(r.goals[1].percent).toBe(100)
+    expect(r.goals[1].deadline).toBeNull()
+  })
+
+  test('sem metas', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('get_goals', {}))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Tenho metas?' })
+
+    expect(JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)).toEqual({ count: 0, overallPercent: 0, goals: [] })
+  })
+})
+
+// O texto que o usuário lê não depende de o modelo obedecer ao prompt: o servidor tira emoji e acerta o dinheiro.
+// Achado N2-7 rodada 3: depois de ~20 trocas de mensagem o app mandava mais de 40 mensagens de histórico e o servidor
+// respondia "Histórico inválido." (400) a TUDO — o chat só voltava recarregando a página.
+describe('Histórico da conversa (POST /api/agent/chat)', () => {
+  const hist = (n) => Array.from({ length: n }, (_, i) => ({ role: i % 2 ? 'assistant' : 'user', content: `mensagem ${i}` }))
+
+  test('conversa longa (mais de 40 mensagens) NÃO é recusada: o modelo recebe só as 10 últimas', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValueOnce(simpleReply('oi'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'e agora?', history: hist(60) })
+
+    expect(res.status).toBe(200)
+    const sent = mockCreate.mock.calls[0][0].messages
+    expect(sent).toHaveLength(12) // sistema + 10 do histórico + a pergunta
+    expect(sent[1].content).toBe('mensagem 50')
+    expect(sent.at(-1)).toEqual({ role: 'user', content: 'e agora?' })
+  })
+
+  test('lixo continua recusado: não é lista ou passa de 100 itens', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    for (const bad of ['texto', { a: 1 }, 5, hist(101)]) {
+      const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'oi', history: bad })
+      expect(res.status).toBe(400)
+      expect(res.body.error).toBe('Histórico inválido.')
+    }
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+})
+
+describe('Resposta da IA — limpeza determinística', () => {
+  test('sem emoji e com dinheiro no padrão brasileiro', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValueOnce(simpleReply('✅ Pagamento do Condomínio registrado! 🚗💰\nVocê gastou R$ 7 377,80 (0 R$ em lazer).'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Paga o condomínio' })
+
+    expect(res.body.reply).toBe('Pagamento do Condomínio registrado!\nVocê gastou R$ 7.377,80 (R$ 0 em lazer).')
+  })
+
+  test('o prompt de sistema carrega as regras que o QA cobrou (escopo, formato, entradas, confirmação)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    mockCreate.mockResolvedValueOnce(simpleReply('oi'))
+
+    await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'oi' })
+
+    const system = mockCreate.mock.calls[0][0].messages[0].content
+    expect(system).toMatch(/ESCOPO[\s\S]*NÃO responda o assunto/)
+    expect(system).toMatch(/Sem markdown[\s\S]*sem emojis/)
+    expect(system).toMatch(/"R\$ 1\.234,56"/)
+    expect(system).toMatch(/Entradas = salário \+ receitas do mês/)
+    expect(system).toMatch(/nunca peça "confirma\?" por texto/)
+    expect(system).toMatch(/get_goals/)
+    // fatos do produto (a IA mandava "definir um teto diário" e "evitar juros nas metas", que não existem no app)
+    expect(system).toMatch(/Limites são tetos MENSAIS por categoria \(não existe teto diário\)/)
+    expect(system).toMatch(/Metas são valores a guardar e não têm juros/)
+    const toolNames = mockCreate.mock.calls[0][0].tools.map(t => t.function.name)
+    expect(toolNames).toEqual(expect.arrayContaining(['get_goals', 'get_summary', 'get_transactions', 'update_transaction', 'delete_transaction']))
   })
 })
 
@@ -360,10 +877,10 @@ describe('Ferramenta pay_fixed_bill (via /api/agent/chat)', () => {
   })
 })
 
-describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {
-  test('exclui a transação e confirma na resposta', async () => {
+describe('Ferramenta delete_transaction (via /api/agent/chat) — só prepara, o usuário confirma', () => {
+  test('NÃO exclui: devolve a ação pendente com o que seria excluído', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
-    prisma.transaction.deleteMany.mockResolvedValue({ count: 1 })
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
     mockCreate
       .mockResolvedValueOnce(toolCallReply('delete_transaction', { id: TX_ID }))
       .mockResolvedValueOnce(simpleReply('Excluí a transação de alimentação.'))
@@ -374,41 +891,55 @@ describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {
       .send({ message: 'Exclui a conta de alimentação de 400' })
 
     expect(res.status).toBe(200)
-    expect(prisma.transaction.deleteMany).toHaveBeenCalledWith({
-      where: { id: TX_ID, userId: 'user-123', archived: false },
-    })
+    expect(prisma.transaction.deleteMany).not.toHaveBeenCalled()
+    expect(prisma.transaction.delete).not.toHaveBeenCalled()
+    expect(res.body.dataChanged).toBe(false)
+    expect(res.body.pendingAction).toEqual({ token: expect.any(String), kind: 'delete', summary: 'Excluir “Mercado” de R$ 400,00 em 10/10/2026', expiresAt: expect.any(Number), expiresInMs: 600_000 })
+    expect(res.body.reply).toContain('Ainda não fiz nada')
+    expect(res.body.reply).not.toContain('Excluí a transação')
     const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
-    expect(toolResult.success).toBe(true)
+    expect(toolResult.pending_confirmation).toBe(true)
+    expect(toolResult.success).toBeUndefined()
   })
 
-  test('transação inexistente ou de outro usuário retorna erro (count 0)', async () => {
+  test('sem descrição, o nome é o da categoria', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
-    prisma.transaction.deleteMany.mockResolvedValue({ count: 0 })
+    prisma.transaction.findFirst.mockResolvedValue(txRow({ description: null, category: 'transport', amount: new Prisma.Decimal('1234.5') }))
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply('delete_transaction', { id: TX_ID }))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Exclui o transporte' })
+
+    expect(res.body.pendingAction.summary).toBe('Excluir “Transporte” de R$ 1.234,50 em 10/10/2026')
+  })
+
+  test('transação inexistente, de outro usuário ou de mês fechado: erro, sem ação pendente', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null)
     mockCreate
       .mockResolvedValueOnce(toolCallReply('delete_transaction', { id: TX_ID }))
       .mockResolvedValueOnce(simpleReply('Não encontrei essa transação.'))
 
-    await request(app)
-      .post('/api/agent/chat')
-      .set(authHeader())
-      .send({ message: 'Exclui essa transação' })
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Exclui essa transação' })
 
     const toolResult = JSON.parse(mockCreate.mock.calls[1][0].messages.at(-1).content)
     expect(toolResult.error).toBeTruthy()
+    expect(res.body.pendingAction).toBeNull()
+    expect(prisma.transaction.deleteMany).not.toHaveBeenCalled()
   })
 
-  // Regressão: barreira técnica de "1 exclusão por mensagem" — o modelo pode
-  // pedir 2 delete_transaction na mesma resposta (mesma iteração do loop),
-  // então a defesa em profundidade (SYSTEM prompt) não basta.
-  test('duas exclusões pedidas na mesma resposta do modelo: só a 1ª executa', async () => {
+  // Barreira técnica: o modelo pode pedir 2 ações na mesma resposta (mesma iteração do loop), então a instrução do
+  // prompt de sistema não basta — só a primeira vira ação pendente.
+  test('duas exclusões pedidas na mesma resposta do modelo: só a 1ª é preparada', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
-    prisma.transaction.deleteMany.mockResolvedValue({ count: 1 })
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
     mockCreate
       .mockResolvedValueOnce(multiToolCallReply([
         { name: 'delete_transaction', args: { id: TX_ID } },
         { name: 'delete_transaction', args: { id: TX_ID2 } },
       ]))
-      .mockResolvedValueOnce(simpleReply('Excluí a primeira. Peça a segunda numa mensagem separada.'))
+      .mockResolvedValueOnce(simpleReply('Preparei a primeira. Peça a segunda numa mensagem separada.'))
 
     const res = await request(app)
       .post('/api/agent/chat')
@@ -416,15 +947,147 @@ describe('Ferramenta delete_transaction (via /api/agent/chat)', () => {
       .send({ message: 'Exclui a conta de alimentação de 400 e a de transporte de 100' })
 
     expect(res.status).toBe(200)
-    expect(prisma.transaction.deleteMany).toHaveBeenCalledTimes(1)
-    expect(prisma.transaction.deleteMany).toHaveBeenCalledWith({
-      where: { id: TX_ID, userId: 'user-123', archived: false },
-    })
+    expect(prisma.transaction.deleteMany).not.toHaveBeenCalled()
+    expect(prisma.transaction.findFirst).toHaveBeenCalledTimes(1)
+    expect(res.body.pendingAction.kind).toBe('delete')
 
     const toolMessages = mockCreate.mock.calls[1][0].messages.filter(m => m.role === 'tool')
     expect(toolMessages).toHaveLength(2)
-    expect(JSON.parse(toolMessages[0].content).success).toBe(true)
-    expect(JSON.parse(toolMessages[1].content).error).toMatch(/uma transação por vez/i)
+    expect(JSON.parse(toolMessages[0].content).pending_confirmation).toBe(true)
+    expect(JSON.parse(toolMessages[1].content).error).toMatch(/uma alteração ou exclusão por vez/i)
+  })
+
+  test('editar + excluir na mesma resposta: só a 1ª é preparada (teto comum)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
+    mockCreate
+      .mockResolvedValueOnce(multiToolCallReply([
+        { name: 'update_transaction', args: { id: TX_ID, amount: 300 } },
+        { name: 'delete_transaction', args: { id: TX_ID2 } },
+      ]))
+      .mockResolvedValueOnce(simpleReply('ok'))
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Muda uma e apaga outra' })
+
+    expect(res.body.pendingAction.kind).toBe('update')
+    expect(prisma.transaction.findFirst).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// POST /api/agent/confirm — o toque em "Confirmar" executa o que foi mostrado, e só isso
+// ══════════════════════════════════════════════════════════
+describe('POST /api/agent/confirm', () => {
+  // Faz o caminho real: pede pelo chat, pega o token que o app recebeu.
+  async function prepare(toolName, args, row = txRow()) {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(row)
+    mockCreate
+      .mockResolvedValueOnce(toolCallReply(toolName, args))
+      .mockResolvedValueOnce(simpleReply('ok'))
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'faz isso' })
+    expect(res.body.pendingAction).toBeTruthy()
+    prisma.transaction.findFirst.mockReset()
+    return res.body.pendingAction.token
+  }
+  const confirm = (token, headers = authHeader()) => request(app).post('/api/agent/confirm').set(headers).send({ token })
+
+  test('excluir: só depois do Confirmar apaga, com a trava de dono e mês aberto', async () => {
+    const token = await prepare('delete_transaction', { id: TX_ID })
+    expect(prisma.transaction.deleteMany).not.toHaveBeenCalled()
+    prisma.transaction.deleteMany.mockResolvedValue({ count: 1 })
+
+    const res = await confirm(token)
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ message: 'Pronto, excluí a transação “Mercado” de R$ 400,00 em 10/10/2026.', dataChanged: true })
+    expect(prisma.transaction.deleteMany).toHaveBeenCalledTimes(1)
+    expect(prisma.transaction.deleteMany).toHaveBeenCalledWith({ where: { id: TX_ID, userId: 'user-123', archived: false } })
+    expect(mockCreate).toHaveBeenCalledTimes(2) // o Confirmar não chama o modelo (só os 2 turnos do pedido)
+  })
+
+  test('editar: aplica exatamente os campos que foram mostrados', async () => {
+    const token = await prepare('update_transaction', { id: TX_ID, amount: 300, category: 'home' })
+    expect(prisma.transaction.updateMany).not.toHaveBeenCalled()
+    prisma.transaction.updateMany.mockResolvedValue({ count: 1 })
+    prisma.transaction.findUnique.mockResolvedValue(txRow({ amount: new Prisma.Decimal('300.00'), category: 'home' }))
+
+    const res = await confirm(token)
+
+    expect(res.status).toBe(200)
+    // a confirmação repete o que mudou (o usuário não precisa ir ao Extrato conferir o novo valor)
+    expect(res.body.message).toBe('Pronto, atualizei a transação “Mercado” de 10/10/2026: valor de R$ 400,00 para R$ 300,00; categoria de Alimentação para Casa.')
+    expect(res.body.dataChanged).toBe(true)
+    expect(prisma.transaction.updateMany).toHaveBeenCalledWith({
+      where: { id: TX_ID, userId: 'user-123', archived: false },
+      data:  { amount: 300, category: 'home' },
+    })
+  })
+
+  test('o token de um usuário não funciona para outro (nada é executado)', async () => {
+    const token = await prepare('delete_transaction', { id: TX_ID })
+    prisma.user.findUnique.mockResolvedValue(mockUser({ id: 'user-999', plan: 'elite' }))
+
+    const res = await confirm(token, { Cookie: `token=${makeToken('user-999')}` })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/inválida/i)
+    expect(prisma.transaction.deleteMany).not.toHaveBeenCalled()
+  })
+
+  test('token expirado (mais de 10 minutos) é recusado', async () => {
+    const { signPendingAction } = require('../src/services/agentConfirm')
+    const token = signPendingAction({ userId: 'user-123', tool: 'delete_transaction', args: { id: TX_ID }, label: 'a transação X' }, Date.now() - 11 * 60 * 1000)
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+
+    const res = await confirm(token)
+
+    expect(res.status).toBe(400)
+    expect(res.body.expired).toBe(true)
+    expect(res.body.error).toMatch(/expirou/i)
+    expect(prisma.transaction.deleteMany).not.toHaveBeenCalled()
+  })
+
+  test('token adulterado, vazio ou de outro tipo é recusado', async () => {
+    const token = await prepare('delete_transaction', { id: TX_ID })
+    const [payload, sig] = token.split('.')
+    const forged = Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(payload, 'base64url').toString()), a: { id: TX_ID2 } })).toString('base64url')
+
+    for (const bad of [`${forged}.${sig}`, `${payload}.AAAA`, payload, '', 'lixo.lixo', 123, null, undefined, 'x'.repeat(5000)]) {
+      const res = await confirm(bad)
+      expect(res.status).toBe(400)
+    }
+    expect(prisma.transaction.deleteMany).not.toHaveBeenCalled()
+  })
+
+  test('mês fechado depois do pedido: não executa e avisa (409)', async () => {
+    const token = await prepare('update_transaction', { id: TX_ID, amount: 300 })
+    prisma.transaction.updateMany.mockResolvedValue({ count: 0 })
+
+    const res = await confirm(token)
+
+    expect(res.status).toBe(409)
+    expect(res.body.error).toMatch(/mês fechado|não encontrada/i)
+  })
+
+  test('confirmar duas vezes: a segunda não acha mais a transação (409)', async () => {
+    const token = await prepare('delete_transaction', { id: TX_ID })
+    prisma.transaction.deleteMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 })
+
+    expect((await confirm(token)).status).toBe(200)
+    const second = await confirm(token)
+
+    expect(second.status).toBe(409)
+    expect(second.body.error).toMatch(/não encontrada/i)
+  })
+
+  test('plano que deixou de ser Elite não confirma (403) e sem login é 401', async () => {
+    const token = await prepare('delete_transaction', { id: TX_ID })
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+
+    expect((await confirm(token)).status).toBe(403)
+    expect((await request(app).post('/api/agent/confirm').send({ token })).status).toBe(401)
+    expect(prisma.transaction.deleteMany).not.toHaveBeenCalled()
   })
 })
 
@@ -501,9 +1164,9 @@ describe('dataChanged (via /api/agent/chat)', () => {
     expect(res.body.dataChanged).toBe(false)
   })
 
-  test('false quando update_transaction falha (mês já fechado)', async () => {
+  test('false quando update_transaction não acha a transação (mês já fechado)', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
-    prisma.transaction.updateMany.mockResolvedValue({ count: 0 })
+    prisma.transaction.findFirst.mockResolvedValue(null)
     mockCreate
       .mockResolvedValueOnce(toolCallReply('update_transaction', { id: TX_ID, amount: 300 }))
       .mockResolvedValueOnce(simpleReply('Não consegui editar — mês já fechado.'))
@@ -528,9 +1191,10 @@ describe('dataChanged (via /api/agent/chat)', () => {
     expect(res.body.dataChanged).toBe(false)
   })
 
-  test('true quando delete_transaction tem sucesso mesmo com get_summary na mesma mensagem', async () => {
+  // Excluir só PREPARA (o dado muda no /confirm): nada para o app invalidar ainda.
+  test('false quando delete_transaction só preparou a exclusão (mesmo com get_summary na mensagem)', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
-    prisma.transaction.deleteMany.mockResolvedValue({ count: 1 })
+    prisma.transaction.findFirst.mockResolvedValue(txRow())
     prisma.transaction.findMany.mockResolvedValue([])
     prisma.budget.findMany.mockResolvedValue([])
     mockCreate
@@ -538,14 +1202,34 @@ describe('dataChanged (via /api/agent/chat)', () => {
         { name: 'delete_transaction', args: { id: TX_ID } },
         { name: 'get_summary', args: {} },
       ]))
-      .mockResolvedValueOnce(simpleReply('Excluí a transação. Seu saldo agora é R$ 5.000,00.'))
+      .mockResolvedValueOnce(simpleReply('Seu saldo agora é R$ 5.000,00.'))
 
     const res = await request(app)
       .post('/api/agent/chat')
       .set(authHeader())
       .send({ message: 'Exclui essa conta e me diz meu saldo' })
 
+    expect(res.body.dataChanged).toBe(false)
+    expect(res.body.pendingAction.kind).toBe('delete')
+  })
+
+  test('uma ação feita (create) + uma exclusão preparada: dataChanged true e o que o modelo contou vem antes do pedido de confirmação', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findFirst.mockResolvedValue(null)
+    prisma.transaction.create.mockResolvedValue({ id: 'tx-novo' })
+    mockCreate
+      .mockResolvedValueOnce(multiToolCallReply([
+        { name: 'create_transaction', args: { type: 'expense', amount: 50, category: 'food' } },
+        { name: 'delete_transaction', args: { id: TX_ID } },
+      ]))
+      .mockResolvedValueOnce(simpleReply('Registrei o gasto de R$ 50,00.'))
+    // 1ª findFirst = mês fechado? (create), 2ª = achar a transação a excluir
+    prisma.transaction.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(txRow())
+
+    const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'Registra 50 de mercado e apaga o outro' })
+
     expect(res.body.dataChanged).toBe(true)
+    expect(res.body.reply).toMatch(/^Registrei o gasto de R\$ 50,00\.\n\nExcluir “Mercado”/)
   })
 })
 
@@ -832,6 +1516,121 @@ describe('POST /api/agent/transcribe', () => {
   test('sem autenticação retorna 401', async () => {
     const res = await attachAudio(request(app).post('/api/agent/transcribe'))
     expect(res.status).toBe(401)
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// GET /api/agent/weekly-tip — dica da semana do story Dicas IA
+// (cada teste usa um usuário próprio: o cache da frase é módulo-level)
+// ══════════════════════════════════════════════════════════
+describe('GET /api/agent/weekly-tip', () => {
+  const DAY = 24 * 60 * 60 * 1000
+  const ago = (days) => new Date(Date.now() - days * DAY)
+  // Alimentação: 3 períodos de referência com 500 + últimos 30 dias com 590 → +18%
+  const foodAbove = () => [
+    { category: 'food', amount: 500, date: ago(40) },
+    { category: 'food', amount: 500, date: ago(70) },
+    { category: 'food', amount: 500, date: ago(100) },
+    { category: 'food', amount: 590, date: ago(3) },
+  ]
+  const as = (userId) => ({ Cookie: `token=${makeToken(userId)}` })
+  const adviceReply = (text) => ({ choices: [{ message: { content: text } }] })
+
+  test('exige autenticação', async () => {
+    const res = await request(app).get('/api/agent/weekly-tip')
+    expect(res.status).toBe(401)
+  })
+
+  test('plano free recebe o texto por regra, sem chamar a IA', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-free'))
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({ category: 'food', label: 'Alimentação', pct: 18, excess: 90, source: 'rule' })
+    expect(res.body.tip).toBe('Voltar à sua média em alimentação poupa cerca de R$ 90 por mês.')
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  test('plano pro: frase da IA + a conta calculada no servidor', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+    mockCreate.mockResolvedValueOnce(adviceReply('Planeje as refeições da semana e leve marmita.'))
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-pro'))
+
+    expect(res.status).toBe(200)
+    expect(res.body.source).toBe('ai')
+    expect(res.body.tip).toBe('Planeje as refeições da semana e leve marmita. Voltar à média poupa cerca de R$ 90 por mês.')
+    const [body, options] = mockCreate.mock.calls[0]
+    expect(body.model).toBe('llama-3.1-8b-instant')
+    expect(body.messages[1].content).toContain('Alimentação')
+    // só a categoria vai pro modelo — nem as estatísticas nem texto do usuário
+    for (const n of ['18', '90', '590', '500']) expect(body.messages[1].content).not.toContain(n)
+    expect(options).toEqual({ timeout: 8000 })
+  })
+
+  test('resposta da IA com número inventado é rejeitada → texto por regra', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+    mockCreate.mockResolvedValueOnce(adviceReply('Cozinhar em casa economiza cerca de R$ 280 por mês.'))
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-invented'))
+
+    expect(res.status).toBe(200)
+    expect(res.body.source).toBe('rule')
+    expect(res.body.tip).not.toContain('280')
+    expect(res.body.tip).toContain('R$ 90')
+  })
+
+  test('falha da IA não derruba a dica: cai no texto por regra', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+    mockCreate.mockRejectedValueOnce(new Error('groq fora do ar'))
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-ai-down'))
+
+    expect(res.status).toBe(200)
+    expect(res.body.source).toBe('rule')
+  })
+
+  test('abrir de novo na mesma semana reaproveita a frase (uma única chamada paga)', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+    prisma.transaction.findMany.mockResolvedValue(foodAbove())
+    mockCreate.mockResolvedValue(adviceReply('Defina um teto semanal para essa categoria.'))
+
+    const first  = await request(app).get('/api/agent/weekly-tip').set(as('tip-cache'))
+    const second = await request(app).get('/api/agent/weekly-tip').set(as('tip-cache'))
+
+    expect(first.body.tip).toBe(second.body.tip)
+    expect(second.body.source).toBe('ai')
+    expect(mockCreate).toHaveBeenCalledTimes(1)
+  })
+
+  test('sem base de comparação devolve tip null, sem chamar a IA', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue([{ category: 'food', amount: 900, date: ago(3) }])
+
+    const res = await request(app).get('/api/agent/weekly-tip').set(as('tip-nodata'))
+
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ tip: null })
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+
+  test('consulta só despesas do próprio usuário nos últimos 120 dias', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'free' }))
+    prisma.transaction.findMany.mockResolvedValue([])
+
+    await request(app).get('/api/agent/weekly-tip').set(as('tip-scope'))
+
+    const { where } = prisma.transaction.findMany.mock.calls.at(-1)[0]
+    expect(where.userId).toBe('tip-scope')
+    expect(where.type).toBe('expense')
+    const days = (Date.now() - where.date.gte.getTime()) / DAY
+    expect(days).toBeGreaterThan(119.9)
+    expect(days).toBeLessThan(120.1)
   })
 })
 

@@ -6,6 +6,8 @@ import { useUser } from '../../../hooks/useUser.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 import { analytics } from '../../../services/analytics.js'
 import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
+import { ReceiptGlyph, CloseGlyph } from '../../ui/NancyGlyphs.jsx'
+import { useEscapeKey } from '../../../hooks/useEscapeKey.js'
 
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
@@ -25,6 +27,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const [endDateErr,      setEndDateErr]      = useState('')
   const [dueDayErr,       setDueDayErr]       = useState('')
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [openId,         setOpenId]         = useState(null) // linha com os detalhes (pagar / encerramento) aberta
 
   const fetchBudgets = async () => {
     try {
@@ -107,8 +110,8 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       } else {
         onMessage(`✓ ${data.count} ${data.count === 1 ? 'conta fixa lançada' : 'contas fixas lançadas'} como transações!`)
       }
-      fetchBudgets()
       notifyBudgetChanged()
+      await fetchBudgets() // o botão fica em "Lançando..." até a lista mostrar "paga" — não convida a tocar de novo
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao lançar contas fixas.', 'error')
     } finally {
@@ -121,14 +124,17 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     try {
       await budgetAPI.pay(budget.id)
       onMessage(`${budget.name} marcada como paga!`)
-      fetchBudgets()
       notifyBudgetChanged()
+      await fetchBudgets()
     } catch (err) {
       onMessage(err.response?.data?.error || 'Erro ao marcar conta como paga.', 'error')
     } finally {
       setPayingId(null)
     }
   }
+
+  const deleting = budgets.find(b => b.id === deleteConfirmId) || null
+  useEscapeKey(() => setDeleteConfirmId(null), !!deleteConfirmId)
 
   const confirmDelete = async () => {
     if (!deleteConfirmId) return
@@ -145,19 +151,20 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
 
   return (
     <>
-    <div className="cfg-card r6">
-      <div className="cfg-card-head">
-        <div className="cfg-ch-ico">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4ae2ac" strokeWidth="2" strokeLinecap="round">
-            <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
-          </svg>
+    <section className="fin-card fin-card-list">
+      <div className="fin-head">
+        <span className="fin-ico">
+          <ReceiptGlyph />
+        </span>
+        <div className="fin-head-text">
+          <h2 className="fin-title">Contas fixas</h2>
+          <p className="fin-sub">Despesas recorrentes mensais</p>
         </div>
-        <div>
-          <div className="cfg-ch-title">Contas fixas</div>
-          <div className="cfg-ch-sub">Despesas recorrentes mensais</div>
-        </div>
+        {budgets.length > 0 && (
+          <span className="fin-total" aria-label="Total mensal">R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+        )}
       </div>
-      <div className="cfg-card-body">
+      <div className="fin-card-body">
         <PlanUsageBanner
           plan={user.plan ?? 'free'}
           feature="budgets"
@@ -167,50 +174,51 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
         {budgets.length === 0 ? (
           <div className="cfg-empty-hint">Nenhuma conta fixa cadastrada.</div>
         ) : (
-          <div className="cfg-fixed-list">
-            {budgets.map(b => (
-              <div key={b.id} className="cfg-fixed-item">
-                <span className="cfg-fixed-name">{b.name}</span>
-                <div className="cfg-fixed-right">
-                  <span className="cfg-fixed-val">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                  {b.dueDay ? <span className="cfg-fixed-due">dia {b.dueDay}</span> : null}
-                  {b.endDate ? (
-                    <span className="cfg-fixed-end" title="Data de encerramento">
-                      até {new Date(b.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })}
-                    </span>
-                  ) : null}
-                  {b.paidThisMonth ? (
-                    <span className="cfg-fixed-paid" title={b.paidDate ? `Pago em ${new Date(b.paidDate).toLocaleDateString('pt-BR')}` : undefined}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                      paga
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="cfg-btn-ghost cfg-fixed-pay-btn"
-                      onClick={() => handlePay(b)}
-                      disabled={payingId === b.id}
-                    >
-                      {payingId === b.id
-                        ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2 }} />
-                        : 'Marcar como paga'}
+          <ul className="fin-list">
+            {budgets.map(b => {
+              const open = openId === b.id
+              return (
+                <li key={b.id} className="fin-row">
+                  <div className="fin-row-line">
+                    <button type="button" className="fin-row-main" onClick={() => setOpenId(open ? null : b.id)} aria-expanded={open}>
+                      <span className="fin-row-ico">
+                        <ReceiptGlyph />
+                      </span>
+                      <span className="fin-row-info">
+                        <span className="fin-row-name">{b.name}</span>
+                        <span className="fin-row-due">
+                          {b.dueDay ? `Vence dia ${b.dueDay}` : 'Sem dia de vencimento'}
+                          {b.paidThisMonth && <> · <span className="fin-paid">paga</span></>}
+                        </span>
+                      </span>
+                      <span className="fin-row-val">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     </button>
+                    <button className="fin-del" type="button" onClick={() => setDeleteConfirmId(b.id)} aria-label="Remover">
+                      <CloseGlyph />
+                    </button>
+                  </div>
+                  {open && (
+                    <div className="fin-row-detail">
+                      {b.paidThisMonth ? (
+                        <span className="fin-detail-txt">
+                          {b.paidDate ? `Paga em ${new Date(b.paidDate).toLocaleDateString('pt-BR')}` : 'Paga este mês'}
+                        </span>
+                      ) : (
+                        <button type="button" className="fin-pay" onClick={() => handlePay(b)} disabled={payingId === b.id}>
+                          {payingId === b.id ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2 }} /> : 'Marcar como paga'}
+                        </button>
+                      )}
+                      {b.endDate && (
+                        <span className="fin-detail-txt" title="Data de encerramento">
+                          Até {new Date(b.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
                   )}
-                  <button className="cfg-del-btn" type="button" onClick={() => setDeleteConfirmId(b.id)} aria-label="Remover">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-            <div className="cfg-fixed-total">
-              <span>Total mensal</span>
-              <span>R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-            </div>
-          </div>
+                </li>
+              )
+            })}
+          </ul>
         )}
         {budgets.length > 0 && (
           <div className="cfg-launch-row">
@@ -236,97 +244,103 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
             )}
           </div>
         )}
-        <form onSubmit={handleAdd} className="cfg-add-row">
-          <input className="cfg-inp" type="text" placeholder="Nome da conta"
+        <form onSubmit={handleAdd} className="fa-form" aria-label="Adicionar conta fixa" noValidate>
+          <input className="fa-inp" type="text" placeholder="Nome da conta" aria-label="Nome da conta"
             value={newBudget.name} onChange={e => setNewBudget(p => ({ ...p, name: e.target.value }))} />
-          <CurrencyInput className="cfg-inp cfg-inp-num" placeholder="Valor"
-            value={newBudget.amount}
-            onChange={v => setNewBudget(p => ({ ...p, amount: v }))} />
-          <input className="cfg-inp cfg-inp-num" type="number" placeholder="Dia venc." min="1" max="31"
-            value={newBudget.dueDay}
-            onChange={e => { setNewBudget(p => ({ ...p, dueDay: e.target.value })); setDueDayErr('') }} />
-          <button type="button" className="cfg-btn-ghost cfg-enddate-toggle"
+          <div className="fa-two">
+            <CurrencyInput className="fa-inp" placeholder="Valor"
+              value={newBudget.amount}
+              onChange={v => setNewBudget(p => ({ ...p, amount: v }))} />
+            <input className="fa-inp" type="number" inputMode="numeric" placeholder="Dia venc." aria-label="Dia do vencimento" min="1" max="31"
+              value={newBudget.dueDay}
+              onChange={e => { setNewBudget(p => ({ ...p, dueDay: e.target.value })); setDueDayErr('') }} />
+          </div>
+          {dueDayErr && <span className="fa-err" role="alert">{dueDayErr}</span>}
+
+          <button type="button" className={`fa-date-toggle${newBudget.hasEndDate ? ' on' : ''}`} aria-expanded={newBudget.hasEndDate}
             title={newBudget.hasEndDate ? 'Remover data de encerramento' : 'Definir data de encerramento'}
             onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: { dd: '', mm: '', aaaa: '' } }))}>
-            📅
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <span className="fa-date-text">Data de encerramento</span>
+            <span className="fa-date-hint">{newBudget.hasEndDate ? 'Remover' : 'opcional'}</span>
           </button>
-          <button type="submit" className="cfg-btn-ghost" disabled={submitting}>
+
+          {newBudget.hasEndDate && (
+            <div className="fa-date-row">
+              <label className="fa-date-label" htmlFor="fa-dd">Encerramento</label>
+              <div className="fa-date-fields">
+                <input
+                  id="fa-dd"
+                  ref={refDD}
+                  className="fa-inp fa-date-part"
+                  type="text" inputMode="numeric" placeholder="DD" maxLength={2}
+                  value={newBudget.endDate.dd}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g,'').slice(0,2)
+                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: v } }))
+                    setEndDateErr('')
+                    if (v.length === 2) refMM.current?.focus()
+                  }}
+                />
+                <span className="fa-date-sep">/</span>
+                <input
+                  ref={refMM}
+                  className="fa-inp fa-date-part"
+                  type="text" inputMode="numeric" placeholder="MM" maxLength={2} aria-label="Mês de encerramento"
+                  value={newBudget.endDate.mm}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g,'').slice(0,2)
+                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: v } }))
+                    if (v.length === 2) refAAAA.current?.focus()
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Backspace' && newBudget.endDate.mm === '') {
+                      e.preventDefault()
+                      refDD.current?.focus()
+                    }
+                  }}
+                />
+                <span className="fa-date-sep">/</span>
+                <input
+                  ref={refAAAA}
+                  className="fa-inp fa-date-part fa-date-year"
+                  type="text" inputMode="numeric" placeholder="AAAA" maxLength={4} aria-label="Ano de encerramento"
+                  value={newBudget.endDate.aaaa}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g,'').slice(0,4)
+                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, aaaa: v } }))
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Backspace' && newBudget.endDate.aaaa === '')
+                      setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: p.endDate.mm.slice(0,-1) } }))
+                  }}
+                />
+              </div>
+              {endDateErr && <span className="fa-err" role="alert">{endDateErr}</span>}
+            </div>
+          )}
+
+          <button type="submit" className="fin-btn fa-submit" disabled={submitting}>
             {submitting ? (
-              <span className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} />
+              <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
             ) : (
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
             )}
             {submitting ? 'Adicionando…' : 'Adicionar'}
           </button>
         </form>
-        {dueDayErr && (
-          <span style={{ fontSize: 12, color: '#ef4444', marginTop: 4, display: 'block' }}>{dueDayErr}</span>
-        )}
-        {newBudget.hasEndDate && (
-          <div className="cfg-enddate-row">
-            <label className="cfg-enddate-label">📅 Encerramento</label>
-            <div className="cfg-date-fields">
-              <input
-                ref={refDD}
-                className="cfg-inp cfg-date-part"
-                type="text" inputMode="numeric" placeholder="DD" maxLength={2}
-                value={newBudget.endDate.dd}
-                onChange={e => {
-                  const v = e.target.value.replace(/\D/g,'').slice(0,2)
-                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: v } }))
-                  setEndDateErr('')
-                  if (v.length === 2) refMM.current?.focus()
-                }}
-              />
-              <span className="cfg-date-sep">/</span>
-              <input
-                ref={refMM}
-                className="cfg-inp cfg-date-part"
-                type="text" inputMode="numeric" placeholder="MM" maxLength={2}
-                value={newBudget.endDate.mm}
-                onChange={e => {
-                  const v = e.target.value.replace(/\D/g,'').slice(0,2)
-                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: v } }))
-                  if (v.length === 2) refAAAA.current?.focus()
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Backspace' && newBudget.endDate.mm === '') {
-                    e.preventDefault()
-                    refDD.current?.focus()
-                  }
-                }}
-              />
-              <span className="cfg-date-sep">/</span>
-              <input
-                ref={refAAAA}
-                className="cfg-inp cfg-date-part cfg-date-year"
-                type="text" inputMode="numeric" placeholder="AAAA" maxLength={4}
-                value={newBudget.endDate.aaaa}
-                onChange={e => {
-                  const v = e.target.value.replace(/\D/g,'').slice(0,4)
-                  setNewBudget(p => ({ ...p, endDate: { ...p.endDate, aaaa: v } }))
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Backspace' && newBudget.endDate.aaaa === '')
-                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: p.endDate.mm.slice(0,-1) } }))
-                }}
-              />
-            </div>
-            {endDateErr && (
-              <span style={{ fontSize: 12, color: '#ef4444', marginTop: 4, display: 'block' }}>{endDateErr}</span>
-            )}
-          </div>
-        )}
       </div>
-    </div>
+    </section>
 
     {deleteConfirmId && createPortal(
       <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
-        <div className="gls-modal" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+        <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="fx-del-title" onClick={e => e.stopPropagation()}>
           <div className="gls-modal-head">
-            <span>Excluir conta fixa</span>
+            <span id="fx-del-title">Excluir conta fixa</span>
             <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -343,7 +357,10 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
               </svg>
             </div>
             <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
-            <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>Esta conta fixa será removida permanentemente.</div>
+            <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+              {deleting && <div style={{ fontWeight:600, color:'var(--t1)' }}>{deleting.name} · R$ {deleting.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>}
+              <div>Esta conta fixa será removida permanentemente.</div>
+            </div>
           </div>
           <div className="gls-modal-foot">
             <button className="gls-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</button>

@@ -25,6 +25,11 @@ on:
     branches: [develop]
 
   workflow_dispatch:
+    inputs:
+      db_connection_limit:
+        description: 'Experimento: conexões do Prisma com o banco DE HOMOLOGAÇÃO (1 a 20). Vazio = padrão do código (1 no pooler). Só vale para este deploy.'
+        required: false
+        default: ''
 
 concurrency:
   group: deploy-staging
@@ -37,7 +42,7 @@ jobs:
   # ── 1. Testes Backend ────────────────────────────────────────
   test-backend:
     name: 🧪 Backend · Jest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: backend
@@ -56,7 +61,7 @@ jobs:
   # ── 2. Testes Frontend ───────────────────────────────────────
   test-frontend:
     name: 🧪 Frontend · Vitest
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -73,7 +78,7 @@ jobs:
   # ── 3. Build ─────────────────────────────────────────────────
   build-check:
     name: 🏗️ Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: frontend
@@ -90,7 +95,7 @@ jobs:
   # ── 4. Testes E2E ────────────────────────────────────────────
   test-e2e:
     name: 🎭 E2E · Playwright
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-backend, test-frontend, build-check]
     steps:
       - uses: actions/checkout@v4
@@ -127,7 +132,7 @@ jobs:
   # ── 5. Migration no Supabase Staging ─────────────────────────
   migrate-staging:
     name: 🗄️ Migration · Staging
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [test-backend, test-frontend, test-e2e]
     defaults:
       run:
@@ -149,7 +154,7 @@ jobs:
   # ── 6. Deploy no Cloud Run Staging ───────────────────────────
   deploy-staging:
     name: 🚀 Deploy · Staging
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [migrate-staging]
     env:
       PROJECT:    financaspro-2024
@@ -168,9 +173,18 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Build e deploy para Cloud Run Staging
+        env:
+          DB_LIMIT: ${{ inputs.db_connection_limit }}   # via env (não interpolado no script): nada de injeção por texto digitado
         run: |
           set -euo pipefail
           gcloud auth configure-docker gcr.io --quiet
+
+          ENV_VARS="NODE_ENV=production,EMAIL_FROM=staging@myfinancepro.com.br"
+          if [[ -n "${DB_LIMIT:-}" ]]; then
+            [[ "$DB_LIMIT" =~ ^([1-9]|1[0-9]|20)$ ]] || { echo "❌ db_connection_limit inválido: '$DB_LIMIT' (use um número de 1 a 20)"; exit 1; }
+            ENV_VARS="$ENV_VARS,DB_CONNECTION_LIMIT=$DB_LIMIT"
+            echo "🧪 Experimento: DB_CONNECTION_LIMIT=$DB_LIMIT (só nesta homologação; o próximo deploy sem o campo volta ao padrão)"
+          fi
 
           IMAGE="gcr.io/${PROJECT}/${SERVICE}:${{ github.sha }}"
           echo "📦 Imagem: $IMAGE"
@@ -189,7 +203,7 @@ jobs:
             --cpu-boost \
             --concurrency 80 \
             --allow-unauthenticated \
-            --set-env-vars "NODE_ENV=production,EMAIL_FROM=staging@myfinancepro.com.br" \
+            --set-env-vars "$ENV_VARS" \
             --set-secrets "DATABASE_URL=STAGING_DATABASE_URL:latest,JWT_SECRET=STAGING_JWT_SECRET:latest,GROQ_API_KEY=GROQ_API_KEY:latest,VAPID_PUBLIC_KEY=STAGING_VAPID_PUBLIC_KEY:latest,VAPID_PRIVATE_KEY=STAGING_VAPID_PRIVATE_KEY:latest,ALLOWED_ORIGINS=STAGING_ALLOWED_ORIGINS:latest,RESEND_API_KEY=RESEND_API_KEY:latest,STAGING_SEED_SECRET=STAGING_SEED_SECRET:latest,CRON_SECRET=CRON_SECRET:latest" \
             --quiet
 

@@ -65,6 +65,12 @@ function BackupCodesModal({ codes, onClose }) {
   )
 }
 
+const ShieldGlyph = () => (
+  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+  </svg>
+)
+
 export default function TwoFactorCard({ onMessage, onUpgrade }) {
   const user    = useUser()
   const isPro   = user.plan === 'pro' || user.plan === 'elite'
@@ -162,83 +168,50 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
 
   const close = () => { setModal(null); setCode(''); setPassword(''); setErr('') }
 
+  // Interruptor: desligado → começa a ativação (QR code; no plano grátis abre o convite ao Pro);
+  // ligado → pede a senha para desativar. Só muda de posição quando a operação dá certo.
+  const onToggle = () => {
+    if (loading) return
+    if (enabled) { setModal('disable'); setErr(''); setPassword('') }
+    else openSetup()
+  }
+
   return (
     <>
       {backupCodes && <BackupCodesModal codes={backupCodes} onClose={() => setBackupCodes(null)} />}
 
-      <div className="cfg-card r11">
-        <div className="cfg-card-head">
-          <div className="cfg-ch-ico" style={{ background: enabled ? 'rgba(74,226,172,.1)' : 'rgba(255,255,255,.05)', border: enabled ? '1px solid rgba(74,226,172,.2)' : '1px solid var(--border)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={enabled ? 'var(--green)' : 'var(--t2)'} strokeWidth="2" strokeLinecap="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0110 0v4"/>
-            </svg>
+      <section className="fin-card sc-card sc-2fa" aria-label="Autenticação em duas etapas">
+        <div className="sc-2fa-row">
+          <span className="fin-ico"><ShieldGlyph /></span>
+          <div className="sc-2fa-text">
+            <h2 className="sc-title">Autenticação em duas etapas</h2>
+            <p className="sc-sub">Código por app autenticador a cada login</p>
           </div>
-          <div>
-            <div className="cfg-ch-title">
-              Autenticação em dois fatores
-              {enabled && <span className="tfa-badge-on">Ativo</span>}
-            </div>
-            <div className="cfg-ch-sub">
-              {enabled ? 'Sua conta está protegida com 2FA.' : 'Adicione uma camada extra de segurança ao login.'}
-            </div>
-          </div>
+          <button type="button" role="switch" aria-checked={enabled} aria-label="Autenticação em duas etapas"
+            className={`sb-switch${enabled ? ' on' : ''}`} onClick={onToggle} disabled={loading}>
+            <span className="sb-knob" />
+          </button>
         </div>
 
-        <div className="cfg-card-body">
-          {!isPro && enabled && (
-            <div className="tfa-row">
-              <span className="tfa-desc" style={{ color: 'var(--orange)', fontSize: 11 }}>
-                Seu plano mudou para Grátis. Desative o 2FA ou faça upgrade para continuar usando.
+        {!isPro && !enabled && (
+          <p className="sc-2fa-note">Disponível nos planos Pro e Elite. <button type="button" className="sc-link" onClick={() => onUpgrade('A autenticação de dois fatores é exclusiva do plano Pro.')}>Fazer upgrade</button></p>
+        )}
+        {!isPro && enabled && (
+          <p className="sc-2fa-note warn">Seu plano mudou para Grátis. Desative o 2FA ou faça upgrade para continuar usando.</p>
+        )}
+        {enabled && (
+          <div className="sc-2fa-extra">
+            {codesCount !== null && (
+              <span className={`sc-2fa-count${codesCount <= 2 ? ' low' : ''}`}>
+                {codesCount === 0
+                  ? 'Sem códigos de recuperação disponíveis'
+                  : `${codesCount} código${codesCount === 1 ? '' : 's'} de recuperação disponíve${codesCount === 1 ? 'l' : 'is'}`}
               </span>
-              <button className="cfg-btn-danger" onClick={() => { setModal('disable'); setErr('') }} style={{ fontSize: 12, padding: '8px 14px', flexShrink: 0 }}>
-                Desativar 2FA
-              </button>
-            </div>
-          )}
-          {!isPro && !enabled && (
-            <div className="tfa-locked">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
-              </svg>
-              2FA disponível nos planos Pro e Elite.
-              <button className="tfa-upgrade-link" onClick={() => onUpgrade('A autenticação de dois fatores é exclusiva do plano Pro.')}>Fazer upgrade</button>
-            </div>
-          )}
-          {isPro && !enabled && (
-            <div className="tfa-row">
-              <span className="tfa-desc">Proteja sua conta com Google Authenticator, Authy ou similar.</span>
-              <button className="cfg-btn-primary" onClick={openSetup} disabled={loading}>
-                {loading ? <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> : 'Ativar 2FA'}
-              </button>
-            </div>
-          )}
-          {isPro && enabled && (
-            <>
-              <div className="tfa-row">
-                <div>
-                  <span className="tfa-desc">Código solicitado em cada login.</span>
-                  {codesCount !== null && (
-                    <div className="tfa-backup-count" style={{ color: codesCount <= 2 ? 'var(--red)' : 'var(--t3)' }}>
-                      {codesCount === 0
-                        ? '⚠ Sem códigos de recuperação disponíveis'
-                        : `${codesCount} código${codesCount === 1 ? '' : 's'} de recuperação disponíve${codesCount === 1 ? 'l' : 'is'}`}
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                  <button className="cfg-btn-secondary" onClick={() => { setModal('regenerate'); setErr(''); setPassword('') }} style={{ fontSize: 12, padding: '8px 12px' }}>
-                    Regenerar códigos
-                  </button>
-                  <button className="cfg-btn-danger" onClick={() => { setModal('disable'); setErr('') }} style={{ fontSize: 12, padding: '8px 14px' }}>
-                    Desativar 2FA
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+            )}
+            {isPro && <button type="button" className="sc-link" onClick={() => { setModal('regenerate'); setErr(''); setPassword('') }}>Regenerar códigos</button>}
+          </div>
+        )}
+      </section>
 
       {/* Modal — setup */}
       {modal === 'setup' && (
