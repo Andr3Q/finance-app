@@ -27,7 +27,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "mercadopago": "^2.12.1",
-    "multer": "^2.4.0",
+    "multer": "^2.5.0",
     "music-metadata": "^12.2.3",
     "pdfkit": "^0.20.2",
     "pino": "^10.3.1",
