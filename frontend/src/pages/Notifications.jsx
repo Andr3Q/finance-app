@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
 import { loadStory } from '../services/storiesData.js'
@@ -11,6 +12,8 @@ import { getSalaryNotif, getTrialNotif } from '../utils/notifications.js'
 import { buildNotifications, countUnread, readNotifIds, markNotifsRead, isTipFresh } from '../utils/notificationsFeed.js'
 import { prefsOf } from '../utils/notifPrefs.js'
 import { usePrevMonthRecap } from '../hooks/usePrevMonthRecap.js'
+import { usePageSubtitle } from '../hooks/usePageSubtitle.js'
+import { publishUnreadCount } from '../hooks/useUnreadCount.js'
 import { useTipAvailable } from '../hooks/useTipAvailable.js'
 import { buildRecapSlides, maskAmounts } from '../utils/storySlides.js'
 import { readCancelFlags, cancelReminders as toReminders } from '../utils/subsCancel.js'
@@ -51,7 +54,6 @@ const BellIcon = () => (
   </svg>
 )
 
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 const trialDismissed = () => { try { return !!sessionStorage.getItem('trial_just_expired') } catch { return false } }
 
 export default function Notifications() {
@@ -70,7 +72,7 @@ export default function Notifications() {
   const prevRecapSlides = usePrevMonthRecap(prefs.stories)
   const tipAvailable = useTipAvailable(user.id) // só avisa da dica quando ela existe
   const [seenAtOpen] = useState(readNotifIds)
-  const [hidden]     = useState(readHidden)
+  const [hidden]     = useHideBalance()
 
   const load = useCallback(async () => {
     setFailed(false)
@@ -119,10 +121,12 @@ export default function Notifications() {
   const idsKey = items.map(i => i.id).join('|')
   useEffect(() => {
     if (idsKey) markNotifsRead(idsKey.split('|'))
-  }, [idsKey])
+    if (data) publishUnreadCount(0) // viu tudo: a bolinha do sino (barra de cima do desktop) apaga
+  }, [idsKey, data])
 
   const newCount = countUnread(items, seenAtOpen)
   const subtitle = loading ? 'Carregando…' : newCount === 0 ? 'Nenhuma nova' : newCount === 1 ? '1 nova' : `${newCount} novas`
+  usePageSubtitle(loading ? null : subtitle) // barra de cima do desktop: "4 novas", como no design
 
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/dashboard'))
 

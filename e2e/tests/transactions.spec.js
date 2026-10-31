@@ -90,14 +90,14 @@ test.describe('Transações — Filtros', () => {
   })
 
   test('busca por descrição filtra a lista', async ({ page }) => {
-    const searchBox = page.getByPlaceholder(/buscar/i)
+    const searchBox = page.locator('.pwnav').getByPlaceholder(/buscar/i) // escopo na tela: o desktop tem outra busca na barra de cima
     await searchBox.fill('Almoço')
     await expect(page.getByText('Almoço')).toBeVisible()
     await expect(page.getByText('Salário')).not.toBeVisible()
   })
 
   test('limpar busca restaura todas as transações', async ({ page }) => {
-    const searchBox = page.getByPlaceholder(/buscar/i)
+    const searchBox = page.locator('.pwnav').getByPlaceholder(/buscar/i) // escopo na tela: o desktop tem outra busca na barra de cima
     await searchBox.fill('Almoço')
     await searchBox.clear()
     await expect(page.getByText('Salário')).toBeVisible()
@@ -130,12 +130,12 @@ test.describe('Transações — Criar transação', () => {
   })
 
   test('abre modal ao clicar em "Nova Transação"', async ({ page }) => {
-    await page.getByRole('button', { name: /nova transação/i }).click()
+    await page.locator('.pwnav').getByRole('button', { name: /nova transação/i }).click() // o botão da tela (o da barra de cima abre outra folha)
     await expect(page.locator('.modal').first()).toBeVisible()
   })
 
   test('cria despesa e fecha o modal com sucesso', async ({ page }) => {
-    await page.getByRole('button', { name: /nova transação/i }).click()
+    await page.locator('.pwnav').getByRole('button', { name: /nova transação/i }).click() // o botão da tela (o da barra de cima abre outra folha)
     await page.locator('.modal').first().waitFor()
 
     // Preenche valor (CurrencyInput com placeholder "0,00")
@@ -152,7 +152,7 @@ test.describe('Transações — Criar transação', () => {
   })
 
   test('formulário não submete quando valor está vazio', async ({ page }) => {
-    await page.getByRole('button', { name: /nova transação/i }).click()
+    await page.locator('.pwnav').getByRole('button', { name: /nova transação/i }).click() // o botão da tela (o da barra de cima abre outra folha)
     await page.locator('.modal').first().waitFor()
 
     // Deixa valor vazio, preenche só a descrição

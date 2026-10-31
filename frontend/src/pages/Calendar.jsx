@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { transactionsAPI, budgetAPI, goalsAPI, installmentsAPI } from '../services/api.js'
@@ -10,7 +11,6 @@ import { fmt } from '../utils/format.js'
 
 const DOW = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM']
 const HIDDEN = 'R$ ••••'
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 
 function buildCalendar(year, month) {
   const firstDow    = new Date(year, month - 1, 1).getDay()
@@ -60,7 +60,7 @@ export default function Calendar() {
   const [installments,  setInstallments]  = useState([])
   const [loading,       setLoading]       = useState(true)
   const [fetchError,    setFetchError]    = useState(false)
-  const [hidden]                          = useState(readHidden)
+  const [hidden]                          = useHideBalance()
 
   const fetchData = useCallback(async () => {
     setLoading(true)

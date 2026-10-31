@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { createPortal } from 'react-dom'
-import { useNavigate as useRouterNavigate } from 'react-router-dom'
+import { useNavigate as useRouterNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
 import { txCacheKey, currentBrasiliaMonthYear } from '../utils/txCache.js'
 import { scrollChipsBy } from '../utils/chipScroll.js'
@@ -85,14 +86,18 @@ export default function Transactions() {
   const [loading,       setLoading]       = useState(true)
   const [showForm,      setShowForm]      = useState(false)
   const [filter,        setFilter]        = useState('all')
+  const routerLocation = useLocation()
   const [search,        setSearch]        = useState('')
+  // A busca da barra de cima (desktop) chega aqui por state da rota — ao abrir o Extrato ou com ele já aberto — e vira o filtro.
+  useEffect(() => {
+    const q = routerLocation.state?.search
+    if (typeof q === 'string' && q) setSearch(q)
+  }, [routerLocation.key]) // eslint-disable-line react-hooks/exhaustive-deps
   const [toast,         setToast]         = useState(null)
   // Resultado do mês vindo do mesmo cálculo da story "Resumo do mês".
   const [recap,         setRecap]         = useState(null)
-  // Mesma preferência "ocultar valores" do Início — lida uma vez ao abrir.
-  const [hideValues] = useState(() => {
-    try { return localStorage.getItem('hide-balance') === '1' } catch { return false }
-  })
+  // Mesma preferência "ocultar valores" do Início (e do olho da barra de cima no desktop).
+  const [hideValues] = useHideBalance()
   const [editingTx,         setEditingTx]         = useState(null)
   const [confirmDeleteTx,   setConfirmDeleteTx]   = useState(null)
   const fileInputRef  = useRef(null)

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI, budgetAPI } from '../services/api.js'
@@ -16,7 +17,6 @@ const HIDDEN = 'R$ ••••'
 // O design mostra 4 categorias nos chips; as outras 4 ficam atrás de "Mais" (e abertas sozinhas quando já têm teto)
 const MAIN_CATEGORIES = LIMIT_CATEGORIES.slice(0, 4)
 const MORE_CATEGORIES = LIMIT_CATEGORIES.slice(4)
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 
 const Svg = ({ size = 16, sw = 2, children }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -54,7 +54,7 @@ export default function Limits() {
   const [data,    setData]    = useState(() => getCache('dashboard') || null)
   const [loading, setLoading] = useState(() => isPro && !getCache('dashboard'))
   const [failed,  setFailed]  = useState(false)
-  const [hidden]              = useState(readHidden)
+  const [hidden]              = useHideBalance()
   const [cat,     setCat]     = useState(null)   // categoria escolhida em "Novo limite"
   const [amount,  setAmount]  = useState('')
   const [saving,  setSaving]  = useState(false)

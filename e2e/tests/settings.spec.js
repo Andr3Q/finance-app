@@ -168,7 +168,7 @@ test.describe('Configurações — Fechar mês (Balanço mensal)', () => {
   test('tela "Balanço mensal" com o botão de fechar visível para Pro', async ({ page }) => {
     await setupSettings(page)
     await page.goto('/settings/fechamento')
-    await expect(page.getByRole('heading', { name: 'Balanço mensal' })).toBeVisible()
+    await expect(page.locator('.pwnav').getByRole('heading', { name: 'Balanço mensal' })).toBeVisible() // escopo na tela: o desktop tem o mesmo título na barra de cima
     await expect(page.getByRole('button', { name: /fechar mês e gerar pdf/i })).toBeVisible()
   })
 

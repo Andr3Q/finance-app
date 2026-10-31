@@ -29,7 +29,7 @@ test.describe('Parcelamentos — Tela', () => {
   test('exibe cabeçalho "Compras parceladas" e o formulário de nova compra', async ({ page }) => {
     await setupBase(page)
     await goToParcelados(page)
-    await expect(page.getByRole('heading', { name: 'Compras parceladas' })).toBeVisible()
+    await expect(page.locator('.pwnav').getByRole('heading', { name: 'Compras parceladas' })).toBeVisible() // escopo na tela: o desktop tem o mesmo título na barra de cima
     await expect(page.getByRole('heading', { name: 'Nova compra parcelada' })).toBeVisible()
   })
 

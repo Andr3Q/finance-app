@@ -19,6 +19,8 @@ import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notificat
 import { buildNotifications, countUnread, readNotifIds, isTipFresh } from '../utils/notificationsFeed.js'
 import { prefsOf } from '../utils/notifPrefs.js'
 import { usePrevMonthRecap } from '../hooks/usePrevMonthRecap.js'
+import { useHideBalance } from '../hooks/useHideBalance.js'
+import { publishUnreadCount } from '../hooks/useUnreadCount.js'
 import { useTipAvailable } from '../hooks/useTipAvailable.js'
 import { readCancelFlags, cancelReminders } from '../utils/subsCancel.js'
 import { readReminders } from '../utils/reminders.js'
@@ -79,9 +81,8 @@ export default function Dashboard() {
   const [toast,        setToast]        = useState(null)
   // Preferência de privacidade (ocultar valores) persiste entre sessões —
   // sem isso o usuário teria que escondê-los de novo toda vez que abrisse o app.
-  const [hideBalance,  setHideBalance]  = useState(() => {
-    try { return localStorage.getItem('hide-balance') === '1' } catch { return false }
-  })
+  // (o mesmo olho existe na barra de cima do desktop — useHideBalance mantém os dois em sincronia)
+  const [hideBalance, toggleHideBalance] = useHideBalance()
   const [goals,        setGoals]        = useState([])
 
   // O sino leva à tela Notificações; o pontinho aparece enquanto houver aviso que o usuário
@@ -193,10 +194,13 @@ export default function Dashboard() {
     if (loading || loadFailed || !user.id) return undefined
     return prefetchStoriesWhenIdle(user.id, { tip: tipAvailable === true })
   }, [loading, loadFailed, user.id, tipAvailable])
-  const hasNotif = countUnread(
+  const unreadCount = countUnread(
     buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()), reminderState: readReminders(), prefs: notifPrefs, prevRecapSlides, tipFresh: tipAvailable === true && isTipFresh(transactions) }),
     seenNotifs,
-  ) > 0
+  )
+  const hasNotif = unreadCount > 0
+  // a bolinha do sino da barra de cima (desktop) lê este número; só vale depois que o Início carregou os dados
+  useEffect(() => { if (!loading && !loadFailed) publishUnreadCount(unreadCount) }, [loading, loadFailed, unreadCount])
 
   // Score financeiro (0-100) — igual já existia, só ganhou um rótulo/visual
   // novo ("Saúde financeira") nesta tela.
@@ -220,13 +224,6 @@ export default function Dashboard() {
   const scoreInk = score === null ? '#5B6784' :
     score >= 60 ? '#117953' : score >= 40 ? '#B26A00' : score >= 20 ? '#B54708' : '#B42318'
 
-  const toggleHideBalance = () => {
-    setHideBalance(v => {
-      const next = !v
-      try { localStorage.setItem('hide-balance', next ? '1' : '0') } catch {}
-      return next
-    })
-  }
 
   const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite'
   const firstName = user.name?.split(' ')[0] || ''

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { goalsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
@@ -60,10 +61,8 @@ export default function StoriesResumo() {
 
   const retry = () => { setStatus('loading'); setAttempt(a => a + 1) } // erro nunca fica guardado: a próxima busca vai à rede
 
-  // Mesma preferência "ocultar valores" do Início — lida uma vez ao abrir.
-  const [hideValues] = useState(() => {
-    try { return localStorage.getItem('hide-balance') === '1' } catch { return false }
-  })
+  // Mesma preferência "ocultar valores" do Início (e do olho da barra de cima no desktop).
+  const [hideValues] = useHideBalance()
 
   const slides = useMemo(() => {
     if (!data) return []

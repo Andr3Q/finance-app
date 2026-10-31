@@ -34,7 +34,7 @@ test.describe('Metas — Listagem', () => {
   test('sem metas só aparece o cartão "Nova meta"', async ({ page }) => {
     await setupGoals(page)
     await page.goto('/goals')
-    await expect(page.getByRole('heading', { name: 'Metas' })).toBeVisible()
+    await expect(page.locator('.pwnav').getByRole('heading', { name: 'Metas' })).toBeVisible() // escopo na tela: o desktop tem o mesmo título na barra de cima
     await expect(page.locator('.gl-card')).toHaveCount(0)
   })
 

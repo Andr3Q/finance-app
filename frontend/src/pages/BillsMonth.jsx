@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { budgetAPI } from '../services/api.js'
@@ -22,7 +23,6 @@ const CheckIcon = () => (
 )
 
 const HIDDEN = 'R$ ••••'
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 
 // Contas do mês (Nancy 2, tela 15): as contas fixas deste mês, quais já foram pagas e quanto falta.
 // Tocar numa conta pendente a marca como paga (cria a saída no extrato, igual ao "Marcar como paga"
@@ -38,7 +38,7 @@ export default function BillsMonth() {
   const [toast,   setToast]   = useState(null)
   const [confirm, setConfirm] = useState(null)   // conta que está sendo confirmada
   const [paying,  setPaying]  = useState(false)
-  const [hidden]              = useState(readHidden)
+  const [hidden]              = useHideBalance()
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })

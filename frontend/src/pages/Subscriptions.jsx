@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
@@ -8,7 +9,6 @@ import { fmt } from '../utils/format.js'
 import { readCancelFlags, setCancelFlag, subKey } from '../utils/subsCancel.js'
 
 const HIDDEN = 'R$ ••••'
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 const DAY_MS = 24 * 60 * 60 * 1000
 const STALE_DAYS = 35 // uma assinatura mensal sem cobrança há mais que isso provavelmente já parou
 
@@ -51,7 +51,7 @@ export default function Subscriptions() {
   const [loading, setLoading] = useState(isElite)
   const [failed,  setFailed]  = useState(false)
   const [flags,   setFlags]   = useState(() => readCancelFlags())
-  const [hidden]              = useState(readHidden)
+  const [hidden]              = useHideBalance()
   const [now]                 = useState(() => Date.now())
 
   const load = () => {

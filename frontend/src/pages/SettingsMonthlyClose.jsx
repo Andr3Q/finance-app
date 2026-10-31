@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
@@ -13,7 +14,6 @@ import { MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
 
 const HIDDEN = 'R$ ••••'
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 
 const Svg = ({ size = 18, sw = 1.9, children }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -43,7 +43,7 @@ export default function SettingsMonthlyClose() {
   const [upgrade,   setUpgrade]   = useState(null)
   const [msg,       setMsg]       = useState('')
   const [msgType,   setMsgType]   = useState('success')
-  const [hidden]                  = useState(readHidden)
+  const [hidden]                  = useHideBalance()
   const timer = useRef(null)
   useEffect(() => () => clearTimeout(timer.current), [])
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
 import { getCache, setCache } from '../services/cache.js'
@@ -10,7 +11,6 @@ import { fmt } from '../utils/format.js'
 import { analyzeMonth, CATEGORY_COLORS } from '../utils/monthAnalysis.js'
 
 const HIDDEN = 'R$ ••••'
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 
 const BackIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -39,7 +39,7 @@ export default function Analysis() {
   const [data,    setData]    = useState(() => getCache('dashboard') || null)
   const [loading, setLoading] = useState(() => !getCache('dashboard'))
   const [failed,  setFailed]  = useState(false)
-  const [hidden]              = useState(readHidden)
+  const [hidden]              = useHideBalance()
 
   const load = async () => {
     setFailed(false)

@@ -18,6 +18,29 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Fontes do design desktop ("Nancy Desktop"): Plus Jakarta Sans (texto) e Geist Mono (valores/rótulos), também hospedadas no app e
+   variáveis (um arquivo por subconjunto cobre todos os pesos). Só são baixadas quando uma tela as usa — o celular segue na Sora. */
+@font-face {
+  font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url('./assets/fonts/geist-mono-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url('./assets/fonts/geist-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* ── Tokens ─────────────────────────────────────────────── */
 :root {
   /* Background */
@@ -83,8 +106,8 @@
   --bottom-nav-height: 64px;
 
   /* Dashboard sidebar/topbar */
-  --dsb-sidebar-w:  240px;
-  --dsb-topbar-h:   64px;
+  --dsb-sidebar-w:  280px;
+  --dsb-topbar-h:   77px;
 }
 
 /* ── Reset ───────────────────────────────────────────────── */
@@ -2348,7 +2371,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 @media (min-width: 901px) and (max-width: 1200px) {
-  :root { --dsb-sidebar-w: 200px; }
   .dsb-two-col { grid-template-columns: 1fr 1fr; }
   .dsb-content { padding: 24px; }
 }
@@ -12200,3 +12222,178 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
   html[data-theme="light"] body { background: transparent !important; }
   html[data-theme="light"] #root { background: #f0f2f5; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nds-* — Casca do desktop (design "Nancy Desktop", Nancy Desktop.dc.html): menu lateral azul e barra de cima.
+   O protótipo é content-box e o app é border-box: os tamanhos abaixo já são os FINAIS — menu 248 + 2×16 de padding = 280;
+   barra de cima 76 + 1 de borda = 77; busca 300 + 2×14 + 2 de borda = 330×46; botões do olho/sino 44 + 2 = 46×46.
+   Só existe a partir de 901px (no celular quem manda é a barra de baixo).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+:root {
+  --nd-font:   'Plus Jakarta Sans', sans-serif;
+  --nd-mono:   'Geist Mono', monospace;
+  --nd-blue:   #1546FF;
+  --nd-mint:   #3BE3A0;
+  --nd-green:  #12C985;
+  --nd-bg:     #F2F6FF;
+  --nd-ink:    #0A1330;
+  --nd-muted:  #5B6785;
+  --nd-line:   #E6ECF7;
+  --nd-line-2: #E1E8F5;
+  --nd-hint:   #9AA6BF;
+}
+.nds-sidebar, .nds-topbar { display: none; }
+
+@media (min-width: 901px) {
+  /* ── menu lateral ── */
+  .nds-sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; width: var(--dsb-sidebar-w); z-index: 40;
+    display: flex; flex-direction: column; gap: 4px; padding: 24px 16px 18px; overflow: hidden;
+    background: var(--nd-blue); color: #fff; font-family: var(--nd-font);
+  }
+  .nds-sidebar button { font-family: var(--nd-font); }
+  .nds-glow {
+    position: absolute; width: 420px; height: 420px; border-radius: 50%; left: -200px; bottom: -220px; pointer-events: none;
+    background: radial-gradient(circle, rgba(59,227,160,.35) 0%, rgba(59,227,160,0) 65%);
+  }
+  .nds-logo {
+    position: relative; display: flex; align-items: center; gap: 10px; padding: 0 8px 22px;
+    background: none; border: none; color: inherit; cursor: pointer; text-align: left;
+  }
+  .nds-logo .nancy-mark { width: 36px; height: 36px; }
+  .nds-logo-name { font: 800 24px var(--nd-font); letter-spacing: -.04em; }
+  .nds-nav { position: relative; display: flex; flex-direction: column; gap: 4px; }
+  .nds-item {
+    position: relative; display: flex; align-items: center; gap: 12px; width: 100%; height: 44px; padding: 0 12px;
+    border: none; border-radius: 12px; cursor: pointer; text-align: left;
+    background: transparent; color: rgba(255,255,255,.88); font: 600 14px var(--nd-font);
+  }
+  .nds-item.active { background: #fff; color: var(--nd-blue); }
+  .nds-item-label { flex: 1; }
+  .nds-badge { padding: 2px 8px; border-radius: 99px; background: var(--nd-mint); color: #06392A; font: 700 10.5px var(--nd-font); }
+  .nds-spacer { flex: 1; }
+  .nds-plan {
+    position: relative; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; padding: 14px;
+    border: none; border-radius: 16px; cursor: pointer; text-align: left; background: rgba(255,255,255,.12); color: #fff;
+  }
+  .nds-plan-title { display: flex; align-items: center; gap: 6px; font: 700 13px var(--nd-font); }
+  .nds-plan-ico { display: flex; color: var(--nd-mint); }
+  .nds-plan-text { font: 400 12px/1.4 var(--nd-font); opacity: .8; }
+  .nds-user {
+    position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px;
+    border: none; border-radius: 14px; cursor: pointer; text-align: left; background: transparent; color: #fff;
+  }
+  .nds-user.active { background: rgba(255,255,255,.16); }
+  .nds-av {
+    width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    border-radius: 50%; background: #fff; color: var(--nd-blue); font: 800 14px var(--nd-font);
+  }
+  .nds-av img { width: 100%; height: 100%; object-fit: cover; }
+  .nds-user-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .nds-user-name { font: 700 13.5px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nds-user-sub { font: 400 12px var(--nd-font); opacity: .75; }
+  .nds-sidebar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  /* ── barra de cima ── */
+  .nds-topbar {
+    position: fixed; top: 0; left: var(--dsb-sidebar-w); right: 0; height: var(--dsb-topbar-h); z-index: 30;
+    display: flex; align-items: center; gap: 16px; padding: 0 32px;
+    background: var(--nd-bg); border-bottom: 1px solid var(--nd-line); font-family: var(--nd-font); color: var(--nd-ink);
+  }
+  .nds-topbar-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .nds-topbar-title { font: 800 24px var(--nd-font); letter-spacing: -.03em; color: var(--nd-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nds-topbar-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nds-search {
+    flex: none; width: 330px; height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    border: 1px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-hint);
+  }
+  .nds-search:focus-within { border-color: var(--nd-blue); }
+  .nds-search-input {
+    flex: 1; min-width: 0; border: none; outline: none; background: transparent; -webkit-appearance: none; appearance: none;
+    font: 500 13.5px var(--nd-font); color: var(--nd-ink);
+  }
+  .nds-search-input::placeholder { color: var(--nd-hint); opacity: 1; }
+  .nds-search-input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+  .nds-iconbtn {
+    position: relative; flex: none; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-blue); cursor: pointer;
+  }
+  .nds-bell-dot { position: absolute; top: 10px; right: 11px; width: 12px; height: 12px; border-radius: 50%; background: var(--nd-green); border: 2px solid #fff; }
+  .nds-newtx {
+    flex: none; height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px;
+    border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer;
+  }
+  .nds-iconbtn:focus-visible, .nds-newtx:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+  /* O design não tem o botão flutuante do chat: a Nancy IA abre pelo menu lateral. */
+  .agent-fab { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ad-* — Telas de acesso no desktop (design "Nancy Desktop"): painel azul à esquerda + painel branco à direita.
+   Boas-vindas (landing) = painel azul largo com título de 84px e dois cartões inclinados; as telas com formulário usam o
+   mesmo painel, mais estreito e com título de 60px. O protótipo é content-box: painel = 62% (ou 46%) + 2×56px de padding.
+   No protótipo o painel branco (conteúdo de 420px + 2×40) passa 65px da janela e os botões saem cortados; aqui o conteúdo
+   encolhe para caber (min(420px, 100%)) e o resto é idêntico.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ad-split { min-height: 100vh; min-height: 100dvh; display: flex; background: #fff; color: var(--nd-ink); font-family: var(--nd-font); }
+.ad-hero {
+  position: relative; flex: none; overflow: hidden; display: flex; flex-direction: column; gap: 26px;
+  padding: 44px 56px calc(44px + var(--ck-pad, 0px)); /* --ck-pad: só existe enquanto o aviso de cookies está aberto */
+  background: var(--nd-blue); color: #fff;
+}
+/* Nos 1440px do design vale exatamente 62% (ou 46%) + 112px. Em janelas menores o painel branco nunca fica com menos de 420px
+   (sem isso, aos 1024px o formulário ficava com 197px). */
+.ad-hero--landing { width: min(calc(62% + 112px), calc(100% - 420px)); }
+.ad-hero--form    { width: min(calc(46% + 112px), calc(100% - 420px)); }
+.ad-hero-glow {
+  position: absolute; width: 800px; height: 800px; border-radius: 50%; left: -260px; bottom: -460px; pointer-events: none;
+  background: radial-gradient(circle, rgba(59,227,160,.4) 0%, rgba(59,227,160,0) 65%);
+}
+.ad-brand { position: relative; display: flex; align-items: center; gap: 12px; }
+.ad-brand .nancy-mark { width: 44px; height: 44px; }
+.ad-brand-name { font: 800 28px var(--nd-font); letter-spacing: -.04em; }
+.ad-hero-main { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+/* 84px a partir de 1440px de largura (o do design); em janelas menores o título acompanha a largura */
+.ad-headline { font: 800 clamp(52px, 5.834vw, 84px)/.96 var(--nd-font); letter-spacing: -.05em; text-wrap: balance; }
+.ad-hero--form .ad-headline { font-size: clamp(44px, 4.167vw, 60px); }
+.ad-headline span { color: var(--nd-mint); }
+.ad-lead { max-width: 520px; font: 500 18px/1.5 var(--nd-font); opacity: .86; }
+.ad-cards { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
+.ad-card-balance {
+  width: 344px; display: flex; flex-direction: column; gap: 10px; padding: 22px; border-radius: 24px; /* 300 + 2×22 (content-box no protótipo) */
+  background: #fff; color: var(--nd-ink); transform: rotate(-3deg); box-shadow: 0 30px 60px rgba(7,19,48,.3);
+}
+.ad-card-label { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-card-value { font: 800 34px var(--nd-font); letter-spacing: -.03em; }
+.ad-card-bar { height: 8px; border-radius: 99px; background: #E9FBF2; }
+.ad-card-bar div { width: 68%; height: 100%; border-radius: 99px; background: var(--nd-green); }
+.ad-card-tags { display: flex; gap: 6px; }
+.ad-tag { padding: 4px 9px; border-radius: 99px; font: 600 11px var(--nd-font); }
+.ad-tag--blue  { background: #EEF3FF; color: var(--nd-blue); }
+.ad-tag--green { background: #E9FBF2; color: #087A52; }
+.ad-card-ai {
+  width: 296px; align-self: flex-end; display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 20px; /* 260 + 2×18 */
+  background: #071330; transform: rotate(3deg);
+}
+.ad-card-ai-title { display: flex; align-items: center; gap: 8px; font: 700 13px var(--nd-font); }
+.ad-card-ai-title > span { display: flex; color: var(--nd-mint); }
+.ad-card-ai-text { font: 500 14px/1.45 var(--nd-font); }
+.ad-card-ai-text b { color: var(--nd-mint); }
+.ad-pills { position: relative; display: flex; flex-wrap: wrap; gap: 10px; list-style: none; }
+.ad-pills li { padding: 8px 14px; border-radius: 99px; background: rgba(255,255,255,.14); font: 600 13px var(--nd-font); }
+
+.ad-panel { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 40px 40px calc(40px + var(--ck-pad, 0px)); background: #fff; }
+.ad-panel-inner { width: min(420px, 100%); display: flex; flex-direction: column; gap: 14px; }
+.ad-title { font: 800 40px/1.02 var(--nd-font); letter-spacing: -.04em; }
+.ad-sub { font: 400 15px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-btn-primary, .ad-btn-secondary {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; text-decoration: none; cursor: pointer;
+}
+.ad-btn-primary   { height: 54px; padding: 0 20px; background: var(--nd-blue); color: #fff; font: 700 15px var(--nd-font); }
+/* 54px de miolo + 2×1,5px de borda (content-box no protótipo) */
+.ad-btn-secondary { height: 57px; padding: 0 18px; background: #fff; color: var(--nd-blue); border: 1.5px solid #C9D9FF; font: 600 14px var(--nd-font); }
+.ad-btn-primary:focus-visible, .ad-btn-secondary:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ad-legal { margin-top: 6px; text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-legal a { color: inherit; text-decoration: none; }
+.ad-legal a:hover, .ad-legal a:focus-visible { text-decoration: underline; }
