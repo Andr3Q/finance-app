@@ -6,6 +6,8 @@ import { saveUser } from '../hooks/useUser.js'
 import PasswordStrength from '../components/ui/PasswordStrength.jsx'
 import { peekReturnTo, clearReturnTo } from '../utils/returnTo.js'
 import { useSplashGone } from '../hooks/useSplashGone.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import LoginDesktop from './LoginDesktop.jsx'
 
 const IconChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -46,6 +48,7 @@ export default function Login({ isRegister = false }) {
   // Sessão que expirou com o app já aberto no aparelho: a conferência com o servidor recarrega a página para o login e o state
   // some — o destino ficou guardado (utils/returnTo.js). Só no login: conta nova começa pelo Início.
   const splashGone = useSplashGone() // o formulário só entra na página depois da splash (senão o gerenciador de senhas abre por cima do vídeo)
+  const isDesktop = useIsDesktop() // no desktop o Entrar tem layout próprio (design "Nancy Desktop"); a lógica abaixo é a mesma
   const [savedReturn] = useState(() => (isRegister ? null : peekReturnTo()))
   const redirectTo = (typeof fromPath === 'string' && fromPath.startsWith('/'))
     ? `${fromPath}${location.state.from.search || ''}`
@@ -247,6 +250,12 @@ export default function Login({ isRegister = false }) {
         </div>
       </div>
     )
+  }
+
+  // Desktop: só a apresentação muda (LoginDesktop) — estado, validação, envio e redirecionamento são os de cima.
+  // (a verificação em duas etapas, acima, é a mesma tela nos dois tamanhos; Criar conta ganha o layout do desktop em seguida)
+  if (mode === 'login' && isDesktop) {
+    return <LoginDesktop ctx={{ form, fieldErrs, serverErr, notice, loading, splashGone, handleChange, handleSubmit }} />
   }
 
   // Telas 03 (Entrar) e 04 (Criar conta) do Nancy 2 — mesmo invólucro de

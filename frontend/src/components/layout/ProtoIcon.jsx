@@ -17,6 +17,7 @@ const PATHS = {
   // olho cortado (valores ocultos): o protótipo não desenha esse estado, usa o mesmo traço dos demais ícones
   eyeOff: ['M3 3l18 18', 'M10.6 5.1A9.9 9.9 0 0 1 12 5c6 0 10 7 10 7a17 17 0 0 1-3.2 4', 'M6.6 6.6A17 17 0 0 0 2 12s4 7 10 7a9.7 9.7 0 0 0 4.4-1', 'M9.9 9.9a3 3 0 0 0 4.2 4.2'],
   card:   ['M2 6h20v12H2z', 'M2 10h20'],
+  back:   ['M15 6l-6 6 6 6'],
 }
 
 export default function ProtoIcon({ name, size = 20 }) {

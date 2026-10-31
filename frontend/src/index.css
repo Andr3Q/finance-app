@@ -12397,3 +12397,36 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
 .ad-legal { margin-top: 6px; text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
 .ad-legal a { color: inherit; text-decoration: none; }
 .ad-legal a:hover, .ad-legal a:focus-visible { text-decoration: underline; }
+
+/* ── Entrar / formulários no desktop (tela 03): textos e campos do painel branco ── */
+.ad-back { display: flex; align-items: center; gap: 6px; align-self: flex-start; font: 600 13px var(--nd-font); color: var(--nd-muted); text-decoration: none; }
+.ad-back:hover { color: var(--nd-ink); }
+.ad-form-title { font: 800 36px/1.04 var(--nd-font); letter-spacing: -.04em; }
+.ad-form-sub { margin-bottom: 6px; font: 400 15px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-form { display: flex; flex-direction: column; gap: 14px; }
+.ad-field { display: flex; flex-direction: column; gap: 14px; }
+.ad-label { font: 600 12px var(--nd-font); color: var(--nd-muted); }
+.ad-input {
+  box-sizing: border-box; width: 100%; min-width: 0; height: 50px; padding: 0 14px; border-radius: 12px; outline: none;
+  background: #F4F7FC; border: 1.5px solid var(--nd-line-2); font: 500 14px var(--nd-font); color: var(--nd-ink);
+}
+/* o protótipo não define a cor do exemplo: vale a padrão do navegador (#757575 no Chrome; calibrado pela tinta do print) */
+.ad-input::placeholder { color: #757575; opacity: 1; }
+.ad-input:focus { border-color: var(--nd-blue); background: #fff; }
+.ad-input.err { border-color: #D6334A; }
+.ad-error { font: 500 13px var(--nd-font); color: #D6334A; }
+.ad-field .ad-error { margin-top: -8px; } /* erro do campo fica colado nele (o erro geral segue o ritmo de 14px do design) */
+.ad-forgot { align-self: flex-end; font: 600 13px var(--nd-font); color: var(--nd-blue); text-decoration: none; }
+.ad-forgot:hover { text-decoration: underline; }
+/* botões das telas com formulário: Entrar 52px; o secundário 52 + 2×1,5 de borda (content-box no protótipo) */
+.ad-btn--form.ad-btn-primary   { height: 52px; font-size: 14px; border: none; }
+.ad-btn--form.ad-btn-secondary { height: 55px; }
+.ad-btn-primary:disabled, .ad-btn-secondary:disabled { cursor: not-allowed; }
+.ad-btn-secondary:disabled { opacity: .55; }
+.ad-btn-primary:disabled { opacity: .75; }
+.ad-or { display: flex; align-items: center; gap: 10px; font: 500 12px var(--nd-font); color: var(--nd-hint); }
+.ad-or::before, .ad-or::after { content: ''; flex: 1; height: 1px; background: var(--nd-line-2); }
+.ad-foot { text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-foot a { color: var(--nd-blue); font-weight: 700; text-decoration: none; }
+.ad-foot a:hover { text-decoration: underline; }
+.ad-notice { padding: 10px 14px; border-radius: 12px; background: #E9FBF2; color: #087A52; font: 500 13px/1.5 var(--nd-font); }
