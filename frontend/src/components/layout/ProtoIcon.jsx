@@ -19,6 +19,7 @@ const PATHS = {
   card:   ['M2 6h20v12H2z', 'M2 10h20'],
   back:   ['M15 6l-6 6 6 6'],
   check:  ['M5 12l5 5L20 7'],
+  mail:   ['M3 6h18v12H3z', 'M3 7l9 6 9-6'],
 }
 
 export default function ProtoIcon({ name, size = 20 }) {

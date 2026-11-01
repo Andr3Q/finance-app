@@ -12450,3 +12450,6 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
 .ad-terms-input:checked + .ad-terms-box { background: var(--nd-blue); border-color: var(--nd-blue); }
 .ad-terms-input:checked + .ad-terms-box svg { opacity: 1; }
 .ad-terms-input:focus-visible + .ad-terms-box { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ── Esqueci a senha no desktop (tela 05): aviso de e-mail enviado ── */
+.ad-sent { display: flex; align-items: center; gap: 12px; padding: 18px; border-radius: 16px; background: #E9FBF2; color: #087A52; font: 600 14px/1.45 var(--nd-font); }
