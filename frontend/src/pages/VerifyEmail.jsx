@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate, Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
 import { saveUser, useUser } from '../hooks/useUser.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import VerifyEmailDesktop from './VerifyEmailDesktop.jsx'
 
 const IconChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -39,6 +41,7 @@ export default function VerifyEmail() {
   const user            = useUser()
   const isLoggedIn      = !!user.id
   const token           = searchParams.get('token')
+  const isDesktop       = useIsDesktop() // no desktop a tela tem layout próprio (design "Nancy Desktop"); a lógica é a mesma
 
   const [status,     setStatus]     = useState(token ? 'loading' : 'code') // 'loading' | 'code' | 'ok' | 'error'
   const [err,        setErr]        = useState('')
@@ -97,6 +100,11 @@ export default function VerifyEmail() {
     } catch (e) {
       setErr(e.response?.data?.error || 'Erro ao reenviar.')
     }
+  }
+
+  if (isDesktop) {
+    const onCode = e => { setCode(e.target.value.replace(/\D/g, '').slice(0, 6)); if (err) setErr('') }
+    return <VerifyEmailDesktop ctx={{ status, err, code, onCode, submitting, resendMsg, email: user.email, isLoggedIn, handleCodeSubmit, handleResend, goDashboard, goSettings }} />
   }
 
   return (

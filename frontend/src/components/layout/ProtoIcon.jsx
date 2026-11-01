@@ -20,6 +20,7 @@ const PATHS = {
   back:   ['M15 6l-6 6 6 6'],
   check:  ['M5 12l5 5L20 7'],
   mail:   ['M3 6h18v12H3z', 'M3 7l9 6 9-6'],
+  x:      ['M6 6l12 12', 'M18 6 6 18'],
 }
 
 export default function ProtoIcon({ name, size = 20 }) {

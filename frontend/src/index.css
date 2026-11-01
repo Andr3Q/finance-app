@@ -12453,3 +12453,13 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
 
 /* ── Esqueci a senha no desktop (tela 05): aviso de e-mail enviado ── */
 .ad-sent { display: flex; align-items: center; gap: 12px; padding: 18px; border-radius: 16px; background: #E9FBF2; color: #087A52; font: 600 14px/1.45 var(--nd-font); }
+
+/* ── Confirme seu e-mail no desktop (tela 06) ── */
+/* campo do código: 72px, centralizado, Geist Mono 32px/700 com .4em de espaço entre os dígitos (como no protótipo) */
+.ad-code { height: 72px; padding: 0 14px; text-align: center; font: 700 32px var(--nd-mono); letter-spacing: .4em; }
+.ad-link-center { align-self: center; padding: 0; background: none; border: none; cursor: pointer; font: 600 13px var(--nd-font); color: var(--nd-blue); }
+.ad-link-center:hover { text-decoration: underline; }
+.ad-ok-msg { font: 600 13px var(--nd-font); color: #087A52; }
+.ad-sent--err { background: #FDECEF; color: #D6334A; }
+.ad-wait { display: flex; align-items: center; gap: 12px; font: 600 14px var(--nd-font); color: var(--nd-muted); }
+.ad-spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid #E1E8F5; border-top-color: var(--nd-blue); animation: lauth-spin .7s linear infinite; }
