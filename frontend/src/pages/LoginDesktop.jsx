@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import DesktopAuthHero from '../components/auth/DesktopAuthHero.jsx'
+import AuthFieldDesktop from '../components/auth/AuthFieldDesktop.jsx'
 import ProtoIcon from '../components/layout/ProtoIcon.jsx'
 
 // Entrar no desktop (design "Nancy Desktop", tela 03): painel azul à esquerda, formulário à direita. É só a apresentação — o estado
@@ -19,29 +20,14 @@ export default function LoginDesktop({ ctx }) {
           {/* o formulário só entra depois da splash (senão o gerenciador de senhas abre por cima do vídeo) */}
           {splashGone && (
             <form className="ad-form" onSubmit={handleSubmit} noValidate>
-              <div className="ad-field">
-                <label className="ad-label" htmlFor="f-email">E-mail</label>
-                <input
-                  id="f-email" name="email" type="email" placeholder="voce@email.com"
-                  autoComplete="email" inputMode="email"
-                  value={form.email} onChange={handleChange}
-                  className={`ad-input${fieldErrs.email ? ' err' : ''}`}
-                  aria-invalid={fieldErrs.email ? 'true' : undefined}
-                />
-                {fieldErrs.email && <span className="ad-error">{fieldErrs.email}</span>}
-              </div>
-
-              <div className="ad-field">
-                <label className="ad-label" htmlFor="f-pass">Senha</label>
-                <input
-                  id="f-pass" name="password" type="password" placeholder="••••••••"
-                  autoComplete="current-password"
-                  value={form.password} onChange={handleChange}
-                  className={`ad-input${fieldErrs.password ? ' err' : ''}`}
-                  aria-invalid={fieldErrs.password ? 'true' : undefined}
-                />
-                {fieldErrs.password && <span className="ad-error">{fieldErrs.password}</span>}
-              </div>
+              <AuthFieldDesktop
+                id="f-email" name="email" type="email" label="E-mail" placeholder="voce@email.com"
+                autoComplete="email" inputMode="email" value={form.email} onChange={handleChange} error={fieldErrs.email}
+              />
+              <AuthFieldDesktop
+                id="f-pass" name="password" type="password" label="Senha" placeholder="••••••••"
+                autoComplete="current-password" value={form.password} onChange={handleChange} error={fieldErrs.password}
+              />
 
               <Link to="/forgot-password" className="ad-forgot">Esqueci a senha</Link>
               {serverErr && <span className="ad-error" role="alert">{serverErr}</span>}

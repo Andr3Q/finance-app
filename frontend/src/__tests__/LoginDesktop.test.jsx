@@ -34,6 +34,9 @@ describe('Entrar no desktop (design "Nancy Desktop", tela 03)', () => {
     expect(screen.getByText('Entre para ver como estão suas finanças.')).toBeInTheDocument()
     expect(screen.getByLabelText('E-mail')).toHaveAttribute('placeholder', 'voce@email.com')
     expect(screen.getByLabelText('Senha')).toHaveAttribute('type', 'password')
+    // o navegador preenche a senha GUARDADA (não oferece gerar uma nova)
+    expect(screen.getByLabelText('Senha')).toHaveAttribute('autocomplete', 'current-password')
+    expect(screen.getByLabelText('E-mail')).toHaveAttribute('autocomplete', 'email')
     expect(screen.getByRole('button', { name: 'Entrar' })).toBeEnabled()
     expect(screen.getByText('ou')).toBeInTheDocument()
   })
@@ -130,9 +133,10 @@ describe('Entrar no desktop (design "Nancy Desktop", tela 03)', () => {
     expect(container.querySelector('.ad-split')).not.toBeInTheDocument()
   })
 
-  it('Criar conta ainda usa o layout atual (ganha o do desktop na tela 04)', () => {
+  it('o Entrar não troca de layout para Criar conta: cada rota tem o seu (RegisterDesktop.test.jsx)', () => {
     const { container } = setup({ isRegister: true }, '/register')
-    expect(container.querySelector('.lw-page')).toBeInTheDocument()
-    expect(container.querySelector('.ad-split')).not.toBeInTheDocument()
+    expect(container.querySelector('.ad-split')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Crie sua conta' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Bem-vindo de volta' })).not.toBeInTheDocument()
   })
 })

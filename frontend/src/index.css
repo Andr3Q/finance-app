@@ -12430,3 +12430,23 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
 .ad-foot a { color: var(--nd-blue); font-weight: 700; text-decoration: none; }
 .ad-foot a:hover { text-decoration: underline; }
 .ad-notice { padding: 10px 14px; border-radius: 12px; background: #E9FBF2; color: #087A52; font: 500 13px/1.5 var(--nd-font); }
+
+/* ── Criar conta no desktop (tela 04): força da senha e aceite dos termos ── */
+.ad-strength { display: flex; align-items: center; gap: 10px; }
+.ad-strength-track { flex: 1; height: 6px; border-radius: 99px; background: #EEF3FF; overflow: hidden; }
+.ad-strength-track div { height: 100%; border-radius: 99px; transition: width .3s; }
+.ad-strength-label { font: 600 12px var(--nd-font); }
+.ad-terms { position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer; font: 400 13px/1.4 var(--nd-font); color: #2A3555; }
+.ad-terms a { color: inherit; text-decoration: none; }
+.ad-terms a:hover, .ad-terms a:focus-visible { text-decoration: underline; }
+/* z-index: o ícone escondido (opacity) também cria camada e, vindo depois no HTML, ficava por cima da caixa de clique */
+.ad-terms-input { position: absolute; z-index: 1; opacity: 0; width: 25px; height: 25px; margin: 0; cursor: pointer; }
+/* 22px de miolo + 2×1,5px de borda = 25px (content-box no protótipo) */
+.ad-terms-box {
+  flex: none; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 7px;
+  background: #fff; border: 1.5px solid #C9D9FF; color: #fff;
+}
+.ad-terms-box svg { opacity: 0; }
+.ad-terms-input:checked + .ad-terms-box { background: var(--nd-blue); border-color: var(--nd-blue); }
+.ad-terms-input:checked + .ad-terms-box svg { opacity: 1; }
+.ad-terms-input:focus-visible + .ad-terms-box { outline: 2px solid var(--nd-blue); outline-offset: 2px; }

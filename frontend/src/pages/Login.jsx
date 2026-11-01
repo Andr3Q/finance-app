@@ -8,6 +8,7 @@ import { peekReturnTo, clearReturnTo } from '../utils/returnTo.js'
 import { useSplashGone } from '../hooks/useSplashGone.js'
 import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import LoginDesktop from './LoginDesktop.jsx'
+import RegisterDesktop from './RegisterDesktop.jsx'
 
 const IconChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -252,10 +253,12 @@ export default function Login({ isRegister = false }) {
     )
   }
 
-  // Desktop: só a apresentação muda (LoginDesktop) — estado, validação, envio e redirecionamento são os de cima.
-  // (a verificação em duas etapas, acima, é a mesma tela nos dois tamanhos; Criar conta ganha o layout do desktop em seguida)
-  if (mode === 'login' && isDesktop) {
-    return <LoginDesktop ctx={{ form, fieldErrs, serverErr, notice, loading, splashGone, handleChange, handleSubmit }} />
+  // Desktop: só a apresentação muda (LoginDesktop / RegisterDesktop) — estado, validação, envio e redirecionamento são os de cima.
+  // (a verificação em duas etapas, acima, é a mesma tela nos dois tamanhos)
+  if (isDesktop) {
+    if (mode === 'login') return <LoginDesktop ctx={{ form, fieldErrs, serverErr, notice, loading, splashGone, handleChange, handleSubmit }} />
+    const handleTerms = e => { setTermsOk(e.target.checked); if (fieldErrs.terms) setFieldErrs(f => ({ ...f, terms: '' })) }
+    return <RegisterDesktop ctx={{ form, fieldErrs, serverErr, loading, splashGone, termsOk, handleChange, handleTerms, handleSubmit }} />
   }
 
   // Telas 03 (Entrar) e 04 (Criar conta) do Nancy 2 — mesmo invólucro de
