@@ -56,6 +56,11 @@ if (splash) {
     splash.classList.add('splash-hide')
     window.__nancySplashGone = true // quem espera a splash sair (formulário de login) é liberado — ver hooks/useSplashGone.js
     window.dispatchEvent(new Event('nancy:splash-gone'))
-    setTimeout(() => splash.remove(), 450) // espera a transição de opacidade (.4s) terminar
+    setTimeout(() => {
+      splash.remove() // espera a transição de opacidade (.4s) terminar
+      document.documentElement.classList.remove('is-splashing') // o fundo da página volta ao do tema (theme-init.js)
+    }, 450)
   }, SPLASH_MIN_MS)
+} else {
+  document.documentElement.classList.remove('is-splashing')
 }
