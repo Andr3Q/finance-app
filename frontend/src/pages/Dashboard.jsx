@@ -24,6 +24,8 @@ import { publishUnreadCount } from '../hooks/useUnreadCount.js'
 import { useTipAvailable } from '../hooks/useTipAvailable.js'
 import { readCancelFlags, cancelReminders } from '../utils/subsCancel.js'
 import { readReminders } from '../utils/reminders.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import DashboardDesktop from './DashboardDesktop.jsx'
 
 const IconEye = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -68,6 +70,7 @@ export default function Dashboard() {
   const seenCls = (key) => (seen[key] ? ' is-seen' : '')
   const user = useUser()
   useForcedLightTheme() // Início é desenhado só no claro (design Nancy 2)
+  const isDesktop = useIsDesktop() // no desktop o Início tem layout próprio (design "Nancy Desktop"); dados e regras são os mesmos
 
   const [summary,      setSummary]      = useState(null)
   const [transactions, setTransactions] = useState([])
@@ -255,6 +258,39 @@ export default function Dashboard() {
   const RING_R          = 25
   const RING_CIRC       = 2 * Math.PI * RING_R
   const scoreRingOffset = RING_CIRC * (1 - (score ?? 0) / 100)
+
+  // formulário de nova transação (aberto pelo menu rápido do "+" / state da rota) — o mesmo nos dois layouts
+  const txForm = showForm && (
+    <TransactionForm
+      initialData={quickAddType ? { type: quickAddType } : undefined}
+      onClose={() => { setShowForm(false); setQuickAddType(null) }}
+      onSuccess={() => {
+        setShowForm(false); setQuickAddType(null)
+        // Dispara o mesmo evento usado em todo outro ponto que muda dado
+        // (SalaryCard, CategoryLimitsCard, handlePay/handleUnpay) em vez de
+        // chamar fetchData(true) direto — o listener abaixo já faz isso, e
+        // sem o evento a página de Transações não sabia que precisava
+        // invalidar seu próprio cache (só via TTL de 30s ou refresh manual).
+        window.dispatchEvent(new CustomEvent('budget-updated'))
+      }}
+    />
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        <Navbar />
+        {toast && <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>{toast.msg}</div>}
+        <div className="pwnav ndh-pwnav fade-in">
+          <DashboardDesktop ctx={{
+            user, summary, budgets, recentTx, loadFailed, hidden: hideBalance, monthGrowth, projected, monthName,
+            score, scoreRing, scoreInk, onRetry: () => { setLoading(true); fetchData(true) },
+          }} />
+        </div>
+        {txForm}
+      </>
+    )
+  }
 
   return (
     <>
@@ -444,21 +480,7 @@ export default function Dashboard() {
       {/* "+" flutuante isolado removido — a mesma ação vive no botão central da
           barra de navegação (menu rápido), evitando dois "+" na mesma tela. */}
 
-      {showForm && (
-        <TransactionForm
-          initialData={quickAddType ? { type: quickAddType } : undefined}
-          onClose={() => { setShowForm(false); setQuickAddType(null) }}
-          onSuccess={() => {
-            setShowForm(false); setQuickAddType(null)
-            // Dispara o mesmo evento usado em todo outro ponto que muda dado
-            // (SalaryCard, CategoryLimitsCard, handlePay/handleUnpay) em vez de
-            // chamar fetchData(true) direto — o listener abaixo já faz isso, e
-            // sem o evento a página de Transações não sabia que precisava
-            // invalidar seu próprio cache (só via TTL de 30s ou refresh manual).
-            window.dispatchEvent(new CustomEvent('budget-updated'))
-          }}
-        />
-      )}
+      {txForm}
     </>
   )
 

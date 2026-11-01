@@ -149,13 +149,13 @@ test.describe('Casca desktop — barra de cima', () => {
 
   test('o olho oculta os valores do Início e mostra de novo (a mesma preferência do celular)', async ({ page }) => {
     await setup(page)
-    await expect(page.locator('.home-balance-val')).toHaveText('R$ 23.500,00')
+    await expect(page.getByTestId('balance')).toHaveText('R$ 23.500,00')
     await top(page).getByRole('button', { name: 'Ocultar valores' }).click()
-    await expect(page.locator('.home-balance-val')).toHaveText('R$ ••••••')
+    await expect(page.getByTestId('balance')).toHaveText('R$ ••••••')
     await expect(top(page).getByRole('button', { name: 'Mostrar valores' })).toHaveAttribute('aria-pressed', 'true')
     expect(await page.evaluate(() => localStorage.getItem('hide-balance'))).toBe('1')
     await top(page).getByRole('button', { name: 'Mostrar valores' }).click()
-    await expect(page.locator('.home-balance-val')).toHaveText('R$ 23.500,00')
+    await expect(page.getByTestId('balance')).toHaveText('R$ 23.500,00')
   })
 
   test('o olho vale em qualquer tela: no Extrato os valores também somem', async ({ page }) => {

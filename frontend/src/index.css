@@ -12486,3 +12486,98 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
 .ad-warn { font: 500 13px var(--nd-font); color: #B26A00; }
 button.ad-back { background: none; border: none; padding: 0; cursor: pointer; }
 button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndh-* — Início no desktop (design "Nancy Desktop", tela 08): saldo + resumos + números + últimas transações à esquerda;
+   saúde financeira, próximas contas e Nancy IA na coluna de 320px. Tamanhos do protótipo (content-box): caixas sem padding/borda
+   próprios (52, 40, 150, 230) valem como estão; os cartões brancos têm padding 22 + borda 1.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndh-pwnav { background: var(--nd-bg); }
+.ndh-page { flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndh-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+.ndh-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.ndh-side { display: flex; flex-direction: column; gap: 20px; }
+
+/* saldo */
+.ndh-hero { position: relative; overflow: hidden; display: flex; align-items: flex-end; gap: 24px; padding: 26px 28px; border-radius: 24px; background: var(--nd-blue); color: #fff; }
+.ndh-hero-glow { position: absolute; width: 500px; height: 500px; border-radius: 50%; right: -160px; top: -240px; pointer-events: none; background: radial-gradient(circle, rgba(59,227,160,.4) 0%, rgba(59,227,160,0) 65%); }
+.ndh-hero-bal { position: relative; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.ndh-hero-lbl { font: 500 14px var(--nd-font); opacity: .8; }
+.ndh-hero-val { font: 800 48px var(--nd-font); letter-spacing: -.04em; white-space: nowrap; }
+.ndh-hero-badge { align-self: flex-start; padding: 5px 12px; border-radius: 99px; background: var(--nd-mint); color: #06392A; font: 700 12.5px var(--nd-font); }
+.ndh-hero-badge.neg { background: #FFD9DE; color: #8A1426; }
+.ndh-quick { position: relative; display: flex; gap: 10px; }
+.ndh-quick-btn { width: 92px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; background: none; border: none; color: inherit; cursor: pointer; font-family: var(--nd-font); }
+.ndh-quick-ico { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: rgba(255,255,255,.16); color: #fff; }
+.ndh-quick-ico.white { background: #fff; color: var(--nd-blue); }
+.ndh-quick-lbl { font: 600 12.5px var(--nd-font); }
+.ndh-quick-btn:focus-visible .ndh-quick-ico { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* carrossel de resumos (230px) */
+.ndh-story { position: relative; overflow: hidden; height: 230px; border-radius: 24px; color: #fff; transition: background .6s; }
+.ndh-story-bars { position: absolute; top: 16px; left: 24px; right: 24px; z-index: 2; display: flex; gap: 6px; }
+.ndh-story-bar { flex: 1; height: 4px; padding: 0; border: none; border-radius: 9px; background: rgba(255,255,255,.3); overflow: hidden; cursor: pointer; }
+.ndh-story-fill { display: block; height: 100%; border-radius: 9px; background: #fff; transform-origin: left; transform: scaleX(0); }
+.ndh-story-fill.done { transform: scaleX(1); }
+.ndh-story-fill.cur { animation: ndh-bar linear forwards; }
+@keyframes ndh-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.ndh-story-body { position: absolute; inset: 0; display: flex; align-items: center; gap: 28px; padding: 42px 28px 24px; background: none; border: none; color: inherit; text-align: left; cursor: pointer; font-family: var(--nd-font); }
+.ndh-story-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; animation: nzIn .5s; }
+.ndh-story-kicker { display: flex; align-items: center; gap: 8px; font: 600 11.5px var(--nd-mono); letter-spacing: .14em; opacity: .85; }
+.ndh-story-title { font: 800 36px/1.02 var(--nd-font); letter-spacing: -.04em; text-wrap: balance; }
+.ndh-story-sub { font: 500 14.5px var(--nd-font); opacity: .85; }
+.ndh-story-value { flex: none; font: 800 54px var(--nd-font); letter-spacing: -.05em; animation: nzIn .5s; }
+.ndh-story-foot { position: absolute; right: 20px; bottom: 16px; z-index: 2; display: flex; align-items: center; gap: 8px; font: 600 12px var(--nd-font); }
+.ndh-story-foot > span { opacity: .8; }
+.ndh-story-all { padding: 7px 12px; border: none; border-radius: 99px; background: rgba(255,255,255,.18); color: #fff; font: 600 12px var(--nd-font); cursor: pointer; }
+@keyframes nzIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ndh-story-fill.cur { animation-duration: 0s !important; transform: scaleX(1); } .ndh-story-text, .ndh-story-value { animation: none; } }
+
+/* números */
+.ndh-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ndh-stat { min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndh-stat-lbl { display: flex; align-items: center; gap: 8px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+.ndh-stat-val { font: 700 24px var(--nd-mono); letter-spacing: -.02em; }
+.ndh-stat-note { font: 500 12px var(--nd-font); white-space: pre; }
+
+/* cartões brancos */
+.ndh-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndh-card-head { display: flex; justify-content: space-between; align-items: center; }
+.ndh-card-title { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndh-link { padding: 0; background: none; border: none; font: 600 13px var(--nd-font); color: var(--nd-blue); cursor: pointer; }
+.ndh-link:hover { text-decoration: underline; }
+.ndh-empty { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-rows { list-style: none; display: flex; flex-direction: column; }
+.ndh-row { display: grid; grid-template-columns: 44px minmax(0, 1.6fr) minmax(0, 1fr) 90px 130px; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid #EEF2F8; }
+.ndh-row-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndh-row-ico.inc { background: #E9FBF2; color: #087A52; }
+.ndh-row-desc { font: 600 14px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndh-row-cat { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-row-date { font: 500 12.5px var(--nd-mono); color: var(--nd-hint); }
+.ndh-row-amt { font: 600 14px var(--nd-mono); text-align: right; color: var(--nd-ink); }
+.ndh-row-amt.inc { color: #087A52; }
+
+/* coluna da direita */
+.ndh-health { align-items: center; text-align: center; }
+.ndh-health-title { align-self: flex-start; }
+.ndh-ring { position: relative; width: 150px; height: 150px; }
+.ndh-ring-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ndh-ring-num { font: 800 44px var(--nd-font); letter-spacing: -.04em; }
+.ndh-ring-tag { font: 600 12px var(--nd-font); }
+.ndh-health-note { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-bills { gap: 0; }
+.ndh-bills .ndh-card-title { padding-bottom: 8px; }
+.ndh-bills .ndh-empty { padding: 6px 0 4px; }
+.ndh-bill { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid #EEF2F8; }
+.ndh-bill-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ndh-bill-name { font: 600 14px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndh-bill-when { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-bill-val { font: 600 14px var(--nd-mono); }
+.ndh-nancy { display: flex; flex-direction: column; gap: 12px; padding: 20px; border: none; border-radius: 20px; background: #071330; color: #fff; text-align: left; cursor: pointer; font-family: var(--nd-font); }
+.ndh-nancy-title { display: flex; align-items: center; gap: 8px; font: 700 14px var(--nd-font); }
+.ndh-nancy-title > span { display: flex; color: var(--nd-mint); }
+.ndh-nancy-text { font: 500 15px/1.45 var(--nd-font); }
+.ndh-nancy-text b { color: var(--nd-mint); }
+.ndh-nancy-text b.neg { color: #FF9AA6; }
+.ndh-nancy-cta { font: 600 13px var(--nd-font); color: #93F0CB; }
