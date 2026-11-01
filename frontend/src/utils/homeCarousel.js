@@ -1,4 +1,4 @@
-import { buildRecapSlides, maskSlides, money, HIDDEN_AMOUNT } from './storySlides.js'
+import { buildRecapSlides, buildTipSlides, buildGoalSlides, maskSlides, money, HIDDEN_AMOUNT } from './storySlides.js'
 import { MONTHS } from '../constants/index.js'
 
 // Carrossel de resumos do Início no desktop (design "Nancy Desktop", tela 08): os MESMOS slides do resumo do mês da tela 09 (um só
@@ -6,40 +6,65 @@ import { MONTHS } from '../constants/index.js'
 // e subtítulo, sobre o degradê de cada slide.
 export const CAROUSEL_MS = 4000 // 4 s por slide, como no protótipo
 
+// Degradês do design por fluxo e slide ("Nancy Desktop": cada slide tem o seu)
 const BG = {
-  intro:    'linear-gradient(120deg,#1546FF,#0A2A9E)',
-  saved:    'linear-gradient(120deg,#1546FF,#12C985)',
-  spending: 'linear-gradient(120deg,#0A2A9E,#1546FF)',
-  win:      'linear-gradient(120deg,#0E9A69,#12C985)',
-  health:   'linear-gradient(120deg,#1546FF,#6A9BFF)',
-  goal:     'linear-gradient(120deg,#071330,#1546FF)',
+  'resumo:intro':    'linear-gradient(120deg,#1546FF,#0A2A9E)',
+  'resumo:saved':    'linear-gradient(120deg,#1546FF,#12C985)',
+  'resumo:spending': 'linear-gradient(120deg,#0A2A9E,#1546FF)',
+  'resumo:win':      'linear-gradient(120deg,#0E9A69,#12C985)',
+  'resumo:health':   'linear-gradient(120deg,#1546FF,#6A9BFF)',
+  'resumo:goal':     'linear-gradient(120deg,#071330,#1546FF)',
+  'anterior:saved':  'linear-gradient(120deg,#0A2A9E,#1546FF)',
+  'anterior:health': 'linear-gradient(120deg,#1546FF,#12C985)',
+  'dicas:tip':       'linear-gradient(120deg,#0E9A69,#1546FF)',
+  'dicas:subs':      'linear-gradient(120deg,#071330,#0E9A69)',
+  'metas:goal':      'linear-gradient(120deg,#0E9A69,#12C985)',
 }
-
-// recap = resposta do resumo do mês (loadStory 'resumo'); hidden = "ocultar valores" ligado
-// O resumo vem do servidor e este cartão monta os slides NA HORA de desenhar o Início: um resumo incompleto ou de formato antigo
-// (sem o mês, sem a lista de gastos...) não pode derrubar a tela inteira — nesse caso simplesmente não há carrossel.
+// resumo vindo do servidor sem o mês (ou com mês fora de 1 a 12) é incompleto
 const validMonth = (m) => Number.isInteger(m) && m >= 1 && m <= 12
+const FALLBACK_BG = 'linear-gradient(120deg,#1546FF,#0A2A9E)'
+const capital = (t) => (t ? t[0].toUpperCase() + t.slice(1) : t)
 
-export function carouselSlides(recap, { hidden = false } = {}) {
-  if (!recap || !recap.hasData || !validMonth(recap.month)) return []
-  try { return buildCarousel(recap, hidden) } catch { return [] }
+// Slides de um fluxo de resumo (os MESMOS da tela de stories do celular) no formato do cartão do design: etiqueta em caixa alta,
+// título, valor grande e subtítulo. flow = 'resumo' (mês atual), 'anterior' (mês anterior), 'dicas' ou 'metas'.
+// Dado incompleto ou de formato antigo NÃO quebra a tela (o chamador desenha o Início/a tela sem o carrossel): devolve [].
+export function viewerSlides(flow, data, { hidden = false } = {}) {
+  try {
+    let slides
+    if (flow === 'dicas') slides = buildTipSlides(data)
+    else if (flow === 'metas') slides = buildGoalSlides(data)
+    else {
+      if (!data || !data.hasData || !validMonth(data.month)) return []
+      slides = buildRecapSlides(data, flow === 'anterior' ? -1 : 0)
+    }
+    if (hidden) slides = maskSlides(slides)
+    return mapSlides(slides, flow, data)
+  } catch { return [] }
 }
 
-function buildCarousel(recap, hidden) {
-  let slides = buildRecapSlides(recap, 0)
-  if (hidden) slides = maskSlides(slides)
-  const mes = MONTHS[recap.month - 1].toUpperCase()
+function mapSlides(slides, flow, data) {
+  const mes = flow === 'resumo' ? MONTHS[data.month - 1].toUpperCase() : ''
   return slides.map(s => {
+    const bg = BG[`${flow}:${s.id}`] || FALLBACK_BG
     if (s.id === 'intro') {
-      return { id: 'intro', k: `RESUMO DE ${mes}`, t: `Seu mês em ${slides.length} histórias.`, v: '', s: 'Passe o mouse para pausar · clique para avançar', bg: BG.intro }
+      return { id: 'intro', k: `RESUMO DE ${mes}`, t: `Seu mês em ${slides.length} histórias.`, v: '', s: 'Passe o mouse para pausar · clique para avançar', bg }
+    }
+    // resumo do mês anterior: o design escreve "VOCÊ GUARDOU / Setembro fechou no azul."
+    if (flow === 'anterior' && s.id === 'saved') {
+      return { id: s.id, k: (s.headline || '').toUpperCase(), t: `${capital(s.eyebrow)} fechou ${data.saved >= 0 ? 'no azul' : 'no vermelho'}.`, v: (s.big || '').replace(/,00$/, ''), s: s.sub || '', bg, cta: s.cta }
     }
     // maiores gastos mostra o valor do maior; saúde financeira, a pontuação
     let v = s.big || ''
-    if (!v && s.bars?.length) v = hidden ? HIDDEN_AMOUNT : money(s.bars[0].amount, 0)
+    if (!v && s.bars?.length) v = s.bars[0].hidden ? HIDDEN_AMOUNT : money(s.bars[0].amount, 0)
     if (!v && s.ring != null) v = String(s.ring)
-    return { id: s.id, k: (s.eyebrow || '').toUpperCase(), t: s.headline || '', v, s: s.sub || '', bg: BG[s.id] || BG.intro }
+    // o design escreve valores redondos sem centavos ("R$ 9.500"); com centavos de verdade o valor sai inteiro
+    v = v.replace(/,00$/, '')
+    return { id: s.id, k: (s.eyebrow || '').toUpperCase(), t: s.headline || '', v, s: s.sub || '', bg, cta: s.cta }
   })
 }
+
+// recap = resposta do resumo do mês (loadStory 'resumo'); hidden = "ocultar valores" ligado
+export const carouselSlides = (recap, { hidden = false } = {}) => viewerSlides('resumo', recap, { hidden })
 
 // Faixa do selo de saúde financeira do anel (curto, cabe dentro do anel de 150px)
 export function healthTag(score) {

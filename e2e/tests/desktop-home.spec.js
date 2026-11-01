@@ -106,7 +106,7 @@ test.describe('Início desktop — o que mostra e o que faz', () => {
     await card.getByRole('button', { name: 'Próximo resumo' }).click()
     await expect(card).toContainText('2 / 6')
     await expect(card).toContainText('VOCÊ GUARDOU')
-    await expect(card).toContainText('R$ 9.500,00')
+    await expect(card).toContainText('R$ 9.500')
     await card.getByRole('button', { name: 'Ver todos os resumos' }).click()
     await expect(page).toHaveURL(/\/resumo-stories$/)
   })

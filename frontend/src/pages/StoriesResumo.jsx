@@ -8,6 +8,9 @@ import { peekStory, loadStory, invalidateStories, LOADERS } from '../services/st
 import { monthName, money, maskSlides, HIDDEN_AMOUNT, buildRecapSlides, buildTipSlides, buildGoalSlides } from '../utils/storySlides.js'
 import { resumoKey, dicasKey, metasKey, markSeen } from '../utils/storiesSeen.js'
 import NancyMark from '../components/ui/NancyMark.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import { viewerSlides, CAROUSEL_MS } from '../utils/homeCarousel.js'
+import StoriesDesktop from './StoriesDesktop.jsx'
 
 const STORY_DURATION_MS = 5000
 const RING_R    = 46
@@ -30,10 +33,19 @@ const IconClose = () => (
 // Os dados já costumam estar prontos: o Início os busca em segundo plano
 // (services/storiesData.js) — aqui só se abre com o que está guardado.
 export default function StoriesResumo() {
-  const navigate = useNavigate()
   const location = useLocation()
   const story    = LOADERS[location.state?.story] ? location.state.story : 'resumo'
   const offset   = story === 'resumo' ? Math.min(0, Math.max(-11, Number(location.state?.monthOffset) || 0)) : 0
+  // no desktop os quatro conjuntos ficam lado a lado e trocar de conjunto muda a rota (replace): cada fluxo começa do zero
+  return <StoriesFlow key={`${story}|${offset}`} story={story} offset={offset} />
+}
+
+function StoriesFlow({ story, offset }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isDesktop = useIsDesktop() // no desktop a tela tem layout próprio (design "Nancy Desktop"); dados, tempo e ações são os mesmos
+  const duration = isDesktop ? CAROUSEL_MS : STORY_DURATION_MS // o protótipo do desktop troca de slide a cada 4s
+  const [hover, setHover] = useState(false)
 
   const user = useUser()
   // Já guardado pelo pré-carregamento do Início? Abre pronto, sem "Montando seu resumo…".
@@ -72,19 +84,23 @@ export default function StoriesResumo() {
     return hideValues ? maskSlides(built) : built
   }, [data, story, offset, hideValues])
 
+  const flow = story === 'resumo' ? (offset < 0 ? 'anterior' : 'resumo') : story
+  const dSlides = useMemo(() => (isDesktop && data ? viewerSlides(flow, data, { hidden: hideValues }) : []), [isDesktop, data, flow, hideValues])
+  const total = isDesktop ? dSlides.length : slides.length
+
   // Abriu com conteúdo = vista: o anel do círculo no Início apaga. Story vazia
   // ou com erro não conta (o usuário não viu nada).
   useEffect(() => {
-    if (status !== 'ready' || slides.length === 0) return
+    if (status !== 'ready' || total === 0) return
     markSeen(story === 'dicas' ? dicasKey() : story === 'metas' ? metasKey() : resumoKey(offset))
-  }, [status, slides.length, story, offset])
+  }, [status, total, story, offset])
 
   // Volta pra tela de onde os stories foram abertos (Início, Perfil, Notificações); aberto direto pela URL, vai pro Início.
   const close = () => (location.key !== 'default' ? navigate(-1) : navigate('/dashboard'))
 
   const goTo = (i) => {
     if (i < 0) return // já no primeiro — tocar na esquerda não faz nada
-    if (i >= slides.length) { close(); return } // depois do último — fecha
+    if (i >= total) { close(); return } // depois do último — fecha
     clockRef.current = { elapsed: 0, startedAt: 0 }
     setIndex(i)
   }
@@ -98,15 +114,15 @@ export default function StoriesResumo() {
   // Cada slide dura STORY_DURATION_MS. A barra anda por CSS (animação de transform, que roda fora da thread do React): antes o
   // estado de progresso mudava a cada quadro e a tela inteira era refeita 60 vezes por segundo, pesado em celular simples.
   // Aqui só há UM temporizador por slide e a pausa/retomada usa o relógio acima.
-  const effectivePaused = paused || away
+  const effectivePaused = paused || away || (isDesktop && hover) // no desktop, passar o mouse pausa
   useEffect(() => {
-    if (effectivePaused || slides.length === 0) return undefined
+    if (effectivePaused || total === 0) return undefined
     const c = clockRef.current
     c.startedAt = Date.now()
-    const timer = setTimeout(() => goTo(index + 1), Math.max(0, STORY_DURATION_MS - c.elapsed))
+    const timer = setTimeout(() => goTo(index + 1), Math.max(0, duration - c.elapsed))
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, effectivePaused, slides.length])
+  }, [index, effectivePaused, total, duration])
 
   // Trocou de app/aba: o story espera (a barra e o relógio param) e continua de onde estava ao voltar.
   useEffect(() => {
@@ -128,7 +144,7 @@ export default function StoriesResumo() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, slides.length])
+  }, [index, total])
 
   const togglePause = () => {
     if (!paused) stopClock()
@@ -189,13 +205,13 @@ export default function StoriesResumo() {
     if (cta.kind === 'go-goals')    return navigate('/goals')
   }
 
-  const slide = slides[index]
+  const slide = isDesktop ? dSlides[index] : slides[index]
   const title = story === 'dicas' ? 'Dicas da Nancy'
     : story === 'metas' ? 'Suas metas'
     : data ? `Resumo de ${monthName(data.month)}` : 'Resumo'
 
   // Fluxo carregou mas não há nenhum slide com dado real.
-  const empty = status === 'ready' && slides.length === 0 ? ({
+  const empty = status === 'ready' && total === 0 ? ({
     dicas: { eyebrow: 'Dicas da Nancy', headline: 'Ainda sem dicas por aqui.', sub: 'Registre mais transações para a Nancy encontrar onde dá para melhorar.' },
     metas: { eyebrow: 'Suas metas', headline: 'Nenhuma meta em andamento.', sub: 'Crie uma meta para acompanhar seu progresso aqui.', cta: { kind: 'go-goals', label: 'Criar uma meta' } },
     resumo: { eyebrow: 'Resumo do mês', headline: `Sem movimentações em ${monthName(data?.month ?? 1)}.`, sub: 'Registre suas transações para ver o resumo aqui.' },
@@ -203,8 +219,15 @@ export default function StoriesResumo() {
 
   const cta = slide?.cta || empty?.cta
 
+  if (isDesktop) {
+    return <StoriesDesktop ctx={{
+      user, hidden: hideValues, flowKey: flow, slides: dSlides, index, status, duration, paused, effectivePaused, setHover, togglePause,
+      goTo, next: () => goTo(index + 1), empty, retry, cta, runCta, share, busy, toast, setTitle: title,
+    }} />
+  }
+
   return (
-    <div className={`stories-page${slide ? ` stories-theme-${slide.theme}` : ''}`} style={{ '--story-ms': `${STORY_DURATION_MS}ms` }}>
+    <div className={`stories-page${slide ? ` stories-theme-${slide.theme}` : ''}`} style={{ '--story-ms': `${duration}ms` }}>
       <div className="stories-progress-row">
         {slides.map((s, i) => (
           <div key={s.id} className="stories-progress-track">

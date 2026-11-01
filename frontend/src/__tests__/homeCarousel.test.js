@@ -12,7 +12,7 @@ describe('carrossel de resumos do Início desktop', () => {
     const s = carouselSlides(RECAP())
     expect(s.map(x => x.id)).toEqual(['intro', 'saved', 'spending', 'win', 'health', 'goal'])
     expect(s[0]).toMatchObject({ k: 'RESUMO DE OUTUBRO', t: 'Seu mês em 6 histórias.', v: '', s: 'Passe o mouse para pausar · clique para avançar' })
-    expect(s[1]).toMatchObject({ k: 'VOCÊ GUARDOU', t: 'Seu melhor mês do ano.', v: 'R$ 9.500,00' })
+    expect(s[1]).toMatchObject({ k: 'VOCÊ GUARDOU', t: 'Seu melhor mês do ano.', v: 'R$ 9.500' })
     expect(s[1].s).toContain('32% a mais que setembro')
     expect(s[2]).toMatchObject({ k: 'PARA ONDE FOI', t: 'Seus maiores gastos', v: 'R$ 3.500' }) // valor do maior gasto
     expect(s[3]).toMatchObject({ k: 'MAIOR VITÓRIA', t: 'Tudo em dia', v: '6/6' })
