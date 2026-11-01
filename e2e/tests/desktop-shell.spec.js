@@ -13,12 +13,15 @@ test.use({ viewport: { width: 1440, height: 900 } })
 const json = (o, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(o) })
 const ELITE = { ...TEST_USER, name: 'André Pereira', plan: 'elite' }
 
-const tx = (id, description, amount, type, category, day) =>
-  ({ id, description, amount, type, category, date: `2026-10-${day}T10:00:00Z`, month: 10, year: 2026, archived: false })
+// Datas RELATIVAS a hoje: o Extrato mostra o mês corrente e os avisos dependem do dia (em 1º/nov a CI falhou com dados fixos de outubro).
+// A conta fixa vence HOJE e está em aberto: gera um aviso novo em qualquer dia do ano.
+const HOJE = new Date()
+const tx = (id, description, amount, type, category) =>
+  ({ id, description, amount, type, category, date: HOJE.toISOString(), month: HOJE.getMonth() + 1, year: HOJE.getFullYear(), archived: false })
 const dash = {
-  summary: { salary: 15000, totalIncome: 1800, totalFixedCosts: 5127, unpaidFixedCosts: 400, unpaidBudgetIds: [], totalExpenses: 7300, totalAvailable: 23500, currentBalance: 23500, percentUsed: 44 },
-  transactions: [tx('t1', 'Academia', 200, 'expense', 'health', '20'), tx('t2', 'Mercado', 240, 'expense', 'food', '20'), tx('t3', 'Conta de luz', 380, 'expense', 'utilities', '19')],
-  limits: [], budgets: [{ id: 'b1', name: 'Academia', amount: 200, dueDay: 20 }],
+  summary: { salary: 15000, totalIncome: 1800, totalFixedCosts: 5127, unpaidFixedCosts: 200, unpaidBudgetIds: ['b1'], totalExpenses: 7300, totalAvailable: 23500, currentBalance: 23500, percentUsed: 44 },
+  transactions: [tx('t1', 'Academia', 200, 'expense', 'health'), tx('t2', 'Mercado', 240, 'expense', 'food'), tx('t3', 'Conta de luz', 380, 'expense', 'utilities')],
+  limits: [], budgets: [{ id: 'b1', name: 'Academia', amount: 200, dueDay: HOJE.getDate() }],
 }
 
 async function setup(page, user = ELITE, path = '/dashboard', ready = '.nds-sidebar') {
