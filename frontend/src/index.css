@@ -12674,3 +12674,50 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndx-ghost { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-ink); font: 600 13px var(--nd-font); cursor: pointer; }
 .ndx-ghost:disabled { opacity: .5; cursor: not-allowed; }
 .ndx-ghost:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ntx-d — folha "Nova transação" no desktop (design "Nancy Desktop", tela 11): cartão de 576px (520 + 28 de respiro de cada lado)
+   centralizado sobre a tela, com véu desfocado que cobre também o menu. Só vale com .ntx-d (TransactionForm no desktop);
+   o celular segue com a folha que sobe do rodapé. O valor é uma caixa de 64px, como o campo único do design.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.modal-overlay.movl.ntx-overlay.ntx-d {
+  background: rgba(7,19,48,.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  align-items: center; justify-content: center; padding: 20px;
+}
+.ntx-d .modal.ntx-sheet {
+  width: 576px; max-width: 100%; box-sizing: border-box; padding: 28px; border-radius: 26px; max-height: calc(100dvh - 40px);
+  display: flex; flex-direction: column; gap: 14px; font-family: var(--nd-font); color: var(--nd-ink);
+  box-shadow: none; animation: nzIn .25s;
+}
+.ntx-d .ntx-handle { display: none; }
+.ntx-d .ntx-head { margin: 0; }
+.ntx-d .ntx-title { font: 800 24px var(--nd-font); letter-spacing: -.03em; color: var(--nd-ink); }
+.ntx-d .ntx-close { width: 28px; height: 28px; color: var(--nd-hint); }
+.ntx-d .ntx-close:hover { background: var(--nd-bg); color: var(--nd-muted); }
+.ntx-d .ntx-close svg { width: 18px; height: 18px; }
+.ntx-d form { display: flex; flex-direction: column; gap: 14px; }
+.ntx-d .ntx-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin: 0; border-radius: 14px; background: #F4F7FC; }
+.ntx-d .ntx-seg-btn { height: 42px; border-radius: 10px; color: var(--nd-muted); font: 700 14px var(--nd-font); }
+.ntx-d .ntx-seg-btn.on { background: var(--nd-blue); color: #fff; }
+.ntx-d .ntx-seg-btn.on.inc { background: var(--nd-green); }
+.ntx-d .ntx-amount-row {
+  display: flex; align-items: center; gap: 8px; height: 64px; box-sizing: border-box; margin: 0; padding: 0 14px;
+  border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC;
+}
+.ntx-d .ntx-amount-row:focus-within, .ntx-d .ntx-field:focus { border-color: var(--nd-blue); box-shadow: none; }
+.ntx-d .ntx-currency { font: 800 28px var(--nd-font); color: var(--nd-ink); letter-spacing: 0; }
+.ntx-d .ntx-amount-row:has(.ntx-amount:placeholder-shown) .ntx-currency { color: #757575; }
+.ntx-d .ntx-amount { font: 800 28px var(--nd-font); letter-spacing: 0; color: var(--nd-ink); }
+.ntx-d .ntx-amount::placeholder { color: #757575; }
+.ntx-d .ntx-field {
+  height: 46px; margin: 0; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC;
+  color: var(--nd-ink); font: 500 14px var(--nd-font);
+}
+.ntx-d .ntx-field::placeholder { color: #757575; }
+.ntx-d .ntx-chips { gap: 6px; margin: 0; }
+.ntx-d .ntx-chip { height: auto; gap: 6px; padding: 8px 12px; border-radius: 99px; background: #F4F7FC; color: #2A3555; font: 600 12.5px var(--nd-font); }
+.ntx-d .ntx-chip svg { color: inherit; }
+.ntx-d .ntx-chip.on { background: var(--nd-blue); color: #fff; }
+.ntx-d .ntx-error { margin: 0; padding: 0; background: none; border-radius: 0; color: #D6334A; font: 500 13px var(--nd-font); }
+.ntx-d .ntx-save { height: 52px; border-radius: 12px; background: var(--nd-blue); font: 700 14px var(--nd-font); }
+.ntx-d .ntx-chip:focus-visible, .ntx-d .ntx-seg-btn:focus-visible, .ntx-d .ntx-save:focus-visible, .ntx-d .ntx-close:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
