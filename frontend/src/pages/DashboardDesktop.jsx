@@ -226,6 +226,14 @@ export default function DashboardDesktop({ ctx }) {
                   <span className="ndh-nancy-cta">Conversar →</span>
                 </button>
               )}
+
+              {readyNav('planilha') && (
+                <button type="button" className="ndh-card ndh-sheet" onClick={() => navigate('/planilha')}>
+                  <span className="ndh-row-ico inc"><ProtoIcon name="grid" size={20} /></span>
+                  <span className="ndh-sheet-text"><span className="ndh-sheet-name">Planilha IA</span><span className="ndh-sheet-sub">Montada a partir das suas contas · atualizada agora</span></span>
+                  <ProtoIcon name="chev" size={20} />
+                </button>
+              )}
             </aside>
           </div>
         </>

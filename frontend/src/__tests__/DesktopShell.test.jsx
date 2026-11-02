@@ -29,12 +29,12 @@ beforeEach(() => { sessionStorage.clear(); localStorage.clear(); setUser(ELITE) 
 afterEach(() => { act(() => publishUnreadCount(NaN)) })
 
 describe('menu lateral', () => {
-  it('mostra os itens prontos na ordem do design, sem Planilha IA e Analisador (ainda sem tela)', () => {
+  it('mostra os itens prontos na ordem do design, sem o Analisador (ainda sem tela)', () => {
     renderShell()
     const nav = screen.getByRole('navigation', { name: 'Menu principal' })
     expect(within(nav).getAllByRole('button').map(b => b.textContent)).toEqual(
-      ['Início', 'Extrato', 'Nancy IA', 'Metas', 'Finanças', 'Calendário', 'Planos'])
-    expect(screen.queryByText('Planilha IA', { selector: '.nds-item-label' })).not.toBeInTheDocument()
+      ['Início', 'Extrato', 'Planilha IAnovo', 'Nancy IA', 'Metas', 'Finanças', 'Calendário', 'Planos'])
+    expect(screen.getByText('Planilha IA', { selector: '.nds-item-label' })).toBeInTheDocument()
     expect(screen.queryByText('Analisador')).not.toBeInTheDocument()
   })
 

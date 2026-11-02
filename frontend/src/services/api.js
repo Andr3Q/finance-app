@@ -166,6 +166,12 @@ export const installmentsAPI = {
   remove: (id)   => api.delete(`/installments/${id}`),
 }
 
+// Planilha IA (desktop, plano Elite): a tabela de três meses reais e dois de previsão e a mesma tabela em .xlsx
+export const sheetAPI = {
+  get:    ()         => api.get('/sheet'),
+  export: (forecast) => api.get('/sheet/export', { params: { forecast: forecast ? 1 : 0 }, responseType: 'blob' }),
+}
+
 export const paymentsAPI = {
   createPreference: (plan, period) => api.post('/payments/create-preference', { plan, period }),
   history:          ()             => api.get('/payments/history'),

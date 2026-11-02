@@ -24,6 +24,9 @@ const CATEGORY_LABELS = {
 
 const VALID_CATEGORIES = Object.keys(CATEGORY_LABELS)
 
+// Planos com a Planilha IA (tela 12 do desktop): o design a lista entre os recursos do Elite.
+const SHEET_PLANS = ['elite']
+
 const MONTHS = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
@@ -39,5 +42,6 @@ module.exports = {
   TRANSACTION_PLAN_LIMITS,
   CATEGORY_LABELS,
   VALID_CATEGORIES,
+  SHEET_PLANS,
   MONTHS,
 }

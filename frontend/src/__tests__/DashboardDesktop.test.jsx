@@ -31,12 +31,12 @@ beforeEach(() => { vi.clearAllMocks(); peekStory.mockReturnValue(RECAP); loadSto
 afterEach(() => { vi.useRealTimers() })
 
 describe('Início no desktop (design "Nancy Desktop", tela 08) — cartões', () => {
-  it('saldo, selo do mês e atalhos: Nova transação e Nancy IA (Planilha IA e Analisador aparecem quando as telas existirem)', () => {
+  it('saldo, selo do mês e atalhos: Nova transação, Planilha IA e Nancy IA (o Analisador aparece quando a tela existir)', () => {
     renderHome()
     expect(screen.getByText('Saldo disponível · outubro')).toBeInTheDocument()
     expect(screen.getByTestId('balance')).toHaveTextContent('R$ 23.500,00')
     expect(screen.getByText('+8,4% no mês')).toBeInTheDocument()
-    expect(screen.getAllByRole('button').filter(b => b.className.includes('ndh-quick-btn')).map(b => b.textContent)).toEqual(['Nova transação', 'Nancy IA'])
+    expect(screen.getAllByRole('button').filter(b => b.className.includes('ndh-quick-btn')).map(b => b.textContent)).toEqual(['Nova transação', 'Planilha IA', 'Nancy IA'])
   })
 
   it('selo negativo e sem base de comparação (sem salário não há selo)', () => {
