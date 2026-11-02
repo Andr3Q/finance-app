@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import NancyMark from '../components/ui/NancyMark.jsx'
+import ProtoIcon from '../components/layout/ProtoIcon.jsx'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useTipAvailable } from '../hooks/useTipAvailable.js'
 import { peekStory, loadStory } from '../services/storiesData.js'
@@ -49,7 +50,7 @@ function useSets(userId, hidden) {
       : null
     return [
       { key: 'resumo', short: MONTHS[now.getMonth()].slice(0, 3).toUpperCase(), name: `Resumo de ${MONTHS[now.getMonth()].toLowerCase()}`, n: count(f0, 'resumo', d0), bg: 'linear-gradient(135deg,#1546FF,#12C985)', state: { story: 'resumo', monthOffset: 0 } },
-      { key: 'dicas', short: '✦', name: 'Dicas IA', n: tipKnown === null ? null : tipOk ? count(fd, 'dicas', dd) : 0, bg: '#12C985', state: { story: 'dicas' } },
+      { key: 'dicas', short: '', icon: 'spark', name: 'Dicas IA', n: tipKnown === null ? null : tipOk ? count(fd, 'dicas', dd) : 0, bg: '#12C985', state: { story: 'dicas' } },
       { key: 'metas', short: goalsPct !== null ? `${goalsPct}%` : '—', name: 'Metas', n: count(fm, 'metas', dm), bg: '#0E9A69', state: { story: 'metas' } },
       { key: 'anterior', short: MONTHS[prev.getMonth()].slice(0, 3).toUpperCase(), name: capital(MONTHS[prev.getMonth()]), n: count(f1, 'anterior', d1), bg: '#0A2A9E', state: { story: 'resumo', monthOffset: -1 } },
     ]
@@ -83,7 +84,7 @@ export default function StoriesDesktop({ ctx }) {
                 key={g.key} type="button" className={`ndsv-set${g.key === flowKey ? ' sel' : ''}`}
                 aria-pressed={g.key === flowKey} onClick={() => navigate('/resumo-stories', { replace: true, state: g.state })}
               >
-                <span className="ndsv-set-ico" style={{ background: g.bg }}>{g.short}</span>
+                <span className="ndsv-set-ico" style={{ background: g.bg }}>{g.icon ? <ProtoIcon name={g.icon} size={20} /> : g.short}</span>
                 <span className="ndsv-set-text"><span className="ndsv-set-name">{g.name}</span><span className="ndsv-set-n">{plural(g.n)}</span></span>
               </button>
             ))}

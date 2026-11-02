@@ -10,6 +10,8 @@ import { invalidateStories } from '../services/storiesData.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import { getCache, setCache, invalidateCache } from '../services/cache.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import ExtratoDesktop from './ExtratoDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import TransactionForm from '../components/features/TransactionForm.jsx'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 import { useUser } from '../hooks/useUser.js'
@@ -80,6 +82,7 @@ const IconChevron = ({ dir }) => (
 
 export default function Transactions() {
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // Extrato é desenhado só no claro (design Nancy 2)
   const routerNavigate = useRouterNavigate() // nome próprio: "navigate" já é a função de trocar de mês nesta tela
   const [transactions,  setTransactions]  = useState([])
@@ -296,17 +299,106 @@ export default function Transactions() {
   })()
 
 
+  const toastEl = toast && (
+    <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
+      {toast.msg}
+    </div>
+  )
+  const fileInput = <input type="file" accept=".csv" ref={fileInputRef} style={{ display:'none' }} onChange={handleImportCSV} />
+
+  const modals = (
+    <>
+      {showForm && (
+        <TransactionForm
+          onClose={() => setShowForm(false)}
+          onSuccess={() => { setShowForm(false); invalidateCache(txCacheKey(selMonth, selYear)); invalidateStories(); fetchTransactions(true) }}
+        />
+      )}
+
+      {editingTx && (
+        <TransactionForm
+          initialData={editingTx}
+          editingId={editingTx.id}
+          onClose={() => setEditingTx(null)}
+          onSuccess={() => { setEditingTx(null); invalidateCache(txCacheKey(selMonth, selYear)); invalidateStories(); fetchTransactions(true) }}
+        />
+      )}
+
+      {confirmDeleteTx && createPortal(
+        <div className="gls-modal-overlay" onClick={() => setConfirmDeleteTx(null)}>
+          <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="ex-del-title" onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head">
+              <span id="ex-del-title">Remover transação</span>
+              <button className="gls-modal-close" onClick={() => setConfirmDeleteTx(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+                <div style={{ fontWeight:600, color:'var(--t1)' }}>{confirmDeleteTx.description || CATEGORY_LABELS[confirmDeleteTx.category] || confirmDeleteTx.category}</div>
+                <div>{hideValues ? HIDDEN : `${confirmDeleteTx.type === 'income' ? '+' : '−'}R$ ${fmt(confirmDeleteTx.amount)}`} · {new Date(confirmDeleteTx.date).toLocaleDateString('pt-BR')}</div>
+                <div style={{ marginTop:6 }}>Esta transação será removida permanentemente.</div>
+              </div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setConfirmDeleteTx(null)}>Cancelar</button>
+              <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={() => handleDelete(confirmDeleteTx)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                </svg>
+                Sim, excluir
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  )
+
+  if (isDesktop) {
+    const planUsed = monthTxs.length
+    const showBanner = planUsed >= getLimit(user?.plan ?? 'free', 'transactions') * 0.8
+    const month = MONTHS[selDate.getMonth()].toLowerCase()
+    return (
+      <>
+        {toastEl}
+        {fileInput}
+        <ExtratoDesktop ctx={{
+          user, loading, rows: filtered, filter, setFilter, search, setSearch, hidden: hideValues,
+          onEdit: setEditingTx, onDelete: setConfirmDeleteTx,
+          monthName: month, monthTitle: `${MONTHS[selDate.getMonth()]}${selYear !== today.getFullYear() ? ` de ${selYear}` : ''}`,
+          goToPrev, goToNext, isOldestMonth, isCurrentMonth,
+          result: {
+            pos: resultPos, result: resultKnown ? signed(recap.saved) : '—', income: totalLabel(shownIncome), expenses: totalLabel(shownExpenses),
+            note: resultKnown && recap.unpaidFixedCosts > 0 ? `Já desconta ${brl(recap.unpaidFixedCosts)} de contas fixas a pagar.` : null,
+          },
+          empty: { filtering, title: emptyTitle, sub: emptySub, closed: closedMonth },
+          openClosing: () => routerNavigate('/settings/fechamento'),
+          importCsv: () => fileInputRef.current?.click(), exportCsv: () => exportCSV(filtered),
+          planBanner: showBanner ? { used: planUsed } : null,
+        }} />
+        {modals}
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
 
-      {toast && (
-        <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
-          {toast.msg}
-        </div>
-      )}
+      {toastEl}
 
-      <input type="file" accept=".csv" ref={fileInputRef} style={{ display:'none' }} onChange={handleImportCSV} />
+      {fileInput}
 
       <div className="pwnav fade-in">
         <div className="ex-page">
@@ -470,60 +562,7 @@ export default function Transactions() {
         </div>
       </div>
 
-      {showForm && (
-        <TransactionForm
-          onClose={() => setShowForm(false)}
-          onSuccess={() => { setShowForm(false); invalidateCache(txCacheKey(selMonth, selYear)); invalidateStories(); fetchTransactions(true) }}
-        />
-      )}
-
-      {editingTx && (
-        <TransactionForm
-          initialData={editingTx}
-          editingId={editingTx.id}
-          onClose={() => setEditingTx(null)}
-          onSuccess={() => { setEditingTx(null); invalidateCache(txCacheKey(selMonth, selYear)); invalidateStories(); fetchTransactions(true) }}
-        />
-      )}
-
-      {confirmDeleteTx && createPortal(
-        <div className="gls-modal-overlay" onClick={() => setConfirmDeleteTx(null)}>
-          <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="ex-del-title" onClick={e => e.stopPropagation()}>
-            <div className="gls-modal-head">
-              <span id="ex-del-title">Remover transação</span>
-              <button className="gls-modal-close" onClick={() => setConfirmDeleteTx(null)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
-              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                </svg>
-              </div>
-              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
-              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
-                <div style={{ fontWeight:600, color:'var(--t1)' }}>{confirmDeleteTx.description || CATEGORY_LABELS[confirmDeleteTx.category] || confirmDeleteTx.category}</div>
-                <div>{hideValues ? HIDDEN : `${confirmDeleteTx.type === 'income' ? '+' : '−'}R$ ${fmt(confirmDeleteTx.amount)}`} · {new Date(confirmDeleteTx.date).toLocaleDateString('pt-BR')}</div>
-                <div style={{ marginTop:6 }}>Esta transação será removida permanentemente.</div>
-              </div>
-            </div>
-            <div className="gls-modal-foot">
-              <button className="gls-btn-ghost" onClick={() => setConfirmDeleteTx(null)}>Cancelar</button>
-              <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={() => handleDelete(confirmDeleteTx)}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                </svg>
-                Sim, excluir
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      {modals}
 
     </>
   )

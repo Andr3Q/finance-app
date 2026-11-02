@@ -185,7 +185,7 @@ test.describe('Casca desktop — barra de cima', () => {
     await top(page).getByRole('searchbox', { name: /Buscar transações, contas, metas/ }).fill('luz')
     await top(page).getByRole('searchbox', { name: /Buscar transações, contas, metas/ }).press('Enter')
     await expect(page).toHaveURL(/\/transactions$/)
-    await expect(page.getByPlaceholder('Buscar no extrato')).toHaveValue('luz')
+    await expect(page.getByPlaceholder('Filtrar por descrição')).toHaveValue('luz')
     await expect(page.getByText('Conta de luz').first()).toBeVisible()
     await expect(page.getByText('Mercado')).toHaveCount(0)
   })

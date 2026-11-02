@@ -21,6 +21,16 @@ const PATHS = {
   check:  ['M5 12l5 5L20 7'],
   mail:   ['M3 6h18v12H3z', 'M3 7l9 6 9-6'],
   x:      ['M6 6l12 12', 'M18 6 6 18'],
+  receipt:['M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2z', 'M9 8h6', 'M9 12h6'],
+  layers: ['M12 3 2 8l10 5 10-5z', 'M2 13l10 5 10-5'],
+  chart:  ['M4 20V10', 'M10 20V4', 'M16 20v-7', 'M22 20H2'],
+  food:   ['M4 3v8a3 3 0 0 0 6 0V3', 'M7 3v18', 'M17 3c-2 2-3 5-3 8h3v10'],
+  car:    ['M3 16v-4l2-5h14l2 5v4z', 'M7 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2z', 'M17 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2z'],
+  bag:    ['M5 8h14l-1 12H6z', 'M9 8V6a3 3 0 0 1 6 0v2'],
+  heart:  ['M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z'],
+  download: ['M12 4v12', 'M7 11l5 5 5-5', 'M4 20h16'],
+  // o protótipo só desenha o download; o envio é o mesmo traço espelhado
+  upload: ['M12 16V4', 'M7 9l5-5 5 5', 'M4 20h16'],
 }
 
 export default function ProtoIcon({ name, size = 20 }) {

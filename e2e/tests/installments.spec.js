@@ -46,6 +46,7 @@ test.describe('Parcelamentos — Tela', () => {
   })
 
   test('o atalho "Parcelados" do Extrato abre a tela e voltar retorna ao Extrato', async ({ page }) => {
+    await page.setViewportSize({ width: 393, height: 852 }) // o atalho é do Extrato do celular; no desktop é a aba "Parceladas" (desktop-extrato.spec.js)
     await setupBase(page)
     await page.goto('/transactions')
     await page.getByRole('button', { name: /^parcelados$/i }).click()

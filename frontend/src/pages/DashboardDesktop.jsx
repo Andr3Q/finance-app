@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ProtoIcon from '../components/layout/ProtoIcon.jsx'
 import AutoLaunchPrompt from '../components/features/AutoLaunchPrompt.jsx'
-import { CategoryIcon } from '../components/ui/icons.jsx'
+import ProtoCategoryIcon from '../components/layout/ProtoCategoryIcon.jsx'
 import { CATEGORY_LABELS, MONTHS } from '../constants/index.js'
 import { DESKTOP_NAV } from '../utils/desktopNav.js'
 import { loadStory, peekStory } from '../services/storiesData.js'
@@ -173,7 +173,7 @@ export default function DashboardDesktop({ ctx }) {
                       const d = new Date(t.date)
                       return (
                         <li key={t.id} className="ndh-row">
-                          <span className={`ndh-row-ico${inc ? ' inc' : ''}`}><CategoryIcon category={t.category} size={18} color="currentColor" /></span>
+                          <span className={`ndh-row-ico${inc ? ' inc' : ''}`}><ProtoCategoryIcon category={t.category} size={18} /></span>
                           <span className="ndh-row-desc">{t.description || CATEGORY_LABELS[t.category] || t.category}</span>
                           <span className="ndh-row-cat">{CATEGORY_LABELS[t.category] || t.category}</span>
                           <span className="ndh-row-date">{String(d.getDate()).padStart(2, '0')}/{String(d.getMonth() + 1).padStart(2, '0')}</span>

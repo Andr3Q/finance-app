@@ -9,6 +9,10 @@ const { injectSession, TEST_USER }          = require('../helpers/session')
 // Botões:  "Nova Transação", "Exportar CSV", "Importar CSV"
 // ─────────────────────────────────────────────────────────────────
 
+// Estas telas testam o Extrato do celular (cabeçalho azul, filtros e botão "Nova Transação" da própria tela); o Extrato do desktop
+// tem outra árvore e os seus testes estão em desktop-extrato.spec.js.
+test.use({ viewport: { width: 393, height: 852 } })
+
 async function setupBase(page, transactions = [TX_EXPENSE, TX_INCOME]) {
   await injectSession(page)
   // Uma única rota intercept que responde a GET corretamente
@@ -105,6 +109,9 @@ test.describe('Transações — Filtros', () => {
 })
 
 test.describe('Transações — Criar transação', () => {
+  // o botão "Nova Transação" da tela aparece de 769px a 900px (tablet); no celular o "+" da barra de baixo cria, no desktop a barra de cima
+  test.use({ viewport: { width: 800, height: 900 } })
+
   test.beforeEach(async ({ page }) => {
     await setupBase(page, [])
     page.route('**/api/transactions**', (route) => {
