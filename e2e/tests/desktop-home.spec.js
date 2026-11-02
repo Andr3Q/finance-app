@@ -61,9 +61,9 @@ test.describe('Início desktop — medidas e visual do design', () => {
     await expect(page.locator('.ndh-card').first()).toHaveCSS('border-top-left-radius', '20px')
   })
 
-  test('atalhos do saldo: só Nova transação e Nancy IA (Planilha IA e Analisador entram quando as telas existirem)', async ({ page }) => {
+  test('atalhos do saldo: Nova transação, Planilha IA e Nancy IA (o Analisador entra quando a tela existir)', async ({ page }) => {
     await open(page)
-    await expect(page.locator('.ndh-quick-btn')).toHaveText(['Nova transação', 'Nancy IA'])
+    await expect(page.locator('.ndh-quick-btn')).toHaveText(['Nova transação', 'Planilha IA', 'Nancy IA'])
     expect(await box(page, '.ndh-quick-ico')).toMatchObject({ w: 52, h: 52 })
   })
 })

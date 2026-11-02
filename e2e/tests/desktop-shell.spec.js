@@ -69,10 +69,10 @@ test.describe('Casca desktop — medidas e visual do design', () => {
       .toEqual([true, '"Plus Jakarta Sans", sans-serif'])
   })
 
-  test('itens do menu na ordem do design; Planilha IA e Analisador ficam escondidos até as telas existirem; o botão flutuante do chat não existe no desktop', async ({ page }) => {
+  test('itens do menu na ordem do design (Planilha IA com o selo novo); o Analisador fica escondido até a tela existir; o botão flutuante do chat não existe no desktop', async ({ page }) => {
     await setup(page)
-    await expect(menu(page).getByRole('button')).toHaveText(['Início', 'Extrato', 'Nancy IA', 'Metas', 'Finanças', 'Calendário', 'Planos'])
-    await expect(page.locator('.nds-badge')).toHaveCount(0)
+    await expect(menu(page).getByRole('button')).toHaveText(['Início', 'Extrato', 'Planilha IAnovo', 'Nancy IA', 'Metas', 'Finanças', 'Calendário', 'Planos'])
+    await expect(page.locator('.nds-badge')).toHaveText(['novo'])
     await expect(page.locator('.agent-fab')).toBeHidden()
   })
 
