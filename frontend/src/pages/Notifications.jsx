@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import NotificationsDesktop from './NotificationsDesktop.jsx'
 import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
@@ -60,6 +62,7 @@ export default function Notifications() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const [data,    setData]    = useState(() => getCache('dashboard') || null)
@@ -137,6 +140,16 @@ export default function Notifications() {
     else if (a.type === 'new-transaction') {
       window.dispatchEvent(new CustomEvent('nancy:new-transaction', { detail: { type: a.transactionType } }))
     }
+  }
+
+  if (isDesktop) {
+    return (
+      <NotificationsDesktop ctx={{
+        items, hidden, loading, failed, open,
+        retry: () => { setLoading(true); load() },
+        goPrefs: () => navigate('/settings/notificacoes'),
+      }} />
+    )
   }
 
   return (
