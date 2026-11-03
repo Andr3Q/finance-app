@@ -12812,3 +12812,56 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndh-sheet-name { font: 700 14px var(--nd-font); }
 .ndh-sheet-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
 .ndh-sheet:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nia-page — Nancy IA no desktop (design "Nancy Desktop", tela 13): lista de conversas de 260px e o chat, lado a lado, ocupando
+   a altura da tela. As classes nia-* do painel do celular são reaproveitadas; aqui, escopadas em .nia-page, ganham as cores do desktop.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nia-slot { flex: 1; display: flex; flex-direction: column; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.nia-page { flex: 1; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; min-height: 740px; height: calc(100dvh - var(--dsb-topbar-h) - 66px); }
+.nia-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; overflow-y: auto; }
+.nia-new { height: 46px; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nia-new:disabled { opacity: .6; cursor: default; }
+.nia-recent-title { padding-top: 10px; font: 600 12px var(--nd-font); color: var(--nd-muted); }
+.nia-recent { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; }
+.nia-conv { width: 100%; padding: 10px 12px; border: none; border-radius: 12px; background: transparent; color: var(--nd-ink); text-align: left; font: 600 13.5px var(--nd-font); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nia-conv.on { background: #EEF3FF; color: var(--nd-blue); }
+.nia-conv:disabled { cursor: default; opacity: .7; }
+.nia-recent-empty { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nia-new:focus-visible, .nia-conv:focus-visible, .nia-page .nia-suggestion:focus-visible, .nia-page .nia-send:focus-visible, .nia-page .nia-mic:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+.nia-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nia-main-head { display: flex; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid #EEF2F8; }
+.nia-page .nia-name { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nia-page .nia-status { display: flex; align-items: center; gap: 5px; font: 600 12px var(--nd-font); color: var(--nd-green); }
+.nia-page .nia-dot { background: var(--nd-green); }
+.nia-page .nia-head-txt { display: flex; flex-direction: column; gap: 2px; }
+.nia-page .nia-msgs { flex: 1; min-height: 0; padding: 24px; gap: 14px; background: #FBFCFF; }
+.nia-page .nia-bubble { max-width: 592px; padding: 13px 16px; border-radius: 18px 18px 18px 6px; background: #EEF3FF; color: var(--nd-ink); font: 500 14.5px/1.5 var(--nd-font); animation: nzIn .3s; }
+.nia-page .nia-msg.user .nia-bubble { border-radius: 18px 18px 6px 18px; background: var(--nd-blue); color: #fff; }
+.nia-page .nia-msg.err .nia-bubble { background: #FDECEF; color: #B42318; }
+.nia-page .nia-col { max-width: 592px; }
+.nia-page .nia-typing span { background: var(--nd-blue); }
+.nia-page .nia-suggestions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.nia-page .nia-suggestion { padding: 10px 14px; border: 1.5px solid #C9D9FF; border-radius: 99px; background: #fff; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.nia-page .nia-suggestion:hover { background: #F4F7FF; }
+.nia-page .nia-upgrade { align-self: flex-start; padding: 10px 16px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nia-page .nia-act-yes, .nia-page .nia-act-no { height: 38px; padding: 0 16px; border-radius: 10px; font: 700 13px var(--nd-font); cursor: pointer; }
+.nia-page .nia-act-yes { border: none; background: var(--nd-blue); color: #fff; }
+.nia-page .nia-act-no { border: 1.5px solid #C9D9FF; background: #fff; color: var(--nd-blue); }
+.nia-page .nia-table th, .nia-page .nia-table td { border-bottom-color: #E1E8F5; }
+.nia-page .nia-voice-error { margin: 0 22px 10px; padding: 10px 14px; border-radius: 12px; background: #FDECEF; color: #B42318; font: 500 13px var(--nd-font); }
+.nia-page .nia-voice-error button { color: #B42318; }
+.nia-page .nia-voice-error button:hover { background: rgba(180,35,24,.1); }
+.nia-page .nia-input-bar { gap: 10px; padding: 16px 22px; border-top: 1px solid #EEF2F8; background: #fff; }
+.nia-page .nia-input { height: 50px; min-height: 50px; box-sizing: border-box; padding: 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); resize: none; overflow: hidden; outline: none; }
+.nia-page .nia-input:focus { border-color: var(--nd-blue); box-shadow: none; }
+.nia-page .nia-input::placeholder { color: #757575; }
+.nia-page .nia-input.voice-active::placeholder { color: #D6334A; }
+.nia-page .nia-mic, .nia-page .nia-send { width: 50px; height: 50px; border-radius: 14px; }
+.nia-page .nia-mic { background: #EEF3FF; color: var(--nd-blue); }
+.nia-page .nia-mic:hover { background: #E3EBFF; }
+.nia-page .nia-mic.listening { background: #D6334A; color: #fff; }
+.nia-page .nia-mic .agent-mic-spinner { border-color: rgba(21,70,255,.25); border-top-color: var(--nd-blue); }
+.nia-page .nia-send { background: var(--nd-green); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .nia-page .nia-bubble { animation: none; } }

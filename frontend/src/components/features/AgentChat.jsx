@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { agentAPI } from '../../services/api.js'
 import { useUser } from '../../hooks/useUser.js'
 import { useEscapeKey } from '../../hooks/useEscapeKey.js'
@@ -10,7 +11,10 @@ import { analytics } from '../../services/analytics.js'
 import { invalidateCache } from '../../services/cache.js'
 import { MONTHS } from '../../constants/index.js'
 import NancyMark from '../ui/NancyMark.jsx'
+import ProtoIcon from '../layout/ProtoIcon.jsx'
 import AiMessage from './AiMessage.jsx'
+import { useIsDesktop } from '../../hooks/useIsDesktop.js'
+import { useNiaSlot } from '../../hooks/useNiaSlot.js'
 
 // Sugestões da conversa vazia (design Nancy 2, tela 12). A do meio usa o mês atual.
 function buildSuggestions(now = new Date()) {
@@ -70,6 +74,11 @@ const displayContent = (m) => {
   return state === 'open' ? m.content : m.content.replace(WAITING, RESOLVED_TEXT[state] || 'Sem efeito.')
 }
 
+// Conversas da tela Nancy IA do desktop: ficam só na memória do app aberto (nunca no armazenamento do aparelho — é conteúdo
+// financeiro) e somem ao recarregar ou sair. O título é o começo da primeira pergunta.
+const MAX_CONVERSATIONS = 20
+const titleOf = (text) => { const t = String(text).replace(/\s+/g, ' ').trim(); return t.length > 34 ? `${t.slice(0, 33).trimEnd()}…` : t }
+
 export default function AgentChat() {
   const [open,         setOpen]         = useState(false)
   useEscapeKey(() => setOpen(false), open)
@@ -92,6 +101,13 @@ export default function AgentChat() {
   const maxDurationTimer = useRef(null)
   const navigate         = useNavigate()
   const panelRef         = useRef(null)
+  // No desktop a conversa vive na página /nancy-ia (o painel flutuante só existe no celular): `asPage` = a página reservou o espaço.
+  const { pathname }     = useLocation()
+  const isDesktop        = useIsDesktop()
+  const slot             = useNiaSlot()
+  const asPage           = isDesktop && pathname === '/nancy-ia' && !!slot
+  const isDesktopRef     = useRef(isDesktop)
+  isDesktopRef.current   = isDesktop
   // Em tela cheia (celular) o chat é modal: o foco do teclado fica dentro dele. No desktop é uma janela flutuante, sem trava.
   const [fullScreen, setFullScreen] = useState(false)
   useEffect(() => { if (open) setFullScreen(!!window.matchMedia?.('(max-width: 900px)').matches) }, [open])
@@ -105,21 +121,26 @@ export default function AgentChat() {
   // chat (Elite); pros outros o chat abre mostrando o convite pro plano e a pergunta é descartada.
   const [pendingMsg, setPendingMsg] = useState(null)
   useEffect(() => {
-    const openChat = (e) => { setOpen(true); setPendingMsg(e?.detail?.message || null) }
+    const openChat = (e) => {
+      // no desktop "abrir o chat" leva à página da Nancy IA; a pergunta pronta (detail.message) é enviada quando ela abrir
+      if (isDesktopRef.current) { navigate('/nancy-ia'); setPendingMsg(e?.detail?.message || null); return }
+      setOpen(true); setPendingMsg(e?.detail?.message || null)
+    }
     window.addEventListener('nancy:open-agent-chat', openChat)
     return () => window.removeEventListener('nancy:open-agent-chat', openChat)
-  }, [])
+  }, [navigate])
   const user             = useUser()
   const isElite          = user.plan === 'elite'
   const firstName        = user.name?.split(' ')[0] || ''
   const suggestions      = buildSuggestions()
 
+  const active = open || asPage // o chat está na tela (painel do celular ou página do desktop)
   useEffect(() => {
-    if (!open || !pendingMsg) return
+    if (!active || !pendingMsg) return
     setPendingMsg(null)
     if (isElite) send(pendingMsg)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, pendingMsg, isElite])
+  }, [active, pendingMsg, isElite])
 
   useEffect(() => {
     // MediaRecorder + getUserMedia são suportados de forma muito mais ampla e
@@ -154,19 +175,19 @@ export default function AgentChat() {
   }, [])
 
   useEffect(() => {
-    if (open) {
+    if (active) {
       setTimeout(() => inputRef.current?.focus(), 120)
     } else {
       setVoiceError('') // o aviso do microfone não fica esperando na próxima vez que o chat abrir
     }
-    if (!open && listening) {
+    if (!active && listening) {
       // O painel esconde o botão de "parar gravação" ao fechar, mas o
       // componente continua montado (só o conteúdo interno é condicional) —
       // sem isso, o microfone ficaria gravando em segundo plano indefinidamente,
       // sem nenhuma forma de interromper pela interface.
       mediaRecorderRef.current?.stop()
     }
-  }, [open, listening])
+  }, [active, listening])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -247,6 +268,45 @@ export default function AgentChat() {
     if (history[index]?.pending?.state !== 'open' || loading) return
     analytics.track('ai_action_cancelled')
     setHistory(h => [...closeOpenPending(h).map((m, i) => (i === index ? { ...m, pending: { ...m.pending, state: 'cancelled' } } : m)), { role: 'assistant', content: 'Tudo bem, não mexi em nada.' }])
+  }
+
+  // ── conversas (página do desktop) ──────────────────────
+  const [convs, setConvs]       = useState([]) // [{ id, title, history }], da mais nova para a mais antiga
+  const [activeId, setActiveId] = useState(null)
+  const convSeq = useRef(0)
+  // a conversa nasce na primeira pergunta e acompanha o histórico daí em diante
+  useEffect(() => {
+    const first = history.find(m => m.role === 'user')
+    if (!first) return
+    if (activeId === null) {
+      const id = ++convSeq.current
+      setActiveId(id)
+      setConvs(list => [{ id, title: titleOf(first.content), history }, ...list].slice(0, MAX_CONVERSATIONS))
+    } else {
+      setConvs(list => list.map(c => (c.id === activeId ? { ...c, history } : c)))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history])
+
+  // trocar de conversa espera a resposta em andamento (ela chegaria na conversa errada) e encerra os cartões de confirmação
+  // abertos da que sai: um "Confirmar" antigo não pode agir depois
+  const leaveConv = () => setConvs(list => list.map(c => (c.id === activeId ? { ...c, history: closeOpenPending(c.history) } : c)))
+  const newChat = () => {
+    if (loading || transcribing) return
+    leaveConv()
+    setActiveId(null)
+    setHistory([])
+    setInput('')
+    setTimeout(() => inputRef.current?.focus(), 50)
+  }
+  const selectConv = (id) => {
+    if (loading || transcribing || id === activeId) return
+    const next = convs.find(c => c.id === id)
+    if (!next) return
+    leaveConv()
+    setActiveId(id)
+    setHistory(next.history)
+    setInput('')
   }
 
   const handleKey = (e) => {
@@ -358,6 +418,127 @@ export default function AgentChat() {
     }, MAX_RECORDING_MS)
   }
 
+  // Mensagens e barra de entrada: as mesmas no painel do celular e na página do desktop (só o texto de boas-vindas e o CSS mudam).
+  const hello = `Oi${firstName ? `, ${firstName}` : ''}!`
+  const messages = (greeting) => (
+    <div className="nia-msgs">
+      {!isElite ? (
+        <>
+          <div className="nia-msg bot">
+            <div className="nia-bubble">
+              Oi{firstName ? `, ${firstName}` : ''}! A Nancy IA analisa seus gastos, tira dúvidas e registra transações por texto ou áudio. Ela está disponível no plano Elite.
+            </div>
+          </div>
+          <button type="button" className="nia-upgrade" onClick={() => { setOpen(false); navigate('/planos') }}>
+            Ver planos →
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="nia-msg bot">
+            <div className="nia-bubble">
+              {greeting}
+            </div>
+          </div>
+          {history.length === 0 && (
+            <div className="nia-suggestions">
+              {suggestions.map((sug, i) => (
+                <button key={i} type="button" className="nia-suggestion" onClick={() => send(sug)}>{sug}</button>
+              ))}
+            </div>
+          )}
+          {history.map((m, i) => {
+            const isBot       = m.role !== 'user'
+            const canRetry    = m.error && m.retryText && i === history.length - 1 && !loading
+            const awaiting    = m.pending?.state === 'open' && !isExpired(m.pending)
+            const hasActions  = awaiting || canRetry
+            const shown       = displayContent(m)
+            const bubble      = <div className={`nia-bubble${isBot && !m.error ? ' nia-rich-bubble' : ''}`}>{isBot && !m.error ? <AiMessage text={shown} /> : shown}</div>
+            return (
+              <div key={i} className={`nia-msg ${isBot ? 'bot' : 'user'}${m.error ? ' err' : ''}`}>
+                {hasActions ? (
+                  <div className="nia-col">
+                    {bubble}
+                    {awaiting && (
+                      <div className="nia-actions" role="group" aria-label="Confirmar a ação">
+                        <button type="button" className="nia-act-yes" onClick={() => confirmPending(i)} disabled={loading}>Confirmar</button>
+                        <button type="button" className="nia-act-no" onClick={() => cancelPending(i)} disabled={loading}>Cancelar</button>
+                      </div>
+                    )}
+                    {canRetry && (
+                      <div className="nia-actions">
+                        <button type="button" className="nia-act-no" onClick={() => send(m.retryText, { dropLast: 2 })}>Tentar de novo</button>
+                      </div>
+                    )}
+                  </div>
+                ) : bubble}
+              </div>
+            )
+          })}
+        </>
+      )}
+      {loading && (
+        <div className="nia-msg bot">
+          <div className="nia-bubble nia-typing" aria-label="Nancy está digitando"><span/><span/><span/></div>
+        </div>
+      )}
+      <div ref={bottomRef} />
+    </div>
+  )
+  const inputArea = (placeholder = 'Pergunte à Nancy…') => (
+    <>
+      {isElite && voiceError && (
+        <div className="nia-voice-error" role="status">
+          <span>{voiceError}</span>
+          <button type="button" onClick={() => setVoiceError('')} aria-label="Fechar aviso">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      )}
+      {isElite && (
+        <div className="nia-input-bar">
+          <textarea
+            ref={inputRef}
+            className={`nia-input${listening ? ' voice-active' : ''}`}
+            placeholder={listening ? 'Ouvindo…' : transcribing ? 'Transcrevendo…' : placeholder}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            rows={1}
+            maxLength={2000}
+            disabled={loading || transcribing}
+          />
+          {voiceSupport && (
+            <button
+              className={`nia-mic${listening ? ' listening' : ''}${transcribing ? ' transcribing' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
+              onClick={toggleVoice}
+              disabled={loading || transcribing}
+              aria-label={listening ? 'Parar gravação' : transcribing ? 'Transcrevendo áudio' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
+              title={micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : undefined}
+              type="button"
+            >
+              {listening ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+              ) : transcribing ? (
+                <span className="agent-mic-spinner" />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                  <path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+                </svg>
+              )}
+            </button>
+          )}
+          <button className={`nia-send${loading || transcribing ? ' busy' : ''}`} onClick={() => send()} disabled={!input.trim() || loading || transcribing} aria-label="Enviar">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      )}
+    </>
+  )
+
   return (
     <>
       {/* Botão flutuante */}
@@ -397,120 +578,41 @@ export default function AgentChat() {
             </button>
           </div>
 
-          <div className="nia-msgs">
-            {!isElite ? (
-              <>
-                <div className="nia-msg bot">
-                  <div className="nia-bubble">
-                    Oi{firstName ? `, ${firstName}` : ''}! A Nancy IA analisa seus gastos, tira dúvidas e registra transações por texto ou áudio. Ela está disponível no plano Elite.
-                  </div>
-                </div>
-                <button type="button" className="nia-upgrade" onClick={() => { setOpen(false); navigate('/planos') }}>
-                  Ver planos →
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="nia-msg bot">
-                  <div className="nia-bubble">
-                    Oi{firstName ? `, ${firstName}` : ''}! Sou a Nancy. Pergunte sobre seus gastos ou peça para eu registrar uma despesa. Pode digitar ou mandar um áudio.
-                  </div>
-                </div>
-                {history.length === 0 && (
-                  <div className="nia-suggestions">
-                    {suggestions.map((sug, i) => (
-                      <button key={i} type="button" className="nia-suggestion" onClick={() => send(sug)}>{sug}</button>
-                    ))}
-                  </div>
-                )}
-                {history.map((m, i) => {
-                  const isBot       = m.role !== 'user'
-                  const canRetry    = m.error && m.retryText && i === history.length - 1 && !loading
-                  const awaiting    = m.pending?.state === 'open' && !isExpired(m.pending)
-                  const hasActions  = awaiting || canRetry
-                  const shown       = displayContent(m)
-                  const bubble      = <div className={`nia-bubble${isBot && !m.error ? ' nia-rich-bubble' : ''}`}>{isBot && !m.error ? <AiMessage text={shown} /> : shown}</div>
-                  return (
-                    <div key={i} className={`nia-msg ${isBot ? 'bot' : 'user'}${m.error ? ' err' : ''}`}>
-                      {hasActions ? (
-                        <div className="nia-col">
-                          {bubble}
-                          {awaiting && (
-                            <div className="nia-actions" role="group" aria-label="Confirmar a ação">
-                              <button type="button" className="nia-act-yes" onClick={() => confirmPending(i)} disabled={loading}>Confirmar</button>
-                              <button type="button" className="nia-act-no" onClick={() => cancelPending(i)} disabled={loading}>Cancelar</button>
-                            </div>
-                          )}
-                          {canRetry && (
-                            <div className="nia-actions">
-                              <button type="button" className="nia-act-no" onClick={() => send(m.retryText, { dropLast: 2 })}>Tentar de novo</button>
-                            </div>
-                          )}
-                        </div>
-                      ) : bubble}
-                    </div>
-                  )
-                })}
-              </>
-            )}
-            {loading && (
-              <div className="nia-msg bot">
-                <div className="nia-bubble nia-typing" aria-label="Nancy está digitando"><span/><span/><span/></div>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-
-          {isElite && voiceError && (
-            <div className="nia-voice-error" role="status">
-              <span>{voiceError}</span>
-              <button type="button" onClick={() => setVoiceError('')} aria-label="Fechar aviso">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-          )}
-          {isElite && (
-            <div className="nia-input-bar">
-              <textarea
-                ref={inputRef}
-                className={`nia-input${listening ? ' voice-active' : ''}`}
-                placeholder={listening ? 'Ouvindo…' : transcribing ? 'Transcrevendo…' : 'Pergunte à Nancy…'}
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKey}
-                rows={1}
-                maxLength={2000}
-                disabled={loading || transcribing}
-              />
-              {voiceSupport && (
-                <button
-                  className={`nia-mic${listening ? ' listening' : ''}${transcribing ? ' transcribing' : ''}${micPermission === 'denied' ? ' blocked' : ''}`}
-                  onClick={toggleVoice}
-                  disabled={loading || transcribing}
-                  aria-label={listening ? 'Parar gravação' : transcribing ? 'Transcrevendo áudio' : micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : 'Falar mensagem'}
-                  title={micPermission === 'denied' ? 'Microfone bloqueado — toque para ver como liberar' : undefined}
-                  type="button"
-                >
-                  {listening ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
-                  ) : transcribing ? (
-                    <span className="agent-mic-spinner" />
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                      <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
-                      <path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
-                    </svg>
-                  )}
-                </button>
-              )}
-              <button className={`nia-send${loading || transcribing ? ' busy' : ''}`} onClick={() => send()} disabled={!input.trim() || loading || transcribing} aria-label="Enviar">
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                </svg>
-              </button>
-            </div>
-          )}
+          {messages(`${hello} Sou a Nancy. Pergunte sobre seus gastos ou peça para eu registrar uma despesa. Pode digitar ou mandar um áudio.`)}
+          {inputArea()}
         </div>
+      )}
+      {/* Nancy IA no desktop (tela 13): lista de conversas e o chat, no espaço reservado pela página /nancy-ia */}
+      {asPage && createPortal(
+        <div className="nia-page">
+          <aside className="nia-side" aria-label="Conversas">
+            <button type="button" className="nia-new" onClick={newChat} disabled={loading || transcribing}><ProtoIcon name="plus" size={18} />Nova conversa</button>
+            <span className="nia-recent-title">RECENTES</span>
+            {convs.length === 0
+              ? <p className="nia-recent-empty">As conversas desta sessão aparecem aqui.</p>
+              : (
+                <ul className="nia-recent">
+                  {convs.map(c => (
+                    <li key={c.id}>
+                      <button type="button" className={`nia-conv${c.id === activeId ? ' on' : ''}`} aria-current={c.id === activeId ? 'true' : undefined} onClick={() => selectConv(c.id)} disabled={loading || transcribing}>{c.title}</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+          </aside>
+          <section className="nia-main" aria-label="Nancy IA">
+            <header className="nia-main-head">
+              <NancyMark size={40} />
+              <div className="nia-head-txt">
+                <div className="nia-name">Nancy IA</div>
+                <div className="nia-status">{isElite ? <><span className="nia-dot" />online · entende texto e áudio</> : 'disponível no Elite'}</div>
+              </div>
+            </header>
+            {messages(`${hello} Sou a Nancy. Pergunte sobre seus gastos, peça uma análise ou mande um áudio que eu registro pra você.`)}
+            {inputArea('Pergunte à Nancy ou registre um gasto…')}
+          </section>
+        </div>,
+        slot
       )}
     </>
   )

@@ -2,12 +2,12 @@
 // NAV, PARENT, SET_KEYS e TT (Nancy Desktop.dc.html), ligado às rotas reais do app.
 
 // `ready: false` = a tela do item ainda não existe no app; o menu só mostra os itens prontos (ver visibleDesktopNav).
-// `action` = em vez de trocar de rota, dispara o evento (Nancy IA abre o painel do chat até ter a tela própria).
+// `action` = em vez de trocar de rota, dispara o evento (nenhum item usa hoje: a Nancy IA ganhou a tela própria).
 export const DESKTOP_NAV = [
   { key: 'home',       label: 'Início',      icon: 'home',   to: '/dashboard',    ready: true },
   { key: 'extrato',    label: 'Extrato',     icon: 'list',   to: '/transactions', ready: true },
   { key: 'planilha',   label: 'Planilha IA', icon: 'grid',   to: '/planilha',     badge: 'novo', ready: true },
-  { key: 'chat',       label: 'Nancy IA',    icon: 'spark',  action: 'nancy:open-agent-chat', ready: true },
+  { key: 'chat',       label: 'Nancy IA',    icon: 'spark',  to: '/nancy-ia',     ready: true },
   { key: 'analisador', label: 'Analisador',  icon: 'card',   to: '/analisador',   badge: 'IA', ready: false },
   { key: 'metas',      label: 'Metas',       icon: 'target', to: '/goals',        ready: true },
   { key: 'financas',   label: 'Finanças',    icon: 'wallet', to: '/financas',     ready: true },
@@ -21,7 +21,7 @@ export const visibleDesktopNav = () => DESKTOP_NAV.filter(i => i.ready)
 const SCREEN_BY_PATH = {
   '/dashboard': 'home', '/resumo-stories': 'stories', '/notificacoes': 'notifs',
   '/transactions': 'extrato', '/contas-do-mes': 'compromissos', '/parcelados': 'parcelas', '/analise': 'analise',
-  '/planilha': 'planilha', '/analisador': 'analisador',
+  '/planilha': 'planilha', '/nancy-ia': 'chat', '/analisador': 'analisador',
   '/goals': 'metas', '/historico': 'historico', '/assinaturas': 'assinaturas', '/lembretes': 'lembretes', '/limites': 'limites',
   '/financas': 'financas', '/calendar': 'calendario',
   '/settings': 'perfil', '/settings/perfil': 'dadosPessoais', '/settings/seguranca': 'seguranca',
@@ -70,6 +70,7 @@ const STATIC_TITLES = {
   parcelas:      ['Compras parceladas', 'Parcelas em andamento'],
   analise:       ['Análise do mês', 'Para onde foi seu dinheiro'],
   planilha:      ['Planilha IA', 'Montada automaticamente a partir das suas contas'],
+  chat:          ['Nancy IA', 'Sua assistente financeira · texto e áudio'],
   analisador:    ['Analisador de compras', 'A Nancy diz se vale comprar, parcelar ou esperar'],
   metas:         ['Metas', 'Seus objetivos'],
   historico:     ['Histórico', 'Últimos 6 meses'],

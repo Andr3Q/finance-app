@@ -55,14 +55,10 @@ describe('menu lateral', () => {
     expect(screen.getByTestId('where')).toHaveTextContent('/calendar')
   })
 
-  it('Nancy IA abre o painel do chat sem trocar de tela', () => {
-    const opened = vi.fn()
-    window.addEventListener('nancy:open-agent-chat', opened)
+  it('Nancy IA leva à tela própria do chat (/nancy-ia)', () => {
     renderShell('/goals')
     fireEvent.click(screen.getByRole('button', { name: 'Nancy IA' }))
-    window.removeEventListener('nancy:open-agent-chat', opened)
-    expect(opened).toHaveBeenCalledTimes(1)
-    expect(screen.getByTestId('where')).toHaveTextContent('/goals')
+    expect(screen.getByTestId('where')).toHaveTextContent('/nancy-ia')
   })
 
   it('cartão do plano: Elite como no design; os outros planos levam a Planos', () => {

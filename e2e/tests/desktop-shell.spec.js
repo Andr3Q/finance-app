@@ -126,11 +126,13 @@ test.describe('Casca desktop — navegação', () => {
     await expect(page).toHaveURL(/\/dashboard$/)
   })
 
-  test('Nancy IA abre o painel do chat sem sair da tela', async ({ page }) => {
+  test('Nancy IA leva à tela própria do chat, acesa no menu', async ({ page }) => {
     await setup(page)
     await menu(page).getByRole('button', { name: 'Nancy IA' }).click()
-    await expect(page.locator('.nia-panel')).toBeVisible()
-    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page).toHaveURL(/\/nancy-ia$/)
+    await expect(page.locator('.nia-page')).toBeVisible()
+    await expect(page.locator('.nia-panel')).toHaveCount(0) // o painel flutuante é só do celular
+    await expect(page.locator('.nds-item.active')).toContainText('Nancy IA')
   })
 
   test('"Sair da conta" continua alcançável: o Perfil mostra a opção também no desktop', async ({ page }) => {
