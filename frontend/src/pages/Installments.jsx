@@ -6,6 +6,8 @@ import { invalidateCache } from '../services/cache.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import InstallmentsDesktop from './InstallmentsDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { LayersGlyph, PlusGlyph } from '../components/ui/NancyGlyphs.jsx'
 import { txCacheKey, currentBrasiliaMonthYear } from '../utils/txCache.js'
@@ -24,6 +26,7 @@ const BackIcon = () => (
 export default function Installments() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const [plans,    setPlans]    = useState([])
@@ -153,15 +156,66 @@ export default function Installments() {
     }
   }
 
+  const toastEl = toast && (
+    <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
+      {toast.msg}
+    </div>
+  )
+
+  // modal "Remover parcelamento": o mesmo no celular e no desktop
+  const deleteModal = confirmDelete && createPortal(
+    <div className="gls-modal-overlay" onClick={() => setConfirmDelete(null)}>
+      <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="inst-del-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+        <div className="gls-modal-head">
+          <span id="inst-del-title">Remover parcelamento</span>
+          <button className="gls-modal-close" onClick={() => setConfirmDelete(null)} aria-label="Fechar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--t1)', marginBottom: 8 }}>Tem certeza?</div>
+          <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+            {deleting && (
+              <div style={{ fontWeight: 600, color: 'var(--t1)' }}>
+                {deleting.name} · {deleting.totalInstallments}x R$ {fmt(deleting.amount)}
+                <div style={{ fontWeight: 400, color: 'var(--t2)' }}>{deleting.paidInstallments} de {deleting.totalInstallments} parcelas pagas</div>
+              </div>
+            )}
+            <div style={{ marginTop: 6 }}>Todas as parcelas restantes serão removidas permanentemente.</div>
+            {deleting && deleting.paidInstallments > 0 && (
+              <div>As parcelas já pagas continuam no Extrato.</div>
+            )}
+          </div>
+        </div>
+        <div className="gls-modal-foot">
+          <button className="gls-btn-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button>
+          <button className="gls-btn-save" style={{ background: '#ef4444' }} onClick={() => handleDelete(confirmDelete)}>Sim, excluir</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        {toastEl}
+        <InstallmentsDesktop ctx={{
+          plans, loaded, openId, setOpenId, payingId, unpayingId, onPay: handlePay, onUnpay: handleUnpay, onRemove: setConfirmDelete,
+          form, setForm, saving, onCreate: handleCreate, nameRef, calc: { perParcel, count, roundedTotal, roundingDiff },
+        }} />
+        {deleteModal}
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
 
-      {toast && (
-        <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
-          {toast.msg}
-        </div>
-      )}
+      {toastEl}
 
       <div className="pwnav fin-pwnav fade-in">
         <div className="fin-page">
@@ -269,40 +323,7 @@ export default function Installments() {
         </div>
       </div>
 
-      {confirmDelete && createPortal(
-        <div className="gls-modal-overlay" onClick={() => setConfirmDelete(null)}>
-          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="inst-del-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
-            <div className="gls-modal-head">
-              <span id="inst-del-title">Remover parcelamento</span>
-              <button className="gls-modal-close" onClick={() => setConfirmDelete(null)} aria-label="Fechar">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--t1)', marginBottom: 8 }}>Tem certeza?</div>
-              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
-                {deleting && (
-                  <div style={{ fontWeight: 600, color: 'var(--t1)' }}>
-                    {deleting.name} · {deleting.totalInstallments}x R$ {fmt(deleting.amount)}
-                    <div style={{ fontWeight: 400, color: 'var(--t2)' }}>{deleting.paidInstallments} de {deleting.totalInstallments} parcelas pagas</div>
-                  </div>
-                )}
-                <div style={{ marginTop: 6 }}>Todas as parcelas restantes serão removidas permanentemente.</div>
-                {deleting && deleting.paidInstallments > 0 && (
-                  <div>As parcelas já pagas continuam no Extrato.</div>
-                )}
-              </div>
-            </div>
-            <div className="gls-modal-foot">
-              <button className="gls-btn-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button>
-              <button className="gls-btn-save" style={{ background: '#ef4444' }} onClick={() => handleDelete(confirmDelete)}>Sim, excluir</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      {deleteModal}
     </>
   )
 }

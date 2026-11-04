@@ -12970,3 +12970,39 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndb-empty h2 { margin: 0; font: 700 16px var(--nd-font); }
 .ndb-empty p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
 .ndb-btn { margin-top: 6px; height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndi-* — Compras parceladas no desktop (design "Nancy Desktop", tela 17): um cartão por compra, em duas colunas (vão de 16): ícone de
+   40px, nome, parcelas pagas, valor por mês em mono azul, barra de 10px, restante e "Pagar parcela". A página usa .ndx-page (abas do Extrato).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndi-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.ndi-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndi-head { display: flex; align-items: center; gap: 12px; padding: 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndi-head:focus-visible, .ndi-pay:focus-visible, .ndi-link:focus-visible, .ndi-add:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ndi-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndi-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ndi-name { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndi-prog { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndi-val { flex: none; font: 600 14px var(--nd-mono); color: var(--nd-blue); }
+.ndi-track { height: 10px; overflow: hidden; border-radius: 99px; background: #EEF3FF; }
+.ndi-fill { height: 100%; border-radius: 99px; background: var(--nd-blue); transition: width .4s; }
+.ndi-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.ndi-rest { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndi-pay { flex: none; padding: 8px 14px; border: none; border-radius: 99px; background: #E9FBF2; color: #087A52; font: 600 12.5px var(--nd-font); cursor: pointer; }
+.ndi-pay:disabled { opacity: .6; cursor: progress; }
+.ndi-quit { display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--nd-font); color: #087A52; }
+.ndi-detail { display: flex; gap: 16px; padding-top: 2px; }
+.ndi-link { padding: 0; border: none; background: none; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.ndi-link--del { color: #C2312B; }
+.ndi-empty { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 12px; }
+.ndi-empty h2 { margin: 0; font: 700 16px var(--nd-font); }
+.ndi-empty p { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndi-new { grid-column: 1 / -1; }
+.ndi-new h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndi-new-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 120px auto; gap: 10px; }
+.ndi-inp { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndi-inp:focus { border-color: var(--nd-blue); }
+.ndi-inp::placeholder { color: #757575; }
+.ndi-add { height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndi-add:disabled { opacity: .7; cursor: progress; }
+.ndi-calc { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }

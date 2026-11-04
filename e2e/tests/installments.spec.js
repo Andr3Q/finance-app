@@ -3,6 +3,9 @@ const { test, expect }                          = require('../helpers/test')
 const { createMock, INSTALLMENT_ITEM, TX_EXPENSE } = require('../helpers/mockApi')
 const { injectSession, TEST_USER }              = require('../helpers/session')
 
+
+// Telas do celular (cartões, atalho do Extrato e formulário). As do desktop estão em desktop-installments.spec.js e desktop-extrato.spec.js.
+test.use({ viewport: { width: 393, height: 852 } })
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Parcelamentos — E2E
 // Cobre: listar, criar, pagar, desfazer, quitado, excluir
@@ -46,7 +49,6 @@ test.describe('Parcelamentos — Tela', () => {
   })
 
   test('o atalho "Parcelados" do Extrato abre a tela e voltar retorna ao Extrato', async ({ page }) => {
-    await page.setViewportSize({ width: 393, height: 852 }) // o atalho é do Extrato do celular; no desktop é a aba "Parceladas" (desktop-extrato.spec.js)
     await setupBase(page)
     await page.goto('/transactions')
     await page.getByRole('button', { name: /^parcelados$/i }).click()
