@@ -13340,3 +13340,12 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nst-bm .fin-card { margin: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
 .nst-bm .bm-list-title { font: 700 16px var(--nd-font); color: var(--nd-ink); }
 @media (max-width: 1180px) { .nst-bm { grid-template-columns: minmax(0, 1fr); } }
+
+/* nst-pl — Planos no desktop (design "Nancy Desktop", tela 30): ao lado do menu da conta, o título e a troca mensal/anual no alto e os três cartões lado a lado (Pro com contorno azul, Elite azul cheio); comparativo, garantia e perguntas abaixo, na largura toda */
+.nst-pl .pl-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; background: none; margin: 0; padding: 0; border-radius: 0; font-family: var(--nd-font); }
+.nst-pl .pl-intro { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; text-align: left; }
+.nst-pl .pl-intro .pl-lead { display: none; }
+.nst-pl .pl-headline { margin: 0; font: 800 30px var(--nd-font); letter-spacing: -.03em; }
+.nst-pl .pl-card { margin: 0; border-radius: 22px; font-family: var(--nd-font); }
+.nst-pl .pl-compare, .nst-pl .pl-guar, .nst-pl .pl-faq { grid-column: 1 / -1; }
+@media (max-width: 1180px) { .nst-pl .pl-body { grid-template-columns: minmax(0, 1fr); } }
