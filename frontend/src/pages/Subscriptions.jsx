@@ -5,6 +5,8 @@ import { transactionsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import SubscriptionsDesktop from './SubscriptionsDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { fmt } from '../utils/format.js'
 import { readCancelFlags, setCancelFlag, subKey } from '../utils/subsCancel.js'
 
@@ -44,6 +46,7 @@ export default function Subscriptions() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const isElite = user?.plan === 'elite'
 
@@ -71,6 +74,17 @@ export default function Subscriptions() {
     const key = subKey(sub.description)
     setCancelFlag(sub, !flags[key])
     setFlags(readCancelFlags())
+  }
+
+  if (isDesktop) {
+    const since = (date) => { const x = sinceLabel(date, now); return { text: x.text, stale: x.days > STALE_DAYS } }
+    const staleCount = subs.filter(x => x.lastDate && sinceLabel(x.lastDate, now).days > STALE_DAYS).length
+    return (
+      <SubscriptionsDesktop ctx={{
+        isElite, loading, failed, retry: () => { setLoading(true); load() }, subs, flags, keyOf: subKey, since, staleCount, money, total,
+        onToggle: toggle, goPlans: () => navigate('/planos'),
+      }} />
+    )
   }
 
   return (
