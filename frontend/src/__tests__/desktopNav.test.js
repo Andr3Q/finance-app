@@ -9,9 +9,9 @@ describe('menu lateral do desktop — itens', () => {
     expect(DESKTOP_NAV.find(i => i.key === 'analisador').badge).toBe('IA')
   })
 
-  it('só aparecem os itens cuja tela já existe (o Analisador entra quando for construído)', () => {
+  it('com todas as telas prontas, os 9 itens aparecem', () => {
     expect(visibleDesktopNav().map(i => i.label)).toEqual(
-      ['Início', 'Extrato', 'Planilha IA', 'Nancy IA', 'Metas', 'Finanças', 'Calendário', 'Planos'])
+      ['Início', 'Extrato', 'Planilha IA', 'Nancy IA', 'Analisador', 'Metas', 'Finanças', 'Calendário', 'Planos'])
   })
 
   it('todo item pronto leva a uma rota que existe no app (ou dispara um evento)', () => {

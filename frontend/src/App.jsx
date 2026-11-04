@@ -38,6 +38,7 @@ const Limits         = lazyWithReload(() => import('./pages/Limits.jsx'))
 const Transactions   = lazyWithReload(() => import('./pages/Transactions.jsx'))
 const Planilha       = lazyWithReload(() => import('./pages/Planilha.jsx'))
 const NancyIA        = lazyWithReload(() => import('./pages/NancyIA.jsx'))
+const PurchaseAnalyzer = lazyWithReload(() => import('./pages/PurchaseAnalyzer.jsx'))
 const Goals          = lazyWithReload(() => import('./pages/Goals.jsx'))
 const Settings       = lazyWithReload(() => import('./pages/Settings.jsx'))
 const SettingsProfile       = lazyWithReload(() => import('./pages/SettingsProfile.jsx'))
@@ -224,6 +225,7 @@ export default function App() {
             <Route path="/transactions" element={<PrivateRoute><Transactions /></PrivateRoute>} />
             <Route path="/planilha"     element={<PrivateRoute><Planilha /></PrivateRoute>} />
             <Route path="/nancy-ia"     element={<PrivateRoute><NancyIA /></PrivateRoute>} />
+            <Route path="/analisador"   element={<PrivateRoute><PurchaseAnalyzer /></PrivateRoute>} />
             <Route path="/analytics"    element={<Navigate to="/goals" replace />} />
             <Route path="/goals"        element={<PrivateRoute><Goals /></PrivateRoute>} />
             <Route path="/settings"                 element={<PrivateRoute><Settings /></PrivateRoute>} />

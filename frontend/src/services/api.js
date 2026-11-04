@@ -172,6 +172,11 @@ export const sheetAPI = {
   export: (forecast) => api.get('/sheet/export', { params: { forecast: forecast ? 1 : 0 }, responseType: 'blob' }),
 }
 
+// Analisador de compras (desktop): os números do usuário que a análise cruza com a compra (a comparação roda no navegador)
+export const analyzerAPI = {
+  base: () => api.get('/analyzer/base'),
+}
+
 export const paymentsAPI = {
   createPreference: (plan, period) => api.post('/payments/create-preference', { plan, period }),
   history:          ()             => api.get('/payments/history'),

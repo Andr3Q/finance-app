@@ -8,7 +8,7 @@ export const DESKTOP_NAV = [
   { key: 'extrato',    label: 'Extrato',     icon: 'list',   to: '/transactions', ready: true },
   { key: 'planilha',   label: 'Planilha IA', icon: 'grid',   to: '/planilha',     badge: 'novo', ready: true },
   { key: 'chat',       label: 'Nancy IA',    icon: 'spark',  to: '/nancy-ia',     ready: true },
-  { key: 'analisador', label: 'Analisador',  icon: 'card',   to: '/analisador',   badge: 'IA', ready: false },
+  { key: 'analisador', label: 'Analisador',  icon: 'card',   to: '/analisador',   badge: 'IA', ready: true },
   { key: 'metas',      label: 'Metas',       icon: 'target', to: '/goals',        ready: true },
   { key: 'financas',   label: 'Finanças',    icon: 'wallet', to: '/financas',     ready: true },
   { key: 'calendario', label: 'Calendário',  icon: 'cal',    to: '/calendar',     ready: true },

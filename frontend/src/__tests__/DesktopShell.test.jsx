@@ -29,13 +29,13 @@ beforeEach(() => { sessionStorage.clear(); localStorage.clear(); setUser(ELITE) 
 afterEach(() => { act(() => publishUnreadCount(NaN)) })
 
 describe('menu lateral', () => {
-  it('mostra os itens prontos na ordem do design, sem o Analisador (ainda sem tela)', () => {
+  it('mostra os 9 itens na ordem do design, com o selo IA do Analisador', () => {
     renderShell()
     const nav = screen.getByRole('navigation', { name: 'Menu principal' })
     expect(within(nav).getAllByRole('button').map(b => b.textContent)).toEqual(
-      ['Início', 'Extrato', 'Planilha IAnovo', 'Nancy IA', 'Metas', 'Finanças', 'Calendário', 'Planos'])
+      ['Início', 'Extrato', 'Planilha IAnovo', 'Nancy IA', 'AnalisadorIA', 'Metas', 'Finanças', 'Calendário', 'Planos'])
     expect(screen.getByText('Planilha IA', { selector: '.nds-item-label' })).toBeInTheDocument()
-    expect(screen.queryByText('Analisador')).not.toBeInTheDocument()
+    expect(screen.getByText('Analisador', { selector: '.nds-item-label' })).toBeInTheDocument()
   })
 
   it('acende o item da tela atual (aria-current) e o pai nas sub-telas', () => {
