@@ -231,6 +231,8 @@ async function setupSettingsNoToggle(page, budgetPostHandler) {
 }
 
 test.describe('Input de Data — Integração com Formulário', () => {
+  test.use({ viewport: { width: 393, height: 852 } }) // formulário do celular (.fa-form); o do desktop é testado em desktop-finance.spec.js
+
 
   test('salvar conta fixa com data válida envia endDate ISO ao backend', async ({ page }) => {
     let capturedBody = null

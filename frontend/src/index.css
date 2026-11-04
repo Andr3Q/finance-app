@@ -18,6 +18,29 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Fontes do design desktop ("Nancy Desktop"): Plus Jakarta Sans (texto) e Geist Mono (valores/rótulos), também hospedadas no app e
+   variáveis (um arquivo por subconjunto cobre todos os pesos). Só são baixadas quando uma tela as usa — o celular segue na Sora. */
+@font-face {
+  font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url('./assets/fonts/geist-mono-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Geist Mono'; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url('./assets/fonts/geist-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans'; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url('./assets/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* ── Tokens ─────────────────────────────────────────────── */
 :root {
   /* Background */
@@ -83,8 +106,8 @@
   --bottom-nav-height: 64px;
 
   /* Dashboard sidebar/topbar */
-  --dsb-sidebar-w:  240px;
-  --dsb-topbar-h:   64px;
+  --dsb-sidebar-w:  280px;
+  --dsb-topbar-h:   77px;
 }
 
 /* ── Reset ───────────────────────────────────────────────── */
@@ -2348,7 +2371,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 }
 
 @media (min-width: 901px) and (max-width: 1200px) {
-  :root { --dsb-sidebar-w: 200px; }
   .dsb-two-col { grid-template-columns: 1fr 1fr; }
   .dsb-content { padding: 24px; }
 }
@@ -12200,3 +12222,1357 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
   html[data-theme="light"] body { background: transparent !important; }
   html[data-theme="light"] #root { background: #f0f2f5; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nds-* — Casca do desktop (design "Nancy Desktop", Nancy Desktop.dc.html): menu lateral azul e barra de cima.
+   O protótipo é content-box e o app é border-box: os tamanhos abaixo já são os FINAIS — menu 248 + 2×16 de padding = 280;
+   barra de cima 76 + 1 de borda = 77; busca 300 + 2×14 + 2 de borda = 330×46; botões do olho/sino 44 + 2 = 46×46.
+   Só existe a partir de 901px (no celular quem manda é a barra de baixo).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+:root {
+  --nd-font:   'Plus Jakarta Sans', sans-serif;
+  --nd-mono:   'Geist Mono', monospace;
+  --nd-blue:   #1546FF;
+  --nd-mint:   #3BE3A0;
+  --nd-green:  #12C985;
+  --nd-bg:     #F2F6FF;
+  --nd-ink:    #0A1330;
+  --nd-muted:  #5B6785;
+  --nd-line:   #E6ECF7;
+  --nd-line-2: #E1E8F5;
+  --nd-hint:   #9AA6BF;
+}
+.nds-sidebar, .nds-topbar { display: none; }
+
+@media (min-width: 901px) {
+  /* ── menu lateral ── */
+  .nds-sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; width: var(--dsb-sidebar-w); z-index: 40;
+    display: flex; flex-direction: column; gap: 4px; padding: 24px 16px 18px; overflow: hidden;
+    background: var(--nd-blue); color: #fff; font-family: var(--nd-font);
+  }
+  .nds-sidebar button { font-family: var(--nd-font); }
+  .nds-glow {
+    position: absolute; width: 420px; height: 420px; border-radius: 50%; left: -200px; bottom: -220px; pointer-events: none;
+    background: radial-gradient(circle, rgba(59,227,160,.35) 0%, rgba(59,227,160,0) 65%);
+  }
+  .nds-logo {
+    position: relative; display: flex; align-items: center; gap: 10px; padding: 0 8px 22px;
+    background: none; border: none; color: inherit; cursor: pointer; text-align: left;
+  }
+  .nds-logo .nancy-mark { width: 36px; height: 36px; }
+  .nds-logo-name { font: 800 24px var(--nd-font); letter-spacing: -.04em; }
+  .nds-nav { position: relative; display: flex; flex-direction: column; gap: 4px; }
+  .nds-item {
+    position: relative; display: flex; align-items: center; gap: 12px; width: 100%; height: 44px; padding: 0 12px;
+    border: none; border-radius: 12px; cursor: pointer; text-align: left;
+    background: transparent; color: rgba(255,255,255,.88); font: 600 14px var(--nd-font);
+  }
+  .nds-item.active { background: #fff; color: var(--nd-blue); }
+  .nds-item-label { flex: 1; }
+  .nds-badge { padding: 2px 8px; border-radius: 99px; background: var(--nd-mint); color: #06392A; font: 700 10.5px var(--nd-font); }
+  .nds-spacer { flex: 1; }
+  .nds-plan {
+    position: relative; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; padding: 14px;
+    border: none; border-radius: 16px; cursor: pointer; text-align: left; background: rgba(255,255,255,.12); color: #fff;
+  }
+  .nds-plan-title { display: flex; align-items: center; gap: 6px; font: 700 13px var(--nd-font); }
+  .nds-plan-ico { display: flex; color: var(--nd-mint); }
+  .nds-plan-text { font: 400 12px/1.4 var(--nd-font); opacity: .8; }
+  .nds-user {
+    position: relative; display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px;
+    border: none; border-radius: 14px; cursor: pointer; text-align: left; background: transparent; color: #fff;
+  }
+  .nds-user.active { background: rgba(255,255,255,.16); }
+  .nds-av {
+    width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden;
+    border-radius: 50%; background: #fff; color: var(--nd-blue); font: 800 14px var(--nd-font);
+  }
+  .nds-av img { width: 100%; height: 100%; object-fit: cover; }
+  .nds-user-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .nds-user-name { font: 700 13.5px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nds-user-sub { font: 400 12px var(--nd-font); opacity: .75; }
+  .nds-sidebar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  /* ── barra de cima ── */
+  .nds-topbar {
+    position: fixed; top: 0; left: var(--dsb-sidebar-w); right: 0; height: var(--dsb-topbar-h); z-index: 30;
+    display: flex; align-items: center; gap: 16px; padding: 0 32px;
+    background: var(--nd-bg); border-bottom: 1px solid var(--nd-line); font-family: var(--nd-font); color: var(--nd-ink);
+  }
+  .nds-topbar-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .nds-topbar-title { font: 800 24px var(--nd-font); letter-spacing: -.03em; color: var(--nd-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nds-topbar-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nds-search {
+    flex: none; width: 330px; height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    border: 1px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-hint);
+  }
+  .nds-search:focus-within { border-color: var(--nd-blue); }
+  .nds-search-input {
+    flex: 1; min-width: 0; border: none; outline: none; background: transparent; -webkit-appearance: none; appearance: none;
+    font: 500 13.5px var(--nd-font); color: var(--nd-ink);
+  }
+  .nds-search-input::placeholder { color: var(--nd-hint); opacity: 1; }
+  .nds-search-input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+  .nds-iconbtn {
+    position: relative; flex: none; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-blue); cursor: pointer;
+  }
+  .nds-bell-dot { position: absolute; top: 10px; right: 11px; width: 12px; height: 12px; border-radius: 50%; background: var(--nd-green); border: 2px solid #fff; }
+  .nds-newtx {
+    flex: none; height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px;
+    border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer;
+  }
+  .nds-iconbtn:focus-visible, .nds-newtx:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+  /* O design não tem o botão flutuante do chat: a Nancy IA abre pelo menu lateral. */
+  .agent-fab { display: none; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ad-* — Telas de acesso no desktop (design "Nancy Desktop"): painel azul à esquerda + painel branco à direita.
+   Boas-vindas (landing) = painel azul largo com título de 84px e dois cartões inclinados; as telas com formulário usam o
+   mesmo painel, mais estreito e com título de 60px. O protótipo é content-box: painel = 62% (ou 46%) + 2×56px de padding.
+   No protótipo o painel branco (conteúdo de 420px + 2×40) passa 65px da janela e os botões saem cortados; aqui o conteúdo
+   encolhe para caber (min(420px, 100%)) e o resto é idêntico.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ad-split { min-height: 100vh; min-height: 100dvh; display: flex; background: #fff; color: var(--nd-ink); font-family: var(--nd-font); }
+.ad-hero {
+  position: relative; flex: none; overflow: hidden; display: flex; flex-direction: column; gap: 26px;
+  padding: 44px 56px calc(44px + var(--ck-pad, 0px)); /* --ck-pad: só existe enquanto o aviso de cookies está aberto */
+  background: var(--nd-blue); color: #fff;
+}
+/* Nos 1440px do design vale exatamente 62% (ou 46%) + 112px. Em janelas menores o painel branco nunca fica com menos de 420px
+   (sem isso, aos 1024px o formulário ficava com 197px). */
+.ad-hero--landing { width: min(calc(62% + 112px), calc(100% - 420px)); }
+.ad-hero--form    { width: min(calc(46% + 112px), calc(100% - 420px)); }
+.ad-hero-glow {
+  position: absolute; width: 800px; height: 800px; border-radius: 50%; left: -260px; bottom: -460px; pointer-events: none;
+  background: radial-gradient(circle, rgba(59,227,160,.4) 0%, rgba(59,227,160,0) 65%);
+}
+.ad-brand { position: relative; display: flex; align-items: center; gap: 12px; }
+.ad-brand .nancy-mark { width: 44px; height: 44px; }
+.ad-brand-name { font: 800 28px var(--nd-font); letter-spacing: -.04em; }
+.ad-hero-main { position: relative; flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 22px; }
+/* 84px a partir de 1440px de largura (o do design); em janelas menores o título acompanha a largura */
+.ad-headline { font: 800 clamp(52px, 5.834vw, 84px)/.96 var(--nd-font); letter-spacing: -.05em; text-wrap: balance; }
+.ad-hero--form .ad-headline { font-size: clamp(44px, 4.167vw, 60px); }
+.ad-headline span { color: var(--nd-mint); }
+.ad-lead { max-width: 520px; font: 500 18px/1.5 var(--nd-font); opacity: .86; }
+.ad-cards { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
+.ad-card-balance {
+  width: 344px; display: flex; flex-direction: column; gap: 10px; padding: 22px; border-radius: 24px; /* 300 + 2×22 (content-box no protótipo) */
+  background: #fff; color: var(--nd-ink); transform: rotate(-3deg); box-shadow: 0 30px 60px rgba(7,19,48,.3);
+}
+.ad-card-label { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-card-value { font: 800 34px var(--nd-font); letter-spacing: -.03em; }
+.ad-card-bar { height: 8px; border-radius: 99px; background: #E9FBF2; }
+.ad-card-bar div { width: 68%; height: 100%; border-radius: 99px; background: var(--nd-green); }
+.ad-card-tags { display: flex; gap: 6px; }
+.ad-tag { padding: 4px 9px; border-radius: 99px; font: 600 11px var(--nd-font); }
+.ad-tag--blue  { background: #EEF3FF; color: var(--nd-blue); }
+.ad-tag--green { background: #E9FBF2; color: #087A52; }
+.ad-card-ai {
+  width: 296px; align-self: flex-end; display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 20px; /* 260 + 2×18 */
+  background: #071330; transform: rotate(3deg);
+}
+.ad-card-ai-title { display: flex; align-items: center; gap: 8px; font: 700 13px var(--nd-font); }
+.ad-card-ai-title > span { display: flex; color: var(--nd-mint); }
+.ad-card-ai-text { font: 500 14px/1.45 var(--nd-font); }
+.ad-card-ai-text b { color: var(--nd-mint); }
+.ad-pills { position: relative; display: flex; flex-wrap: wrap; gap: 10px; list-style: none; }
+.ad-pills li { padding: 8px 14px; border-radius: 99px; background: rgba(255,255,255,.14); font: 600 13px var(--nd-font); }
+
+.ad-panel { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; padding: 40px 40px calc(40px + var(--ck-pad, 0px)); background: #fff; }
+.ad-panel-inner { width: min(420px, 100%); display: flex; flex-direction: column; gap: 14px; }
+.ad-title { font: 800 40px/1.02 var(--nd-font); letter-spacing: -.04em; }
+.ad-sub { font: 400 15px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-btn-primary, .ad-btn-secondary {
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; text-decoration: none; cursor: pointer;
+}
+.ad-btn-primary   { height: 54px; padding: 0 20px; background: var(--nd-blue); color: #fff; font: 700 15px var(--nd-font); }
+/* 54px de miolo + 2×1,5px de borda (content-box no protótipo) */
+.ad-btn-secondary { height: 57px; padding: 0 18px; background: #fff; color: var(--nd-blue); border: 1.5px solid #C9D9FF; font: 600 14px var(--nd-font); }
+.ad-btn-primary:focus-visible, .ad-btn-secondary:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ad-legal { margin-top: 6px; text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-legal a { color: inherit; text-decoration: none; }
+.ad-legal a:hover, .ad-legal a:focus-visible { text-decoration: underline; }
+
+/* ── Entrar / formulários no desktop (tela 03): textos e campos do painel branco ── */
+.ad-back { display: flex; align-items: center; gap: 6px; align-self: flex-start; font: 600 13px var(--nd-font); color: var(--nd-muted); text-decoration: none; }
+.ad-back:hover { color: var(--nd-ink); }
+.ad-form-title { font: 800 36px/1.04 var(--nd-font); letter-spacing: -.04em; }
+.ad-form-sub { margin-bottom: 6px; font: 400 15px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-form { display: flex; flex-direction: column; gap: 14px; }
+.ad-field { display: flex; flex-direction: column; gap: 14px; }
+.ad-label { font: 600 12px var(--nd-font); color: var(--nd-muted); }
+.ad-input {
+  box-sizing: border-box; width: 100%; min-width: 0; height: 50px; padding: 0 14px; border-radius: 12px; outline: none;
+  background: #F4F7FC; border: 1.5px solid var(--nd-line-2); font: 500 14px var(--nd-font); color: var(--nd-ink);
+}
+/* o protótipo não define a cor do exemplo: vale a padrão do navegador (#757575 no Chrome; calibrado pela tinta do print) */
+.ad-input::placeholder { color: #757575; opacity: 1; }
+.ad-input:focus { border-color: var(--nd-blue); background: #fff; }
+.ad-input.err { border-color: #D6334A; }
+.ad-error { font: 500 13px var(--nd-font); color: #D6334A; }
+.ad-field .ad-error { margin-top: -8px; } /* erro do campo fica colado nele (o erro geral segue o ritmo de 14px do design) */
+.ad-forgot { align-self: flex-end; font: 600 13px var(--nd-font); color: var(--nd-blue); text-decoration: none; }
+.ad-forgot:hover { text-decoration: underline; }
+/* botões das telas com formulário: Entrar 52px; o secundário 52 + 2×1,5 de borda (content-box no protótipo) */
+.ad-btn--form.ad-btn-primary   { height: 52px; font-size: 14px; border: none; }
+.ad-btn--form.ad-btn-secondary { height: 55px; }
+.ad-btn-primary:disabled, .ad-btn-secondary:disabled { cursor: not-allowed; }
+.ad-btn-secondary:disabled { opacity: .55; }
+.ad-btn-primary:disabled { opacity: .75; }
+.ad-or { display: flex; align-items: center; gap: 10px; font: 500 12px var(--nd-font); color: var(--nd-hint); }
+.ad-or::before, .ad-or::after { content: ''; flex: 1; height: 1px; background: var(--nd-line-2); }
+.ad-foot { text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ad-foot a { color: var(--nd-blue); font-weight: 700; text-decoration: none; }
+.ad-foot a:hover { text-decoration: underline; }
+.ad-notice { padding: 10px 14px; border-radius: 12px; background: #E9FBF2; color: #087A52; font: 500 13px/1.5 var(--nd-font); }
+
+/* ── Criar conta no desktop (tela 04): força da senha e aceite dos termos ── */
+.ad-strength { display: flex; align-items: center; gap: 10px; }
+.ad-strength-track { flex: 1; height: 6px; border-radius: 99px; background: #EEF3FF; overflow: hidden; }
+.ad-strength-track div { height: 100%; border-radius: 99px; transition: width .3s; }
+.ad-strength-label { font: 600 12px var(--nd-font); }
+.ad-terms { position: relative; display: flex; align-items: center; gap: 10px; cursor: pointer; font: 400 13px/1.4 var(--nd-font); color: #2A3555; }
+.ad-terms a { color: inherit; text-decoration: none; }
+.ad-terms a:hover, .ad-terms a:focus-visible { text-decoration: underline; }
+/* z-index: o ícone escondido (opacity) também cria camada e, vindo depois no HTML, ficava por cima da caixa de clique */
+.ad-terms-input { position: absolute; z-index: 1; opacity: 0; width: 25px; height: 25px; margin: 0; cursor: pointer; }
+/* 22px de miolo + 2×1,5px de borda = 25px (content-box no protótipo) */
+.ad-terms-box {
+  flex: none; width: 25px; height: 25px; display: flex; align-items: center; justify-content: center; border-radius: 7px;
+  background: #fff; border: 1.5px solid #C9D9FF; color: #fff;
+}
+.ad-terms-box svg { opacity: 0; }
+.ad-terms-input:checked + .ad-terms-box { background: var(--nd-blue); border-color: var(--nd-blue); }
+.ad-terms-input:checked + .ad-terms-box svg { opacity: 1; }
+.ad-terms-input:focus-visible + .ad-terms-box { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ── Esqueci a senha no desktop (tela 05): aviso de e-mail enviado ── */
+.ad-sent { display: flex; align-items: center; gap: 12px; padding: 18px; border-radius: 16px; background: #E9FBF2; color: #087A52; font: 600 14px/1.45 var(--nd-font); }
+
+/* ── Confirme seu e-mail no desktop (tela 06) ── */
+/* campo do código: 72px, centralizado, Geist Mono 32px/700 com .4em de espaço entre os dígitos (como no protótipo) */
+.ad-code { height: 72px; padding: 0 14px; text-align: center; font: 700 32px var(--nd-mono); letter-spacing: .4em; }
+.ad-link-center { align-self: center; padding: 0; background: none; border: none; cursor: pointer; font: 600 13px var(--nd-font); color: var(--nd-blue); }
+.ad-link-center:hover { text-decoration: underline; }
+.ad-ok-msg { font: 600 13px var(--nd-font); color: #087A52; }
+.ad-sent--err { background: #FDECEF; color: #D6334A; }
+.ad-wait { display: flex; align-items: center; gap: 12px; font: 600 14px var(--nd-font); color: var(--nd-muted); }
+.ad-spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid #E1E8F5; border-top-color: var(--nd-blue); animation: lauth-spin .7s linear infinite; }
+
+/* ── Primeiros passos no desktop (tela 07): tela cheia com o painel azul, pontinhos de etapa e atalhos ── */
+.ad-ob { position: fixed; inset: 0; z-index: 1000; overflow: auto; background: #fff; }
+.ad-dots { display: flex; gap: 6px; }
+.ad-dot { height: 8px; width: 10px; border-radius: 99px; background: var(--nd-line-2); transition: width .3s, background .3s; }
+.ad-dot.on { background: var(--nd-blue); }
+.ad-dot.cur { width: 32px; }
+/* valor do salário: 64px e 26px/800 (o campo é numérico: sem as setinhas do navegador) */
+.ad-money { height: 64px; font: 800 26px var(--nd-font); -moz-appearance: textfield; appearance: textfield; }
+.ad-money::placeholder { font-weight: 800; }
+.ad-money::-webkit-outer-spin-button, .ad-money::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.ad-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ad-chip { padding: 8px 12px; border: none; border-radius: 99px; background: #EEF3FF; color: var(--nd-blue); font: 600 12.5px var(--nd-font); cursor: pointer; }
+.ad-chip--green { background: #E9FBF2; color: #087A52; }
+.ad-chip:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ad-skip { align-self: center; padding: 0; background: none; border: none; cursor: pointer; font: 600 13px var(--nd-font); color: var(--nd-muted); }
+.ad-skip:hover { text-decoration: underline; }
+.ad-skip:disabled { cursor: not-allowed; opacity: .6; }
+.ad-btn--next { margin-top: 8px; }
+.ad-added { display: flex; align-items: center; gap: 6px; font: 600 13px var(--nd-font); color: #087A52; }
+.ad-warn { font: 500 13px var(--nd-font); color: #B26A00; }
+button.ad-back { background: none; border: none; padding: 0; cursor: pointer; }
+button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndh-* — Início no desktop (design "Nancy Desktop", tela 08): saldo + resumos + números + últimas transações à esquerda;
+   saúde financeira, próximas contas e Nancy IA na coluna de 320px. Tamanhos do protótipo (content-box): caixas sem padding/borda
+   próprios (52, 40, 150, 230) valem como estão; os cartões brancos têm padding 22 + borda 1.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndh-pwnav { background: var(--nd-bg); }
+.ndh-page { flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndh-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+.ndh-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.ndh-side { display: flex; flex-direction: column; gap: 20px; }
+
+/* saldo */
+.ndh-hero { position: relative; overflow: hidden; display: flex; align-items: flex-end; gap: 24px; padding: 26px 28px; border-radius: 24px; background: var(--nd-blue); color: #fff; }
+.ndh-hero-glow { position: absolute; width: 500px; height: 500px; border-radius: 50%; right: -160px; top: -240px; pointer-events: none; background: radial-gradient(circle, rgba(59,227,160,.4) 0%, rgba(59,227,160,0) 65%); }
+.ndh-hero-bal { position: relative; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.ndh-hero-lbl { font: 500 14px var(--nd-font); opacity: .8; }
+.ndh-hero-val { font: 800 48px var(--nd-font); letter-spacing: -.04em; white-space: nowrap; }
+.ndh-hero-badge { align-self: flex-start; padding: 5px 12px; border-radius: 99px; background: var(--nd-mint); color: #06392A; font: 700 12.5px var(--nd-font); }
+.ndh-hero-badge.neg { background: #FFD9DE; color: #8A1426; }
+.ndh-quick { position: relative; display: flex; gap: 10px; }
+.ndh-quick-btn { width: 92px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; background: none; border: none; color: inherit; cursor: pointer; font-family: var(--nd-font); }
+.ndh-quick-ico { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: rgba(255,255,255,.16); color: #fff; }
+.ndh-quick-ico.white { background: #fff; color: var(--nd-blue); }
+.ndh-quick-lbl { font: 600 12.5px var(--nd-font); }
+.ndh-quick-btn:focus-visible .ndh-quick-ico { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* carrossel de resumos (230px) */
+.ndh-story { position: relative; overflow: hidden; height: 230px; border-radius: 24px; color: #fff; transition: background .6s; }
+.ndh-story-bars { position: absolute; top: 16px; left: 24px; right: 24px; z-index: 2; display: flex; gap: 6px; }
+.ndh-story-bar { flex: 1; height: 4px; padding: 0; border: none; border-radius: 9px; background: rgba(255,255,255,.3); overflow: hidden; cursor: pointer; }
+.ndh-story-fill { display: block; height: 100%; border-radius: 9px; background: #fff; transform-origin: left; transform: scaleX(0); }
+.ndh-story-fill.done { transform: scaleX(1); }
+.ndh-story-fill.cur { animation: ndh-bar linear forwards; }
+@keyframes ndh-bar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.ndh-story-body { position: absolute; inset: 0; display: flex; align-items: center; gap: 28px; padding: 42px 28px 24px; background: none; border: none; color: inherit; text-align: left; cursor: pointer; font-family: var(--nd-font); }
+.ndh-story-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; animation: nzIn .5s; }
+.ndh-story-kicker { display: flex; align-items: center; gap: 8px; font: 600 11.5px var(--nd-mono); letter-spacing: .14em; opacity: .85; }
+.ndh-story-title { font: 800 36px/1.02 var(--nd-font); letter-spacing: -.04em; text-wrap: balance; }
+.ndh-story-sub { font: 500 14.5px var(--nd-font); opacity: .85; }
+.ndh-story-value { flex: none; font: 800 54px var(--nd-font); letter-spacing: -.05em; animation: nzIn .5s; }
+.ndh-story-foot { position: absolute; right: 20px; bottom: 16px; z-index: 2; display: flex; align-items: center; gap: 8px; font: 600 12px var(--nd-font); }
+.ndh-story-foot > span { opacity: .8; }
+.ndh-story-all { padding: 7px 12px; border: none; border-radius: 99px; background: rgba(255,255,255,.18); color: #fff; font: 600 12px var(--nd-font); cursor: pointer; }
+@keyframes nzIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ndh-story-fill.cur { animation-duration: 0s !important; transform: scaleX(1); } .ndh-story-text, .ndh-story-value { animation: none; } }
+
+/* números */
+.ndh-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ndh-stat { min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndh-stat-lbl { display: flex; align-items: center; gap: 8px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+.ndh-stat-val { font: 700 24px var(--nd-mono); letter-spacing: -.02em; }
+.ndh-stat-note { font: 500 12px var(--nd-font); white-space: pre; }
+
+/* cartões brancos */
+.ndh-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndh-card-head { display: flex; justify-content: space-between; align-items: center; }
+.ndh-card-title { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndh-link { padding: 0; background: none; border: none; font: 600 13px var(--nd-font); color: var(--nd-blue); cursor: pointer; }
+.ndh-link:hover { text-decoration: underline; }
+.ndh-empty { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-rows { list-style: none; display: flex; flex-direction: column; }
+.ndh-row { display: grid; grid-template-columns: 44px minmax(0, 1.6fr) minmax(0, 1fr) 90px 130px; align-items: center; gap: 14px; padding: 12px 0; border-top: 1px solid #EEF2F8; }
+.ndh-row-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndh-row-ico.inc { background: #E9FBF2; color: #087A52; }
+.ndh-row-desc { font: 600 14px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndh-row-cat { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-row-date { font: 500 12.5px var(--nd-mono); color: var(--nd-hint); }
+.ndh-row-amt { font: 600 14px var(--nd-mono); text-align: right; color: var(--nd-ink); }
+.ndh-row-amt.inc { color: #087A52; }
+
+/* coluna da direita */
+.ndh-health { align-items: center; text-align: center; }
+.ndh-health-title { align-self: flex-start; }
+.ndh-ring { position: relative; width: 150px; height: 150px; }
+.ndh-ring-in { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ndh-ring-num { font: 800 44px var(--nd-font); letter-spacing: -.04em; }
+.ndh-ring-tag { font: 600 12px var(--nd-font); }
+.ndh-health-note { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-bills { gap: 0; }
+.ndh-bills .ndh-card-title { padding-bottom: 8px; }
+.ndh-bills .ndh-empty { padding: 6px 0 4px; }
+.ndh-bill { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid #EEF2F8; }
+.ndh-bill-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ndh-bill-name { font: 600 14px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndh-bill-when { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-bill-val { font: 600 14px var(--nd-mono); }
+.ndh-nancy { display: flex; flex-direction: column; gap: 12px; padding: 20px; border: none; border-radius: 20px; background: #071330; color: #fff; text-align: left; cursor: pointer; font-family: var(--nd-font); }
+.ndh-nancy-title { display: flex; align-items: center; gap: 8px; font: 700 14px var(--nd-font); }
+.ndh-nancy-title > span { display: flex; color: var(--nd-mint); }
+.ndh-nancy-text { font: 500 15px/1.45 var(--nd-font); }
+.ndh-nancy-text b { color: var(--nd-mint); }
+.ndh-nancy-text b.neg { color: #FF9AA6; }
+.ndh-nancy-cta { font: 600 13px var(--nd-font); color: #93F0CB; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndsv-* — Resumo em stories no desktop (design "Nancy Desktop", tela 09): quatro conjuntos em cartões e o visualizador de 560px.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndsv-page { flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndsv-sets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.ndsv-set { min-width: 0; display: flex; align-items: center; gap: 14px; padding: 22px; border: 2px solid var(--nd-line); border-radius: 20px; background: #fff; text-align: left; cursor: pointer; font-family: var(--nd-font); color: var(--nd-ink); }
+.ndsv-set.sel { border-color: var(--nd-blue); }
+.ndsv-set:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ndsv-set-ico { width: 48px; height: 48px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; font: 800 13px var(--nd-font); }
+.ndsv-set-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ndsv-set-name { font: 700 14px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndsv-set-n { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+
+.ndsv-viewer { position: relative; overflow: hidden; height: 560px; border-radius: 28px; color: #fff; transition: background .6s; }
+.ndsv-hit { position: absolute; inset: 0; z-index: 1; padding: 0; border: none; background: none; cursor: pointer; }
+.ndsv-bars { position: absolute; top: 24px; left: 36px; right: 36px; z-index: 2; display: flex; gap: 8px; }
+.ndsv-bar { flex: 1; height: 5px; padding: 0; border: none; border-radius: 9px; background: rgba(255,255,255,.3); overflow: hidden; cursor: pointer; }
+.ndsv-fill { display: block; height: 100%; border-radius: 9px; background: #fff; transform-origin: left; transform: scaleX(0); }
+.ndsv-fill.done { transform: scaleX(1); }
+.ndsv-fill.cur { animation: ndh-bar linear forwards; }
+@media (prefers-reduced-motion: reduce) { .ndsv-fill.cur { animation-duration: 0s !important; transform: scaleX(1); } }
+.ndsv-head { position: absolute; top: 46px; left: 36px; z-index: 2; display: flex; align-items: center; gap: 10px; pointer-events: none; }
+.ndsv-head .nancy-mark { width: 34px; height: 34px; }
+.ndsv-head-name { font: 700 14px var(--nd-font); }
+.ndsv-head-by { font: 500 13px var(--nd-font); opacity: .7; }
+.ndsv-pause { position: absolute; top: 40px; right: 36px; z-index: 2; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 50%; background: rgba(255,255,255,.18); color: #fff; cursor: pointer; }
+.ndsv-body { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 120px 60px 60px; pointer-events: none; }
+.ndsv-kicker { font: 600 14px var(--nd-mono); letter-spacing: .16em; opacity: .85; animation: nzIn .5s; }
+.ndsv-title { max-width: 900px; font: 800 72px/.98 var(--nd-font); letter-spacing: -.05em; text-wrap: balance; animation: nzIn .5s; }
+.ndsv-value { font: 800 96px var(--nd-font); letter-spacing: -.05em; animation: nzIn .6s; }
+.ndsv-sub { font: 500 20px var(--nd-font); opacity: .88; animation: nzIn .7s; }
+.ndsv-actions { position: relative; z-index: 2; display: flex; gap: 12px; margin-top: 10px; pointer-events: auto; }
+.ndsv-btn { height: 48px; padding: 0 22px; border: none; border-radius: 12px; background: #fff; color: var(--nd-blue); font: 700 14px var(--nd-font); cursor: pointer; pointer-events: auto; }
+.ndsv-btn--ghost { background: rgba(255,255,255,.18); color: #fff; }
+.ndsv-btn:disabled { opacity: .7; cursor: not-allowed; }
+.ndsv-btn:focus-visible, .ndsv-pause:focus-visible, .ndsv-bar:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .ndsv-kicker, .ndsv-title, .ndsv-value, .ndsv-sub { animation: none; } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nds-tabs — abas do alto das telas de um mesmo assunto no desktop (Extrato · Contas do mês · Parceladas · Análise).
+   ndx-* — Extrato no desktop (design "Nancy Desktop", tela 10): cartão com pílulas, busca e tabela de 5 colunas (as linhas
+   usam as classes ndh-row-* do Início). O padding do protótipo é content-box: a barra de abas mede 46 (5+34+5 + 2 de borda).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nds-tabs { display: flex; gap: 6px; padding: 5px; align-self: flex-start; border-radius: 14px; background: #fff; border: 1px solid var(--nd-line); font-family: var(--nd-font); }
+.nds-tab { display: flex; align-items: center; gap: 7px; padding: 9px 14px; border: none; border-radius: 10px; background: transparent; color: var(--nd-muted); font: 600 13px var(--nd-font); cursor: pointer; }
+.nds-tab.on { background: var(--nd-blue); color: #fff; cursor: default; }
+.nds-tab:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+.ndx-page { flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 24px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndx-toprow { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.ndx-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 18px; min-width: 0; }
+.ndx-month { display: flex; align-items: center; gap: 6px; }
+.ndx-month-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--nd-line); border-radius: 10px; background: #fff; color: var(--nd-ink); cursor: pointer; }
+.ndx-month-btn--next svg { transform: scaleX(-1); }
+.ndx-month-btn:disabled { opacity: .4; cursor: not-allowed; }
+.ndx-month-btn:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ndx-month-lbl { min-width: 104px; text-align: center; font: 700 14px var(--nd-font); }
+.ndx-sum { display: flex; gap: 20px; margin: 0; }
+.ndx-sum div { display: flex; flex-direction: column; gap: 1px; }
+.ndx-sum dt { font: 600 12px var(--nd-font); color: var(--nd-muted); }
+.ndx-sum dd { margin: 0; font: 600 14px var(--nd-mono); color: var(--nd-ink); }
+.ndx-sum dd.ndx-sum-res.pos { color: #087A52; }
+.ndx-sum dd.ndx-sum-res.neg { color: #C2312B; }
+.ndx-sum-note { flex-basis: 100%; margin: 0; text-align: right; font: 400 12px/1.4 var(--nd-font); color: var(--nd-muted); }
+
+.ndx-card { display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndx-filters { display: flex; align-items: center; gap: 10px; }
+.ndx-pill { padding: 9px 16px; border: none; border-radius: 99px; background: #F4F7FC; color: #2A3555; font: 600 13px var(--nd-font); cursor: pointer; }
+.ndx-pill.on { background: var(--nd-blue); color: #fff; }
+.ndx-pill:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ndx-spacer { flex: 1; }
+.ndx-search { width: 260px; height: 46px; min-width: 0; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndx-search:focus { border-color: var(--nd-blue); }
+.ndx-search::placeholder { color: #757575; }
+.ndx-thead { display: grid; grid-template-columns: 44px minmax(0, 1.6fr) minmax(0, 1fr) 90px 130px; gap: 14px; padding-top: 6px; font: 600 12px var(--nd-font); color: var(--nd-muted); }
+.ndx-thead .r { text-align: right; }
+.ndx-rows { list-style: none; display: flex; flex-direction: column; margin: 0; padding: 0; }
+.ndx-row { position: relative; border-top: 1px solid #EEF2F8; }
+.ndx-row-main { width: 100%; display: grid; grid-template-columns: 44px minmax(0, 1.6fr) minmax(0, 1fr) 90px 130px; align-items: center; gap: 14px; padding: 12px 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndx-row-main:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; border-radius: 12px; }
+/* remover fica na margem do cartão (fora da tabela, que não muda), visível ao passar o mouse ou focar a linha */
+.ndx-del { position: absolute; right: -20px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 50%; background: none; color: var(--nd-hint); cursor: pointer; opacity: 0; transition: opacity .12s; }
+.ndx-row:hover .ndx-del, .ndx-row:focus-within .ndx-del, .ndx-del:focus-visible { opacity: 1; }
+.ndx-del:hover { color: #C2312B; }
+.ndx-empty { padding: 28px 0; }
+.ndx-none { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px 0; text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndx-none strong { font: 700 14px var(--nd-font); color: var(--nd-ink); }
+.ndx-link { margin-top: 6px; padding: 0; border: none; background: none; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.ndx-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.ndx-ghost { height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-ink); font: 600 13px var(--nd-font); cursor: pointer; }
+.ndx-ghost:disabled { opacity: .5; cursor: not-allowed; }
+.ndx-ghost:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ntx-d — folha "Nova transação" no desktop (design "Nancy Desktop", tela 11): cartão de 576px (520 + 28 de respiro de cada lado)
+   centralizado sobre a tela, com véu desfocado que cobre também o menu. Só vale com .ntx-d (TransactionForm no desktop);
+   o celular segue com a folha que sobe do rodapé. O valor é uma caixa de 64px, como o campo único do design.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.modal-overlay.movl.ntx-overlay.ntx-d {
+  background: rgba(7,19,48,.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  align-items: center; justify-content: center; padding: 20px;
+}
+.ntx-d .modal.ntx-sheet {
+  width: 576px; max-width: 100%; box-sizing: border-box; padding: 28px; border-radius: 26px; max-height: calc(100dvh - 40px);
+  display: flex; flex-direction: column; gap: 14px; font-family: var(--nd-font); color: var(--nd-ink);
+  box-shadow: none; animation: nzIn .25s;
+}
+.ntx-d .ntx-handle { display: none; }
+.ntx-d .ntx-head { margin: 0; }
+.ntx-d .ntx-title { font: 800 24px var(--nd-font); letter-spacing: -.03em; color: var(--nd-ink); }
+.ntx-d .ntx-close { width: 28px; height: 28px; color: var(--nd-hint); }
+.ntx-d .ntx-close:hover { background: var(--nd-bg); color: var(--nd-muted); }
+.ntx-d .ntx-close svg { width: 18px; height: 18px; }
+.ntx-d form { display: flex; flex-direction: column; gap: 14px; }
+.ntx-d .ntx-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin: 0; border-radius: 14px; background: #F4F7FC; }
+.ntx-d .ntx-seg-btn { height: 42px; border-radius: 10px; color: var(--nd-muted); font: 700 14px var(--nd-font); }
+.ntx-d .ntx-seg-btn.on { background: var(--nd-blue); color: #fff; }
+.ntx-d .ntx-seg-btn.on.inc { background: var(--nd-green); }
+.ntx-d .ntx-amount-row {
+  display: flex; align-items: center; gap: 8px; height: 64px; box-sizing: border-box; margin: 0; padding: 0 14px;
+  border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC;
+}
+.ntx-d .ntx-amount-row:focus-within, .ntx-d .ntx-field:focus { border-color: var(--nd-blue); box-shadow: none; }
+.ntx-d .ntx-currency { font: 800 28px var(--nd-font); color: var(--nd-ink); letter-spacing: 0; }
+.ntx-d .ntx-amount-row:has(.ntx-amount:placeholder-shown) .ntx-currency { color: #757575; }
+.ntx-d .ntx-amount { font: 800 28px var(--nd-font); letter-spacing: 0; color: var(--nd-ink); }
+.ntx-d .ntx-amount::placeholder { color: #757575; }
+.ntx-d .ntx-field {
+  height: 46px; margin: 0; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC;
+  color: var(--nd-ink); font: 500 14px var(--nd-font);
+}
+.ntx-d .ntx-field::placeholder { color: #757575; }
+.ntx-d .ntx-chips { gap: 6px; margin: 0; }
+.ntx-d .ntx-chip { height: auto; gap: 6px; padding: 8px 12px; border-radius: 99px; background: #F4F7FC; color: #2A3555; font: 600 12.5px var(--nd-font); }
+.ntx-d .ntx-chip svg { color: inherit; }
+.ntx-d .ntx-chip.on { background: var(--nd-blue); color: #fff; }
+.ntx-d .ntx-error { margin: 0; padding: 0; background: none; border-radius: 0; color: #D6334A; font: 500 13px var(--nd-font); }
+.ntx-d .ntx-save { height: 52px; border-radius: 12px; background: var(--nd-blue); font: 700 14px var(--nd-font); }
+.ntx-d .ntx-chip:focus-visible, .ntx-d .ntx-seg-btn:focus-visible, .ntx-d .ntx-save:focus-visible, .ntx-d .ntx-close:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndp-* — Planilha IA (design "Nancy Desktop", tela 12): barra com selo de sincronia, previsão e exportar; tabela de cinco
+   colunas (três meses reais, o atual editável, dois de previsão em verde) ao lado de dois cartões de 320px.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndp-page { flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 24px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndp-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 2.5px; } /* no print a tabela começa 2,5px mais abaixo */
+.ndp-spacer { flex: 1; }
+.ndp-sync { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 99px; background: #E9FBF2; color: #087A52; font: 600 13px var(--nd-font); }
+.ndp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nd-green); animation: ndpPulse 1.6s infinite; }
+@keyframes ndpPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .ndp-dot { animation: none; } }
+.ndp-fc { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 99px; background: #fff; border: 1px solid var(--nd-line-2); font: 600 13px var(--nd-font); cursor: pointer; }
+.ndp-switch { width: 44px; height: 26px; flex: none; box-sizing: border-box; padding: 3px; border: none; border-radius: 99px; background: #C9D3E8; cursor: pointer; display: block; }
+.ndp-switch.on { background: var(--nd-green); }
+.ndp-switch span { display: block; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: margin .2s; margin-left: 0; }
+.ndp-switch.on span { margin-left: 18px; }
+.ndp-switch:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ndp-export { height: 46px; padding: 0 18px; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; border: 1.5px solid #C9D9FF; background: #fff; color: var(--nd-blue); font: 600 14px var(--nd-font); cursor: pointer; }
+.ndp-export:disabled { opacity: .6; cursor: progress; }
+.ndp-export:focus-visible, .ndp-btn:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+.ndp-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+.ndp-card { min-width: 0; background: #fff; border: 1px solid var(--nd-line); border-radius: 20px; }
+.ndp-table { overflow: hidden; }
+.ndp-scroll { overflow-x: auto; }
+.ndp-inner { min-width: 560px; }
+.ndp-row { display: grid; }
+.ndp-head { background: #071330; color: #fff; font: 600 12px var(--nd-mono); letter-spacing: .06em; }
+.ndp-head > span { padding: 12px 14px; text-align: right; }
+.ndp-head > span:first-child { padding: 12px 16px; text-align: left; }
+.ndp-th.current { background: var(--nd-blue); }
+.ndp-th.forecast { background: rgba(18,201,133,.25); color: #93F0CB; }
+.ndp-spark { display: inline-flex; margin-left: 6px; vertical-align: -1px; }
+/* no design cada linha (item ou faixa de seção) mede 50px */
+.ndp-sec { min-height: 50px; align-items: center; background: #F4F7FC; border-top: 1px solid var(--nd-line); color: var(--sec); }
+.ndp-sec > span:first-child { display: flex; align-items: center; gap: 8px; padding: 10px 16px; font: 700 12.5px var(--nd-font); }
+.ndp-sec > span:first-child i { width: 8px; height: 8px; border-radius: 2px; background: var(--sec); }
+.ndp-sec .ndp-cell { padding: 10px 14px; font: 700 12.5px var(--nd-mono); color: var(--sec); }
+.ndp-cell { padding: 9px 14px; text-align: right; font: 500 13px var(--nd-mono); color: var(--nd-muted); }
+.ndp-cell.forecast { color: #087A52; background: rgba(18,201,133,.06); }
+.ndp-item { min-height: 50px; align-items: center; border-top: 1px solid #EEF2F8; background: #fff; transition: background 1.4s; }
+.ndp-item.flash { background: #D7F8E9; transition: none; }
+.ndp-name { display: flex; align-items: center; gap: 8px; padding: 9px 16px; font: 500 13.5px var(--nd-font); min-width: 0; }
+.ndp-name em { padding: 1px 7px; border-radius: 99px; background: var(--nd-green); color: #fff; font: 700 10px var(--nd-font); font-style: normal; }
+.ndp-cell.current { padding: 0; }
+.ndp-cur { width: 100%; box-sizing: border-box; min-width: 0; padding: 9px 14px; border: none; outline: none; background: #FBFCFF; text-align: right; font: 600 13px var(--nd-mono); color: var(--nd-ink); box-shadow: inset 1px 0 0 var(--nd-line), inset -1px 0 0 var(--nd-line); }
+.ndp-cur:not([readonly]):focus { background: #fff; box-shadow: inset 0 0 0 2px var(--nd-blue); }
+.ndp-sec .ndp-cell.current { padding: 10px 14px; }
+.ndp-net { background: var(--nd-blue); color: #fff; }
+.ndp-net > span:first-child { padding: 14px 16px; font: 800 14px var(--nd-font); }
+.ndp-net .ndp-cell { padding: 14px; font: 700 14px var(--nd-mono); color: #fff; background: none; }
+.ndp-net .ndp-cell.forecast { color: #93F0CB; }
+
+.ndp-side { display: flex; flex-direction: column; gap: 16px; }
+.ndp-how, .ndp-add { display: flex; flex-direction: column; gap: 14px; padding: 22px; }
+.ndp-how h2 { display: flex; align-items: center; gap: 8px; margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndp-how h2 > span { display: flex; color: var(--nd-green); }
+.ndp-how p, .ndp-feed-empty { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndp-feed { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 0; }
+.ndp-feed li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #F4F7FC; animation: nzIn .4s; }
+.ndp-feed li.new { background: #E9FBF2; }
+.ndp-feed i { width: 8px; height: 8px; margin-top: 6px; flex: none; border-radius: 50%; background: #C9D9FF; }
+.ndp-feed li.new i { background: var(--nd-green); }
+.ndp-feed div { display: flex; flex-direction: column; gap: 2px; }
+.ndp-feed span { font: 600 13px/1.4 var(--nd-font); }
+.ndp-feed small { font: 500 11.5px var(--nd-font); color: var(--nd-hint); }
+.ndp-add h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndp-input { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndp-input:focus { border-color: var(--nd-blue); }
+.ndp-input::placeholder { color: #757575; }
+.ndp-err { font: 500 13px var(--nd-font); color: #D6334A; }
+.ndp-btn { height: 46px; padding: 0 20px; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndp-btn:disabled { opacity: .7; cursor: progress; }
+.ndp-loading { padding: 80px 0; }
+.ndp-lock { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 460px; margin-top: 60px; padding: 36px 32px; text-align: center; background: #fff; border: 1px solid var(--nd-line); border-radius: 20px; }
+.ndp-lock-ico { width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: #EEF3FF; color: var(--nd-blue); }
+.ndp-lock h2 { margin: 0; font: 800 20px var(--nd-font); letter-spacing: -.02em; }
+.ndp-lock p { margin: 0; font: 400 14px/1.55 var(--nd-font); color: var(--nd-muted); }
+.ndp-lock .ndp-btn { margin-top: 6px; }
+@media (max-width: 900px) {
+  .ndp-page { padding: 16px 16px 96px; }
+  .ndp-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* atalho da Planilha IA na coluna da direita do Início (tela 08): cartão em linha, ícone verde e seta */
+.ndh-sheet { flex-direction: row; align-items: center; text-align: left; cursor: pointer; font-family: var(--nd-font); color: var(--nd-ink); }
+.ndh-sheet-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ndh-sheet-name { font: 700 14px var(--nd-font); }
+.ndh-sheet-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndh-sheet:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nia-page — Nancy IA no desktop (design "Nancy Desktop", tela 13): lista de conversas de 260px e o chat, lado a lado, ocupando
+   a altura da tela. As classes nia-* do painel do celular são reaproveitadas; aqui, escopadas em .nia-page, ganham as cores do desktop.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nia-slot { flex: 1; display: flex; flex-direction: column; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.nia-page { flex: 1; display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; min-height: 740px; height: calc(100dvh - var(--dsb-topbar-h) - 66px); }
+.nia-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; overflow-y: auto; }
+.nia-new { height: 46px; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nia-new:disabled { opacity: .6; cursor: default; }
+.nia-recent-title { padding-top: 10px; font: 600 12px var(--nd-font); color: var(--nd-muted); }
+.nia-recent { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; }
+.nia-conv { width: 100%; padding: 10px 12px; border: none; border-radius: 12px; background: transparent; color: var(--nd-ink); text-align: left; font: 600 13.5px var(--nd-font); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nia-conv.on { background: #EEF3FF; color: var(--nd-blue); }
+.nia-conv:disabled { cursor: default; opacity: .7; }
+.nia-recent-empty { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nia-new:focus-visible, .nia-conv:focus-visible, .nia-page .nia-suggestion:focus-visible, .nia-page .nia-send:focus-visible, .nia-page .nia-mic:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+.nia-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nia-main-head { display: flex; align-items: center; gap: 12px; padding: 16px 22px; border-bottom: 1px solid #EEF2F8; }
+.nia-page .nia-name { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nia-page .nia-status { display: flex; align-items: center; gap: 5px; font: 600 12px var(--nd-font); color: var(--nd-green); }
+.nia-page .nia-dot { background: var(--nd-green); }
+.nia-page .nia-head-txt { display: flex; flex-direction: column; gap: 2px; }
+.nia-page .nia-msgs { flex: 1; min-height: 0; padding: 24px; gap: 14px; background: #FBFCFF; }
+.nia-page .nia-bubble { max-width: 592px; padding: 13px 16px; border-radius: 18px 18px 18px 6px; background: #EEF3FF; color: var(--nd-ink); font: 500 14.5px/1.5 var(--nd-font); animation: nzIn .3s; }
+.nia-page .nia-msg.user .nia-bubble { border-radius: 18px 18px 6px 18px; background: var(--nd-blue); color: #fff; }
+.nia-page .nia-msg.err .nia-bubble { background: #FDECEF; color: #B42318; }
+.nia-page .nia-col { max-width: 592px; }
+.nia-page .nia-typing span { background: var(--nd-blue); }
+.nia-page .nia-suggestions { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.nia-page .nia-suggestion { padding: 10px 14px; border: 1.5px solid #C9D9FF; border-radius: 99px; background: #fff; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.nia-page .nia-suggestion:hover { background: #F4F7FF; }
+.nia-page .nia-upgrade { align-self: flex-start; padding: 10px 16px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nia-page .nia-act-yes, .nia-page .nia-act-no { height: 38px; padding: 0 16px; border-radius: 10px; font: 700 13px var(--nd-font); cursor: pointer; }
+.nia-page .nia-act-yes { border: none; background: var(--nd-blue); color: #fff; }
+.nia-page .nia-act-no { border: 1.5px solid #C9D9FF; background: #fff; color: var(--nd-blue); }
+.nia-page .nia-table th, .nia-page .nia-table td { border-bottom-color: #E1E8F5; }
+.nia-page .nia-voice-error { margin: 0 22px 10px; padding: 10px 14px; border-radius: 12px; background: #FDECEF; color: #B42318; font: 500 13px var(--nd-font); }
+.nia-page .nia-voice-error button { color: #B42318; }
+.nia-page .nia-voice-error button:hover { background: rgba(180,35,24,.1); }
+.nia-page .nia-input-bar { gap: 10px; padding: 16px 22px; border-top: 1px solid #EEF2F8; background: #fff; }
+.nia-page .nia-input { height: 50px; min-height: 50px; box-sizing: border-box; padding: 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); resize: none; overflow: hidden; outline: none; }
+.nia-page .nia-input:focus { border-color: var(--nd-blue); box-shadow: none; }
+.nia-page .nia-input::placeholder { color: #757575; }
+.nia-page .nia-input.voice-active::placeholder { color: #D6334A; }
+.nia-page .nia-mic, .nia-page .nia-send { width: 50px; height: 50px; border-radius: 14px; }
+.nia-page .nia-mic { background: #EEF3FF; color: var(--nd-blue); }
+.nia-page .nia-mic:hover { background: #E3EBFF; }
+.nia-page .nia-mic.listening { background: #D6334A; color: #fff; }
+.nia-page .nia-mic .agent-mic-spinner { border-color: rgba(21,70,255,.25); border-top-color: var(--nd-blue); }
+.nia-page .nia-send { background: var(--nd-green); color: #fff; }
+@media (prefers-reduced-motion: reduce) { .nia-page .nia-bubble { animation: none; } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndn-* — Notificações no desktop (design "Nancy Desktop", tela 14): cartão de até 906px (860 do design + 2×22 de respiro),
+   uma linha por aviso com ícone azul de 40px. Sem aviso, falha ao carregar e "Tudo em dia" usam o mesmo cartão.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndn-page { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndn-card { width: 100%; max-width: 906px; box-sizing: border-box; margin: 0; padding: 22px; list-style: none; display: flex; flex-direction: column; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndn-item { border-top: 1px solid #EEF2F8; }
+.ndn-row { width: 100%; display: flex; align-items: flex-start; gap: 14px; padding: 14px 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndn-row:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; border-radius: 12px; }
+.ndn-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--nd-blue); color: #fff; }
+.ndn-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ndn-name { font: 600 14.5px var(--nd-font); }
+.ndn-text { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndn-when { flex: none; font: 500 12px var(--nd-font); color: var(--nd-hint); }
+.ndn-empty { align-items: center; gap: 6px; padding: 40px 22px; text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndn-empty strong { font: 700 15px var(--nd-font); color: var(--nd-ink); }
+.ndn-empty-ico { display: flex; width: 56px; height: 56px; align-items: center; justify-content: center; border-radius: 16px; background: #EEF3FF; color: var(--nd-blue); margin-bottom: 6px; }
+.ndn-link { margin-top: 6px; padding: 0; border: none; background: none; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.ndn-prefs { padding: 10px 16px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.ndn-prefs:focus-visible, .ndn-link:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndf-* — Finanças no desktop (design "Nancy Desktop", tela 15): cartão do salário (360px) e cartão das contas fixas lado a lado.
+   Linhas de conta com ícone, nome, vencimento (120px), valor mono (110px) e ×; o formulário de adicionar em uma linha (nome, valor,
+   dia, botão). Escopado em ndf-* e nos blocos .fa-* reaproveitados do celular dentro de .ndf-card.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndf-page { flex: 1; display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 16px; align-items: start; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndf-card { min-width: 0; display: flex; flex-direction: column; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndf-salary { gap: 14px; }
+.ndf-head { display: flex; align-items: center; gap: 12px; }
+.ndf-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndf-head-text { display: flex; flex-direction: column; gap: 2px; }
+.ndf-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndf-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndf-salary-form { display: flex; flex-direction: column; gap: 14px; }
+.ndf-salary-input { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 700 20px var(--nd-mono); outline: none; }
+.ndf-salary-input:focus, .ndf-inp:focus { border-color: var(--nd-blue); }
+.ndf-btn { height: 46px; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndf-btn:disabled { opacity: .7; cursor: progress; }
+.ndf-btn:focus-visible, .ndf-launch-btn:focus-visible, .ndf-pay:focus-visible, .ndf-del:focus-visible, .ndf-row-main:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+.ndf-fixed-head { display: flex; align-items: center; gap: 12px; padding-bottom: 8px; }
+.ndf-total { margin-left: auto; }
+.ndf-total { font: 600 14px var(--nd-mono); color: var(--nd-blue); }
+.ndf-list { list-style: none; margin: 0; padding: 0; }
+.ndf-item { border-top: 1px solid #EEF2F8; }
+.ndf-row { display: flex; align-items: center; gap: 14px; padding: 0; }
+.ndf-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndf-row-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndf-row-name { flex: 1; min-width: 0; font: 600 14.5px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndf-row-due { width: 120px; flex: none; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndf-row-val { width: 110px; flex: none; text-align: right; font: 600 14px var(--nd-mono); }
+.ndf-del { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; padding: 0; border: none; background: none; color: var(--nd-hint); cursor: pointer; }
+.ndf-del:hover { color: #C2312B; }
+.ndf-detail { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 44px 14px 54px; }
+.ndf-detail-txt { font: 400 12.5px var(--nd-font); color: var(--nd-muted); }
+.ndf-pay { padding: 7px 14px; border: 1.5px solid #C9D9FF; border-radius: 10px; background: #fff; color: var(--nd-blue); font: 600 12.5px var(--nd-font); cursor: pointer; }
+.ndf-pay:disabled { opacity: .6; cursor: progress; }
+.ndf-empty { padding: 20px 0; text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); border-top: 1px solid #EEF2F8; }
+/* 21px de altura: o cabeçalho do cartão mede o mesmo do design com ou sem o botão */
+.ndf-launch-btn { height: 21px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; border: 1.5px solid #C9D9FF; border-radius: 8px; background: #fff; color: var(--nd-blue); font: 600 12px var(--nd-font); cursor: pointer; }
+.ndf-launch-btn:disabled { opacity: .6; cursor: progress; }
+.ndf-launched { font: 600 12px var(--nd-font); color: #087A52; }
+.ndf-form { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #EEF2F8; }
+.ndf-form-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 90px auto; gap: 10px; }
+.ndf-inp { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndf-inp::placeholder { color: #757575; }
+.ndf-end .fa-date-toggle { width: auto; padding: 6px 0; border: none; background: none; color: var(--nd-muted); font: 600 13px var(--nd-font); }
+.ndf-end .fa-date-toggle .fa-date-hint { color: var(--nd-hint); }
+.ndf-end .fa-date-toggle.on, .ndf-end .fa-date-toggle.on .fa-date-text, .ndf-end .fa-date-toggle.on .fa-date-hint { color: var(--nd-blue); background: none; border-color: transparent; }
+.ndf-end .fa-date-row { max-width: 360px; }
+.ndf-end .fa-inp { height: 46px; box-sizing: border-box; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndf-card .fa-err { color: #D6334A; font: 500 13px var(--nd-font); }
+@media (max-width: 1180px) { .ndf-page { grid-template-columns: minmax(0, 1fr); } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndb-* — Contas do mês no desktop (design "Nancy Desktop", tela 16): três números (Pagas em azul, Total e Status) e a lista de contas
+   com círculo de "paga" (28px), vencimento (140px), valor mono (120px) e etiqueta (90px). A página usa .ndx-page (abas do Extrato).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndb-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ndb-stat { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndb-stat--blue { border: none; background: var(--nd-blue); color: #fff; }
+.ndb-lbl { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndb-stat--blue .ndb-lbl { font: 500 13px var(--nd-font); color: #fff; opacity: .8; } /* o protótipo não dá altura de linha a este rótulo: o cartão azul (sem borda) é o mais alto da fileira */
+.ndb-big { font: 800 34px var(--nd-font); }
+.ndb-mono { font: 700 26px var(--nd-mono); }
+.ndb-status { font: 800 26px var(--nd-font); color: #087A52; }
+.ndb-card { margin: 0; padding: 22px; list-style: none; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndb-item { border-top: 1px solid #EEF2F8; }
+.ndb-row { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndb-row:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; border-radius: 12px; }
+.ndb-check { width: 32px; height: 32px; box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center; border: 2px solid #C9D3E8; border-radius: 50%; background: none; color: #fff; }
+.ndb-check.on { border-color: var(--nd-green); background: var(--nd-green); }
+.ndb-name { flex: 1; min-width: 0; font: 600 14.5px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndb-due { width: 140px; flex: none; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndb-amt { width: 120px; flex: none; text-align: right; font: 600 14px var(--nd-mono); }
+.ndb-pill { width: 90px; flex: none; box-sizing: border-box; padding: 4px 0; text-align: center; border-radius: 99px; font: 600 12px var(--nd-font); }
+.ndb-pill.paid { background: #E9FBF2; color: #087A52; }
+.ndb-pill.pending { background: #EEF3FF; color: var(--nd-blue); }
+.ndb-hint { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndb-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndb-empty h2 { margin: 0; font: 700 16px var(--nd-font); }
+.ndb-empty p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndb-btn { margin-top: 6px; height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndi-* — Compras parceladas no desktop (design "Nancy Desktop", tela 17): um cartão por compra, em duas colunas (vão de 16): ícone de
+   40px, nome, parcelas pagas, valor por mês em mono azul, barra de 10px, restante e "Pagar parcela". A página usa .ndx-page (abas do Extrato).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndi-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.ndi-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndi-head { display: flex; align-items: center; gap: 12px; padding: 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndi-head:focus-visible, .ndi-pay:focus-visible, .ndi-link:focus-visible, .ndi-add:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ndi-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndi-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ndi-name { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndi-prog { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndi-val { flex: none; font: 600 14px var(--nd-mono); color: var(--nd-blue); }
+.ndi-track { height: 10px; overflow: hidden; border-radius: 99px; background: #EEF3FF; }
+.ndi-fill { height: 100%; border-radius: 99px; background: var(--nd-blue); transition: width .4s; }
+.ndi-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.ndi-rest { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndi-pay { flex: none; padding: 8px 14px; border: none; border-radius: 99px; background: #E9FBF2; color: #087A52; font: 600 12.5px var(--nd-font); cursor: pointer; }
+.ndi-pay:disabled { opacity: .6; cursor: progress; }
+.ndi-quit { display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--nd-font); color: #087A52; }
+.ndi-detail { display: flex; gap: 16px; padding-top: 2px; }
+.ndi-link { padding: 0; border: none; background: none; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.ndi-link--del { color: #C2312B; }
+.ndi-empty { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 12px; }
+.ndi-empty h2 { margin: 0; font: 700 16px var(--nd-font); }
+.ndi-empty p { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndi-new { grid-column: 1 / -1; }
+.ndi-new h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndi-new-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 120px auto; gap: 10px; }
+.ndi-inp { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndi-inp:focus { border-color: var(--nd-blue); }
+.ndi-inp::placeholder { color: #757575; }
+.ndi-add { height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndi-add:disabled { opacity: .7; cursor: progress; }
+.ndi-calc { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nda-* — Análise do mês no desktop (design "Nancy Desktop", tela 18): "Gastos por categoria" (1,4fr) à esquerda e, à direita (1fr), o maior
+   gasto variável em azul e o convite para a Nancy IA, vão de 16. A página usa .ndx-page (abas do Extrato).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nda-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.nda-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nda-cats h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nda-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.nda-item { display: flex; flex-direction: column; gap: 6px; }
+.nda-line { display: flex; align-items: center; gap: 10px; font: 600 14px var(--nd-font); }
+.nda-ico { display: flex; }
+.nda-name { flex: 1; min-width: 0; }
+.nda-val { font-family: var(--nd-mono); }
+.nda-pct { width: 40px; text-align: right; font: 500 12px var(--nd-mono); color: var(--nd-hint); }
+.nda-bar { height: 10px; overflow: hidden; border-radius: 99px; background: #EEF3FF; }
+.nda-fill { height: 100%; border-radius: 99px; }
+.nda-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.nda-top { display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 20px; background: var(--nd-blue); color: #fff; }
+.nda-eyebrow { font: 600 11px var(--nd-mono); letter-spacing: .12em; opacity: .75; }
+.nda-top-name { font: 800 30px var(--nd-font); }
+.nda-top-val { font: 600 18px var(--nd-mono); }
+.nda-top-val small { margin-left: 10px; font: 500 13px var(--nd-font); opacity: .8; }
+.nda-ask { display: flex; align-items: center; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; text-align: left; font-family: var(--nd-font); color: var(--nd-ink); cursor: pointer; }
+.nda-ask:focus-visible, .nda-btn:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nda-ask-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--nd-green); color: #fff; }
+.nda-ask-text { flex: 1; font: 500 14px/1.45 var(--nd-font); }
+.nda-state { align-items: flex-start; padding: 22px; }
+.nda-state h2 { margin: 0; font: 700 16px var(--nd-font); }
+.nda-state p { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nda-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndc-* — Calendário no desktop (design "Nancy Desktop", tela 19): mês numa grade de 7 colunas (gap 6; células de 84px com até duas
+   etiquetas) e o painel do dia (340px), vão de 16. Dia escolhido com borda azul; dias que ainda não chegaram em cinza.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndc-page { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndc-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndc-head { display: flex; align-items: center; gap: 14px; }
+.ndc-title { margin: 0; font: 800 22px var(--nd-font); letter-spacing: -.02em; }
+.ndc-nav { display: flex; align-items: center; gap: 6px; }
+.ndc-nav-btn { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--nd-line); border-radius: 10px; background: #fff; color: var(--nd-ink); cursor: pointer; }
+.ndc-nav-btn--next svg { transform: scaleX(-1); }
+.ndc-today { height: 30px; padding: 0 12px; border: 1.5px solid #C9D9FF; border-radius: 10px; background: #fff; color: var(--nd-blue); font: 600 12.5px var(--nd-font); cursor: pointer; }
+.ndc-nav-btn:focus-visible, .ndc-today:focus-visible, .ndc-cell:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ndc-legend { margin-left: auto; display: flex; gap: 14px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndc-legend span { display: flex; align-items: center; gap: 6px; }
+.ndc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nd-blue); }
+.ndc-dot.in { background: var(--nd-green); }
+.ndc-dot.goal { background: #E5A00D; }
+.ndc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.ndc-dow { padding: 4px 0; text-align: center; font: 600 11px var(--nd-mono); color: var(--nd-hint); }
+.ndc-loading { grid-column: 1 / -1; display: flex; justify-content: center; padding: 60px 0; }
+.ndc-cell { height: 84px; box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px; border: 1.5px solid #EEF2F8; border-radius: 12px; background: #fff; text-align: left; font-family: var(--nd-font); cursor: pointer; }
+.ndc-cell.empty { border-color: transparent; background: none; cursor: default; }
+.ndc-cell.today { border-color: #C9D9FF; }
+.ndc-cell.sel { border-color: var(--nd-blue); background: #EEF3FF; }
+.ndc-num { font: 700 13px var(--nd-font); color: var(--nd-ink); }
+.ndc-cell.future .ndc-num { color: var(--nd-hint); }
+.ndc-chip { display: block; padding: 2px 6px; overflow: hidden; border-radius: 6px; text-overflow: ellipsis; white-space: nowrap; font: 600 10.5px var(--nd-font); }
+.ndc-chip.in { background: #E9FBF2; color: #087A52; }
+.ndc-chip.out { background: #EEF3FF; color: var(--nd-blue); }
+.ndc-chip.due { background: #F4F7FC; color: var(--nd-muted); }
+.ndc-chip.goal { background: #FFF4DB; color: #8A5A00; }
+.ndc-day { gap: 0; }
+.ndc-day-title { margin: 0; padding-bottom: 8px; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndc-day-empty { margin: 0; padding: 12px 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndc-ev-list { list-style: none; margin: 0; padding: 0; }
+.ndc-ev { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid #EEF2F8; }
+.ndc-ev-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndc-ev-ico.in { background: #E9FBF2; color: #087A52; }
+.ndc-ev-ico.due { background: #F4F7FC; color: var(--nd-muted); }
+.ndc-ev-ico.goal { background: #FFF4DB; color: #8A5A00; }
+.ndc-ev-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ndc-ev-name { font: 600 14px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndc-ev-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndc-ev-amt { flex: none; font: 600 14px var(--nd-mono); }
+.ndc-ev-amt.in { color: #087A52; }
+@media (max-width: 1180px) { .ndc-page { grid-template-columns: minmax(0, 1fr); } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndg-* — Metas no desktop (design "Nancy Desktop", tela 20): um cartão por meta em três colunas (vão de 16): ícone verde de 40px, % concluído,
+   nome, prazo, barra de 10px, guardado/alvo em mono e "Depositar R$ X". A página usa .ndx-page (abas de Metas).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.ndg-loading { padding: 60px 0; display: flex; justify-content: center; }
+.ndg-card { --gc: #12C985; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndg-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.ndg-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: color-mix(in srgb, var(--gc) 14%, #fff); color: color-mix(in srgb, var(--gc) 70%, #000); }
+.ndg-pct { padding: 4px 10px; border-radius: 99px; background: #EEF3FF; color: var(--nd-blue); font: 700 12px var(--nd-font); }
+.ndg-title { display: flex; flex-direction: column; gap: 3px; padding: 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndg-title:focus-visible, .ndg-dep:focus-visible, .ndg-create:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; border-radius: 8px; }
+.ndg-name { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndg-due { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndg-track { height: 10px; overflow: hidden; border-radius: 99px; background: color-mix(in srgb, var(--gc) 14%, #fff); }
+.ndg-fill { height: 100%; border-radius: 99px; background: var(--gc); transition: width .5s; }
+.ndg-amounts { display: flex; justify-content: space-between; font: 600 13px var(--nd-mono); }
+.ndg-amounts span:last-child { color: var(--nd-hint); }
+.ndg-dep { height: 40px; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1.5px solid #C9D9FF; border-radius: 12px; background: #fff; color: var(--nd-blue); font: 600 14px var(--nd-font); cursor: pointer; }
+.ndg-done { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #E9FBF2; color: #087A52; font: 600 14px var(--nd-font); }
+.ndg-new { grid-column: 1 / -1; }
+.ndg-new h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndg-new-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: 10px; }
+.ndg-inp { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndg-inp:focus { border-color: var(--nd-blue); }
+.ndg-inp::placeholder { color: #757575; }
+.ndg-create { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndg-create:disabled { opacity: .5; cursor: default; }
+.ndg-limit { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+@media (max-width: 1180px) { .ndg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nhs-* — Histórico no desktop (design "Nancy Desktop", tela 21): cartão "Resultado por mês" com uma barra por mês (até 90px de largura, a mais
+   alta com 230px; a do mês atual em verde), a frase do mês e o relatório da IA (Elite). A página usa .ndx-page (abas de Metas).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nhs-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nhs-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nhs-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nhs-chart { height: 300px; display: flex; align-items: flex-end; gap: 22px; padding-top: 12px; }
+.nhs-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.nhs-val { font: 600 13px var(--nd-mono); color: var(--nd-muted); }
+.nhs-bar { width: 100%; max-width: 90px; border-radius: 12px 12px 4px 4px; background: #C9D9FF; }
+.nhs-bar.cur { background: var(--nd-green); }
+.nhs-bar.neg { background: #F4B6BE; }
+.nhs-bar.neg.cur { background: #D6334A; }
+.nhs-bar.off { background: #EEF2F8; }
+.nhs-mon { font: 600 13px var(--nd-font); color: var(--nd-muted); }
+.nhs-insight { flex-direction: row; align-items: center; gap: 14px; }
+.nhs-insight h2 { margin: 0; font: 700 15px var(--nd-font); }
+.nhs-insight p { margin: 2px 0 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nhs-insight-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #E9FBF2; color: #087A52; }
+.nhs-insight-ico.down { background: #FDECEF; color: #C2312B; }
+.nhs-state { align-items: flex-start; }
+.nhs-state h2 { margin: 0; font: 700 16px var(--nd-font); }
+.nhs-state p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nhs-loading { padding: 60px 0; }
+.nhs-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nhs-btn:disabled { opacity: .7; cursor: progress; }
+.nhs-btn:focus-visible, .nhs-select:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nhs-controls { display: flex; flex-wrap: wrap; gap: 10px; }
+.nhs-select { height: 46px; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); }
+.nhs-report-text { white-space: pre-wrap; font: 400 14px/1.6 var(--nd-font); color: var(--nd-ink); }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nsb-* — Assinaturas no desktop (design "Nancy Desktop", tela 22): cartão azul com o total (320px) e a lista com o interruptor "manter" (44×26),
+   vão de 16. A página usa .ndx-page (abas de Metas).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nsb-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
+.nsb-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nsb-sum { display: flex; flex-direction: column; gap: 6px; padding: 22px; border-radius: 20px; background: var(--nd-blue); color: #fff; }
+.nsb-sum-lbl { display: flex; align-items: center; gap: 8px; font: 600 13px var(--nd-font); opacity: .85; }
+.nsb-sum-lbl span { display: flex; color: var(--nd-mint); }
+.nsb-sum-val { font: 800 34px var(--nd-font); }
+.nsb-sum-note { font: 400 13px/1.45 var(--nd-font); opacity: .8; }
+.nsb-list { margin: 0; list-style: none; gap: 0; }
+.nsb-item { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid #EEF2F8; }
+.nsb-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.nsb-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nsb-name { font: 600 14.5px var(--nd-font); }
+.nsb-sub { font: 400 12.5px var(--nd-font); color: var(--nd-muted); }
+.nsb-sub.stale { color: #D6334A; }
+.nsb-val { width: 110px; flex: none; text-align: right; font: 600 14px var(--nd-mono); }
+.nsb-switch { width: 44px; height: 26px; flex: none; box-sizing: border-box; padding: 3px; border: none; border-radius: 99px; background: #C9D3E8; cursor: pointer; display: block; }
+.nsb-switch.on { background: var(--nd-green); }
+.nsb-switch span { display: block; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: margin .2s; }
+.nsb-switch.on span { margin-left: 18px; }
+.nsb-switch:focus-visible, .nsb-btn:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nsb-state { align-items: flex-start; }
+.nsb-state h2 { margin: 0; font: 700 16px var(--nd-font); }
+.nsb-state p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nsb-loading { padding: 60px 0; }
+.nsb-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+@media (max-width: 1180px) { .nsb-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nrm-* — Lembretes no desktop (design "Nancy Desktop", tela 23): cartão de até 906px com uma linha por conta (ícone de relógio de 40px, nome,
+   "Dia 3 · 2 dias antes" e o interruptor de 44×26). A página usa .ndx-page (abas de Metas).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nrm-card { width: 100%; max-width: 906px; box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nrm-list { margin: 0; padding: 0; list-style: none; }
+.nrm-item { display: flex; align-items: center; gap: 14px; border-top: 1px solid #EEF2F8; }
+.nrm-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.nrm-row:focus-visible, .nrm-switch:focus-visible, .nrm-add:focus-visible, .nrm-btn:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; border-radius: 12px; }
+.nrm-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.nrm-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nrm-name { font: 600 14.5px var(--nd-font); }
+.nrm-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nrm-switch { width: 44px; height: 26px; flex: none; box-sizing: border-box; padding: 3px; border: none; border-radius: 99px; background: #C9D3E8; cursor: pointer; display: block; }
+.nrm-switch.on { background: var(--nd-green); }
+.nrm-switch span { display: block; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: margin .2s; }
+.nrm-switch.on span { margin-left: 18px; }
+.nrm-empty { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nrm-add { align-self: flex-start; height: 46px; display: flex; align-items: center; gap: 8px; padding: 0 18px; border: 1.5px solid #C9D9FF; border-radius: 12px; background: #fff; color: var(--nd-blue); font: 600 14px var(--nd-font); cursor: pointer; }
+.nrm-state { align-items: flex-start; }
+.nrm-state h2 { margin: 0; font: 700 16px var(--nd-font); }
+.nrm-state p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nrm-loading { padding: 60px 0; }
+.nrm-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nlm-* — Limites no desktop (design "Nancy Desktop", tela 24): um cartão por categoria com teto, em três colunas (vão de 16): ícone de 40px, nome,
+   barra de 10px (verde até 80%, amarela, vermelha ao estourar), gasto/teto em mono e a nota. A página usa .ndx-page (abas de Metas).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nlm-grid { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.nlm-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nlm-top { display: flex; align-items: center; gap: 12px; }
+.nlm-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.nlm-name { flex: 1; min-width: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nlm-del { width: 28px; height: 28px; flex: none; display: flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 8px; background: none; color: var(--nd-hint); cursor: pointer; }
+.nlm-del:hover { color: #C2312B; }
+.nlm-del:focus-visible, .nlm-chip:focus-visible, .nlm-btn:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nlm-bar { height: 10px; overflow: hidden; border-radius: 99px; background: #EEF3FF; }
+.nlm-fill { display: block; height: 100%; border-radius: 99px; background: var(--nd-green); }
+.nlm-fill.warn { background: #E5A82D; }
+.nlm-fill.over { background: #D6334A; }
+.nlm-amounts { display: flex; justify-content: space-between; font: 600 13px var(--nd-mono); }
+.nlm-amounts span:last-child { font-weight: 500; color: var(--nd-hint); }
+.nlm-note { margin: 0; font: 600 13px var(--nd-font); color: #087A52; }
+.nlm-note.warn { color: #B7791F; }
+.nlm-note.over { color: #C2312B; }
+.nlm-new h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nlm-hint { margin: -8px 0 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nlm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.nlm-chip { padding: 8px 14px; border: none; border-radius: 99px; background: #F4F7FC; color: #2A3555; font: 600 12.5px var(--nd-font); cursor: pointer; }
+.nlm-chip.on { background: var(--nd-blue); color: #fff; }
+.nlm-chip.more { background: #fff; border: 1.5px solid var(--nd-line-2); }
+.nlm-form { display: flex; gap: 10px; max-width: 480px; }
+.nlm-inp { flex: 1; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.nlm-inp:focus { border-color: var(--nd-blue); }
+.nlm-inp::placeholder { color: #757575; }
+.nlm-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nlm-btn:disabled { opacity: .7; cursor: progress; }
+.nlm-msg { margin: 0; font: 500 13px var(--nd-font); }
+.nlm-msg.ok { color: #087A52; }
+.nlm-msg.err { color: #D6334A; }
+.nlm-empty { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nlm-state { align-items: flex-start; }
+.nlm-state h2 { margin: 0; font: 700 16px var(--nd-font); }
+.nlm-state p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nlm-loading { padding: 60px 0; }
+@media (max-width: 1180px) { .nlm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nst-* — Configurações no desktop (design "Nancy Desktop", telas 25 a 36): coluna de menu de 240px (cartão com padding 10; itens de 40px) e o conteúdo
+   de cada tela ao lado (vão de 20). Tela 25: cartão azul da pessoa, nove atalhos em três colunas (vão de 14) e "Sair da conta".
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nst-page { flex: 1; display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; align-items: start; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.nst-nav { display: flex; flex-direction: column; gap: 2px; padding: 10px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nst-item { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: none; border-radius: 10px; background: transparent; color: #2A3555; font: 600 13.5px var(--nd-font); text-align: left; cursor: pointer; }
+.nst-item.on { background: #EEF3FF; color: var(--nd-blue); }
+.nst-item:focus-visible, .nst-card:focus-visible, .nst-out:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nst-content { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.nst-hero { display: flex; align-items: center; gap: 18px; padding: 24px; border-radius: 22px; background: var(--nd-blue); color: #fff; }
+.nst-av { width: 72px; height: 72px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: #fff; color: var(--nd-blue); font: 800 26px var(--nd-font); }
+.nst-av img { width: 100%; height: 100%; object-fit: cover; }
+.nst-who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.nst-who h1 { margin: 0; font: 800 26px var(--nd-font); }
+.nst-who span { font: 500 14px var(--nd-font); opacity: .8; }
+.nst-plan { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: none; border-radius: 99px; background: var(--nd-mint); color: #06392A; font: 700 13px var(--nd-font); cursor: pointer; }
+.nst-plan.free { background: rgba(255,255,255,.2); color: #fff; }
+.nst-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.nst-card { min-width: 0; display: flex; align-items: center; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; text-align: left; font-family: var(--nd-font); color: var(--nd-ink); cursor: pointer; }
+.nst-card-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.nst-card-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nst-card-text strong { font: 700 14px var(--nd-font); }
+.nst-card-text span { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nst-out { align-self: flex-start; height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1.5px solid #F5C2CA; border-radius: 12px; background: #fff; color: #D6334A; font: 600 14px var(--nd-font); cursor: pointer; }
+@media (max-width: 1180px) { .nst-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* nsp-* — Dados pessoais no desktop (design "Nancy Desktop", tela 26): cartão de até 764px (720 do design + 2×22 de respiro), foto de 72px, nome e e-mail em duas colunas */
+.nsp-card { max-width: 764px; box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nsp-photo { display: flex; align-items: center; gap: 16px; }
+.nsp-av { width: 72px; height: 72px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: var(--nd-blue); color: #fff; font: 800 24px var(--nd-font); }
+.nsp-av.busy { opacity: .6; }
+.nsp-av img { width: 100%; height: 100%; object-fit: cover; }
+.nsp-file { display: none; }
+.nsp-outline { height: 40px; padding: 0 18px; border: 1.5px solid #C9D9FF; border-radius: 12px; background: #fff; color: var(--nd-blue); font: 600 14px var(--nd-font); cursor: pointer; }
+.nsp-outline:disabled { opacity: .6; cursor: progress; }
+.nsp-link { padding: 0; border: none; background: none; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.nsp-outline:focus-visible, .nsp-link:focus-visible, .nsp-save:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nsp-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.nsp-field { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.nsp-field > span { font: 600 12px var(--nd-font); color: var(--nd-muted); }
+.nsp-field input { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.nsp-field input:focus:not([readonly]) { border-color: var(--nd-blue); }
+.nsp-verify { display: flex; align-items: center; gap: 14px; }
+.nsp-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 99px; font: 600 12px var(--nd-font); }
+.nsp-pill.ok { background: #E9FBF2; color: #087A52; }
+.nsp-pill.warn { background: #FFF4DB; color: #8A5A00; }
+.nsp-note { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nsp-email { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end; padding-top: 14px; border-top: 1px solid #EEF2F8; }
+.nsp-save { align-self: flex-start; height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nsp-save:disabled { opacity: .7; cursor: progress; }
+.nsp-status { margin: 0; font: 500 13px var(--nd-font); }
+.nsp-status.ok { color: #087A52; }
+.nsp-status.err { color: #D6334A; }
+
+/* nst-sec — Segurança no desktop (design "Nancy Desktop", tela 27): "Alterar senha" e "Duas etapas" lado a lado (vão de 16); os cartões do celular ganham o visual do desktop */
+.nst-sec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; font-family: var(--nd-font); color: var(--nd-ink); }
+.nst-sec .fin-card { margin: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.nst-sec .fin-title { font: 700 16px var(--nd-font); color: var(--nd-ink); letter-spacing: 0; }
+.nst-sec .fin-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nst-sec .fin-ico { background: #EEF3FF; color: var(--nd-blue); border-radius: 12px; }
+.nst-sec .fin-field, .nst-sec .fin-inp { font-family: var(--nd-font); }
+.nst-sec .fin-field { height: 46px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; }
+.nst-sec .fin-field:focus-within { border-color: var(--nd-blue); }
+.nst-sec .fin-btn { height: 46px; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); }
+@media (max-width: 1180px) { .nst-sec { grid-template-columns: minmax(0, 1fr); } }
+
+/* nst-list / nst-row / nst-switch — lista de interruptores no desktop (Preferências, tela 28): cartão de 22px de respiro, linhas com nome (14,5px/600) e descrição e o interruptor de 44×26 */
+.nst-list { box-sizing: border-box; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.nst-list ul { margin: 0; padding: 0; list-style: none; }
+.nst-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid #EEF2F8; }
+.nst-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nst-row-name { font: 600 14.5px var(--nd-font); }
+.nst-row-desc { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nst-switch { width: 44px; height: 26px; flex: none; box-sizing: border-box; padding: 3px; border: none; border-radius: 99px; background: #C9D3E8; cursor: pointer; display: block; }
+.nst-switch.on { background: var(--nd-green); }
+.nst-switch:disabled { opacity: .6; cursor: progress; }
+.nst-switch span { display: block; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: margin .2s; }
+.nst-switch.on span { margin-left: 18px; }
+.nst-switch:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nst-device { padding: 0 22px; }
+
+/* nst-bm — Balanço mensal no desktop (design "Nancy Desktop", tela 29): cartão azul do mês (448px) e "Relatórios anteriores" ao lado (vão de 16); os blocos do celular (bm-*) ganham o visual do desktop */
+.nst-bm { display: grid; grid-template-columns: 448px minmax(0, 1fr); gap: 16px; align-items: start; font-family: var(--nd-font); }
+.nst-bm .bm-card { margin: 0; padding: 22px; border-radius: 22px; background: var(--nd-blue); font-family: var(--nd-font); }
+.nst-bm .bm-label, .nst-bm .bm-value, .nst-bm .bm-box-lbl, .nst-bm .bm-box-val, .nst-bm .bm-close { font-family: var(--nd-font); }
+.nst-bm .bm-label { font-family: var(--nd-mono); letter-spacing: .12em; text-transform: uppercase; font-size: 11px; }
+.nst-bm .bm-box-val { font-family: var(--nd-mono); }
+.nst-bm .bm-close { border-radius: 12px; }
+.nst-bm .fin-card { margin: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.nst-bm .bm-list-title { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+@media (max-width: 1180px) { .nst-bm { grid-template-columns: minmax(0, 1fr); } }
+
+
+/* pgd-* — Pagamentos no desktop (design "Nancy Desktop", tela 31): cartão do plano com o botão vazado de cancelar e o histórico em tabela (Data, Descrição, Valor, Status) */
+.pgd-plan { display: flex; align-items: center; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.pgd-plan-ico { width: 40px; height: 40px; flex: none; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); display: flex; align-items: center; justify-content: center; }
+.pgd-plan-ico.paid { background: #12C985; color: #fff; }
+.pgd-plan-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pgd-plan-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.pgd-plan-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.pgd-plan-sub.warn { color: #B67824; }
+.pgd-cancel, .pgd-plans-link { flex: none; height: 49px; padding: 0 18px; border-radius: 12px; background: #fff; display: inline-flex; align-items: center; justify-content: center; font: 600 14px var(--nd-font); cursor: pointer; box-sizing: border-box; border: 1.5px solid #F5C2CA; color: #D6334A; }
+.pgd-plans-link { border-color: #C9D9FF; color: var(--nd-blue); }
+.pgd-cancel:hover { background: #FFF5F6; }
+.pgd-plans-link:hover { background: #F4F7FF; }
+.pgd-cancel:focus-visible { outline: 2px solid #D6334A; outline-offset: 2px; }
+.pgd-plans-link:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.pgd-hist { padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.pgd-head, .pgd-row { display: grid; grid-template-columns: 1fr 1fr 120px 80px; gap: 14px; }
+.pgd-head { padding-bottom: 8px; font: 600 12px var(--nd-font); color: #5B6785; }
+.pgd-head span:nth-child(n+3), .pgd-amt, .pgd-ok { text-align: right; }
+.pgd-list { list-style: none; margin: 0; padding: 0; }
+.pgd-row { padding: 13px 0; border-top: 1px solid #EEF2F8; font: 500 14px var(--nd-font); color: var(--nd-ink); }
+.pgd-desc { color: #5B6785; }
+.pgd-amt { font: 600 14px var(--nd-mono); }
+.pgd-ok { color: #087A52; font-weight: 700; }
+.pgd-state { margin: 0; display: flex; justify-content: center; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+
+/* nrf-* — Indique e ganhe no desktop (design "Nancy Desktop", tela 32): faixa em degradê (convite à esquerda, código + Copiar à direita) e o cartão "Seus convites" (666px com borda e padding) */
+.nrf-hero { display: flex; align-items: center; gap: 30px; padding: 30px; border-radius: 22px; color: #fff; background: linear-gradient(120deg, #1546FF, #0E9A69); font-family: var(--nd-font); }
+.nrf-hero-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.nrf-title { margin: 0; font: 800 34px/1.05 var(--nd-font); letter-spacing: -.03em; }
+.nrf-sub { margin: 0; font: 400 15px/1.5 var(--nd-font); opacity: .88; }
+.nrf-code { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 18px; border-radius: 14px; background: #fff; color: var(--nd-ink); }
+.nrf-code-text { font: 600 17px var(--nd-mono); letter-spacing: .06em; }
+.nrf-code-wait { font: 400 13px var(--nd-font); color: #5B6785; }
+.nrf-copy { flex: none; height: 42px; padding: 0 20px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nrf-copy.done { background: #12C985; }
+.nrf-copy:disabled { opacity: .6; cursor: default; }
+.nrf-prog { max-width: 666px; box-sizing: border-box; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; display: flex; flex-direction: column; gap: 14px; font-family: var(--nd-font); }
+.nrf-prog-head { display: flex; justify-content: space-between; }
+.nrf-prog-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nrf-prog-count { font: 600 14px var(--nd-mono); color: #087A52; }
+.nrf-bar { height: 10px; border-radius: 99px; background: #EEF3FF; }
+.nrf-bar-fill { height: 100%; border-radius: 99px; background: #12C985; }
+.nrf-note { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.nrf-pending { color: #B67824; }
+.nrf-err { color: #D6334A; }
+.nrf-wait { display: flex; justify-content: center; padding: 8px 0; }
+
+/* ndd-* — Meus dados no desktop (design "Nancy Desktop", tela 33): Exportar e Excluir conta lado a lado (vão de 16), o de excluir com borda e botão vermelhos */
+.ndd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-family: var(--nd-font); }
+.ndd-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; box-sizing: border-box; }
+.ndd-card.danger { border: 1.5px solid #F5C2CA; }
+.ndd-head { display: flex; align-items: center; gap: 12px; }
+.ndd-ico { width: 40px; height: 40px; flex: none; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); display: flex; align-items: center; justify-content: center; }
+.ndd-ico.danger { background: #FDECEF; color: #D6334A; }
+.ndd-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ndd-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndd-title.danger { color: #D6334A; }
+.ndd-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndd-btns { display: flex; gap: 10px; }
+.ndd-fmt { flex: 1; height: 49px; padding: 0 18px; border-radius: 12px; background: #fff; color: var(--nd-blue); border: 1.5px solid #C9D9FF; font: 600 14px var(--nd-font); cursor: pointer; box-sizing: border-box; }
+.ndd-fmt:hover:not(:disabled) { background: #F4F7FF; }
+.ndd-fmt:disabled, .ndd-json:disabled { opacity: .6; cursor: default; }
+.ndd-delete { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: #D6334A; color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndd-delete:hover { background: #C22B41; }
+.ndd-json { align-self: flex-start; padding: 4px 2px; border: none; background: none; font: 500 12.5px var(--nd-font); color: #5B6785; text-decoration: underline; cursor: pointer; }
+
+/* ndi-* — Instalar app no desktop (design "Nancy Desktop", tela 34): faixa azul com o ícone (72px) e "Instalar agora" à direita, e os três passos em cartões de 3 colunas (vão de 14) */
+.ndi-hero { display: flex; align-items: center; gap: 20px; padding: 26px; border-radius: 22px; background: var(--nd-blue); color: #fff; font-family: var(--nd-font); }
+.ndi-hero .nancy-mark { flex: none; }
+.ndi-hero-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ndi-title { margin: 0; font: 800 26px var(--nd-font); }
+.ndi-sub { margin: 0; font: 400 14px var(--nd-font); opacity: .82; }
+.ndi-install { flex: none; height: 48px; padding: 0 22px; display: inline-flex; align-items: center; gap: 8px; border: none; border-radius: 12px; background: #fff; color: var(--nd-blue); font: 700 14px var(--nd-font); cursor: pointer; }
+.ndi-install:disabled { opacity: .7; cursor: default; }
+.ndi-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; font-family: var(--nd-font); }
+.ndi-step { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; box-sizing: border-box; }
+.ndi-step-n { width: 36px; height: 36px; border-radius: 50%; background: #EEF3FF; color: var(--nd-blue); display: flex; align-items: center; justify-content: center; font: 800 15px var(--nd-font); }
+.ndi-step-text { font: 500 14.5px/1.45 var(--nd-font); color: var(--nd-ink); }
+.ndi-note { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+
+/* ndl-* — Termos de Uso e Política de Privacidade no desktop (design "Nancy Desktop", telas 35 e 36): o texto num cartão branco (886px com borda e padding), títulos 16/700 e parágrafos 15/1,65; o texto jurídico é o mesmo do celular */
+.ndl-card { max-width: 886px; box-sizing: border-box; padding: 32px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); color: var(--nd-ink); }
+.ndl-card .lg-meta { margin: 0 0 20px; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndl-card .lg-h { margin: 20px 0 6px; font: 700 16px/1.4 var(--nd-font); letter-spacing: 0; color: var(--nd-ink); }
+.ndl-card .lg-meta + .lg-p + .lg-h, .ndl-card > .lg-h:first-child { margin-top: 20px; }
+.ndl-card .lg-p { margin: 0 0 10px; font: 400 15px/1.65 var(--nd-font); color: #2A3555; }
+.ndl-card .lg-li { margin-bottom: 4px; font: 400 15px/1.6 var(--nd-font); color: #2A3555; }
+.ndl-card .lg-p strong, .ndl-card .lg-li strong { color: var(--nd-ink); font-weight: 700; }
+.ndl-card .lg-box { border-color: var(--nd-line); border-radius: 14px; background: #F4F7FC; }
+.ndl-card .lg-warn { border-radius: 14px; font: 400 14px/1.6 var(--nd-font); }
+.ndl-card .lg-link { color: var(--nd-blue); }
+.ndl-foot { margin-top: 20px; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndl-foot .lg-foot-line { margin: 0 0 4px; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndl-foot .lg-link { color: inherit; text-decoration: underline; }
+
+/* ndnf-* — Erro 404 no desktop (design "Nancy Desktop", tela 37): "404" de 160px, frase, aviso e botão centralizados na área ao lado do menu */
+.ndnf { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 80px 0; text-align: center; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndnf-code { font: 800 160px/1 var(--nd-font); letter-spacing: -.06em; color: var(--nd-blue); }
+.ndnf-title { margin: 0; font: 800 28px var(--nd-font); }
+.ndnf-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndnf-home { flex: none; height: 46px; margin-top: 10px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+
+/* ndz-* — Analisador de compras (design "Nancy Desktop", tela 38): formulário de 400px à esquerda e, à direita, o convite (vazio) ou o veredito, o porquê, o próximo passo e a tabela das formas de pagar */
+.ndz-page { flex: 1; display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 20px; align-items: start; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndz-form, .ndz-card, .ndz-wait { box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndz-head { display: flex; align-items: center; gap: 12px; }
+.ndz-ico { width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--nd-blue); color: #fff; display: flex; align-items: center; justify-content: center; }
+.ndz-head-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ndz-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndz-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndz-label { font: 600 12px var(--nd-font); color: #5B6785; }
+.ndz-input { box-sizing: border-box; width: 100%; min-width: 0; height: 46px; padding: 0 14px; border: 1.5px solid #E1E8F5; border-radius: 12px; background: #F4F7FC; font: 500 14px var(--nd-font); color: var(--nd-ink); outline: none; }
+.ndz-input:focus, .ndz-price:focus-within { border-color: var(--nd-blue); }
+.ndz-input::placeholder, .ndz-price input::placeholder { color: #757575; }
+.ndz-price { box-sizing: border-box; width: 100%; height: 60px; padding: 0 14px; display: flex; align-items: center; gap: 8px; border: 1.5px solid #E1E8F5; border-radius: 12px; background: #F4F7FC; }
+.ndz-cur { font: 700 20px var(--nd-font); color: #5B6785; }
+.ndz-price input { flex: 1; min-width: 0; border: none; outline: none; background: none; font: 800 26px var(--nd-font); color: var(--nd-ink); }
+.ndz-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.ndz-chip { padding: 7px 12px; border: none; border-radius: 99px; background: #EEF3FF; color: var(--nd-blue); font: 600 12.5px var(--nd-font); cursor: pointer; }
+.ndz-chip:hover { background: #E3EBFF; }
+.ndz-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 5px; border-radius: 14px; background: #F4F7FC; }
+.ndz-mode { padding: 9px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; border: none; border-radius: 10px; background: transparent; color: #2A3555; font: 700 12.5px var(--nd-font); cursor: pointer; }
+.ndz-mode.on { background: var(--nd-blue); color: #fff; }
+.ndz-parc { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.ndz-parc .ndz-label { margin-right: 4px; }
+.ndz-n { width: 44px; height: 36px; display: flex; align-items: center; justify-content: center; border: none; border-radius: 10px; background: #EEF3FF; color: var(--nd-blue); font: 700 13px var(--nd-font); cursor: pointer; }
+.ndz-n.on { background: var(--nd-blue); color: #fff; }
+.ndz-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ndz-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ndz-err { margin: 0; font: 500 13px var(--nd-font); color: #D6334A; }
+.ndz-link { padding: 0; border: none; background: none; font: 600 13px var(--nd-font); color: var(--nd-blue); text-decoration: underline; cursor: pointer; }
+.ndz-go { height: 48px; padding: 0 20px; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; flex: none; }
+.ndz-go:hover { background: #0F3AE0; }
+.ndz-base { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; background: #F7F9FD; }
+.ndz-base-h { font: 600 12px var(--nd-font); color: #5B6785; }
+.ndz-base-row { display: flex; justify-content: space-between; font: 500 13px var(--nd-font); }
+.ndz-base-row > span:first-child { color: #5B6785; }
+.ndz-mono { font-family: var(--nd-mono); }
+.ndz-base-row .ndz-mono { font-weight: 600; font-size: 13px; }
+.ndz-base-err, .ndz-base-note { font: 400 12.5px/1.5 var(--nd-font); color: #5B6785; }
+.ndz-out { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ndz-empty { position: relative; overflow: hidden; box-sizing: border-box; min-height: 492px; padding: 36px; display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; border-radius: 24px; background: var(--nd-blue); color: #fff; }
+.ndz-empty-glow { position: absolute; width: 520px; height: 520px; right: -180px; top: -220px; border-radius: 50%; background: radial-gradient(circle, rgba(59,227,160,.4) 0%, rgba(59,227,160,0) 65%); }
+.ndz-empty-k { position: relative; font: 600 12px var(--nd-mono); letter-spacing: .14em; opacity: .8; }
+.ndz-empty-t { position: relative; margin: 0; max-width: 620px; font: 800 54px/.98 var(--nd-font); letter-spacing: -.05em; }
+.ndz-empty-s { position: relative; margin: 0; max-width: 560px; font: 500 16px/1.5 var(--nd-font); opacity: .86; }
+.ndz-wait { min-height: 466px; align-items: center; justify-content: center; text-align: center; }
+.ndz-wait-t { margin: 0; font: 700 16px var(--nd-font); }
+.ndz-wait-s { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndz-dots { display: flex; gap: 10px; }
+.ndz-dots i { width: 10px; height: 10px; border-radius: 50%; background: #3BE3A0; animation: nzDot 1.2s infinite; }
+.ndz-dots i:nth-child(2) { animation-delay: .18s; }
+.ndz-dots i:nth-child(3) { animation-delay: .36s; }
+@keyframes nzDot { 0%, 80%, 100% { transform: scale(.6); opacity: .4; } 40% { transform: scale(1); opacity: 1; } }
+.ndz-verdict { box-sizing: border-box; display: flex; align-items: center; gap: 24px; padding: 28px; border-radius: 24px; color: #fff; animation: ndzIn .4s; }
+@keyframes ndzIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.ndz-verdict.tone-wait { background: linear-gradient(120deg, #071330, #0A2A9E); }
+.ndz-verdict.tone-pix { background: linear-gradient(120deg, #0E9A69, #12C985); }
+.ndz-verdict.tone-c1 { background: linear-gradient(120deg, #1546FF, #12C985); }
+.ndz-verdict.tone-cN { background: linear-gradient(120deg, #1546FF, #2F6BFF); }
+.ndz-verdict-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.ndz-verdict-k { display: flex; align-items: center; gap: 8px; font: 600 12px var(--nd-mono); letter-spacing: .14em; opacity: .85; }
+.ndz-verdict-t { margin: 0; font: 800 44px/1 var(--nd-font); letter-spacing: -.04em; }
+.ndz-verdict-s { margin: 0; max-width: 620px; font: 500 15.5px/1.5 var(--nd-font); opacity: .9; }
+.ndz-score { flex: none; width: 182px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; border-radius: 18px; background: rgba(255,255,255,.14); }
+.ndz-score-l { font: 500 12px var(--nd-font); opacity: .8; }
+.ndz-score-n { font: 800 40px var(--nd-font); letter-spacing: -.04em; }
+.ndz-score-d { font: 600 12px var(--nd-font); color: #93F0CB; }
+.ndz-two-col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.ndz-card-t { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndz-reason { display: flex; align-items: flex-start; gap: 10px; }
+.ndz-reason-i { width: 24px; height: 24px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.ndz-reason-i.ok { background: #E9FBF2; color: #087A52; }
+.ndz-reason-i.warn { background: #FFF4DE; color: #B7791F; }
+.ndz-reason-t { font: 500 13.5px/1.5 var(--nd-font); color: #2A3555; }
+.ndz-primary, .ndz-secondary { padding: 0 18px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; cursor: pointer; flex: none; box-sizing: border-box; }
+.ndz-primary { height: 48px; border: none; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); }
+.ndz-secondary { height: 49px; border: 1.5px solid #C9D9FF; background: #fff; color: var(--nd-blue); font: 600 14px var(--nd-font); }
+.ndz-primary:disabled, .ndz-secondary:disabled { opacity: .6; cursor: default; }
+.ndz-table { gap: 0; }
+.ndz-table .ndz-card-t { padding-bottom: 10px; }
+.ndz-tr { display: grid; grid-template-columns: 140px repeat(4, minmax(0, 1fr)) 130px; gap: 12px; align-items: center; }
+.ndz-tr > span:nth-child(n+2):nth-child(-n+5) { text-align: right; }
+.ndz-tr.head { padding: 0 12px 8px; font: 600 12px var(--nd-font); color: #5B6785; }
+.ndz-tr.row { padding: 12px; border: 1.5px solid transparent; border-radius: 12px; background: #fff; }
+.ndz-tr.row.rec { background: #E9FBF2; border-color: #12C985; }
+.ndz-tr.row.mine { background: #F4F7FF; border-color: var(--nd-blue); }
+.ndz-forma { font: 700 14px var(--nd-font); }
+.ndz-pv { font-weight: 600; font-size: 14px; }
+.ndz-pct { font-weight: 600; font-size: 13px; }
+.ndz-pct.high { color: #D6334A; }
+.ndz-total { font-weight: 500; font-size: 13px; color: #5B6785; }
+.ndz-sc { font-weight: 700; font-size: 14px; }
+.ndz-tag { justify-self: end; padding: 4px 10px; border-radius: 99px; font: 700 11px var(--nd-font); }
+.ndz-tag.rec { background: #12C985; color: #fff; }
+.ndz-tag.mine { background: var(--nd-blue); color: #fff; }
+.ndz-tag.ok { background: #EEF3FF; color: var(--nd-blue); }
+.ndz-tag.tight { background: #FDECEF; color: #D6334A; }
+
+/* ndpl-* — Planos no desktop (design "Nancy Desktop", tela 30): título de 30px e seletor Mensal/Anual na mesma linha, e três cartões lado a lado (vão de 16); o Elite é o cartão azul */
+.ndpl { display: flex; flex-direction: column; gap: 16px; font-family: var(--nd-font); color: var(--nd-ink); }
+.ndpl-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ndpl-title { margin: 0; font: 800 30px var(--nd-font); letter-spacing: -.03em; }
+.ndpl-title span { color: var(--nd-blue); }
+.ndpl-toggle { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--nd-line); border-radius: 12px; background: #fff; flex: none; }
+.ndpl-toggle button { padding: 8px 14px; border: none; border-radius: 9px; background: transparent; color: #5B6785; font: 600 13px var(--nd-font); cursor: pointer; }
+.ndpl-toggle button.on { background: var(--nd-blue); color: #fff; }
+.ndpl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ndpl-card { box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 24px; border: 2px solid var(--nd-blue); border-radius: 22px; background: #fff; color: var(--nd-ink); }
+.ndpl-card.t0 { border-color: #E1E8F5; }
+.ndpl-card.t2 { background: var(--nd-blue); color: #fff; }
+.ndpl-name-row { display: flex; align-items: center; justify-content: space-between; }
+.ndpl-name { margin: 0; font: 800 24px var(--nd-font); }
+.ndpl-tag { padding: 4px 10px; border-radius: 99px; background: #3BE3A0; color: #06392A; font: 700 11px var(--nd-font); }
+.ndpl-desc { margin: 0; font: 400 13.5px var(--nd-font); color: #5B6785; }
+.ndpl-card.t2 .ndpl-desc, .ndpl-card.t2 .ndpl-price-per { color: rgba(255,255,255,.8); }
+.ndpl-price { display: flex; align-items: baseline; gap: 6px; }
+.ndpl-price-n { font: 800 40px var(--nd-font); letter-spacing: -.03em; }
+.ndpl-price-per { font: 400 13px var(--nd-font); color: #5B6785; }
+.ndpl-feats { flex: 1; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.ndpl-feat { display: flex; align-items: center; gap: 8px; font: 500 14px var(--nd-font); }
+.ndpl-chk { display: block; color: #12C985; } /* ícone de 20px em linha dentro de bloco, como no protótipo: o item fica com ~23px de altura (passo de 32px entre itens) */
+.ndpl-card.t1 .ndpl-chk { color: var(--nd-blue); }
+.ndpl-card.t2 .ndpl-chk { color: #3BE3A0; }
+.ndpl-cta { flex: none; height: 48px; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: 12px; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndpl-cta.muted { background: #F4F7FC; color: #5B6785; }
+.ndpl-cta.blue { background: var(--nd-blue); color: #fff; }
+.ndpl-cta.mint { background: #3BE3A0; color: #06392A; }
+.ndpl-cta:disabled { cursor: default; }
+.ndpl-cta:focus-visible, .ndpl-toggle button:focus-visible { outline: 2px solid var(--nd-ink); outline-offset: 2px; }
+.ndpl-card.t2 .ndpl-cta:focus-visible { outline-color: #fff; }
+@media (max-width: 1180px) { .ndpl-grid { grid-template-columns: minmax(0, 1fr); } }
+.ndz-done { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 12px 14px; border-radius: 12px; background: #E9FBF2; color: #087A52; font: 600 13px/1.4 var(--nd-font); }
+.ndz-done .ndz-link { color: #087A52; }

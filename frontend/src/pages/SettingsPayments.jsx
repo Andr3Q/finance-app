@@ -2,11 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import CancelPlanCard from '../components/features/settings/CancelPlanCard.jsx'
+import SettingsDesktopLayout from '../components/layout/SettingsDesktopLayout.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { paymentsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
+import ProtoIcon from '../components/layout/ProtoIcon.jsx'
 
 const PLAN_LABEL   = { pro: 'Pro', elite: 'Elite' }
 const PERIOD_LABEL = { monthly: 'mensal', annual: 'anual' }
@@ -35,6 +38,7 @@ export default function SettingsPayments() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const isPaid  = (user.plan === 'pro' || user.plan === 'elite') && !user.isOnTrial
   const isTrial = (user.plan === 'pro' || user.plan === 'elite') && !!user.isOnTrial
@@ -77,14 +81,65 @@ export default function SettingsPayments() {
   }
   const showHistory = payments.length > 0 || isPaid || failed
 
+  const toastEl = msg && (
+    <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
+      {msg}
+    </div>
+  )
+
+  // Desktop (design "Nancy Desktop", tela 31): cartão do plano com o botão de cancelar ao lado e o histórico em tabela
+  // (Data, Descrição, Valor, Status). Mesmos dados, mesmo cancelamento (aviso + senha); só a apresentação muda.
+  if (isDesktop && user?.id) {
+    const per = latest?.period === 'monthly' ? '/mês' : latest?.period === 'annual' ? '/ano' : ''
+    const desktopTitle = isPaid && latest?.amount != null ? `${title} · ${money(latest.amount)}${per}` : title
+    return (
+      <>
+        {toastEl}
+        <SettingsDesktopLayout>
+          <section className="pgd-plan" aria-label="Plano atual">
+            <span className={`pgd-plan-ico${isPaid || isTrial ? ' paid' : ''}`}><ProtoIcon name="zap" size={20} /></span>
+            <div className="pgd-plan-text">
+              <h2 className="pgd-plan-title">{desktopTitle}</h2>
+              <p className={`pgd-plan-sub${isPaid && cancelled ? ' warn' : ''}`}>{sub}</p>
+            </div>
+            {!isPaid && !isTrial && <button type="button" className="pgd-plans-link" onClick={() => navigate('/planos')}>Ver planos</button>}
+            <CancelPlanCard onMessage={showMsg} variant="desktop" />
+          </section>
+
+          {showHistory && (
+            <section className="pgd-hist" aria-label="Histórico de pagamentos">
+              {loading ? (
+                <div className="pgd-state"><span className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /></div>
+              ) : failed ? (
+                <p className="pgd-state">Não foi possível carregar o histórico agora.</p>
+              ) : payments.length === 0 ? (
+                <p className="pgd-state">Nenhum pagamento registrado ainda.</p>
+              ) : (
+                <>
+                  <div className="pgd-head" aria-hidden="true"><span>DATA</span><span>DESCRIÇÃO</span><span>VALOR</span><span>STATUS</span></div>
+                  <ul className="pgd-list">
+                    {payments.map(p => (
+                      <li key={p.paymentId} className="pgd-row">
+                        <span>{dateShort(p.processedAt)}</span>
+                        <span className="pgd-desc">{paymentSub(p)}</span>
+                        <span className="pgd-amt">{p.amount != null ? money(p.amount) : ''}</span>
+                        <span className="pgd-ok">Pago</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+          )}
+        </SettingsDesktopLayout>
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
-      {msg && (
-        <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
-          {msg}
-        </div>
-      )}
+      {toastEl}
       <div className="pwnav fin-pwnav fade-in">
         <div className="fin-page">
           <header className="fin-hero">

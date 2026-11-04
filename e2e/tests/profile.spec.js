@@ -118,15 +118,15 @@ test.describe('Perfil — celular', () => {
 test.describe('Perfil — desktop', () => {
   test.use({ viewport: { width: 1280, height: 800 } })
 
-  test('coluna centralizada, sem rolagem horizontal, com a lista completa', async ({ page }) => {
+  // no desktop a Visão geral é a tela com o menu da conta (design "Nancy Desktop", tela 25), não mais a coluna do celular
+  test('menu da conta com as 12 telas, sem a coluna do celular e sem rolagem horizontal', async ({ page }) => {
     await setup(page)
-    await expect(page.locator('.pf-row')).toHaveCount(14)
-    const m = await page.evaluate(() => {
-      const r = document.querySelector('.pf-page').getBoundingClientRect()
-      return { w: Math.round(r.width), overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth, radius: getComputedStyle(document.querySelector('.pf-page')).borderTopLeftRadius }
-    })
-    expect(m.w).toBeLessThanOrEqual(520)
-    expect(m.overflowX).toBe(0)
-    expect(m.radius).toBe('28px')
+    const nav = page.getByRole('navigation', { name: 'Conta' })
+    await expect(nav).toBeVisible()
+    await expect(nav.getByRole('button')).toHaveCount(12)
+    await expect(nav.getByRole('button', { name: 'Visão geral' })).toHaveAttribute('aria-current', 'page')
+    await expect(page.locator('.pf-page')).toHaveCount(0)
+    const overflowX = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    expect(overflowX).toBe(0)
   })
 })

@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import CalendarDesktop from './CalendarDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { transactionsAPI, budgetAPI, goalsAPI, installmentsAPI } from '../services/api.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { MONTHS, CATEGORY_LABELS } from '../constants/index.js'
@@ -10,7 +13,6 @@ import { fmt } from '../utils/format.js'
 
 const DOW = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM']
 const HIDDEN = 'R$ ••••'
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 
 function buildCalendar(year, month) {
   const firstDow    = new Date(year, month - 1, 1).getDay()
@@ -48,6 +50,7 @@ const dotKind = (kind) => (kind === 'income' ? 'in' : kind === 'goal' ? 'goal' :
 export default function Calendar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const now = new Date()
@@ -60,7 +63,7 @@ export default function Calendar() {
   const [installments,  setInstallments]  = useState([])
   const [loading,       setLoading]       = useState(true)
   const [fetchError,    setFetchError]    = useState(false)
-  const [hidden]                          = useState(readHidden)
+  const [hidden]                          = useHideBalance()
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -141,6 +144,18 @@ export default function Calendar() {
   const money = (n) => (hidden ? HIDDEN : `R$ ${fmt(n)}`)
   // dia já passou (ou é hoje) no mês exibido; mês passado inteiro conta como passado
   const isPast = (day) => year < now.getFullYear() || (year === now.getFullYear() && (month < now.getMonth() + 1 || (month === now.getMonth() + 1 && day <= now.getDate())))
+
+  if (isDesktop) {
+    return (
+      <>
+        {fetchError && <div className="toast toast-top terr">Erro ao carregar dados do calendário.</div>}
+        <CalendarDesktop ctx={{
+          month, year, cells, evByDay, selectedDay, setSelectedDay, today, isPast, isCurrentMonth, prevMonth, nextMonth, goToday,
+          loading, hasGoalDots, selEvents, hidden,
+        }} />
+      </>
+    )
+  }
 
   return (
     <>

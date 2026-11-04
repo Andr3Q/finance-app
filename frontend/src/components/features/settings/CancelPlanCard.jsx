@@ -5,7 +5,9 @@ import { useEscapeKey } from '../../../hooks/useEscapeKey.js'
 import { authAPI } from '../../../services/api.js'
 import { analytics } from '../../../services/analytics.js'
 
-export default function CancelPlanCard({ onMessage }) {
+// variant="desktop" (design "Nancy Desktop", tela 31): o botão vazado "Cancelar assinatura" vai dentro do cartão do plano e, com o cancelamento já
+// registrado, não aparece (a frase do cartão já diz até quando vai o acesso). O fluxo (aviso + senha) é o mesmo.
+export default function CancelPlanCard({ onMessage, variant }) {
   const user   = useUser()
   const isPaid = (user.plan === 'pro' || user.plan === 'elite') && !user.isOnTrial
 
@@ -58,7 +60,9 @@ export default function CancelPlanCard({ onMessage }) {
 
   return (
     <>
-      {isCancelledWithAccess ? (
+      {variant === 'desktop' ? (
+        !isCancelledWithAccess && <button type="button" className="pgd-cancel" onClick={openModal}>Cancelar assinatura</button>
+      ) : isCancelledWithAccess ? (
         <div className="pg-cancelled" role="status">
           <strong>Plano não será renovado.</strong> Acesso premium garantido até {expiryFormatted}.
         </div>

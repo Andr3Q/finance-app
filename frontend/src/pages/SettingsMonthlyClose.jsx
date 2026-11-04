@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { createPortal } from 'react-dom'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
@@ -7,13 +8,14 @@ import { reportsAPI, transactionsAPI } from '../services/api.js'
 import { invalidateCache } from '../services/cache.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import SettingsDesktopLayout from '../components/layout/SettingsDesktopLayout.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import { currentBrasiliaMonthYear } from '../utils/txCache.js'
 import { MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
 
 const HIDDEN = 'R$ ••••'
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 
 const Svg = ({ size = 18, sw = 1.9, children }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
@@ -31,6 +33,7 @@ export default function SettingsMonthlyClose() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const isPro = user.plan === 'pro' || user.plan === 'elite'
 
@@ -43,7 +46,7 @@ export default function SettingsMonthlyClose() {
   const [upgrade,   setUpgrade]   = useState(null)
   const [msg,       setMsg]       = useState('')
   const [msgType,   setMsgType]   = useState('success')
-  const [hidden]                  = useState(readHidden)
+  const [hidden]                  = useHideBalance()
   const timer = useRef(null)
   useEffect(() => () => clearTimeout(timer.current), [])
 
@@ -121,14 +124,102 @@ export default function SettingsMonthlyClose() {
     }
   }
 
+  // resultado do mês e relatórios anteriores: o mesmo conteúdo no celular e no desktop (o desktop o põe no menu da conta, em duas colunas)
+  const sections = (
+    <>
+    <section className="bm-card" aria-label="Resultado do mês">
+      <div className="bm-label">{MONTHS[month - 1]} {year}</div>
+      <div className="bm-value">{known ? signed(recap.saved) : '—'}</div>
+      <div className="bm-sub">
+        <div className="bm-box"><span className="bm-box-lbl">Entradas</span><span className="bm-box-val in">{money(known ? (recap.salary || 0) + recap.totalIncome : (recap?.totalIncome ?? 0))}</span></div>
+        <div className="bm-box"><span className="bm-box-lbl">Saídas</span><span className="bm-box-val">{money(recap?.totalExpenses ?? 0)}</span></div>
+      </div>
+      {/* O resultado já desconta as contas fixas ainda não pagas; sem esta linha Entradas − Saídas não fechava com ele. */}
+      {known && recap.unpaidFixedCosts > 0 && (
+        <p className="bm-note">Já desconta {money(recap.unpaidFixedCosts)} de contas fixas a pagar.</p>
+      )}
+      {nothingToClose ? (
+        <>
+          <button type="button" className="bm-close" disabled>{known ? 'Mês já fechado' : 'Nada para fechar'}</button>
+          {known && <p className="bm-note">Os lançamentos de {MONTHS[month - 1].toLowerCase()} estão no relatório abaixo.</p>}
+        </>
+      ) : (
+        <button type="button" className="bm-close" onClick={askClose} disabled={closing}>
+          {closing ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório…</> : <><ScaleIcon /> Fechar mês e gerar PDF</>}
+        </button>
+      )}
+    </section>
+
+    <section className="fin-card bm-list-card" aria-label="Relatórios anteriores">
+      <h2 className="bm-list-title">Relatórios anteriores</h2>
+      {history && history.length > 0 ? (
+        <ul className="bm-list">
+          {history.map(h => {
+            const label = `${MONTHS[h.month - 1]} ${h.year}`
+            const key = `${h.month}-${h.year}`
+            return (
+              <li key={key} className="bm-row">
+                <span className="bm-doc"><DocIcon /></span>
+                <span className="bm-row-name">{label}</span>
+                <button type="button" className="bm-dl" onClick={() => download(h)} disabled={busyKey === key} aria-label={`Baixar relatório de ${label}`}>
+                  {busyKey === key ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : <DownloadIcon />}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <p className="bm-empty">{history === null ? 'Não foi possível carregar os relatórios agora.' : 'Nenhum mês fechado ainda. Quando você fechar um mês, o relatório fica aqui para baixar.'}</p>
+      )}
+    </section>
+    </>
+  )
+
+  const modals = (
+    <>
+    {upgrade && <UpgradeModal reason={upgrade} onClose={() => setUpgrade(null)} />}
+
+    {confirming && createPortal(
+      <div className="gls-modal-overlay" onClick={() => setConfirming(false)}>
+        <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="bm-close-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+          <div className="gls-modal-head"><span id="bm-close-title">Fechar o mês?</span></div>
+          <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
+            <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+              Isso vai gerar o PDF, enviar para o seu e-mail e zerar os gastos do mês: os lançamentos de {MONTHS[month - 1].toLowerCase()} serão arquivados no relatório. Não dá para desfazer.
+            </div>
+          </div>
+          <div className="gls-modal-foot">
+            <button className="gls-btn-ghost" onClick={() => setConfirming(false)}>Voltar</button>
+            <button className="gls-btn-save" onClick={close}>Fechar mês</button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
+  )
+
+  const toastEl = msg && (
+    <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
+      {msg}
+    </div>
+  )
+
+  if (isDesktop) {
+    // Desktop (design "Nancy Desktop", tela 29): no menu da conta, o cartão azul do mês (448px) e "Relatórios anteriores" ao lado; o visual vem de CSS (nst-bm).
+    return (
+      <>
+        {toastEl}
+        <SettingsDesktopLayout><div className="nst-bm">{sections}</div></SettingsDesktopLayout>
+        {modals}
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
-      {msg && (
-        <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
-          {msg}
-        </div>
-      )}
+      {toastEl}
       <div className="pwnav fin-pwnav fade-in">
         <div className="fin-page">
           <header className="fin-hero">
@@ -140,73 +231,11 @@ export default function SettingsMonthlyClose() {
           </header>
 
           <div className="fin-body">
-            <section className="bm-card" aria-label="Resultado do mês">
-              <div className="bm-label">{MONTHS[month - 1]} {year}</div>
-              <div className="bm-value">{known ? signed(recap.saved) : '—'}</div>
-              <div className="bm-sub">
-                <div className="bm-box"><span className="bm-box-lbl">Entradas</span><span className="bm-box-val in">{money(known ? (recap.salary || 0) + recap.totalIncome : (recap?.totalIncome ?? 0))}</span></div>
-                <div className="bm-box"><span className="bm-box-lbl">Saídas</span><span className="bm-box-val">{money(recap?.totalExpenses ?? 0)}</span></div>
-              </div>
-              {/* O resultado já desconta as contas fixas ainda não pagas; sem esta linha Entradas − Saídas não fechava com ele. */}
-              {known && recap.unpaidFixedCosts > 0 && (
-                <p className="bm-note">Já desconta {money(recap.unpaidFixedCosts)} de contas fixas a pagar.</p>
-              )}
-              {nothingToClose ? (
-                <>
-                  <button type="button" className="bm-close" disabled>{known ? 'Mês já fechado' : 'Nada para fechar'}</button>
-                  {known && <p className="bm-note">Os lançamentos de {MONTHS[month - 1].toLowerCase()} estão no relatório abaixo.</p>}
-                </>
-              ) : (
-                <button type="button" className="bm-close" onClick={askClose} disabled={closing}>
-                  {closing ? <><span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> Gerando relatório…</> : <><ScaleIcon /> Fechar mês e gerar PDF</>}
-                </button>
-              )}
-            </section>
-
-            <section className="fin-card bm-list-card" aria-label="Relatórios anteriores">
-              <h2 className="bm-list-title">Relatórios anteriores</h2>
-              {history && history.length > 0 ? (
-                <ul className="bm-list">
-                  {history.map(h => {
-                    const label = `${MONTHS[h.month - 1]} ${h.year}`
-                    const key = `${h.month}-${h.year}`
-                    return (
-                      <li key={key} className="bm-row">
-                        <span className="bm-doc"><DocIcon /></span>
-                        <span className="bm-row-name">{label}</span>
-                        <button type="button" className="bm-dl" onClick={() => download(h)} disabled={busyKey === key} aria-label={`Baixar relatório de ${label}`}>
-                          {busyKey === key ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : <DownloadIcon />}
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <p className="bm-empty">{history === null ? 'Não foi possível carregar os relatórios agora.' : 'Nenhum mês fechado ainda. Quando você fechar um mês, o relatório fica aqui para baixar.'}</p>
-              )}
-            </section>
+            {sections}
           </div>
         </div>
       </div>
-      {upgrade && <UpgradeModal reason={upgrade} onClose={() => setUpgrade(null)} />}
-
-      {confirming && createPortal(
-        <div className="gls-modal-overlay" onClick={() => setConfirming(false)}>
-          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="bm-close-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
-            <div className="gls-modal-head"><span id="bm-close-title">Fechar o mês?</span></div>
-            <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
-              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
-                Isso vai gerar o PDF, enviar para o seu e-mail e zerar os gastos do mês: os lançamentos de {MONTHS[month - 1].toLowerCase()} serão arquivados no relatório. Não dá para desfazer.
-              </div>
-            </div>
-            <div className="gls-modal-foot">
-              <button className="gls-btn-ghost" onClick={() => setConfirming(false)}>Voltar</button>
-              <button className="gls-btn-save" onClick={close}>Fechar mês</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      {modals}
     </>
   )
 }

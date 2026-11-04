@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { MemoryRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import Transactions from '../pages/Transactions.jsx'
 
 vi.mock('../services/api.js', () => ({
@@ -36,13 +36,13 @@ const txs = [
 // salário 6.000 + lançamentos de entrada 10.800 = Entradas 16.800; 16.800 − 7.300 = Resultado 9.500 (o cartão fecha)
 const recap = { hasData: true, saved: 9500, salary: 6000, totalIncome: 10800, totalExpenses: 7300 }
 
-function setup({ list = txs, recapRes = recap } = {}) {
+function setup({ list = txs, recapRes = recap, entry = '/transactions' } = {}) {
   transactionsAPI.list.mockResolvedValue({ data: { data: list } })
   installmentsAPI.list.mockResolvedValue({ data: [] })
   if (recapRes instanceof Error) transactionsAPI.monthlyRecap.mockRejectedValue(recapRes)
   else transactionsAPI.monthlyRecap.mockResolvedValue({ data: recapRes })
   return render(
-    <MemoryRouter initialEntries={['/transactions']}>
+    <MemoryRouter initialEntries={[entry]}>
       <Routes>
         <Route path="/transactions" element={<Transactions />} />
         <Route path="/contas-do-mes" element={<div>Página Contas do mês</div>} />
@@ -398,3 +398,40 @@ describe('Extrato — navegação rápida entre meses', () => {
   })
 })
 
+
+
+// A barra de cima do desktop leva a busca ao Extrato pelo state da rota (DesktopTopbar).
+describe('Extrato — busca vinda da barra de cima (desktop)', () => {
+  const GoSearch = ({ q }) => { const nav = useNavigate(); return <button onClick={() => nav('/transactions', { state: { search: q } })}>buscar {q}</button> }
+
+  it('abre já filtrado pelo texto buscado, com o campo preenchido', async () => {
+    setup({ entry: { pathname: '/transactions', state: { search: 'roup' } } })
+    expect(await screen.findByText('Roupa')).toBeInTheDocument()
+    expect(screen.queryByText('Academia')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Buscar no extrato')).toHaveValue('roup')
+  })
+
+  it('sem busca na rota, abre com a lista inteira', async () => {
+    setup()
+    expect(await screen.findByText('Roupa')).toBeInTheDocument()
+    expect(screen.getByText('Academia')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Buscar no extrato')).toHaveValue('')
+  })
+
+  it('uma nova busca com o Extrato já aberto troca o filtro', async () => {
+    transactionsAPI.list.mockResolvedValue({ data: { data: txs } })
+    installmentsAPI.list.mockResolvedValue({ data: [] })
+    transactionsAPI.monthlyRecap.mockResolvedValue({ data: recap })
+    render(
+      <MemoryRouter initialEntries={['/transactions']}>
+        <GoSearch q="acad" />
+        <Routes><Route path="/transactions" element={<Transactions />} /></Routes>
+      </MemoryRouter>
+    )
+    expect(await screen.findByText('Roupa')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'buscar acad' }))
+    await waitFor(() => expect(screen.queryByText('Roupa')).not.toBeInTheDocument())
+    expect(screen.getByText('Academia')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Buscar no extrato')).toHaveValue('acad')
+  })
+})

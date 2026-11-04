@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { authAPI } from '../services/api.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import ForgotPasswordDesktop from './ForgotPasswordDesktop.jsx'
 
 const IconChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -23,6 +25,7 @@ export default function ForgotPassword() {
   const [loading, setLoading] = useState(false)
   const [sent,    setSent]    = useState(false)
   const [error,   setError]   = useState('')
+  const isDesktop = useIsDesktop() // no desktop a tela tem layout próprio (design "Nancy Desktop"); a lógica é a mesma
 
   const handleSubmit = async e => {
     e.preventDefault()
@@ -39,6 +42,11 @@ export default function ForgotPassword() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (isDesktop) {
+    const onEmail = e => { setEmail(e.target.value); if (error) setError('') }
+    return <ForgotPasswordDesktop ctx={{ email, setEmail: onEmail, error, loading, sent, handleSubmit }} />
   }
 
   return (

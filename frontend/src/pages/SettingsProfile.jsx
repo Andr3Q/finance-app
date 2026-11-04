@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import SettingsProfileDesktop from './SettingsProfileDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { authAPI } from '../services/api.js'
 import { useUser, saveUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
@@ -22,6 +24,7 @@ export default function SettingsProfile() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const fileRef = useRef(null)
@@ -125,6 +128,16 @@ export default function SettingsProfile() {
 
   const verified = user.emailVerified
   const photo = avatarSrc(user)
+
+  if (isDesktop) {
+    return (
+      <SettingsProfileDesktop ctx={{
+        user, photo, initials: initialsOf(user.name), photoBusy, fileRef, onPickPhoto, onPickClick: () => fileRef.current?.click(), onRemovePhoto: removePhoto,
+        name, setName: (v) => { setName(v); setStatus(null) }, onSave: save, saving, verified, resend, resending,
+        emailOpen, toggleEmail: () => { setEmailOpen(o => !o); setStatus(null) }, newEmail, setNewEmail, emailPass, setEmailPass, onChangeEmail: changeEmail, emailSaving, status,
+      }} />
+    )
+  }
 
   return (
     <>

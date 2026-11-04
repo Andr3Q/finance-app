@@ -5,6 +5,8 @@ import PushDeviceRow from '../components/features/settings/PushDeviceRow.jsx'
 import { authAPI } from '../services/api.js'
 import { useUser, saveUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import SettingsDesktopLayout from '../components/layout/SettingsDesktopLayout.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { prefValue } from '../utils/notifPrefs.js'
 
 const BackIcon = () => (
@@ -31,6 +33,7 @@ export default function SettingsNotifications() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const [saving, setSaving] = useState({})
   const [msg, setMsg] = useState('')
@@ -65,6 +68,32 @@ export default function SettingsNotifications() {
       ? 'Toda segunda-feira · confirme seu e-mail para receber'
       : row.desc
   )
+
+  if (isDesktop) {
+    // Desktop (design "Nancy Desktop", tela 28): no menu da conta, um cartão com uma linha por aviso (nome, descrição e o interruptor). Mesma lógica: a escolha
+    // vale na hora, é gravada na conta e volta ao que era se o servidor recusar. A linha "Avisos neste aparelho" (push) fica num cartão abaixo.
+    return (
+      <>
+        {msg && <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>{msg}</div>}
+        <SettingsDesktopLayout>
+          <section className="nst-list" aria-label="Preferências de notificação">
+            <ul>
+              {ROWS.map(r => {
+                const on = prefValue(user, r.pref)
+                return (
+                  <li key={r.pref} className="nst-row">
+                    <div className="nst-row-text"><span className="nst-row-name">{r.label}</span><span className="nst-row-desc">{describe(r)}</span></div>
+                    <button type="button" role="switch" aria-checked={on} aria-label={r.label} className={`nst-switch${on ? ' on' : ''}`} onClick={() => toggle(r.pref)} disabled={!!saving[r.pref]}><span /></button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+          <section className="nst-list nst-device" aria-label="Avisos neste aparelho"><PushDeviceRow onMessage={showMsg} /></section>
+        </SettingsDesktopLayout>
+      </>
+    )
+  }
 
   return (
     <>

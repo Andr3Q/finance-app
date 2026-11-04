@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { transactionsAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import SubscriptionsDesktop from './SubscriptionsDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { fmt } from '../utils/format.js'
 import { readCancelFlags, setCancelFlag, subKey } from '../utils/subsCancel.js'
 
 const HIDDEN = 'R$ ••••'
-const readHidden = () => { try { return localStorage.getItem('hide-balance') === '1' } catch { return false } }
 const DAY_MS = 24 * 60 * 60 * 1000
 const STALE_DAYS = 35 // uma assinatura mensal sem cobrança há mais que isso provavelmente já parou
 
@@ -44,6 +46,7 @@ export default function Subscriptions() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const isElite = user?.plan === 'elite'
 
@@ -51,7 +54,7 @@ export default function Subscriptions() {
   const [loading, setLoading] = useState(isElite)
   const [failed,  setFailed]  = useState(false)
   const [flags,   setFlags]   = useState(() => readCancelFlags())
-  const [hidden]              = useState(readHidden)
+  const [hidden]              = useHideBalance()
   const [now]                 = useState(() => Date.now())
 
   const load = () => {
@@ -71,6 +74,17 @@ export default function Subscriptions() {
     const key = subKey(sub.description)
     setCancelFlag(sub, !flags[key])
     setFlags(readCancelFlags())
+  }
+
+  if (isDesktop) {
+    const since = (date) => { const x = sinceLabel(date, now); return { text: x.text, stale: x.days > STALE_DAYS } }
+    const staleCount = subs.filter(x => x.lastDate && sinceLabel(x.lastDate, now).days > STALE_DAYS).length
+    return (
+      <SubscriptionsDesktop ctx={{
+        isElite, loading, failed, retry: () => { setLoading(true); load() }, subs, flags, keyOf: subKey, since, staleCount, money, total,
+        onToggle: toggle, goPlans: () => navigate('/planos'),
+      }} />
+    )
   }
 
   return (

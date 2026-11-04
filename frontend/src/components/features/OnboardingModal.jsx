@@ -4,6 +4,8 @@ import { invalidateCache } from '../../services/cache.js'
 import { useEscapeKey } from '../../hooks/useEscapeKey.js'
 import { useUser, saveUser } from '../../hooks/useUser.js'
 import { analytics } from '../../services/analytics.js'
+import { useIsDesktop } from '../../hooks/useIsDesktop.js'
+import OnboardingDesktop from './OnboardingDesktop.jsx'
 
 const IconChevronLeft = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -32,6 +34,7 @@ export default function OnboardingModal() {
   const [goalErr,        setGoalErr]        = useState('')
   const [contaErr,       setContaErr]       = useState('')
   useEscapeKey(() => setConfirmSkip(false), confirmSkip)
+  const isDesktop = useIsDesktop() // no desktop os Primeiros passos têm layout próprio (design "Nancy Desktop"); a lógica é a mesma
 
   // Fonte de verdade é o servidor (onboardingComplete), não uma flag local —
   // antes disso dependia de sessionStorage.just_registered, que some ao
@@ -130,6 +133,18 @@ export default function OnboardingModal() {
       }
     }
     setSaving(false)
+  }
+
+  if (isDesktop) {
+    return <OnboardingDesktop ctx={{
+      step, saving, salary, salaryErr, bName, bAmount, budgetsAdded, budgetErr, contaErr, gTitle, gAmount, goalErr, confirmSkip,
+      onSalary: e => { setSalary(e.target.value); setSalaryErr('') },
+      onBName: e => { setBName(e.target.value); setBudgetErr(''); setContaErr('') },
+      onBAmount: e => { setBAmount(e.target.value); setBudgetErr(''); setContaErr('') },
+      onGTitle: e => { setGTitle(e.target.value); setGoalErr('') },
+      onGAmount: e => { setGAmount(e.target.value); setGoalErr('') },
+      handleNext, handleSkip, handleBack, handleAddBudget, skip, closeSkip: () => setConfirmSkip(false),
+    }} />
   }
 
   return (

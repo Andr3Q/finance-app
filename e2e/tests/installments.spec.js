@@ -3,6 +3,9 @@ const { test, expect }                          = require('../helpers/test')
 const { createMock, INSTALLMENT_ITEM, TX_EXPENSE } = require('../helpers/mockApi')
 const { injectSession, TEST_USER }              = require('../helpers/session')
 
+
+// Telas do celular (cartões, atalho do Extrato e formulário). As do desktop estão em desktop-installments.spec.js e desktop-extrato.spec.js.
+test.use({ viewport: { width: 393, height: 852 } })
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Parcelamentos — E2E
 // Cobre: listar, criar, pagar, desfazer, quitado, excluir
@@ -29,7 +32,7 @@ test.describe('Parcelamentos — Tela', () => {
   test('exibe cabeçalho "Compras parceladas" e o formulário de nova compra', async ({ page }) => {
     await setupBase(page)
     await goToParcelados(page)
-    await expect(page.getByRole('heading', { name: 'Compras parceladas' })).toBeVisible()
+    await expect(page.locator('.pwnav').getByRole('heading', { name: 'Compras parceladas' })).toBeVisible() // escopo na tela: o desktop tem o mesmo título na barra de cima
     await expect(page.getByRole('heading', { name: 'Nova compra parcelada' })).toBeVisible()
   })
 

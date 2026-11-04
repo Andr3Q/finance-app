@@ -8,6 +8,9 @@ const { injectSession, TEST_USER, FREE_USER } = require('../helpers/session')
 // Cobre: renderização, toggle anual, checkout, retorno de pagamento
 // ─────────────────────────────────────────────────────────────────
 
+// estrutura do celular (o desktop tem o spec desktop-account: cartões lado a lado, idêntico ao design)
+test.use({ viewport: { width: 393, height: 852 } })
+
 async function gotoPlanos(page, user = FREE_USER, search = '') {
   await injectSession(page, user)
   await page.goto(`/planos${search}`)
@@ -57,7 +60,7 @@ test.describe('Planos — Toggle Anual', () => {
   test('alternar para anual muda o botão para "Mensal"', async ({ page }) => {
     await gotoPlanos(page)
     await page.getByRole('button', { name: /anual/i }).click()
-    await expect(page.getByRole('button', { name: /mensal/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Mensal', exact: true })).toBeVisible()
   })
 })
 

@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import SettingsDesktopLayout from '../components/layout/SettingsDesktopLayout.jsx'
+import PlanosDesktop from './PlanosDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { useUser, saveUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
@@ -104,6 +107,7 @@ export default function Planos() {
   useEscapeKey(() => setShowDowngradeModal(false), showDowngradeModal)
 
   const user     = useUser()
+  const isDesktop = useIsDesktop()
   const plan     = user.plan || 'free'
   const location = useLocation()
   const navigate = useNavigate()
@@ -209,15 +213,163 @@ export default function Planos() {
     </ul>
   )
 
+  // conteúdo dos planos (introdução, três cartões, comparativo, garantia e perguntas): o mesmo no celular e no desktop (no desktop vai ao lado do menu da conta, os três cartões lado a lado por CSS)
+  const body = (
+  <div className="fin-body pl-body">
+    <div className="pl-intro">
+      <h2 className="pl-headline">Controle total do <span>seu dinheiro.</span></h2>
+      <p className="pl-lead">Comece grátis e faça upgrade quando quiser.</p>
+      <div className="pl-toggle" role="group" aria-label="Periodicidade">
+        <button type="button" className={billing === 'mensal' ? 'on' : ''} aria-pressed={billing === 'mensal'} onClick={() => setBilling('mensal')}>Mensal</button>
+        <button type="button" className={billing === 'anual' ? 'on' : ''} aria-pressed={billing === 'anual'} onClick={() => setBilling('anual')}>Anual · 2 meses grátis</button>
+      </div>
+    </div>
+
+    {/* GRÁTIS */}
+    <section className="pl-card pl-free" aria-label="Plano Grátis" aria-current={plan === 'free' ? 'true' : undefined}>
+      <h3 className="pl-tier">Grátis</h3>
+      <p className="pl-tagline">Para começar a se organizar</p>
+      <div className="pl-price"><span className="pl-price-num">R$ 0</span><span className="pl-price-note">para sempre</span></div>
+      <ul className="pl-feats">
+        {FREE_FEATS.map(f => <li key={f} className="pl-feat"><Check /><span>{f}</span></li>)}
+      </ul>
+      {plan === 'free' ? (
+        <button type="button" className="pl-cta pl-cta-ghost" disabled>Plano básico</button>
+      ) : (
+        <button type="button" className="pl-cta pl-cta-ghost" onClick={() => navigate('/settings/pagamentos')}>
+          Não renovar
+        </button>
+      )}
+    </section>
+
+    {/* PRO */}
+    <section className="pl-card pl-pro" aria-label="Plano Pro" aria-current={plan === 'pro' ? 'true' : undefined}>
+      <div className="pl-tier-row">
+        <h3 className="pl-tier">Pro</h3>
+        {plan === 'pro'
+          ? <span className="pl-badge pl-badge-current">Plano atual</span>
+          : <span className="pl-badge">Recomendado</span>}
+      </div>
+      <p className="pl-tagline">Para quem quer controle total</p>
+      <div className="pl-price"><span className="pl-price-num">{price(PRICES.pro[billing])}</span><span className="pl-price-note">por mês</span></div>
+      <p className="pl-price-sub">{billing === 'mensal' ? 'Cancele quando quiser' : 'Cobrado anualmente (R$ 99,00/ano)'}</p>
+      <Feats list={PRO_FEATS} />
+      {plan === 'pro' ? (
+        <button type="button" className="pl-cta pl-cta-current" disabled>Plano atual</button>
+      ) : (
+        <button type="button" className="pl-cta pl-cta-pro"
+          onClick={() => plan === 'elite' ? setShowDowngradeModal(true) : handleCheckout('pro', period)} disabled={!!loading}>
+          {loading === `pro_${period}` ? 'Aguarde…' : (<><BoltIcon /> {plan === 'elite' ? 'Mudar para Pro' : 'Assinar Pro'}</>)}
+        </button>
+      )}
+      <p className="pl-cta-note">PIX ou cartão · Cancele quando quiser</p>
+    </section>
+
+    {/* ELITE */}
+    <section className="pl-card pl-elite" aria-label="Plano Elite" aria-current={plan === 'elite' ? 'true' : undefined}>
+      <div className="pl-tier-row">
+        <h3 className="pl-tier">Elite</h3>
+        {plan === 'elite' && <span className="pl-badge pl-badge-current">Plano atual</span>}
+      </div>
+      <p className="pl-tagline">Para quem quer o poder da IA</p>
+      <div className="pl-price"><span className="pl-price-num">{price(PRICES.elite[billing])}</span><span className="pl-price-note">por mês</span></div>
+      <p className="pl-price-sub">{billing === 'mensal' ? 'Cancele quando quiser' : 'Cobrado anualmente (R$ 334,80/ano)'}</p>
+      <Feats list={ELITE_FEATS} />
+      {plan === 'elite' ? (
+        <button type="button" className="pl-cta pl-cta-current" disabled>Plano atual</button>
+      ) : (
+        <>
+          <button type="button" className="pl-cta pl-cta-elite" onClick={() => handleCheckout('elite', period)} disabled={!!loading}>
+            {loading === `elite_${period}` ? 'Aguarde…' : (<><BoltIcon /> {plan === 'pro' ? 'Fazer upgrade para Elite' : 'Assinar Elite'}</>)}
+          </button>
+          <p className="pl-cta-note">PIX ou cartão · Cancele quando quiser</p>
+        </>
+      )}
+    </section>
+
+    {/* Comparativo */}
+    <section className="pl-card pl-compare" aria-label="Comparativo completo">
+      <h3 className="pl-section-title">Comparativo completo</h3>
+      <div className="pl-table" role="table">
+        <div className="pl-tr pl-th" role="row">
+          <div className="pl-td-feat" role="columnheader">Funcionalidade</div>
+          <div className="pl-td" role="columnheader">Grátis</div>
+          <div className="pl-td pl-td-pro" role="columnheader">Pro</div>
+          <div className="pl-td" role="columnheader">Elite</div>
+        </div>
+        {COMPARE_GROUPS.map(g => (
+          <div key={g.label} role="rowgroup">
+            <div className="pl-group">{g.label}</div>
+            {g.rows.map(r => (
+              <div key={r.feat} className="pl-tr" role="row">
+                <div className="pl-td-feat" role="cell">{r.feat}</div>
+                <div className="pl-td" role="cell"><Cell v={r.free} /></div>
+                <div className="pl-td pl-td-pro" role="cell"><Cell v={r.pro} /></div>
+                <div className="pl-td" role="cell"><Cell v={r.elite} /></div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {/* Garantia + FAQ */}
+    <section className="pl-card pl-guar" aria-label="Cancele quando quiser">
+      <h3 className="pl-section-title">Cancele quando quiser</h3>
+      <p className="pl-guar-sub">Sem contratos, sem fidelidade. Cancele a qualquer momento, sem taxas ou complicações.</p>
+      <div className="pl-tags"><span>Sem contrato</span><span>100% privado</span><span>Sem cartão agora</span></div>
+    </section>
+
+    <section className="pl-card pl-faq" aria-label="Perguntas frequentes">
+      <h3 className="pl-section-title">Perguntas frequentes</h3>
+      {FAQ.map(([q, a], i) => (
+        <div key={q} className={`pl-faq-item${openFaq === i ? ' open' : ''}`}>
+          <button type="button" className="pl-faq-q" aria-expanded={openFaq === i} onClick={() => toggleFaq(i)}>
+            <span>{q}</span><span className="pl-faq-arrow" aria-hidden="true">›</span>
+          </button>
+          {openFaq === i && <p className="pl-faq-a">{a}</p>}
+        </div>
+      ))}
+    </section>
+  </div>
+  )
+
+  const toastEl = toast && (
+    <div className={`toast toast-top ${toast.type === 'error' ? 'terr' : toast.type === 'warn' ? 'twarn' : 'tok'}`}>
+      {toast.msg}
+    </div>
+  )
+  const downgradeModal = showDowngradeModal && (
+    <div className="pl-modal-overlay" onClick={() => setShowDowngradeModal(false)}>
+      <div className="pl-modal" role="dialog" aria-label="Atenção: downgrade de plano" onClick={e => e.stopPropagation()}>
+        <h3 className="pl-modal-title">Atenção: downgrade de plano</h3>
+        <p className="pl-modal-sub">Você possui o plano Elite ativo</p>
+        <p className="pl-modal-text">
+          Você já possui o plano Elite ativo. Para alterar sua assinatura para o Pro sem perder seus dias restantes, <strong>aguarde o fim do seu ciclo de faturamento atual</strong> ou fale com nosso suporte.
+        </p>
+        <p className="pl-modal-mail">suporte@finance.com.br</p>
+        <button type="button" className="pl-cta pl-cta-pro" onClick={() => setShowDowngradeModal(false)}>Entendido</button>
+      </div>
+    </div>
+  )
+
+  // Desktop logado (design "Nancy Desktop", tela 30): no menu da conta, com os três cartões lado a lado (PlanosDesktop). Quem não está logado vê a página como sempre.
+  if (isDesktop && user?.id) {
+    const ctx = { plan, billing, setBilling, prices: PRICES, loading, period, onCheckout: handleCheckout, onDowngrade: () => setShowDowngradeModal(true) }
+    return (
+      <>
+        {toastEl}
+        <SettingsDesktopLayout><PlanosDesktop ctx={ctx} /></SettingsDesktopLayout>
+        {downgradeModal}
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
 
-      {toast && (
-        <div className={`toast toast-top ${toast.type === 'error' ? 'terr' : toast.type === 'warn' ? 'twarn' : 'tok'}`}>
-          {toast.msg}
-        </div>
-      )}
+      {toastEl}
 
       <div className="pwnav fin-pwnav fade-in">
         <div className="fin-page">
@@ -229,140 +381,12 @@ export default function Planos() {
             </div>
           </header>
 
-          <div className="fin-body pl-body">
-            <div className="pl-intro">
-              <h2 className="pl-headline">Controle total do <span>seu dinheiro.</span></h2>
-              <p className="pl-lead">Comece grátis e faça upgrade quando quiser.</p>
-              <div className="pl-toggle" role="group" aria-label="Periodicidade">
-                <button type="button" className={billing === 'mensal' ? 'on' : ''} aria-pressed={billing === 'mensal'} onClick={() => setBilling('mensal')}>Mensal</button>
-                <button type="button" className={billing === 'anual' ? 'on' : ''} aria-pressed={billing === 'anual'} onClick={() => setBilling('anual')}>Anual · 2 meses grátis</button>
-              </div>
-            </div>
-
-            {/* GRÁTIS */}
-            <section className="pl-card pl-free" aria-label="Plano Grátis" aria-current={plan === 'free' ? 'true' : undefined}>
-              <h3 className="pl-tier">Grátis</h3>
-              <p className="pl-tagline">Para começar a se organizar</p>
-              <div className="pl-price"><span className="pl-price-num">R$ 0</span><span className="pl-price-note">para sempre</span></div>
-              <ul className="pl-feats">
-                {FREE_FEATS.map(f => <li key={f} className="pl-feat"><Check /><span>{f}</span></li>)}
-              </ul>
-              {plan === 'free' ? (
-                <button type="button" className="pl-cta pl-cta-ghost" disabled>Plano básico</button>
-              ) : (
-                <button type="button" className="pl-cta pl-cta-ghost" onClick={() => navigate('/settings/pagamentos')}>
-                  Não renovar
-                </button>
-              )}
-            </section>
-
-            {/* PRO */}
-            <section className="pl-card pl-pro" aria-label="Plano Pro" aria-current={plan === 'pro' ? 'true' : undefined}>
-              <div className="pl-tier-row">
-                <h3 className="pl-tier">Pro</h3>
-                {plan === 'pro'
-                  ? <span className="pl-badge pl-badge-current">Plano atual</span>
-                  : <span className="pl-badge">Recomendado</span>}
-              </div>
-              <p className="pl-tagline">Para quem quer controle total</p>
-              <div className="pl-price"><span className="pl-price-num">{price(PRICES.pro[billing])}</span><span className="pl-price-note">por mês</span></div>
-              <p className="pl-price-sub">{billing === 'mensal' ? 'Cancele quando quiser' : 'Cobrado anualmente (R$ 99,00/ano)'}</p>
-              <Feats list={PRO_FEATS} />
-              {plan === 'pro' ? (
-                <button type="button" className="pl-cta pl-cta-current" disabled>Plano atual</button>
-              ) : (
-                <button type="button" className="pl-cta pl-cta-pro"
-                  onClick={() => plan === 'elite' ? setShowDowngradeModal(true) : handleCheckout('pro', period)} disabled={!!loading}>
-                  {loading === `pro_${period}` ? 'Aguarde…' : (<><BoltIcon /> {plan === 'elite' ? 'Mudar para Pro' : 'Assinar Pro'}</>)}
-                </button>
-              )}
-              <p className="pl-cta-note">PIX ou cartão · Cancele quando quiser</p>
-            </section>
-
-            {/* ELITE */}
-            <section className="pl-card pl-elite" aria-label="Plano Elite" aria-current={plan === 'elite' ? 'true' : undefined}>
-              <div className="pl-tier-row">
-                <h3 className="pl-tier">Elite</h3>
-                {plan === 'elite' && <span className="pl-badge pl-badge-current">Plano atual</span>}
-              </div>
-              <p className="pl-tagline">Para quem quer o poder da IA</p>
-              <div className="pl-price"><span className="pl-price-num">{price(PRICES.elite[billing])}</span><span className="pl-price-note">por mês</span></div>
-              <p className="pl-price-sub">{billing === 'mensal' ? 'Cancele quando quiser' : 'Cobrado anualmente (R$ 334,80/ano)'}</p>
-              <Feats list={ELITE_FEATS} />
-              {plan === 'elite' ? (
-                <button type="button" className="pl-cta pl-cta-current" disabled>Plano atual</button>
-              ) : (
-                <>
-                  <button type="button" className="pl-cta pl-cta-elite" onClick={() => handleCheckout('elite', period)} disabled={!!loading}>
-                    {loading === `elite_${period}` ? 'Aguarde…' : (<><BoltIcon /> {plan === 'pro' ? 'Fazer upgrade para Elite' : 'Assinar Elite'}</>)}
-                  </button>
-                  <p className="pl-cta-note">PIX ou cartão · Cancele quando quiser</p>
-                </>
-              )}
-            </section>
-
-            {/* Comparativo */}
-            <section className="pl-card pl-compare" aria-label="Comparativo completo">
-              <h3 className="pl-section-title">Comparativo completo</h3>
-              <div className="pl-table" role="table">
-                <div className="pl-tr pl-th" role="row">
-                  <div className="pl-td-feat" role="columnheader">Funcionalidade</div>
-                  <div className="pl-td" role="columnheader">Grátis</div>
-                  <div className="pl-td pl-td-pro" role="columnheader">Pro</div>
-                  <div className="pl-td" role="columnheader">Elite</div>
-                </div>
-                {COMPARE_GROUPS.map(g => (
-                  <div key={g.label} role="rowgroup">
-                    <div className="pl-group">{g.label}</div>
-                    {g.rows.map(r => (
-                      <div key={r.feat} className="pl-tr" role="row">
-                        <div className="pl-td-feat" role="cell">{r.feat}</div>
-                        <div className="pl-td" role="cell"><Cell v={r.free} /></div>
-                        <div className="pl-td pl-td-pro" role="cell"><Cell v={r.pro} /></div>
-                        <div className="pl-td" role="cell"><Cell v={r.elite} /></div>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            {/* Garantia + FAQ */}
-            <section className="pl-card pl-guar" aria-label="Cancele quando quiser">
-              <h3 className="pl-section-title">Cancele quando quiser</h3>
-              <p className="pl-guar-sub">Sem contratos, sem fidelidade. Cancele a qualquer momento, sem taxas ou complicações.</p>
-              <div className="pl-tags"><span>Sem contrato</span><span>100% privado</span><span>Sem cartão agora</span></div>
-            </section>
-
-            <section className="pl-card pl-faq" aria-label="Perguntas frequentes">
-              <h3 className="pl-section-title">Perguntas frequentes</h3>
-              {FAQ.map(([q, a], i) => (
-                <div key={q} className={`pl-faq-item${openFaq === i ? ' open' : ''}`}>
-                  <button type="button" className="pl-faq-q" aria-expanded={openFaq === i} onClick={() => toggleFaq(i)}>
-                    <span>{q}</span><span className="pl-faq-arrow" aria-hidden="true">›</span>
-                  </button>
-                  {openFaq === i && <p className="pl-faq-a">{a}</p>}
-                </div>
-              ))}
-            </section>
-          </div>
+          {body}
         </div>
       </div>
 
       {/* ── Modal: Elite tentando fazer downgrade para Pro ── */}
-      {showDowngradeModal && (
-        <div className="pl-modal-overlay" onClick={() => setShowDowngradeModal(false)}>
-          <div className="pl-modal" role="dialog" aria-label="Atenção: downgrade de plano" onClick={e => e.stopPropagation()}>
-            <h3 className="pl-modal-title">Atenção: downgrade de plano</h3>
-            <p className="pl-modal-sub">Você possui o plano Elite ativo</p>
-            <p className="pl-modal-text">
-              Você já possui o plano Elite ativo. Para alterar sua assinatura para o Pro sem perder seus dias restantes, <strong>aguarde o fim do seu ciclo de faturamento atual</strong> ou fale com nosso suporte.
-            </p>
-            <p className="pl-modal-mail">suporte@finance.com.br</p>
-            <button type="button" className="pl-cta pl-cta-pro" onClick={() => setShowDowngradeModal(false)}>Entendido</button>
-          </div>
-        </div>
-      )}
+      {downgradeModal}
     </>
   )
 }

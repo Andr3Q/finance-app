@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import LandingDesktop from './LandingDesktop.jsx'
 
 // Ícones inline (estilo consistente com components/ui/icons.jsx: stroke,
 // strokeWidth 1.8-2, strokeLinecap round) — não existia um de "alvo"/"mic"
@@ -28,9 +30,12 @@ const IconPlus = () => (
 )
 
 export default function Landing() {
+  const isDesktop = useIsDesktop() // desktop tem layout próprio (design "Nancy Desktop"); celular segue o design mobile
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', 'dark')
   }, [])
+
+  if (isDesktop) return <LandingDesktop />
 
   return (
     <div className="lw-page">

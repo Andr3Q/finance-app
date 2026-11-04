@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { transactionsAPI } from '../../services/api.js'
 import { CATEGORY_LABELS } from '../../constants/index.js'
 import CurrencyInput from '../ui/CurrencyInput.jsx'
 import { CategoryIcon } from '../ui/icons.jsx'
+import ProtoCategoryIcon from '../layout/ProtoCategoryIcon.jsx'
+import { useIsDesktop } from '../../hooks/useIsDesktop.js'
 import { useEscapeKey } from '../../hooks/useEscapeKey.js'
 
 // Ordem do design (Alimentação, Transporte, Shopping, Saúde, Contas fixas) e, depois,
@@ -30,6 +32,8 @@ function toDateInput(val) {
 
 export default function TransactionForm({ onClose, onSuccess, initialData, editingId }) {
   const isEdit = !!editingId
+  // No desktop a folha é um cartão centralizado (design "Nancy Desktop", tela 11): mesma lógica, rótulos e traço do desktop.
+  const isDesktop = useIsDesktop()
 
   const [type,    setType]    = useState(initialData?.type || 'expense')
   const [form,    setForm]    = useState({
@@ -39,6 +43,9 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
     date:        toDateInput(initialData?.date),
   })
   const [loading,            setLoading]            = useState(false)
+  // 'loading' só vale depois da próxima renderização: vários envios no MESMO instante (duplo toque, Enter + clique) passariam todos.
+  // O ref vale na hora, então só o primeiro envio segue.
+  const submitting = useRef(false)
   const [error,              setError]              = useState('')
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
 
@@ -58,6 +65,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
 
   const handleSubmit = async e => {
     e.preventDefault()
+    if (submitting.current) return
     if (!form.amount || form.amount <= 0) {
       setError('Insira um valor válido.')
       return
@@ -72,6 +80,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
       setError('Informe uma data válida (dd/mm/aaaa).')
       return
     }
+    submitting.current = true
     setLoading(true)
     setError('')
     try {
@@ -91,6 +100,8 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
     } catch (err) {
       setError(err.response?.data?.error || (isEdit ? 'Erro ao atualizar.' : 'Erro ao registrar.'))
       setLoading(false)
+    } finally {
+      submitting.current = false
     }
   }
 
@@ -99,7 +110,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
   return (
     <>
     <div
-      className="modal-overlay movl ntx-overlay"
+      className={`modal-overlay movl ntx-overlay${isDesktop ? ' ntx-d' : ''}`}
       style={{ display: 'flex' }}
       onClick={e => e.target === e.currentTarget && handleClose()}
     >
@@ -119,11 +130,11 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
         <div className="ntx-seg" role="group" aria-label="Tipo da transação">
           <button type="button" className={`ntx-seg-btn${isExp ? ' on' : ''}`} aria-pressed={isExp}
             onClick={() => { setType('expense'); setError('') }}>
-            Saída
+            {isDesktop ? 'Despesa' : 'Saída'}
           </button>
-          <button type="button" className={`ntx-seg-btn${!isExp ? ' on' : ''}`} aria-pressed={!isExp}
+          <button type="button" className={`ntx-seg-btn${!isExp ? ' on inc' : ''}`} aria-pressed={!isExp}
             onClick={() => { setType('income'); setError('') }}>
-            Entrada
+            {isDesktop ? 'Receita' : 'Entrada'}
           </button>
         </div>
 
@@ -143,7 +154,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
             className="ntx-field"
             name="description"
             type="text"
-            placeholder={isExp ? 'Descrição (ex.: Mercado)' : 'Descrição (ex.: Salário)'}
+            placeholder={isDesktop ? 'Descrição' : isExp ? 'Descrição (ex.: Mercado)' : 'Descrição (ex.: Salário)'}
             aria-label="Descrição"
             value={form.description}
             onChange={handleChange}
@@ -161,7 +172,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
                   aria-pressed={form.category === value}
                   onClick={() => setForm(f => ({ ...f, category: value }))}
                 >
-                  <CategoryIcon category={value} size={14} color="currentColor" />
+                  {isDesktop ? <ProtoCategoryIcon category={value} size={14} /> : <CategoryIcon category={value} size={14} color="currentColor" />}
                   {CATEGORY_LABELS[value]}
                 </button>
               ))}

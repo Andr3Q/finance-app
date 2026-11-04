@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { useUser } from '../hooks/useUser.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 
 const BackIcon = () => (
@@ -13,11 +14,30 @@ export default function NotFound() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const loggedIn = !!user?.id
   const home = loggedIn ? '/dashboard' : '/'
 
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate(home))
+
+  // Desktop logado (design "Nancy Desktop", tela 37): dentro da casca (menu azul + barra "Ops! / Erro 404"), o "404" grande, a frase e o
+  // botão centralizados. O visitante (sem login) vê a página de sempre.
+  if (isDesktop && loggedIn) {
+    return (
+      <>
+        <Navbar />
+        <div className="pwnav ndh-pwnav fade-in">
+          <div className="ndnf">
+            <div className="ndnf-code" aria-hidden="true">404</div>
+            <h2 className="ndnf-title">Essa página saiu do orçamento.</h2>
+            <p className="ndnf-sub">O link pode estar quebrado ou a página foi removida.</p>
+            <button type="button" className="ndnf-home" onClick={() => navigate(home)}>Voltar ao início</button>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>

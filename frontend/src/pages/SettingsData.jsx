@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import SettingsDesktopLayout from '../components/layout/SettingsDesktopLayout.jsx'
+import ProtoIcon from '../components/layout/ProtoIcon.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { authAPI } from '../services/api.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
@@ -20,6 +23,7 @@ export default function SettingsData() {
   const location = useLocation()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const user = useUser()
+  const isDesktop = useIsDesktop()
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('success')
   const [exporting, setExporting] = useState(null) // 'csv' | 'pdf' | 'json' enquanto o arquivo é gerado
@@ -70,14 +74,154 @@ export default function SettingsData() {
     }
   }
 
+  const toastEl = msg && (
+    <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
+      {msg}
+    </div>
+  )
+  const openDelete = () => { setDeleteModal(true); setDeletePass(''); setDeleteErr('') }
+
+  // Desktop (design "Nancy Desktop", tela 33): os dois cartões lado a lado, Exportar (CSV e PDF) e Excluir conta (borda e botão vermelhos).
+  // Mesmos arquivos e mesma exclusão com senha do celular. O link do JSON completo (LGPD Art. 15) continua, discreto, embaixo.
+  const desktopBody = (
+    <>
+      <div className="ndd-grid">
+        <section className="ndd-card" aria-label="Exportar meus dados">
+          <div className="ndd-head">
+            <span className="ndd-ico"><ProtoIcon name="download" size={20} /></span>
+            <div className="ndd-text">
+              <h2 className="ndd-title">Exportar meus dados</h2>
+              <p className="ndd-sub">Todas as suas transações, metas e contas</p>
+            </div>
+          </div>
+          <div className="ndd-btns">
+            <button type="button" className="ndd-fmt" onClick={() => handleExport('csv')} disabled={!!exporting}>{exporting === 'csv' ? 'Gerando…' : 'CSV'}</button>
+            <button type="button" className="ndd-fmt" onClick={() => handleExport('pdf')} disabled={!!exporting}>{exporting === 'pdf' ? 'Gerando…' : 'PDF'}</button>
+          </div>
+        </section>
+        <section className="ndd-card danger" aria-label="Excluir conta">
+          <div className="ndd-head">
+            <span className="ndd-ico danger"><ProtoIcon name="trash" size={20} /></span>
+            <div className="ndd-text">
+              <h2 className="ndd-title danger">Excluir conta</h2>
+              <p className="ndd-sub">Apaga tudo de forma permanente</p>
+            </div>
+          </div>
+          <button type="button" className="ndd-delete" onClick={openDelete}>Excluir minha conta</button>
+        </section>
+      </div>
+      <button type="button" className="ndd-json" onClick={() => handleExport('json')} disabled={!!exporting}>
+        {exporting === 'json' ? 'Gerando…' : 'Baixar cópia completa em JSON (LGPD, com a foto)'}
+      </button>
+    </>
+  )
+
+  const deleteEl = deleteModal && (
+    <div className="modal-overlay" style={{ zIndex:9000 }}>
+      <div className="modal del-modal" role="dialog" aria-modal="true" aria-labelledby="dd-del-title" style={{ maxWidth:420, padding:0, overflow:'hidden', border:'1px solid rgba(239,68,68,.2)' }}>
+
+        <div className="del-modal-bar" />
+
+        <div className="del-modal-inner">
+          <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:20 }}>
+            <div style={{ width:44, height:44, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                <path d="M10 11v6"/><path d="M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+            </div>
+            <div style={{ paddingTop:2 }}>
+              <div id="dd-del-title" style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:4 }}>Excluir conta permanentemente</div>
+              <div style={{ fontSize:12, color:'#ef4444', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="#ef4444"><circle cx="12" cy="12" r="10"/></svg>
+                Esta ação não pode ser desfeita
+              </div>
+            </div>
+          </div>
+
+          <div className="del-modal-list" style={{ background:'rgba(239,68,68,.05)', border:'1px solid rgba(239,68,68,.12)', borderRadius:10, padding:'12px 14px', marginBottom:20 }}>
+            <div className="del-modal-label" style={{ fontSize:11, fontWeight:700, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>O que será excluído:</div>
+            {[
+              'Todas as transações e histórico',
+              'Metas e progresso acumulado',
+              'Contas fixas e orçamentos',
+              'Configurações e dados da conta',
+              // quem está no Grátis não tem plano para cancelar (achado Passada 2)
+              ...(user.plan && user.plan !== 'free' ? ['Plano cancelado — sem reembolso'] : []),
+            ].map(item => (
+              <div key={item} className="del-modal-item" style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, fontSize:13, color:'var(--t2)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+                {item}
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginBottom:20 }}>
+            <label style={{ fontSize:12, fontWeight:600, color:'var(--t2)', display:'block', marginBottom:7 }}>
+              Confirme sua senha para continuar
+            </label>
+            <input
+              type="password"
+              autoComplete="current-password"
+              placeholder="Digite sua senha atual"
+              value={deletePass}
+              onChange={e => { setDeletePass(e.target.value); setDeleteErr('') }}
+              onKeyDown={e => e.key === 'Enter' && handleDeleteAccount()}
+              style={{ width:'100%', boxSizing:'border-box', padding:'11px 14px', background:'var(--bg)', border:`1px solid ${deleteErr ? '#ef4444' : 'var(--bd)'}`, borderRadius:9, color:'var(--t1)', fontSize:14, outline:'none', transition:'border-color .15s' }}
+              autoFocus
+            />
+            {deleteErr && (
+              <div role="alert" style={{ fontSize:12, color:'#ef4444', marginTop:6, display:'flex', alignItems:'center', gap:5 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {deleteErr}
+              </div>
+            )}
+          </div>
+
+          <div className="del-modal-btns">
+            <button
+              onClick={() => setDeleteModal(false)}
+              style={{ border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)' }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              disabled={deleteLoading || !deletePass}
+              style={{ border:'none', background: (!deletePass || deleteLoading) ? 'rgba(239,68,68,.35)' : '#ef4444', color:'#fff', cursor: (deleteLoading || !deletePass) ? 'not-allowed' : 'pointer', transition:'background .15s', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
+            >
+              {deleteLoading ? (
+                <><span style={{ width:13, height:13, border:'2px solid rgba(255,255,255,.35)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Excluindo…</>
+              ) : (
+                <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Excluir conta</>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
+  if (isDesktop && user?.id) {
+    return (
+      <>
+        {toastEl}
+        <SettingsDesktopLayout>{desktopBody}</SettingsDesktopLayout>
+        {deleteEl}
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
-      {msg && (
-        <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>
-          {msg}
-        </div>
-      )}
+      {toastEl}
       <div className="pwnav fin-pwnav fade-in">
         <div className="fin-page">
           <header className="fin-hero">
@@ -111,7 +255,7 @@ export default function SettingsData() {
                   <p className="dd-sub">Apaga tudo de forma permanente</p>
                 </div>
               </div>
-              <button type="button" className="dd-delete" onClick={() => { setDeleteModal(true); setDeletePass(''); setDeleteErr('') }}>Excluir minha conta</button>
+              <button type="button" className="dd-delete" onClick={openDelete}>Excluir minha conta</button>
             </section>
 
             <button type="button" className="dd-json" onClick={() => handleExport('json')} disabled={!!exporting}>
@@ -121,97 +265,7 @@ export default function SettingsData() {
         </div>
       </div>
 
-      {deleteModal && (
-        <div className="modal-overlay" style={{ zIndex:9000 }}>
-          <div className="modal del-modal" role="dialog" aria-modal="true" aria-labelledby="dd-del-title" style={{ maxWidth:420, padding:0, overflow:'hidden', border:'1px solid rgba(239,68,68,.2)' }}>
-
-            <div className="del-modal-bar" />
-
-            <div className="del-modal-inner">
-              <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:20 }}>
-                <div style={{ width:44, height:44, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                    <path d="M10 11v6"/><path d="M14 11v6"/>
-                    <path d="M9 6V4h6v2"/>
-                  </svg>
-                </div>
-                <div style={{ paddingTop:2 }}>
-                  <div id="dd-del-title" style={{ fontWeight:700, fontSize:16, color:'var(--t1)', marginBottom:4 }}>Excluir conta permanentemente</div>
-                  <div style={{ fontSize:12, color:'#ef4444', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="#ef4444"><circle cx="12" cy="12" r="10"/></svg>
-                    Esta ação não pode ser desfeita
-                  </div>
-                </div>
-              </div>
-
-              <div className="del-modal-list" style={{ background:'rgba(239,68,68,.05)', border:'1px solid rgba(239,68,68,.12)', borderRadius:10, padding:'12px 14px', marginBottom:20 }}>
-                <div className="del-modal-label" style={{ fontSize:11, fontWeight:700, color:'var(--t2)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>O que será excluído:</div>
-                {[
-                  'Todas as transações e histórico',
-                  'Metas e progresso acumulado',
-                  'Contas fixas e orçamentos',
-                  'Configurações e dados da conta',
-                  // quem está no Grátis não tem plano para cancelar (achado Passada 2)
-                  ...(user.plan && user.plan !== 'free' ? ['Plano cancelado — sem reembolso'] : []),
-                ].map(item => (
-                  <div key={item} className="del-modal-item" style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5, fontSize:13, color:'var(--t2)' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink:0 }}>
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                    {item}
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:12, fontWeight:600, color:'var(--t2)', display:'block', marginBottom:7 }}>
-                  Confirme sua senha para continuar
-                </label>
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder="Digite sua senha atual"
-                  value={deletePass}
-                  onChange={e => { setDeletePass(e.target.value); setDeleteErr('') }}
-                  onKeyDown={e => e.key === 'Enter' && handleDeleteAccount()}
-                  style={{ width:'100%', boxSizing:'border-box', padding:'11px 14px', background:'var(--bg)', border:`1px solid ${deleteErr ? '#ef4444' : 'var(--bd)'}`, borderRadius:9, color:'var(--t1)', fontSize:14, outline:'none', transition:'border-color .15s' }}
-                  autoFocus
-                />
-                {deleteErr && (
-                  <div role="alert" style={{ fontSize:12, color:'#ef4444', marginTop:6, display:'flex', alignItems:'center', gap:5 }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-                    </svg>
-                    {deleteErr}
-                  </div>
-                )}
-              </div>
-
-              <div className="del-modal-btns">
-                <button
-                  onClick={() => setDeleteModal(false)}
-                  style={{ border:'1px solid var(--bd)', background:'transparent', color:'var(--t2)' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDeleteAccount}
-                  disabled={deleteLoading || !deletePass}
-                  style={{ border:'none', background: (!deletePass || deleteLoading) ? 'rgba(239,68,68,.35)' : '#ef4444', color:'#fff', cursor: (deleteLoading || !deletePass) ? 'not-allowed' : 'pointer', transition:'background .15s', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}
-                >
-                  {deleteLoading ? (
-                    <><span style={{ width:13, height:13, border:'2px solid rgba(255,255,255,.35)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block', animation:'spin .7s linear infinite' }} /> Excluindo…</>
-                  ) : (
-                    <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg> Excluir conta</>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {deleteEl}
     </>
   )
 }

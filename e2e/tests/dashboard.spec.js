@@ -344,6 +344,8 @@ test.describe('Dashboard — Stories (círculos de resumo)', () => {
 // 4. ÚLTIMAS — lista de transações recentes
 // ─────────────────────────────────────────────────────────────────
 test.describe('Dashboard — Últimas transações', () => {
+  test.use({ viewport: { width: 393, height: 852 } }) // lista do celular; a do desktop é testada em desktop-home.spec.js
+
 
   test('mostra no máximo as 5 transações mais recentes', async ({ page }) => {
     await goDashboard(page)

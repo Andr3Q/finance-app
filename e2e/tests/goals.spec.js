@@ -3,6 +3,9 @@ const { test, expect }          = require('../helpers/test')
 const { GOAL_ITEM }             = require('../helpers/mockApi')
 const { injectSession, TEST_USER } = require('../helpers/session')
 
+
+// Metas do celular (cabeçalho azul, atalhos, cartões e formulário). As do desktop estão em GoalsDesktop.test.jsx e desktop-goals.spec.js.
+test.use({ viewport: { width: 393, height: 852 } })
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Metas Financeiras — E2E
 // Metas (Nancy 2, tela 19): cartão "Nova meta", depósito rápido "+ R$ 500", edição/remoção pelo nome da meta
@@ -34,7 +37,7 @@ test.describe('Metas — Listagem', () => {
   test('sem metas só aparece o cartão "Nova meta"', async ({ page }) => {
     await setupGoals(page)
     await page.goto('/goals')
-    await expect(page.getByRole('heading', { name: 'Metas' })).toBeVisible()
+    await expect(page.locator('.pwnav').getByRole('heading', { name: 'Metas' })).toBeVisible() // escopo na tela: o desktop tem o mesmo título na barra de cima
     await expect(page.locator('.gl-card')).toHaveCount(0)
   })
 

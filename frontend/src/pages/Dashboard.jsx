@@ -19,9 +19,13 @@ import { playSoftChime, getTrialNotif, getSalaryNotif } from '../utils/notificat
 import { buildNotifications, countUnread, readNotifIds, isTipFresh } from '../utils/notificationsFeed.js'
 import { prefsOf } from '../utils/notifPrefs.js'
 import { usePrevMonthRecap } from '../hooks/usePrevMonthRecap.js'
+import { useHideBalance } from '../hooks/useHideBalance.js'
+import { publishUnreadCount } from '../hooks/useUnreadCount.js'
 import { useTipAvailable } from '../hooks/useTipAvailable.js'
 import { readCancelFlags, cancelReminders } from '../utils/subsCancel.js'
 import { readReminders } from '../utils/reminders.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
+import DashboardDesktop from './DashboardDesktop.jsx'
 
 const IconEye = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -66,6 +70,7 @@ export default function Dashboard() {
   const seenCls = (key) => (seen[key] ? ' is-seen' : '')
   const user = useUser()
   useForcedLightTheme() // Início é desenhado só no claro (design Nancy 2)
+  const isDesktop = useIsDesktop() // no desktop o Início tem layout próprio (design "Nancy Desktop"); dados e regras são os mesmos
 
   const [summary,      setSummary]      = useState(null)
   const [transactions, setTransactions] = useState([])
@@ -79,9 +84,8 @@ export default function Dashboard() {
   const [toast,        setToast]        = useState(null)
   // Preferência de privacidade (ocultar valores) persiste entre sessões —
   // sem isso o usuário teria que escondê-los de novo toda vez que abrisse o app.
-  const [hideBalance,  setHideBalance]  = useState(() => {
-    try { return localStorage.getItem('hide-balance') === '1' } catch { return false }
-  })
+  // (o mesmo olho existe na barra de cima do desktop — useHideBalance mantém os dois em sincronia)
+  const [hideBalance, toggleHideBalance] = useHideBalance()
   const [goals,        setGoals]        = useState([])
 
   // O sino leva à tela Notificações; o pontinho aparece enquanto houver aviso que o usuário
@@ -193,10 +197,13 @@ export default function Dashboard() {
     if (loading || loadFailed || !user.id) return undefined
     return prefetchStoriesWhenIdle(user.id, { tip: tipAvailable === true })
   }, [loading, loadFailed, user.id, tipAvailable])
-  const hasNotif = countUnread(
+  const unreadCount = countUnread(
     buildNotifications({ now, summary, transactions, limits, budgets, salaryNotif, trialNotif: trialBellDismissed ? null : trialNotif, cancelReminders: cancelReminders(readCancelFlags()), reminderState: readReminders(), prefs: notifPrefs, prevRecapSlides, tipFresh: tipAvailable === true && isTipFresh(transactions) }),
     seenNotifs,
-  ) > 0
+  )
+  const hasNotif = unreadCount > 0
+  // a bolinha do sino da barra de cima (desktop) lê este número; só vale depois que o Início carregou os dados
+  useEffect(() => { if (!loading && !loadFailed) publishUnreadCount(unreadCount) }, [loading, loadFailed, unreadCount])
 
   // Score financeiro (0-100) — igual já existia, só ganhou um rótulo/visual
   // novo ("Saúde financeira") nesta tela.
@@ -220,13 +227,6 @@ export default function Dashboard() {
   const scoreInk = score === null ? '#5B6784' :
     score >= 60 ? '#117953' : score >= 40 ? '#B26A00' : score >= 20 ? '#B54708' : '#B42318'
 
-  const toggleHideBalance = () => {
-    setHideBalance(v => {
-      const next = !v
-      try { localStorage.setItem('hide-balance', next ? '1' : '0') } catch {}
-      return next
-    })
-  }
 
   const greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite'
   const firstName = user.name?.split(' ')[0] || ''
@@ -258,6 +258,39 @@ export default function Dashboard() {
   const RING_R          = 25
   const RING_CIRC       = 2 * Math.PI * RING_R
   const scoreRingOffset = RING_CIRC * (1 - (score ?? 0) / 100)
+
+  // formulário de nova transação (aberto pelo menu rápido do "+" / state da rota) — o mesmo nos dois layouts
+  const txForm = showForm && (
+    <TransactionForm
+      initialData={quickAddType ? { type: quickAddType } : undefined}
+      onClose={() => { setShowForm(false); setQuickAddType(null) }}
+      onSuccess={() => {
+        setShowForm(false); setQuickAddType(null)
+        // Dispara o mesmo evento usado em todo outro ponto que muda dado
+        // (SalaryCard, CategoryLimitsCard, handlePay/handleUnpay) em vez de
+        // chamar fetchData(true) direto — o listener abaixo já faz isso, e
+        // sem o evento a página de Transações não sabia que precisava
+        // invalidar seu próprio cache (só via TTL de 30s ou refresh manual).
+        window.dispatchEvent(new CustomEvent('budget-updated'))
+      }}
+    />
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        <Navbar />
+        {toast && <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>{toast.msg}</div>}
+        <div className="pwnav ndh-pwnav fade-in">
+          <DashboardDesktop ctx={{
+            user, summary, budgets, recentTx, loadFailed, hidden: hideBalance, monthGrowth, projected, monthName,
+            score, scoreRing, scoreInk, onRetry: () => { setLoading(true); fetchData(true) },
+          }} />
+        </div>
+        {txForm}
+      </>
+    )
+  }
 
   return (
     <>
@@ -447,21 +480,7 @@ export default function Dashboard() {
       {/* "+" flutuante isolado removido — a mesma ação vive no botão central da
           barra de navegação (menu rápido), evitando dois "+" na mesma tela. */}
 
-      {showForm && (
-        <TransactionForm
-          initialData={quickAddType ? { type: quickAddType } : undefined}
-          onClose={() => { setShowForm(false); setQuickAddType(null) }}
-          onSuccess={() => {
-            setShowForm(false); setQuickAddType(null)
-            // Dispara o mesmo evento usado em todo outro ponto que muda dado
-            // (SalaryCard, CategoryLimitsCard, handlePay/handleUnpay) em vez de
-            // chamar fetchData(true) direto — o listener abaixo já faz isso, e
-            // sem o evento a página de Transações não sabia que precisava
-            // invalidar seu próprio cache (só via TTL de 30s ou refresh manual).
-            window.dispatchEvent(new CustomEvent('budget-updated'))
-          }}
-        />
-      )}
+      {txForm}
     </>
   )
 

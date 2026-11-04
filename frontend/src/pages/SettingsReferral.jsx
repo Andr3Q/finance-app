@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import SettingsDesktopLayout from '../components/layout/SettingsDesktopLayout.jsx'
+import ProtoIcon from '../components/layout/ProtoIcon.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { authAPI } from '../services/api.js'
 import { analytics } from '../services/analytics.js'
 import { useUser } from '../hooks/useUser.js'
@@ -23,6 +26,7 @@ export default function SettingsReferral() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const [stats,    setStats]    = useState(null)
@@ -82,6 +86,68 @@ export default function SettingsReferral() {
   }
   const handleMail = () => {
     if (link) window.open(`mailto:?subject=${encodeURIComponent('Experimente o Nancy')}&body=${encodeURIComponent(`${shareText} ${link}`)}`, '_blank')
+  }
+
+  // Desktop (design "Nancy Desktop", tela 32): faixa em degradê com o convite e o código com "Copiar" ao lado, e o cartão
+  // "Seus convites". Os números e frases vêm da regra real (como no celular). O design não traz "Compartilhar convite" nem
+  // "enviar por e-mail": no computador o caminho é copiar o link.
+  if (isDesktop && user?.id) {
+    return (
+      <SettingsDesktopLayout>
+        <section className="nrf-hero" aria-label="Seu convite">
+          {limitReached ? (
+            <div className="nrf-hero-text">
+              <h2 className="nrf-title">Você garantiu todos os bônus!</h2>
+              <p className="nrf-sub">Você completou {max} de {max} indicações com bônus. Obrigado por divulgar o Nancy!</p>
+            </div>
+          ) : (
+            <>
+              <div className="nrf-hero-text">
+                <h2 className="nrf-title">Ganhe {bonusDays} dias de Pro por amigo.</h2>
+                <p className="nrf-sub">Seu amigo ganha 14 dias de teste, o dobro do normal. Até {max} amigos com bônus.</p>
+              </div>
+              <div className="nrf-code">
+                {code ? <span className="nrf-code-text">{code}</span> : <span className="nrf-code-wait">Gerando…</span>}
+                <button type="button" className={`nrf-copy${copied ? ' done' : ''}`} onClick={handleCopy} disabled={!link}>
+                  <ProtoIcon name={copied ? 'check' : 'copy'} size={16} />
+                  {copied ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+
+        <section className="nrf-prog" aria-label="Seus convites">
+          {hasError ? (
+            <p className="nrf-note nrf-err">Não foi possível carregar seus convites agora. Recarregue a página.</p>
+          ) : loading ? (
+            <div className="nrf-wait"><span className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} /></div>
+          ) : (
+            <>
+              <div className="nrf-prog-head">
+                <h2 className="nrf-prog-title">Seus convites</h2>
+                <span className="nrf-prog-count">{rewarded} de {max}</span>
+              </div>
+              <div className="nrf-bar" role="progressbar" aria-label="Convites com bônus" aria-valuemin={0} aria-valuemax={max} aria-valuenow={rewarded}>
+                <div className="nrf-bar-fill" style={{ width: `${pct}%` }} />
+              </div>
+              <p className="nrf-note">
+                {limitReached
+                  ? 'Limite de bônus alcançado.'
+                  : referred === 0
+                    ? 'Nenhum amigo cadastrado ainda. Compartilhe seu convite!'
+                    : `Mais ${plural(left, 'amigo', 'amigos')} e você completa o limite de bônus.`}
+              </p>
+              {pending > 0 && !limitReached && (
+                <p className="nrf-note nrf-pending">
+                  {plural(pending, 'amigo cadastrado aguarda', 'amigos cadastrados aguardam')} confirmar o e-mail para liberar seu bônus. O bônus entra sozinho quando ele confirmar.
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      </SettingsDesktopLayout>
+    )
   }
 
   return (

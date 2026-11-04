@@ -5,6 +5,8 @@ import UpgradeModal from '../components/ui/UpgradeModal.jsx'
 import ChangePasswordCard from '../components/features/settings/ChangePasswordCard.jsx'
 import TwoFactorCard from '../components/features/settings/TwoFactorCard.jsx'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import SettingsDesktopLayout from '../components/layout/SettingsDesktopLayout.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 
 const BackIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -18,6 +20,7 @@ const BackIcon = () => (
 export default function SettingsSecurity() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const [msg, setMsg] = useState('')
   const [msgType, setMsgType] = useState('success')
@@ -32,6 +35,23 @@ export default function SettingsSecurity() {
     timer.current = setTimeout(() => setMsg(''), 4000)
   }
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/settings'))
+
+  if (isDesktop) {
+    // Desktop (design "Nancy Desktop", tela 27): no menu da conta, "Alterar senha" e "Duas etapas" lado a lado. Os dois cartões são os mesmos de antes
+    // (validação de senha, QR code, códigos de recuperação, desativar com senha, convite ao Pro) com o visual do desktop aplicado por CSS (nst-sec).
+    return (
+      <>
+        {msg && <div className={`toast toast-top ${msgType === 'error' ? 'terr' : 'tok'}`} role={msgType === 'error' ? 'alert' : 'status'}>{msg}</div>}
+        <SettingsDesktopLayout>
+          <div className="nst-sec">
+            <ChangePasswordCard onMessage={showMsg} />
+            <TwoFactorCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
+          </div>
+        </SettingsDesktopLayout>
+        {upgradeModal && <UpgradeModal reason={upgradeModal} onClose={() => setUpgradeModal(null)} />}
+      </>
+    )
+  }
 
   return (
     <>
