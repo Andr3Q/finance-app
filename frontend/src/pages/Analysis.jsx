@@ -5,6 +5,8 @@ import { transactionsAPI } from '../services/api.js'
 import { getCache, setCache } from '../services/cache.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import AnalysisDesktop from './AnalysisDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { CategoryIcon } from '../components/ui/icons.jsx'
 import { CATEGORY_LABELS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
@@ -34,6 +36,7 @@ const labelOf = (c) => CATEGORY_LABELS[c] || c
 export default function Analysis() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const [data,    setData]    = useState(() => getCache('dashboard') || null)
@@ -70,6 +73,19 @@ export default function Analysis() {
       ? `Onde posso cortar R$ ${a.cutTarget} dos meus gastos este mês?`
       : 'Analise meus gastos deste mês e me diga onde posso economizar.'
     window.dispatchEvent(new CustomEvent('nancy:open-agent-chat', { detail: { message } }))
+  }
+
+  const askText = a.cutTarget > 0
+    ? `Quer que a Nancy sugira onde cortar ${hidden ? HIDDEN : `R$ ${a.cutTarget}`} este mês?`
+    : 'Quer que a Nancy analise seus gastos deste mês?'
+
+  if (isDesktop) {
+    return (
+      <AnalysisDesktop ctx={{
+        loading, failed: failed && !data, retry: () => { setLoading(true); load() },
+        a, money, pctLabel, labelOf, askNancy, askText,
+      }} />
+    )
   }
 
   return (
@@ -135,9 +151,7 @@ export default function Analysis() {
                 <button type="button" className="fin-card an-ask" onClick={askNancy}>
                   <span className="an-ask-ico"><SparkIcon /></span>
                   <span className="an-ask-text">
-                    {a.cutTarget > 0
-                      ? `Quer que a Nancy sugira onde cortar ${hidden ? HIDDEN : `R$ ${a.cutTarget}`} este mês?`
-                      : 'Quer que a Nancy analise seus gastos deste mês?'}
+                    {askText}
                   </span>
                   <ChevronRight />
                 </button>

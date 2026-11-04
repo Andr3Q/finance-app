@@ -13006,3 +13006,34 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndi-add { height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
 .ndi-add:disabled { opacity: .7; cursor: progress; }
 .ndi-calc { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nda-* — Análise do mês no desktop (design "Nancy Desktop", tela 18): "Gastos por categoria" (1,4fr) à esquerda e, à direita (1fr), o maior
+   gasto variável em azul e o convite para a Nancy IA, vão de 16. A página usa .ndx-page (abas do Extrato).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nda-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.nda-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nda-cats h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nda-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.nda-item { display: flex; flex-direction: column; gap: 6px; }
+.nda-line { display: flex; align-items: center; gap: 10px; font: 600 14px var(--nd-font); }
+.nda-ico { display: flex; }
+.nda-name { flex: 1; min-width: 0; }
+.nda-val { font-family: var(--nd-mono); }
+.nda-pct { width: 40px; text-align: right; font: 500 12px var(--nd-mono); color: var(--nd-hint); }
+.nda-bar { height: 10px; overflow: hidden; border-radius: 99px; background: #EEF3FF; }
+.nda-fill { height: 100%; border-radius: 99px; }
+.nda-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.nda-top { display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 20px; background: var(--nd-blue); color: #fff; }
+.nda-eyebrow { font: 600 11px var(--nd-mono); letter-spacing: .12em; opacity: .75; }
+.nda-top-name { font: 800 30px var(--nd-font); }
+.nda-top-val { font: 600 18px var(--nd-mono); }
+.nda-top-val small { margin-left: 10px; font: 500 13px var(--nd-font); opacity: .8; }
+.nda-ask { display: flex; align-items: center; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; text-align: left; font-family: var(--nd-font); color: var(--nd-ink); cursor: pointer; }
+.nda-ask:focus-visible, .nda-btn:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nda-ask-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: var(--nd-green); color: #fff; }
+.nda-ask-text { flex: 1; font: 500 14px/1.45 var(--nd-font); }
+.nda-state { align-items: flex-start; padding: 22px; }
+.nda-state h2 { margin: 0; font: 700 16px var(--nd-font); }
+.nda-state p { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nda-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
