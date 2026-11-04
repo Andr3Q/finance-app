@@ -8,9 +8,9 @@ const media = () => (typeof window !== 'undefined' && typeof window.matchMedia =
 
 const subscribe = (onChange) => {
   const m = media()
-  if (!m) return () => {}
+  if (!m || typeof m.addEventListener !== 'function') return () => {} // matchMedia parcial (testes que simulam só o `matches`): vale o valor de agora
   m.addEventListener('change', onChange)
-  return () => m.removeEventListener('change', onChange)
+  return () => m.removeEventListener?.('change', onChange)
 }
 const getSnapshot = () => !!media()?.matches
 
