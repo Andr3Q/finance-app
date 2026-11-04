@@ -10,6 +10,7 @@ import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
 import ProtoIcon from '../components/layout/ProtoIcon.jsx'
+import { isAndroidApp } from '../utils/androidApp.js'
 
 const PLAN_LABEL   = { pro: 'Pro', elite: 'Elite' }
 const PERIOD_LABEL = { monthly: 'mensal', annual: 'anual' }
@@ -102,7 +103,7 @@ export default function SettingsPayments() {
               <h2 className="pgd-plan-title">{desktopTitle}</h2>
               <p className={`pgd-plan-sub${isPaid && cancelled ? ' warn' : ''}`}>{sub}</p>
             </div>
-            {!isPaid && !isTrial && <button type="button" className="pgd-plans-link" onClick={() => navigate('/planos')}>Ver planos</button>}
+            {!isPaid && !isTrial && !isAndroidApp() && <button type="button" className="pgd-plans-link" onClick={() => navigate('/planos')}>Ver planos</button>}
             <CancelPlanCard onMessage={showMsg} variant="desktop" />
           </section>
 
@@ -158,7 +159,7 @@ export default function SettingsPayments() {
                 <p className={`pg-plan-sub${isPaid && cancelled ? ' warn' : ''}`}>{sub}</p>
               </div>
               {isPaid && latest?.amount != null && <span className="pg-plan-amt">{money(latest.amount)}</span>}
-              {!isPaid && !isTrial && <button type="button" className="pg-plans-link" onClick={() => navigate('/planos')}>Ver planos</button>}
+              {!isPaid && !isTrial && !isAndroidApp() && <button type="button" className="pg-plans-link" onClick={() => navigate('/planos')}>Ver planos</button>}
             </section>
 
             {showHistory && (

@@ -23,7 +23,7 @@ export default function LimitsDesktop({ ctx }) {
             <section className="nlm-card nlm-state">
               <h2>Recurso Pro</h2>
               <p>Defina um teto de gasto para cada categoria e a Nancy avisa quando você chegar perto.</p>
-              <button type="button" className="nlm-btn" onClick={goPlans}>Ver planos</button>
+              {goPlans && <button type="button" className="nlm-btn" onClick={goPlans}>Ver planos</button>}
             </section>
           ) : loading ? (
             <div className="nlm-loading"><div className="dsb-loader-ring" style={{ margin: '0 auto' }} /></div>

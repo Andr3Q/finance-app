@@ -9,6 +9,7 @@ import SubscriptionsDesktop from './SubscriptionsDesktop.jsx'
 import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { fmt } from '../utils/format.js'
 import { readCancelFlags, setCancelFlag, subKey } from '../utils/subsCancel.js'
+import { isAndroidApp } from '../utils/androidApp.js'
 
 const HIDDEN = 'R$ ••••'
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -82,7 +83,7 @@ export default function Subscriptions() {
     return (
       <SubscriptionsDesktop ctx={{
         isElite, loading, failed, retry: () => { setLoading(true); load() }, subs, flags, keyOf: subKey, since, staleCount, money, total,
-        onToggle: toggle, goPlans: () => navigate('/planos'),
+        onToggle: toggle, goPlans: isAndroidApp() ? null : () => navigate('/planos'),
       }} />
     )
   }
@@ -105,7 +106,7 @@ export default function Subscriptions() {
               <section className="fin-card sb-state">
                 <h2 className="fin-title">Recurso Elite</h2>
                 <p className="fin-sub">A Nancy detecta sozinha as assinaturas e gastos recorrentes e lembra você de cancelar as que não usa.</p>
-                <button type="button" className="fin-btn sb-btn" onClick={() => navigate('/planos')}>Ver planos</button>
+                {!isAndroidApp() && <button type="button" className="fin-btn sb-btn" onClick={() => navigate('/planos')}>Ver planos</button>}
               </section>
             ) : loading ? (
               <div className="sb-state"><div className="dsb-loader"><div className="dsb-loader-ring" /></div></div>

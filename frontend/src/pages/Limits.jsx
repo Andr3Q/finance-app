@@ -14,6 +14,7 @@ import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CATEGORY_LABELS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
 import { LIMIT_CATEGORIES, WARN_PCT, spentByCategory, limitStatus } from '../utils/categoryLimits.js'
+import { isAndroidApp } from '../utils/androidApp.js'
 
 const HIDDEN = 'R$ ••••'
 // O design mostra 4 categorias nos chips; as outras 4 ficam atrás de "Mais" (e abertas sozinhas quando já têm teto)
@@ -178,7 +179,7 @@ export default function Limits() {
     return (
       <>
         <LimitsDesktop ctx={{
-          isPro, loading, failed: failed && !data, retry: () => { setLoading(true); load() }, rows, note, money, onRemove: setConfirmRow, goPlans: () => navigate('/planos'),
+          isPro, loading, failed: failed && !data, retry: () => { setLoading(true); load() }, rows, note, money, onRemove: setConfirmRow, goPlans: isAndroidApp() ? null : () => navigate('/planos'),
           chips, selected, onPick: pick, more, setMore, forcedMore, amount, setAmount: (v) => { setAmount(v); setMsg(null) }, onSave: save, saving, msg,
         }} />
         {confirmModal}
@@ -204,7 +205,7 @@ export default function Limits() {
               <section className="fin-card lm-state">
                 <h2 className="fin-title">Recurso Pro</h2>
                 <p className="fin-sub">Defina um teto de gasto para cada categoria e a Nancy avisa quando você chegar perto.</p>
-                <button type="button" className="fin-btn lm-state-btn" onClick={() => navigate('/planos')}>Ver planos</button>
+                {!isAndroidApp() && <button type="button" className="fin-btn lm-state-btn" onClick={() => navigate('/planos')}>Ver planos</button>}
               </section>
             ) : loading ? (
               <div className="lm-state"><div className="dsb-loader"><div className="dsb-loader-ring" /></div></div>
