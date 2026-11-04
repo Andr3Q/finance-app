@@ -23,15 +23,15 @@ function renderPage({ loggedIn = true, entries = ['/settings', '/privacidade'], 
 beforeEach(() => { sessionStorage.clear() })
 
 describe('Política de Privacidade', () => {
-  it('cabeçalho "Conforme a LGPD" e as 10 seções do texto completo mais o contato do Encarregado (DPO)', () => {
+  it('cabeçalho "Conforme a LGPD" e as 11 seções do texto completo mais o contato do Encarregado (DPO)', () => {
     renderPage()
     expect(screen.getByRole('heading', { level: 1, name: 'Política de Privacidade' })).toBeInTheDocument()
     expect(screen.getByText('Conforme a LGPD')).toBeInTheDocument()
-    expect(screen.getByText(/Última atualização: 22 de maio de 2026 · Versão 1\.0/)).toBeInTheDocument()
+    expect(screen.getByText(/Última atualização: 4 de novembro de 2026 · Versão 1\.1/)).toBeInTheDocument()
     expect(screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent)).toEqual([
       '1. Quem somos', '2. Dados que coletamos', '3. Como usamos seus dados', '4. Base legal (LGPD)', '5. Armazenamento e segurança',
-      '6. Compartilhamento com terceiros', '7. Seus direitos (LGPD Art. 18)', '8. Retenção de dados', '9. Cookies e armazenamento local',
-      '10. Alterações nesta política', 'Contato e Encarregado de Dados (DPO)',
+      '6. Compartilhamento com terceiros', '7. Transferência internacional de dados', '8. Seus direitos (LGPD Art. 18)', '9. Retenção de dados',
+      '10. Cookies e armazenamento local', '11. Alterações nesta política', 'Contato e Encarregado de Dados (DPO)',
     ])
   })
 
@@ -41,6 +41,20 @@ describe('Política de Privacidade', () => {
     for (const clause of ['Lei 13.709/2018', 'hash bcrypt', 'Mercado Pago', 'Groq', 'LGPD Art. 18', 'removidos permanentemente em até 30 dias',
       'mantidos por 90 dias', 'Cookie de sessão (HttpOnly)', 'Não usamos cookies de rastreamento', '15 dias úteis']) {
       expect(text).toContain(clause)
+    }
+  })
+
+  it('o texto diz a verdade sobre onde ficam os dados e para quem eles vão (achados da revisão de LGPD, 2026-11-04)', () => {
+    renderPage()
+    const text = document.body.textContent
+    // banco nos EUA (Supabase, us-west-1), transferência internacional declarada, e os fornecedores que de fato recebem dados
+    for (const fact of ['Estados Unidos (Califórnia)', '7. Transferência internacional de dados', 'Art. 33, IX', 'Resend', 'Serviços de notificação do navegador',
+      'descrições, valores, categorias e datas das suas transações', 'não é guardado por nós']) {
+      expect(text).toContain(fact)
+    }
+    // frases que o código não sustenta não podem voltar
+    for (const falso of ['armazenados no Brasil', 'Trivy', 'sem dados financeiros identificáveis', 'conexão SSL/TLS obrigatória']) {
+      expect(text).not.toContain(falso)
     }
   })
 
