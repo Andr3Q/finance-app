@@ -12,6 +12,8 @@ jest.mock('../src/services/emailService', () => {
   }
 })
 jest.mock('../src/services/pushService', () => ({ sendPushToUser: jest.fn().mockResolvedValue(true) }))
+// O seed real apaga as tabelas e usa o Prisma de verdade: aqui ele é trocado por um módulo que só registra o que viu ao ser carregado.
+jest.mock('../prisma/seed.staging.js', () => { global.__seedVisto = { senha: process.env.STAGING_SEED_PASSWORD }; return {} })
 
 const app = require('../src/server')
 
@@ -77,5 +79,48 @@ describe('POST /api/admin/seed-staging', () => {
       .set('x-seed-secret', 'secret-errado')
 
     expect(res.status).toBe(401)
+  })
+
+  // A senha das contas de seed vem do chamador (segredo do GitHub no deploy). O repositório é público e a homologação responde pela
+  // internet: uma senha fixa no código deixava qualquer pessoa entrar como administrador Elite (achado da rodada de SRE, 2026-11-04).
+  describe('senha das contas de seed (cabeçalho x-seed-password)', () => {
+    const staging = () => { process.env.K_SERVICE = 'finance-app-staging'; process.env.STAGING_SEED_SECRET = 'secret-correto' }
+
+    test('400 sem a senha: o seed não roda sem senha própria', async () => {
+      staging()
+      const res = await request(app).post('/api/admin/seed-staging').set('x-seed-secret', 'secret-correto')
+      expect(res.status).toBe(400)
+      expect(global.__seedVisto).toBeUndefined()
+    })
+
+    test('400 com senha curta demais (menos de 12 caracteres)', async () => {
+      staging()
+      const res = await request(app).post('/api/admin/seed-staging').set('x-seed-secret', 'secret-correto').set('x-seed-password', 'curta123')
+      expect(res.status).toBe(400)
+      expect(global.__seedVisto).toBeUndefined()
+    })
+
+    test('o secret errado continua dando 401 antes de qualquer outra coisa (a senha não é lida)', async () => {
+      staging()
+      const res = await request(app).post('/api/admin/seed-staging').set('x-seed-secret', 'errado').set('x-seed-password', 'uma-senha-longa-123')
+      expect(res.status).toBe(401)
+      expect(global.__seedVisto).toBeUndefined()
+    })
+
+    test('com secret e senha válidos: o seed recebe a senha na carga e ela some do ambiente depois', async () => {
+      staging()
+      const res = await request(app).post('/api/admin/seed-staging').set('x-seed-secret', 'secret-correto').set('x-seed-password', 'uma-senha-longa-123')
+      expect(res.status).toBe(200)
+      expect(global.__seedVisto).toEqual({ senha: 'uma-senha-longa-123' })
+      expect(process.env.STAGING_SEED_PASSWORD).toBeUndefined() // não fica na memória do processo
+    })
+
+    test('em produção (K_SERVICE=finance-app) nem com a senha certa: 403 e o seed não carrega', async () => {
+      process.env.K_SERVICE = 'finance-app'; process.env.STAGING_SEED_SECRET = 'secret-correto'
+      delete global.__seedVisto
+      const res = await request(app).post('/api/admin/seed-staging').set('x-seed-secret', 'secret-correto').set('x-seed-password', 'uma-senha-longa-123')
+      expect(res.status).toBe(403)
+      expect(global.__seedVisto).toBeUndefined()
+    })
   })
 })

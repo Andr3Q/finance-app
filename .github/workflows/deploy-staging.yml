@@ -258,13 +258,21 @@ jobs:
           echo "🌐 Staging URL: $URL"
 
       - name: Seed do banco de staging
+        env:
+          STAGING_SEED_PASSWORD: ${{ secrets.STAGING_SEED_PASSWORD }}
         run: |
           URL="${{ steps.staging-url.outputs.url }}"
           echo "🌱 Rodando seed de staging via API..."
+          # A senha das contas de seed vem do segredo STAGING_SEED_PASSWORD (o repositório é público: nunca no código nem no resumo)
+          if [ -z "$STAGING_SEED_PASSWORD" ]; then
+            echo "❌ Segredo STAGING_SEED_PASSWORD não configurado — o seed não roda sem senha própria."
+            exit 1
+          fi
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             --max-time 30 \
             -X POST "${URL}/api/admin/seed-staging" \
-            -H "x-seed-secret: ${{ secrets.STAGING_SEED_SECRET }}")
+            -H "x-seed-secret: ${{ secrets.STAGING_SEED_SECRET }}" \
+            -H "x-seed-password: ${STAGING_SEED_PASSWORD}")
           if [[ "$STATUS" == "200" ]]; then
             echo "✅ Seed executado com sucesso"
           else
@@ -301,8 +309,10 @@ jobs:
           echo "| **Branch** | \`develop\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "### Usuários de teste" >> "$GITHUB_STEP_SUMMARY"
-          echo "| E-mail | Senha | Plano |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| alice@staging.test | Staging123! | Free |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| bob@staging.test | Staging123! | Pro |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| admin@staging.test | Staging123! | Elite |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| E-mail | Plano |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| alice@staging.test | Free |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| bob@staging.test | Pro |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| admin@staging.test | Elite |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "A senha é a do segredo \`STAGING_SEED_PASSWORD\` (Settings > Secrets). O resumo deste deploy é público: nunca a imprima aqui." >> "$GITHUB_STEP_SUMMARY"
