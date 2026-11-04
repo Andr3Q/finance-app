@@ -13329,3 +13329,14 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nst-switch.on span { margin-left: 18px; }
 .nst-switch:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
 .nst-device { padding: 0 22px; }
+
+/* nst-bm — Balanço mensal no desktop (design "Nancy Desktop", tela 29): cartão azul do mês (448px) e "Relatórios anteriores" ao lado (vão de 16); os blocos do celular (bm-*) ganham o visual do desktop */
+.nst-bm { display: grid; grid-template-columns: 448px minmax(0, 1fr); gap: 16px; align-items: start; font-family: var(--nd-font); }
+.nst-bm .bm-card { margin: 0; padding: 22px; border-radius: 22px; background: var(--nd-blue); font-family: var(--nd-font); }
+.nst-bm .bm-label, .nst-bm .bm-value, .nst-bm .bm-box-lbl, .nst-bm .bm-box-val, .nst-bm .bm-close { font-family: var(--nd-font); }
+.nst-bm .bm-label { font-family: var(--nd-mono); letter-spacing: .12em; text-transform: uppercase; font-size: 11px; }
+.nst-bm .bm-box-val { font-family: var(--nd-mono); }
+.nst-bm .bm-close { border-radius: 12px; }
+.nst-bm .fin-card { margin: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.nst-bm .bm-list-title { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+@media (max-width: 1180px) { .nst-bm { grid-template-columns: minmax(0, 1fr); } }
