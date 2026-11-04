@@ -13349,3 +13349,28 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nst-pl .pl-card { margin: 0; border-radius: 22px; font-family: var(--nd-font); }
 .nst-pl .pl-compare, .nst-pl .pl-guar, .nst-pl .pl-faq { grid-column: 1 / -1; }
 @media (max-width: 1180px) { .nst-pl .pl-body { grid-template-columns: minmax(0, 1fr); } }
+
+/* pgd-* — Pagamentos no desktop (design "Nancy Desktop", tela 31): cartão do plano com o botão vazado de cancelar e o histórico em tabela (Data, Descrição, Valor, Status) */
+.pgd-plan { display: flex; align-items: center; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.pgd-plan-ico { width: 40px; height: 40px; flex: none; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); display: flex; align-items: center; justify-content: center; }
+.pgd-plan-ico.paid { background: #12C985; color: #fff; }
+.pgd-plan-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pgd-plan-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.pgd-plan-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.pgd-plan-sub.warn { color: #B67824; }
+.pgd-cancel, .pgd-plans-link { flex: none; height: 46px; padding: 0 18px; border-radius: 12px; background: #fff; display: inline-flex; align-items: center; justify-content: center; font: 600 14px var(--nd-font); cursor: pointer; box-sizing: border-box; border: 1.5px solid #F5C2CA; color: #D6334A; }
+.pgd-plans-link { border-color: #C9D9FF; color: var(--nd-blue); }
+.pgd-cancel:hover { background: #FFF5F6; }
+.pgd-plans-link:hover { background: #F4F7FF; }
+.pgd-cancel:focus-visible { outline: 2px solid #D6334A; outline-offset: 2px; }
+.pgd-plans-link:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.pgd-hist { padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.pgd-head, .pgd-row { display: grid; grid-template-columns: 1fr 1fr 120px 80px; gap: 14px; }
+.pgd-head { padding-bottom: 8px; font: 600 12px var(--nd-font); color: #5B6785; }
+.pgd-head span:nth-child(n+3), .pgd-amt, .pgd-ok { text-align: right; }
+.pgd-list { list-style: none; margin: 0; padding: 0; }
+.pgd-row { padding: 13px 0; border-top: 1px solid #EEF2F8; font: 500 14px var(--nd-font); color: var(--nd-ink); }
+.pgd-desc { color: #5B6785; }
+.pgd-amt { font: 600 14px var(--nd-mono); }
+.pgd-ok { color: #087A52; font-weight: 700; }
+.pgd-state { margin: 0; display: flex; justify-content: center; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
