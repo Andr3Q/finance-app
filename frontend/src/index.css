@@ -13415,3 +13415,17 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndd-delete { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: #D6334A; color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
 .ndd-delete:hover { background: #C22B41; }
 .ndd-json { align-self: flex-start; padding: 4px 2px; border: none; background: none; font: 500 12.5px var(--nd-font); color: #5B6785; text-decoration: underline; cursor: pointer; }
+
+/* ndi-* — Instalar app no desktop (design "Nancy Desktop", tela 34): faixa azul com o ícone (72px) e "Instalar agora" à direita, e os três passos em cartões de 3 colunas (vão de 14) */
+.ndi-hero { display: flex; align-items: center; gap: 20px; padding: 26px; border-radius: 22px; background: var(--nd-blue); color: #fff; font-family: var(--nd-font); }
+.ndi-hero .nancy-mark { flex: none; }
+.ndi-hero-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ndi-title { margin: 0; font: 800 26px var(--nd-font); }
+.ndi-sub { margin: 0; font: 400 14px var(--nd-font); opacity: .82; }
+.ndi-install { flex: none; height: 48px; padding: 0 22px; display: inline-flex; align-items: center; gap: 8px; border: none; border-radius: 12px; background: #fff; color: var(--nd-blue); font: 700 14px var(--nd-font); cursor: pointer; }
+.ndi-install:disabled { opacity: .7; cursor: default; }
+.ndi-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; font-family: var(--nd-font); }
+.ndi-step { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; box-sizing: border-box; }
+.ndi-step-n { width: 36px; height: 36px; border-radius: 50%; background: #EEF3FF; color: var(--nd-blue); display: flex; align-items: center; justify-content: center; font: 800 15px var(--nd-font); }
+.ndi-step-text { font: 500 14.5px/1.45 var(--nd-font); color: var(--nd-ink); }
+.ndi-note { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
