@@ -13302,3 +13302,15 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nsp-status { margin: 0; font: 500 13px var(--nd-font); }
 .nsp-status.ok { color: #087A52; }
 .nsp-status.err { color: #D6334A; }
+
+/* nst-sec — Segurança no desktop (design "Nancy Desktop", tela 27): "Alterar senha" e "Duas etapas" lado a lado (vão de 16); os cartões do celular ganham o visual do desktop */
+.nst-sec { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; font-family: var(--nd-font); color: var(--nd-ink); }
+.nst-sec .fin-card { margin: 0; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
+.nst-sec .fin-title { font: 700 16px var(--nd-font); color: var(--nd-ink); letter-spacing: 0; }
+.nst-sec .fin-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nst-sec .fin-ico { background: #EEF3FF; color: var(--nd-blue); border-radius: 12px; }
+.nst-sec .fin-field, .nst-sec .fin-inp { font-family: var(--nd-font); }
+.nst-sec .fin-field { height: 46px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; }
+.nst-sec .fin-field:focus-within { border-color: var(--nd-blue); }
+.nst-sec .fin-btn { height: 46px; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); }
+@media (max-width: 1180px) { .nst-sec { grid-template-columns: minmax(0, 1fr); } }
