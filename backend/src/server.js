@@ -34,7 +34,7 @@ const compression  = require('compression')
 const cookieParser = require('cookie-parser')
 const crypto       = require('crypto')
 
-const { apiLimiter } = require('./middleware/rateLimiter')
+const { apiLimiter, staticLimiter } = require('./middleware/rateLimiter')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -164,7 +164,7 @@ if (isProd) {
     express.static(path.join(publicPath, 'assets'), { maxAge: '1y', immutable: true })
   )
 
-  app.get('/sw.js', (req, res) => {
+  app.get('/sw.js', staticLimiter, (req, res) => {
     res.setHeader('Content-Type', 'application/javascript')
     res.setHeader('Service-Worker-Allowed', '/')
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
@@ -215,7 +215,11 @@ app.use('/api/', cors({
     if (!origin) return callback(null, true)
     const allowed = isProd ? allowedOrigins : devOrigins
     if (allowed.includes(origin)) return callback(null, true)
-    callback(new Error('CORS: origem não permitida'))
+    // Origem fora da lista = 403 limpo (e não 500): é a 2ª camada contra CSRF, junto do cookie SameSite=Strict. Vale também para POST
+    // do mesmo site, porque o navegador manda Origin em todo POST: só passam as origens de ALLOWED_ORIGINS.
+    const err = new Error('CORS: origem não permitida')
+    err.code = 'CORS_ORIGIN'
+    callback(err)
   },
   credentials: true,
 }))
@@ -352,6 +356,10 @@ app.use(errorHandler)
 // Inclui tratamento de erros Prisma para retornar status HTTP correto
 // em vez de sempre retornar 500.
 app.use((err, req, res, _next) => {
+  if (err.code === 'CORS_ORIGIN') {
+    logger.warn({ msg: 'Origem bloqueada pelo CORS', method: req.method, path: req.path, origin: req.headers.origin })
+    return res.status(403).json({ error: 'Origem não permitida.' })
+  }
   // Unique constraint (ex: e-mail duplicado)
   if (err.code === 'P2002') {
     return res.status(409).json({ error: 'Recurso já existe.' })
@@ -385,7 +393,7 @@ app.use('/api/', (req, res) => {
 
 // ── SPA catch-all (depois de todas as rotas de API) ─────
 if (isProd) {
-  app.get('*', (req, res) => {
+  app.get('*', staticLimiter, (req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
     res.setHeader('Pragma', 'no-cache')
     res.setHeader('Expires', '0')

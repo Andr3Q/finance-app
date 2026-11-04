@@ -277,3 +277,48 @@ describe('Campos sensíveis não expostos nas respostas', () => {
     expect(res.body.user).not.toHaveProperty('password')
   })
 })
+
+// ══════════════════════════════════════════════════════════
+// CSRF — o cookie de sessão é SameSite=Strict e, por cima disso, toda requisição com Origin fora de ALLOWED_ORIGINS é barrada (403).
+// (O CodeQL pede "middleware de CSRF" por não reconhecer essa proteção; este teste a documenta e impede que regrida.)
+// ══════════════════════════════════════════════════════════
+describe('CSRF — origem da requisição', () => {
+  it('POST de outro site com o cookie de sessão válido é barrado com 403 e não toca no banco', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    const res = await request(app).post('/api/transactions')
+      .set(authHeader()).set('Origin', 'https://site-malicioso.example')
+      .send({ type: 'expense', amount: 10, description: 'x', category: 'food', date: '2026-11-04' })
+    expect(res.status).toBe(403)
+    expect(res.body.error).toBe('Origem não permitida.')
+    expect(prisma.transaction.create).not.toHaveBeenCalled()
+  })
+
+  it('exclusão de conta, troca de senha e pagamento também: outra origem = 403', async () => {
+    for (const [method, url] of [['delete', '/api/auth/account'], ['put', '/api/auth/password'], ['post', '/api/payments/create-preference']]) {
+      const res = await request(app)[method](url).set(authHeader()).set('Origin', 'https://site-malicioso.example').send({})
+      expect(res.status).toBe(403)
+    }
+  })
+
+  it('origem permitida passa pelo CORS (a requisição segue para a validação normal) e sem Origin (chamada de servidor) também', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser())
+    const comOrigem = await request(app).post('/api/transactions').set(authHeader()).set('Origin', 'http://localhost:5173').send({})
+    expect(comOrigem.status).not.toBe(403)
+    const semOrigem = await request(app).post('/api/transactions').set(authHeader()).send({})
+    expect(semOrigem.status).not.toBe(403)
+  })
+
+  it('o cookie de sessão sai com SameSite=Strict e HttpOnly', async () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../src/routes/auth.js'), 'utf8')
+    expect(src).toMatch(/httpOnly:\s*true/)
+    expect(src).toMatch(/sameSite:\s*'strict'/)
+  })
+})
+
+describe('Limitadores de páginas estáticas e de metas', () => {
+  it('existem e são middlewares (o CodeQL exige limite nas rotas que servem arquivo e nas de metas)', () => {
+    const rl = require('../src/middleware/rateLimiter')
+    expect(typeof rl.staticLimiter).toBe('function')
+    expect(typeof rl.goalsLimiter).toBe('function')
+  })
+})
