@@ -8,6 +8,8 @@ import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import LimitsDesktop from './LimitsDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import CurrencyInput from '../components/ui/CurrencyInput.jsx'
 import { CATEGORY_LABELS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
@@ -48,6 +50,7 @@ export default function Limits() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const isPro = user?.plan === 'pro' || user?.plan === 'elite'
 
@@ -150,6 +153,39 @@ export default function Limits() {
     return { cls: '', text: `${money(r.left)} disponível` }
   }
 
+  // confirmação de remover: a mesma no celular e no desktop
+  const confirmModal = confirmRow && createPortal(
+    <div className="gls-modal-overlay" onClick={() => setConfirmRow(null)}>
+      <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="lm-del-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+        <div className="gls-modal-head"><span id="lm-del-title">Remover limite</span></div>
+        <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--t1)', marginBottom: 8 }}>Tem certeza?</div>
+          <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 600, color: 'var(--t1)' }}>{confirmRow.label} · teto {money(confirmRow.limit)}</div>
+            O limite será removido e a Nancy deixa de avisar sobre essa categoria. Você pode definir outro depois.
+          </div>
+        </div>
+        <div className="gls-modal-foot">
+          <button className="gls-btn-ghost" onClick={() => setConfirmRow(null)}>Cancelar</button>
+          <button className="gls-btn-save" style={{ background: '#ef4444' }} onClick={() => remove(confirmRow)}>Sim, remover</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        <LimitsDesktop ctx={{
+          isPro, loading, failed: failed && !data, retry: () => { setLoading(true); load() }, rows, note, money, onRemove: setConfirmRow, goPlans: () => navigate('/planos'),
+          chips, selected, onPick: pick, more, setMore, forcedMore, amount, setAmount: (v) => { setAmount(v); setMsg(null) }, onSave: save, saving, msg,
+        }} />
+        {confirmModal}
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
@@ -239,25 +275,7 @@ export default function Limits() {
         </div>
       </div>
 
-      {confirmRow && createPortal(
-        <div className="gls-modal-overlay" onClick={() => setConfirmRow(null)}>
-          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="lm-del-title" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
-            <div className="gls-modal-head"><span id="lm-del-title">Remover limite</span></div>
-            <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--t1)', marginBottom: 8 }}>Tem certeza?</div>
-              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
-                <div style={{ fontWeight: 600, color: 'var(--t1)' }}>{confirmRow.label} · teto {money(confirmRow.limit)}</div>
-                O limite será removido e a Nancy deixa de avisar sobre essa categoria. Você pode definir outro depois.
-              </div>
-            </div>
-            <div className="gls-modal-foot">
-              <button className="gls-btn-ghost" onClick={() => setConfirmRow(null)}>Cancelar</button>
-              <button className="gls-btn-save" style={{ background: '#ef4444' }} onClick={() => remove(confirmRow)}>Sim, remover</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      {confirmModal}
     </>
   )
 }

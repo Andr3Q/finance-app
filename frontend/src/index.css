@@ -13204,3 +13204,46 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nrm-state p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
 .nrm-loading { padding: 60px 0; }
 .nrm-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nlm-* — Limites no desktop (design "Nancy Desktop", tela 24): um cartão por categoria com teto, em três colunas (vão de 16): ícone de 40px, nome,
+   barra de 10px (verde até 80%, amarela, vermelha ao estourar), gasto/teto em mono e a nota. A página usa .ndx-page (abas de Metas).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nlm-grid { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.nlm-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nlm-top { display: flex; align-items: center; gap: 12px; }
+.nlm-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.nlm-name { flex: 1; min-width: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nlm-del { width: 28px; height: 28px; flex: none; display: flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 8px; background: none; color: var(--nd-hint); cursor: pointer; }
+.nlm-del:hover { color: #C2312B; }
+.nlm-del:focus-visible, .nlm-chip:focus-visible, .nlm-btn:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nlm-bar { height: 10px; overflow: hidden; border-radius: 99px; background: #EEF3FF; }
+.nlm-fill { display: block; height: 100%; border-radius: 99px; background: var(--nd-green); }
+.nlm-fill.warn { background: #E5A82D; }
+.nlm-fill.over { background: #D6334A; }
+.nlm-amounts { display: flex; justify-content: space-between; font: 600 13px var(--nd-mono); }
+.nlm-amounts span:last-child { font-weight: 500; color: var(--nd-hint); }
+.nlm-note { margin: 0; font: 600 13px var(--nd-font); color: #087A52; }
+.nlm-note.warn { color: #B7791F; }
+.nlm-note.over { color: #C2312B; }
+.nlm-new h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nlm-hint { margin: -8px 0 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nlm-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.nlm-chip { padding: 8px 14px; border: none; border-radius: 99px; background: #F4F7FC; color: #2A3555; font: 600 12.5px var(--nd-font); cursor: pointer; }
+.nlm-chip.on { background: var(--nd-blue); color: #fff; }
+.nlm-chip.more { background: #fff; border: 1.5px solid var(--nd-line-2); }
+.nlm-form { display: flex; gap: 10px; max-width: 480px; }
+.nlm-inp { flex: 1; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.nlm-inp:focus { border-color: var(--nd-blue); }
+.nlm-inp::placeholder { color: #757575; }
+.nlm-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nlm-btn:disabled { opacity: .7; cursor: progress; }
+.nlm-msg { margin: 0; font: 500 13px var(--nd-font); }
+.nlm-msg.ok { color: #087A52; }
+.nlm-msg.err { color: #D6334A; }
+.nlm-empty { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nlm-state { align-items: flex-start; }
+.nlm-state h2 { margin: 0; font: 700 16px var(--nd-font); }
+.nlm-state p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nlm-loading { padding: 60px 0; }
+@media (max-width: 1180px) { .nlm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
