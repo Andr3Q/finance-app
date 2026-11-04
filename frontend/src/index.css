@@ -13274,3 +13274,31 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nst-card-text span { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
 .nst-out { align-self: flex-start; height: 46px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1.5px solid #F5C2CA; border-radius: 12px; background: #fff; color: #D6334A; font: 600 14px var(--nd-font); cursor: pointer; }
 @media (max-width: 1180px) { .nst-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* nsp-* — Dados pessoais no desktop (design "Nancy Desktop", tela 26): cartão de até 764px (720 do design + 2×22 de respiro), foto de 72px, nome e e-mail em duas colunas */
+.nsp-card { max-width: 764px; box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nsp-photo { display: flex; align-items: center; gap: 16px; }
+.nsp-av { width: 72px; height: 72px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: var(--nd-blue); color: #fff; font: 800 24px var(--nd-font); }
+.nsp-av.busy { opacity: .6; }
+.nsp-av img { width: 100%; height: 100%; object-fit: cover; }
+.nsp-file { display: none; }
+.nsp-outline { height: 40px; padding: 0 18px; border: 1.5px solid #C9D9FF; border-radius: 12px; background: #fff; color: var(--nd-blue); font: 600 14px var(--nd-font); cursor: pointer; }
+.nsp-outline:disabled { opacity: .6; cursor: progress; }
+.nsp-link { padding: 0; border: none; background: none; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
+.nsp-outline:focus-visible, .nsp-link:focus-visible, .nsp-save:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nsp-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.nsp-field { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.nsp-field > span { font: 600 12px var(--nd-font); color: var(--nd-muted); }
+.nsp-field input { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.nsp-field input:focus:not([readonly]) { border-color: var(--nd-blue); }
+.nsp-verify { display: flex; align-items: center; gap: 14px; }
+.nsp-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 99px; font: 600 12px var(--nd-font); }
+.nsp-pill.ok { background: #E9FBF2; color: #087A52; }
+.nsp-pill.warn { background: #FFF4DB; color: #8A5A00; }
+.nsp-note { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nsp-email { display: grid; grid-template-columns: 1fr 1fr auto; gap: 14px; align-items: end; padding-top: 14px; border-top: 1px solid #EEF2F8; }
+.nsp-save { align-self: flex-start; height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nsp-save:disabled { opacity: .7; cursor: progress; }
+.nsp-status { margin: 0; font: 500 13px var(--nd-font); }
+.nsp-status.ok { color: #087A52; }
+.nsp-status.err { color: #D6334A; }
