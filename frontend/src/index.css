@@ -13574,3 +13574,5 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndpl-cta:focus-visible, .ndpl-toggle button:focus-visible { outline: 2px solid var(--nd-ink); outline-offset: 2px; }
 .ndpl-card.t2 .ndpl-cta:focus-visible { outline-color: #fff; }
 @media (max-width: 1180px) { .ndpl-grid { grid-template-columns: minmax(0, 1fr); } }
+.ndz-done { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 12px 14px; border-radius: 12px; background: #E9FBF2; color: #087A52; font: 600 13px/1.4 var(--nd-font); }
+.ndz-done .ndz-link { color: #087A52; }

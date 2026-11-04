@@ -42,6 +42,8 @@ export default function PurchaseAnalyzer() {
   const [result, setResult] = useState(null)       // a análise é uma foto do momento em que se clicou em "Analisar"
   const [pending, setPending] = useState(false)    // clicou em Analisar antes de os números chegarem
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)                    // vale na hora (o estado só vale na próxima renderização): cliques no mesmo instante não criam duas vezes
+  const [done, setDone] = useState(null)           // confirmação que FICA na tela depois de registrar (o aviso de cima some em 4 s)
   const [toast, setToast] = useState(null)
   const timer = useRef(null)
   useEffect(() => () => clearTimeout(timer.current), [])
@@ -69,6 +71,7 @@ export default function PurchaseAnalyzer() {
     if (price > MAX_PRICE) { setError('O valor máximo é R$ 99.999.999,00.'); return }
     if (!(b.income > 0)) { setError('Informe seu salário em Finanças para a Nancy analisar.'); return }
     setError('')
+    setDone(null)
     setResult({ ...analyzePurchase(b, f), item: f.item.trim(), input: f })
   }, [])
 
@@ -85,7 +88,8 @@ export default function PurchaseAnalyzer() {
 
   const name = (result?.item) || 'Compra'
   const registerPurchase = async () => {
-    if (!result || busy) return
+    if (!result || busyRef.current || done) return
+    busyRef.current = true
     setBusy(true)
     try {
       if (!result.rec) {
@@ -98,15 +102,18 @@ export default function PurchaseAnalyzer() {
         invalidateCache('dashboard'); invalidateStories()
         window.dispatchEvent(new CustomEvent('budget-updated'))
         flash('Compra registrada no Extrato.')
+        setDone({ msg: 'Compra registrada no Extrato.', to: '/transactions', label: 'Ver no Extrato' })
       } else {
         await installmentsAPI.create({ name, amount: result.rec.pv, totalInstallments: result.rec.n })
         invalidateCache('dashboard'); invalidateStories()
         flash(`${name} em ${result.rec.n}x adicionada às parcelas.`)
+        setDone({ msg: `${name} em ${result.rec.n}x adicionada às parcelas.`, to: '/parcelados', label: 'Ver parcelas' })
       }
       load() // saldo e parcelas mudaram: a próxima análise parte dos números novos (a atual segue na tela)
     } catch (err) {
       flash(err.response?.data?.error || 'Não foi possível registrar agora. Tente de novo.', false)
     } finally {
+      busyRef.current = false
       setBusy(false)
     }
   }
@@ -114,7 +121,8 @@ export default function PurchaseAnalyzer() {
     window.dispatchEvent(new CustomEvent('nancy:open-agent-chat', { detail: { message: `Vale a pena comprar ${result?.item || 'isso'} de ${money(result.price)}?` } }))
   }
   const createGoal = async () => {
-    if (!result || busy) return
+    if (!result || busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     try {
       await goalsAPI.create({ title: result.item || 'Compra planejada', targetAmount: result.price, deadline: inMonths(Math.max(1, result.months)) })
@@ -122,6 +130,7 @@ export default function PurchaseAnalyzer() {
     } catch (err) {
       flash(err.response?.data?.error || 'Não foi possível criar a meta agora. Tente de novo.', false)
     } finally {
+      busyRef.current = false
       setBusy(false)
     }
   }
@@ -258,9 +267,12 @@ export default function PurchaseAnalyzer() {
                   </section>
                   <section className="ndz-card" aria-label="Próximo passo">
                     <h2 className="ndz-card-t">Próximo passo</h2>
-                    <button type="button" className="ndz-primary" onClick={registerPurchase} disabled={busy}><ProtoIcon name="check" size={16} />{result.registerLabel}</button>
+                    <button type="button" className="ndz-primary" onClick={registerPurchase} disabled={busy || !!done}><ProtoIcon name="check" size={16} />{result.registerLabel}</button>
                     <button type="button" className="ndz-secondary" onClick={askNancy}><ProtoIcon name="mic" size={16} />Perguntar mais à Nancy</button>
                     <button type="button" className="ndz-secondary" onClick={createGoal} disabled={busy}><ProtoIcon name="target" size={16} />Criar meta para comprar depois</button>
+                    {done && (
+                      <p className="ndz-done" role="status"><ProtoIcon name="check" size={16} />{done.msg} <button type="button" className="ndz-link" onClick={() => navigate(done.to)}>{done.label}</button></p>
+                    )}
                   </section>
                 </div>
 

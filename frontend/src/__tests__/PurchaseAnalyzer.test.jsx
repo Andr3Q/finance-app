@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within, act } from '@testing-library/react'
+import { render, screen, waitFor, within, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import PurchaseAnalyzer from '../pages/PurchaseAnalyzer.jsx'
@@ -170,10 +170,49 @@ describe('Analisador de compras — próximo passo (faz de verdade)', () => {
     await analyze()
     await userEvent.click(screen.getByRole('button', { name: 'Registrar compra no Pix' }))
     await waitFor(() => expect(transactionsAPI.create).toHaveBeenCalledWith({ description: 'Celular novo', amount: 6650, type: 'expense', category: 'shopping' }))
-    expect(await screen.findByText('Compra registrada no Extrato.')).toBeInTheDocument()
+    expect(await screen.findByText('Compra registrada no Extrato.', { selector: '.toast' })).toBeInTheDocument() // o aviso de cima (a confirmação fixa é testada à parte)
     expect(invalidateCache).toHaveBeenCalledWith('dashboard')
     expect(analyzerAPI.base).toHaveBeenCalledTimes(2) // recarrega os números; a análise na tela continua
     expect(screen.getByLabelText('Veredito da Nancy')).toBeInTheDocument()
+  })
+
+  it('a confirmação FICA na tela (o aviso de cima some em 4 s), o botão trava e há atalho para o Extrato', async () => {
+    setup()
+    await screen.findByText('R$ 15.000,00')
+    await userEvent.click(screen.getByRole('button', { name: 'Celular novo · R$ 7.000' }))
+    await analyze()
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar compra no Pix' }))
+    const box = await screen.findByLabelText('Próximo passo')
+    await waitFor(() => expect(within(box).getByRole('status')).toHaveTextContent('Compra registrada no Extrato.'))
+    expect(screen.getByRole('button', { name: 'Registrar compra no Pix' })).toBeDisabled()
+    await userEvent.click(within(box).getByRole('button', { name: 'Ver no Extrato' }))
+    expect(screen.getByTestId('where')).toHaveTextContent('/transactions')
+  })
+
+  it('dois cliques no mesmo instante em "Registrar" criam UMA saída só', async () => {
+    let finish
+    transactionsAPI.create.mockReturnValue(new Promise(r => { finish = r }))
+    setup()
+    await screen.findByText('R$ 15.000,00')
+    await userEvent.click(screen.getByRole('button', { name: 'Celular novo · R$ 7.000' }))
+    await analyze()
+    const b = screen.getByRole('button', { name: 'Registrar compra no Pix' })
+    fireEvent.click(b); fireEvent.click(b); fireEvent.click(b)
+    expect(transactionsAPI.create).toHaveBeenCalledTimes(1)
+    await act(async () => { finish({ data: {} }) })
+  })
+
+  it('analisar de novo limpa a confirmação e libera o botão para a nova análise', async () => {
+    setup()
+    await screen.findByText('R$ 15.000,00')
+    await userEvent.click(screen.getByRole('button', { name: 'Celular novo · R$ 7.000' }))
+    await analyze()
+    await userEvent.click(screen.getByRole('button', { name: 'Registrar compra no Pix' }))
+    await within(screen.getByLabelText('Próximo passo')).findByText('Compra registrada no Extrato.')
+    await userEvent.click(screen.getByRole('button', { name: 'Sofá · R$ 3.200' }))
+    await analyze()
+    expect(within(screen.getByLabelText('Próximo passo')).queryByText('Compra registrada no Extrato.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Registrar/ })).toBeEnabled()
   })
 
   it('parcelado: cria o parcelamento com o valor da parcela e quantas', async () => {
@@ -189,7 +228,8 @@ describe('Analisador de compras — próximo passo (faz de verdade)', () => {
     expect(arg.name).toBe('Notebook')
     expect(arg.totalInstallments).toBeGreaterThan(1)
     expect(arg.amount * arg.totalInstallments).toBeCloseTo(20000, 0)
-    expect(await screen.findByText(/Notebook em \d+x adicionada às parcelas\./)).toBeInTheDocument()
+    expect(await screen.findByText(/Notebook em \d+x adicionada às parcelas\./, { selector: '.toast' })).toBeInTheDocument()
+    expect(within(screen.getByLabelText('Próximo passo')).getByRole('button', { name: 'Ver parcelas' })).toBeInTheDocument() // e a confirmação fixa, com o atalho
   })
 
   it('plano sem parcelamentos: mostra o aviso do servidor e não some com a análise', async () => {

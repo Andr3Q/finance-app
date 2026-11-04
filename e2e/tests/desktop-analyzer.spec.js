@@ -82,7 +82,8 @@ test.describe('Analisador desktop — fluxo', () => {
     await page.getByRole('button', { name: 'Celular novo · R$ 7.000' }).click()
     await page.getByRole('button', { name: /Analisar com a Nancy/ }).click()
     await page.getByRole('button', { name: 'Registrar compra no Pix' }).click()
-    await expect(page.getByText('Compra registrada no Extrato.')).toBeVisible()
+    await expect(page.locator('.ndz-done')).toContainText('Compra registrada no Extrato.') // a confirmação FICA na tela (o aviso de cima some em 4 s)
+    await expect(page.getByRole('button', { name: 'Registrar compra no Pix' })).toBeDisabled()
     expect(sent).toMatchObject({ description: 'Celular novo', amount: 6650, type: 'expense', category: 'shopping' })
   })
 

@@ -32,6 +32,34 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
+describe('TransactionForm — envio repetido (achado do QA, 2026-11-04)', () => {
+  it('3 envios no mesmo instante criam UMA transação só', async () => {
+    let finish
+    transactionsAPI.create.mockReturnValue(new Promise(r => { finish = r }))
+    setup()
+    typeAmount('150')
+    const form = screen.getByRole('button', { name: 'Salvar' }).closest('form')
+    // mesmo instante, sem renderização no meio: é o que o duplo toque / Enter + clique fazem
+    fireEvent.submit(form); fireEvent.submit(form); fireEvent.submit(form)
+    expect(transactionsAPI.create).toHaveBeenCalledTimes(1)
+    finish({ data: {} })
+    await waitFor(() => expect(defaultProps.onSuccess).toHaveBeenCalledTimes(1))
+  })
+
+  it('se o servidor recusar, o botão volta e dá para tentar de novo (a trava não prende o formulário)', async () => {
+    transactionsAPI.create.mockRejectedValueOnce({ response: { data: { error: 'Limite de transações atingido.' } } })
+    setup()
+    typeAmount('150')
+    const form = screen.getByRole('button', { name: 'Salvar' }).closest('form')
+    fireEvent.submit(form)
+    expect(await screen.findByText('Limite de transações atingido.')).toBeInTheDocument()
+    transactionsAPI.create.mockResolvedValueOnce({ data: {} })
+    fireEvent.submit(form)
+    await waitFor(() => expect(transactionsAPI.create).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(defaultProps.onSuccess).toHaveBeenCalledTimes(1))
+  })
+})
+
 describe('TransactionForm — folha "Nova transação" (tela 11)', () => {
   it('abre como "Nova transação" já em Saída, com botão Salvar', () => {
     setup()

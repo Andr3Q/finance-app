@@ -789,6 +789,8 @@ describe('Resposta da IA — limpeza determinística', () => {
     // fatos do produto (a IA mandava "definir um teto diário" e "evitar juros nas metas", que não existem no app)
     expect(system).toMatch(/Limites são tetos MENSAIS por categoria \(não existe teto diário\)/)
     expect(system).toMatch(/Metas são valores a guardar e não têm juros/)
+    // a IA respondia "Gastei neste mês..." como se os gastos fossem dela (achado do QA, 2026-11-04)
+    expect(system).toMatch(/PESSOA: fale SEMPRE com o usuário na segunda pessoa[\s\S]*nunca use a primeira pessoa[\s\S]*"gastei"/)
     const toolNames = mockCreate.mock.calls[0][0].tools.map(t => t.function.name)
     expect(toolNames).toEqual(expect.arrayContaining(['get_goals', 'get_summary', 'get_transactions', 'update_transaction', 'delete_transaction']))
   })

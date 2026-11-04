@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { transactionsAPI } from '../../services/api.js'
 import { CATEGORY_LABELS } from '../../constants/index.js'
@@ -43,6 +43,9 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
     date:        toDateInput(initialData?.date),
   })
   const [loading,            setLoading]            = useState(false)
+  // 'loading' só vale depois da próxima renderização: vários envios no MESMO instante (duplo toque, Enter + clique) passariam todos.
+  // O ref vale na hora, então só o primeiro envio segue.
+  const submitting = useRef(false)
   const [error,              setError]              = useState('')
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
 
@@ -62,6 +65,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
 
   const handleSubmit = async e => {
     e.preventDefault()
+    if (submitting.current) return
     if (!form.amount || form.amount <= 0) {
       setError('Insira um valor válido.')
       return
@@ -76,6 +80,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
       setError('Informe uma data válida (dd/mm/aaaa).')
       return
     }
+    submitting.current = true
     setLoading(true)
     setError('')
     try {
@@ -95,6 +100,8 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
     } catch (err) {
       setError(err.response?.data?.error || (isEdit ? 'Erro ao atualizar.' : 'Erro ao registrar.'))
       setLoading(false)
+    } finally {
+      submitting.current = false
     }
   }
 
