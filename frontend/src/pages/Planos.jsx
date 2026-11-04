@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import SettingsDesktopLayout from '../components/layout/SettingsDesktopLayout.jsx'
+import PlanosDesktop from './PlanosDesktop.jsx'
 import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { useUser, saveUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
@@ -352,12 +353,13 @@ export default function Planos() {
     </div>
   )
 
-  // Desktop logado (design "Nancy Desktop", tela 30): no menu da conta, com os três cartões de plano lado a lado. Quem não está logado vê a página como sempre.
+  // Desktop logado (design "Nancy Desktop", tela 30): no menu da conta, com os três cartões lado a lado (PlanosDesktop). Quem não está logado vê a página como sempre.
   if (isDesktop && user?.id) {
+    const ctx = { plan, billing, setBilling, prices: PRICES, loading, period, onCheckout: handleCheckout, onDowngrade: () => setShowDowngradeModal(true) }
     return (
       <>
         {toastEl}
-        <SettingsDesktopLayout wide><div className="nst-pl">{body}</div></SettingsDesktopLayout>
+        <SettingsDesktopLayout><PlanosDesktop ctx={ctx} /></SettingsDesktopLayout>
         {downgradeModal}
       </>
     )

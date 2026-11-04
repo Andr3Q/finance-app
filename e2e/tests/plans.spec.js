@@ -8,6 +8,9 @@ const { injectSession, TEST_USER, FREE_USER } = require('../helpers/session')
 // Cobre: renderização, toggle anual, checkout, retorno de pagamento
 // ─────────────────────────────────────────────────────────────────
 
+// estrutura do celular (o desktop tem o spec desktop-account: cartões lado a lado, idêntico ao design)
+test.use({ viewport: { width: 393, height: 852 } })
+
 async function gotoPlanos(page, user = FREE_USER, search = '') {
   await injectSession(page, user)
   await page.goto(`/planos${search}`)

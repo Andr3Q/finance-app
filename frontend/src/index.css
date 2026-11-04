@@ -13341,14 +13341,6 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nst-bm .bm-list-title { font: 700 16px var(--nd-font); color: var(--nd-ink); }
 @media (max-width: 1180px) { .nst-bm { grid-template-columns: minmax(0, 1fr); } }
 
-/* nst-pl — Planos no desktop (design "Nancy Desktop", tela 30): ao lado do menu da conta, o título e a troca mensal/anual no alto e os três cartões lado a lado (Pro com contorno azul, Elite azul cheio); comparativo, garantia e perguntas abaixo, na largura toda */
-.nst-pl .pl-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; background: none; margin: 0; padding: 0; border-radius: 0; font-family: var(--nd-font); }
-.nst-pl .pl-intro { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; text-align: left; }
-.nst-pl .pl-intro .pl-lead { display: none; }
-.nst-pl .pl-headline { margin: 0; font: 800 30px var(--nd-font); letter-spacing: -.03em; }
-.nst-pl .pl-card { margin: 0; border-radius: 22px; font-family: var(--nd-font); }
-.nst-pl .pl-compare, .nst-pl .pl-guar, .nst-pl .pl-faq { grid-column: 1 / -1; }
-@media (max-width: 1180px) { .nst-pl .pl-body { grid-template-columns: minmax(0, 1fr); } }
 
 /* pgd-* — Pagamentos no desktop (design "Nancy Desktop", tela 31): cartão do plano com o botão vazado de cancelar e o histórico em tabela (Data, Descrição, Valor, Status) */
 .pgd-plan { display: flex; align-items: center; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); }
@@ -13548,3 +13540,37 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndz-tag.mine { background: var(--nd-blue); color: #fff; }
 .ndz-tag.ok { background: #EEF3FF; color: var(--nd-blue); }
 .ndz-tag.tight { background: #FDECEF; color: #D6334A; }
+
+/* ndpl-* — Planos no desktop (design "Nancy Desktop", tela 30): título de 30px e seletor Mensal/Anual na mesma linha, e três cartões lado a lado (vão de 16); o Elite é o cartão azul */
+.ndpl { display: flex; flex-direction: column; gap: 16px; font-family: var(--nd-font); color: var(--nd-ink); }
+.ndpl-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.ndpl-title { margin: 0; font: 800 30px var(--nd-font); letter-spacing: -.03em; }
+.ndpl-title span { color: var(--nd-blue); }
+.ndpl-toggle { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--nd-line); border-radius: 12px; background: #fff; flex: none; }
+.ndpl-toggle button { padding: 8px 14px; border: none; border-radius: 9px; background: transparent; color: #5B6785; font: 600 13px var(--nd-font); cursor: pointer; }
+.ndpl-toggle button.on { background: var(--nd-blue); color: #fff; }
+.ndpl-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ndpl-card { box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 24px; border: 2px solid var(--nd-blue); border-radius: 22px; background: #fff; color: var(--nd-ink); }
+.ndpl-card.t0 { border-color: #E1E8F5; }
+.ndpl-card.t2 { background: var(--nd-blue); color: #fff; }
+.ndpl-name-row { display: flex; align-items: center; justify-content: space-between; }
+.ndpl-name { margin: 0; font: 800 24px var(--nd-font); }
+.ndpl-tag { padding: 4px 10px; border-radius: 99px; background: #3BE3A0; color: #06392A; font: 700 11px var(--nd-font); }
+.ndpl-desc { margin: 0; font: 400 13.5px var(--nd-font); color: #5B6785; }
+.ndpl-card.t2 .ndpl-desc, .ndpl-card.t2 .ndpl-price-per { color: rgba(255,255,255,.8); }
+.ndpl-price { display: flex; align-items: baseline; gap: 6px; }
+.ndpl-price-n { font: 800 40px var(--nd-font); letter-spacing: -.03em; }
+.ndpl-price-per { font: 400 13px var(--nd-font); color: #5B6785; }
+.ndpl-feats { flex: 1; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.ndpl-feat { display: flex; align-items: center; gap: 8px; font: 500 14px var(--nd-font); }
+.ndpl-chk { display: block; color: #12C985; } /* ícone de 20px em linha dentro de bloco, como no protótipo: o item fica com ~23px de altura (passo de 32px entre itens) */
+.ndpl-card.t1 .ndpl-chk { color: var(--nd-blue); }
+.ndpl-card.t2 .ndpl-chk { color: #3BE3A0; }
+.ndpl-cta { flex: none; height: 48px; display: flex; align-items: center; justify-content: center; gap: 6px; border: none; border-radius: 12px; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndpl-cta.muted { background: #F4F7FC; color: #5B6785; }
+.ndpl-cta.blue { background: var(--nd-blue); color: #fff; }
+.ndpl-cta.mint { background: #3BE3A0; color: #06392A; }
+.ndpl-cta:disabled { cursor: default; }
+.ndpl-cta:focus-visible, .ndpl-toggle button:focus-visible { outline: 2px solid var(--nd-ink); outline-offset: 2px; }
+.ndpl-card.t2 .ndpl-cta:focus-visible { outline-color: #fff; }
+@media (max-width: 1180px) { .ndpl-grid { grid-template-columns: minmax(0, 1fr); } }

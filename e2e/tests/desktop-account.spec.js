@@ -59,7 +59,7 @@ test.describe('Conta desktop — navegação pelo menu', () => {
     await account(page).getByRole('button', { name: 'Planos' }).click()
     await expect(page).toHaveURL(/\/planos$/)
     await expect(account(page).getByRole('button', { name: 'Planos' })).toHaveAttribute('aria-current', 'page')
-    await expect(page.locator('.nst-pl .pl-card.pl-free, .nst-pl .pl-card.pl-pro, .nst-pl .pl-card.pl-elite')).toHaveCount(3)
+    await expect(page.locator('.ndpl-card')).toHaveCount(3)
     await account(page).getByRole('button', { name: 'Meus dados' }).click()
     await expect(page).toHaveURL(/\/settings\/dados$/)
     await expect(page.locator('.ndd-card')).toHaveCount(2)
@@ -68,6 +68,49 @@ test.describe('Conta desktop — navegação pelo menu', () => {
     expect(Math.abs(a.y - b.y)).toBeLessThan(0.5)
     expect(Math.abs(a.w - b.w)).toBeLessThan(0.5)
     expect(Math.round(b.x - (a.x + a.w))).toBe(16)
+  })
+})
+
+test.describe('Conta desktop — Planos (idêntico ao design)', () => {
+  test('título e seletor na mesma linha; três cartões de 268px com vão de 16, o último a 1140 e a borda direita a 1408', async ({ page }) => {
+    await open(page, '/planos')
+    await expect(page.locator('.ndpl-card')).toHaveCount(3)
+    const m = await page.evaluate(() => {
+      const r = (el) => { const b = el.getBoundingClientRect(); return { x: b.x, y: b.y, w: b.width, h: b.height } }
+      return { title: r(document.querySelector('.ndpl-title')), toggle: r(document.querySelector('.ndpl-toggle')), cards: [...document.querySelectorAll('.ndpl-card')].map(r) }
+    })
+    expect(Math.abs((m.title.y + m.title.h / 2) - (m.toggle.y + m.toggle.h / 2))).toBeLessThan(1.5) // mesma linha, centralizados
+    expect(m.title.h).toBeLessThan(45) // o título não quebra em duas linhas
+    expect(m.cards.map(c => Math.round(c.x))).toEqual([572, 856, 1140])
+    expect(m.cards.map(c => Math.round(c.w))).toEqual([268, 268, 268])
+    expect(new Set(m.cards.map(c => Math.round(c.h))).size).toBe(1) // mesma altura
+    expect(Math.round(m.cards[2].x + m.cards[2].w)).toBe(1408)
+    expect(Math.round(m.cards[0].y - (m.toggle.y + m.toggle.h))).toBeGreaterThanOrEqual(15) // vão de 16 do título aos cartões
+  })
+
+  test('cores e fontes: título 30px, preço 40px, cartão Elite azul, selo mint, botões de 48px', async ({ page }) => {
+    await open(page, '/planos')
+    const s = await page.evaluate(() => {
+      const cs = (sel, i = 0) => getComputedStyle(document.querySelectorAll(sel)[i])
+      return {
+        title: cs('.ndpl-title').fontSize, price: cs('.ndpl-price-n').fontSize, radius: cs('.ndpl-card').borderTopLeftRadius, border: cs('.ndpl-card').borderTopWidth,
+        free: cs('.ndpl-card', 0).borderTopColor, eliteBg: cs('.ndpl-card', 2).backgroundColor, tag: cs('.ndpl-tag').backgroundColor,
+        cta: [...document.querySelectorAll('.ndpl-cta')].map(b => Math.round(b.getBoundingClientRect().height)), eliteCta: cs('.ndpl-cta', 2).backgroundColor,
+      }
+    })
+    expect(s).toMatchObject({ title: '30px', price: '40px', radius: '22px', border: '2px', free: 'rgb(225, 232, 245)', eliteBg: 'rgb(21, 70, 255)', tag: 'rgb(59, 227, 160)', eliteCta: 'rgb(59, 227, 160)' })
+    expect(s.cta).toEqual([48, 48, 48])
+    await expect(page.locator('.ndpl-card').nth(2).locator('.ndpl-tag')).toHaveText('Atual')
+    await expect(page.locator('.ndpl-card').nth(1).locator('.ndpl-tag')).toHaveText('Recomendado')
+  })
+
+  test('só o que o design mostra: sem comparativo, garantia, perguntas nem notas; Pro não promete transações ilimitadas', async ({ page }) => {
+    await open(page, '/planos')
+    await expect(page.getByText('Comparativo completo')).toHaveCount(0)
+    await expect(page.getByText('Perguntas frequentes')).toHaveCount(0)
+    await expect(page.getByText(/Cancele quando quiser/)).toHaveCount(0)
+    await expect(page.locator('.ndpl-card').nth(1)).toContainText('35 transações por mês')
+    await expect(page.locator('.ndpl-card').nth(1)).not.toContainText('ilimitadas')
   })
 })
 
