@@ -4,8 +4,11 @@ import { saveUser } from '../../../hooks/useUser.js'
 import { invalidateCache } from '../../../services/cache.js'
 import CurrencyInput from '../../ui/CurrencyInput.jsx'
 import { WalletGlyph } from '../../ui/NancyGlyphs.jsx'
+import ProtoIcon from '../../layout/ProtoIcon.jsx'
+import { useIsDesktop } from '../../../hooks/useIsDesktop.js'
 
 export default function SalaryCard({ user, onMessage }) {
+  const isDesktop = useIsDesktop()
   const [salary, setSalary] = useState(user.salary || '')
   const [saving, setSaving] = useState(false)
 
@@ -33,6 +36,25 @@ export default function SalaryCard({ user, onMessage }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  // Desktop (design "Nancy Desktop", tela 15): cartão de 360px com o valor em fonte mono e "Salvar salário"; mesma lógica.
+  if (isDesktop) {
+    return (
+      <section className="ndf-card ndf-salary">
+        <div className="ndf-head">
+          <span className="ndf-ico"><ProtoIcon name="wallet" size={20} /></span>
+          <div className="ndf-head-text">
+            <h2 className="ndf-title">Salário mensal</h2>
+            <p className="ndf-sub">Base do saldo disponível</p>
+          </div>
+        </div>
+        <form onSubmit={handleSave} className="ndf-salary-form">
+          <CurrencyInput className="ndf-salary-input" value={salary} onChange={setSalary} placeholder="0,00" ariaLabel="Salário mensal" />
+          <button type="submit" className="ndf-btn" disabled={saving}>{saving ? 'Salvando…' : 'Salvar salário'}</button>
+        </form>
+      </section>
+    )
   }
 
   return (

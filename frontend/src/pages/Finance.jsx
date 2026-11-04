@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import UpgradeModal from '../components/ui/UpgradeModal.jsx'
 import SalaryCard       from '../components/features/settings/SalaryCard.jsx'
 import FixedExpensesCard from '../components/features/settings/FixedExpensesCard.jsx'
@@ -19,6 +20,7 @@ export default function Finance() {
   const user      = useUser()
   const navigate  = useNavigate()
   const location  = useLocation()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const [msg,          setMsg]         = useState('')
   const [msgType,      setMsgType]     = useState('success')
@@ -42,22 +44,32 @@ export default function Finance() {
         </div>
       )}
 
-      <div className="pwnav fin-pwnav fade-in">
-        <div className="fin-page">
-          <header className="fin-hero">
-            <button type="button" className="fin-back" onClick={goBack} aria-label="Voltar"><BackIcon /></button>
-            <div className="fin-hero-text">
-              <h1 className="fin-hero-title">Finanças</h1>
-              <p className="fin-hero-sub">Salário e contas fixas</p>
-            </div>
-          </header>
-
-          <div className="fin-body">
+      {isDesktop ? (
+        // Desktop (design "Nancy Desktop", tela 15): sem cabeçalho azul — o título está na barra de cima — e os dois cartões lado a lado
+        <div className="pwnav ndh-pwnav fade-in">
+          <div className="ndf-page">
             <SalaryCard user={user} onMessage={showMsg} />
             <FixedExpensesCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="pwnav fin-pwnav fade-in">
+          <div className="fin-page">
+            <header className="fin-hero">
+              <button type="button" className="fin-back" onClick={goBack} aria-label="Voltar"><BackIcon /></button>
+              <div className="fin-hero-text">
+                <h1 className="fin-hero-title">Finanças</h1>
+                <p className="fin-hero-sub">Salário e contas fixas</p>
+              </div>
+            </header>
+
+            <div className="fin-body">
+              <SalaryCard user={user} onMessage={showMsg} />
+              <FixedExpensesCard onMessage={showMsg} onUpgrade={setUpgradeModal} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {upgradeModal && (
         <UpgradeModal reason={upgradeModal} onClose={() => setUpgradeModal(null)} />

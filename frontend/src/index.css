@@ -12886,3 +12886,57 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndn-link { margin-top: 6px; padding: 0; border: none; background: none; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
 .ndn-prefs { padding: 10px 16px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-blue); font: 600 13px var(--nd-font); cursor: pointer; }
 .ndn-prefs:focus-visible, .ndn-link:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndf-* — Finanças no desktop (design "Nancy Desktop", tela 15): cartão do salário (360px) e cartão das contas fixas lado a lado.
+   Linhas de conta com ícone, nome, vencimento (120px), valor mono (110px) e ×; o formulário de adicionar em uma linha (nome, valor,
+   dia, botão). Escopado em ndf-* e nos blocos .fa-* reaproveitados do celular dentro de .ndf-card.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndf-page { flex: 1; display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 16px; align-items: start; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndf-card { min-width: 0; display: flex; flex-direction: column; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndf-salary { gap: 14px; }
+.ndf-head { display: flex; align-items: center; gap: 12px; }
+.ndf-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndf-head-text { display: flex; flex-direction: column; gap: 2px; }
+.ndf-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndf-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndf-salary-form { display: flex; flex-direction: column; gap: 14px; }
+.ndf-salary-input { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 700 20px var(--nd-mono); outline: none; }
+.ndf-salary-input:focus, .ndf-inp:focus { border-color: var(--nd-blue); }
+.ndf-btn { height: 46px; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndf-btn:disabled { opacity: .7; cursor: progress; }
+.ndf-btn:focus-visible, .ndf-launch-btn:focus-visible, .ndf-pay:focus-visible, .ndf-del:focus-visible, .ndf-row-main:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+
+.ndf-fixed-head { display: flex; align-items: center; gap: 12px; padding-bottom: 8px; }
+.ndf-total { margin-left: auto; }
+.ndf-total { font: 600 14px var(--nd-mono); color: var(--nd-blue); }
+.ndf-list { list-style: none; margin: 0; padding: 0; }
+.ndf-item { border-top: 1px solid #EEF2F8; }
+.ndf-row { display: flex; align-items: center; gap: 14px; padding: 0; }
+.ndf-row-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndf-row-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndf-row-name { flex: 1; min-width: 0; font: 600 14.5px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndf-row-due { width: 120px; flex: none; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndf-row-val { width: 110px; flex: none; text-align: right; font: 600 14px var(--nd-mono); }
+.ndf-del { width: 30px; height: 30px; flex: none; display: flex; align-items: center; justify-content: center; padding: 0; border: none; background: none; color: var(--nd-hint); cursor: pointer; }
+.ndf-del:hover { color: #C2312B; }
+.ndf-detail { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 44px 14px 54px; }
+.ndf-detail-txt { font: 400 12.5px var(--nd-font); color: var(--nd-muted); }
+.ndf-pay { padding: 7px 14px; border: 1.5px solid #C9D9FF; border-radius: 10px; background: #fff; color: var(--nd-blue); font: 600 12.5px var(--nd-font); cursor: pointer; }
+.ndf-pay:disabled { opacity: .6; cursor: progress; }
+.ndf-empty { padding: 20px 0; text-align: center; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); border-top: 1px solid #EEF2F8; }
+/* 21px de altura: o cabeçalho do cartão mede o mesmo do design com ou sem o botão */
+.ndf-launch-btn { height: 21px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; border: 1.5px solid #C9D9FF; border-radius: 8px; background: #fff; color: var(--nd-blue); font: 600 12px var(--nd-font); cursor: pointer; }
+.ndf-launch-btn:disabled { opacity: .6; cursor: progress; }
+.ndf-launched { font: 600 12px var(--nd-font); color: #087A52; }
+.ndf-form { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #EEF2F8; }
+.ndf-form-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 90px auto; gap: 10px; }
+.ndf-inp { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndf-inp::placeholder { color: #757575; }
+.ndf-end .fa-date-toggle { width: auto; padding: 6px 0; border: none; background: none; color: var(--nd-muted); font: 600 13px var(--nd-font); }
+.ndf-end .fa-date-toggle .fa-date-hint { color: var(--nd-hint); }
+.ndf-end .fa-date-toggle.on, .ndf-end .fa-date-toggle.on .fa-date-text, .ndf-end .fa-date-toggle.on .fa-date-hint { color: var(--nd-blue); background: none; border-color: transparent; }
+.ndf-end .fa-date-row { max-width: 360px; }
+.ndf-end .fa-inp { height: 46px; box-sizing: border-box; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndf-card .fa-err { color: #D6334A; font: 500 13px var(--nd-font); }
+@media (max-width: 1180px) { .ndf-page { grid-template-columns: minmax(0, 1fr); } }

@@ -8,6 +8,8 @@ import { analytics } from '../../../services/analytics.js'
 import PlanUsageBanner from '../../ui/PlanUsageBanner.jsx'
 import { ReceiptGlyph, CloseGlyph } from '../../ui/NancyGlyphs.jsx'
 import { useEscapeKey } from '../../../hooks/useEscapeKey.js'
+import ProtoIcon from '../../layout/ProtoIcon.jsx'
+import { useIsDesktop } from '../../../hooks/useIsDesktop.js'
 
 function notifyBudgetChanged() {
   invalidateCache('dashboard')
@@ -16,6 +18,7 @@ function notifyBudgetChanged() {
 
 export default function FixedExpensesCard({ onMessage, onUpgrade }) {
   const user = useUser()
+  const isDesktop = useIsDesktop()
   const [budgets,    setBudgets]    = useState([])
   const [newBudget,  setNewBudget]  = useState({ name: '', amount: '', dueDay: '', endDate: { dd: '', mm: '', aaaa: '' }, hasEndDate: false })
   const refDD   = useRef(null)
@@ -149,6 +152,199 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
     }
   }
 
+  // Data de encerramento (opcional): o mesmo bloco no celular e no desktop (só o CSS muda)
+  const endDateBlock = (
+    <>
+    <button type="button" className={`fa-date-toggle${newBudget.hasEndDate ? ' on' : ''}`} aria-expanded={newBudget.hasEndDate}
+      title={newBudget.hasEndDate ? 'Remover data de encerramento' : 'Definir data de encerramento'}
+      onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: { dd: '', mm: '', aaaa: '' } }))}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+      <span className="fa-date-text">Data de encerramento</span>
+      <span className="fa-date-hint">{newBudget.hasEndDate ? 'Remover' : 'opcional'}</span>
+    </button>
+
+    {newBudget.hasEndDate && (
+      <div className="fa-date-row">
+        <label className="fa-date-label" htmlFor="fa-dd">Encerramento</label>
+        <div className="fa-date-fields">
+          <input
+            id="fa-dd"
+            ref={refDD}
+            className="fa-inp fa-date-part"
+            type="text" inputMode="numeric" placeholder="DD" maxLength={2}
+            value={newBudget.endDate.dd}
+            onChange={e => {
+              const v = e.target.value.replace(/\D/g,'').slice(0,2)
+              setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: v } }))
+              setEndDateErr('')
+              if (v.length === 2) refMM.current?.focus()
+            }}
+          />
+          <span className="fa-date-sep">/</span>
+          <input
+            ref={refMM}
+            className="fa-inp fa-date-part"
+            type="text" inputMode="numeric" placeholder="MM" maxLength={2} aria-label="Mês de encerramento"
+            value={newBudget.endDate.mm}
+            onChange={e => {
+              const v = e.target.value.replace(/\D/g,'').slice(0,2)
+              setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: v } }))
+              if (v.length === 2) refAAAA.current?.focus()
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Backspace' && newBudget.endDate.mm === '') {
+                e.preventDefault()
+                refDD.current?.focus()
+              }
+            }}
+          />
+          <span className="fa-date-sep">/</span>
+          <input
+            ref={refAAAA}
+            className="fa-inp fa-date-part fa-date-year"
+            type="text" inputMode="numeric" placeholder="AAAA" maxLength={4} aria-label="Ano de encerramento"
+            value={newBudget.endDate.aaaa}
+            onChange={e => {
+              const v = e.target.value.replace(/\D/g,'').slice(0,4)
+              setNewBudget(p => ({ ...p, endDate: { ...p.endDate, aaaa: v } }))
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Backspace' && newBudget.endDate.aaaa === '')
+                setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: p.endDate.mm.slice(0,-1) } }))
+            }}
+          />
+        </div>
+        {endDateErr && <span className="fa-err" role="alert">{endDateErr}</span>}
+      </div>
+    )}
+    </>
+  )
+
+  const deleteModal = deleteConfirmId && createPortal(
+    <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
+      <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="fx-del-title" onClick={e => e.stopPropagation()}>
+        <div className="gls-modal-head">
+          <span id="fx-del-title">Excluir conta fixa</span>
+          <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+          <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/>
+              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+            </svg>
+          </div>
+          <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+          <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+            {deleting && <div style={{ fontWeight:600, color:'var(--t1)' }}>{deleting.name} · R$ {deleting.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>}
+            <div>Esta conta fixa será removida permanentemente.</div>
+          </div>
+        </div>
+        <div className="gls-modal-foot">
+          <button className="gls-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</button>
+          <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={confirmDelete}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+            </svg>
+            Sim, excluir
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+
+  // Desktop (design "Nancy Desktop", tela 15): cartão largo com o total no alto, uma linha por conta (ícone, nome, vencimento, valor e ×)
+  // e o formulário de adicionar em uma linha só. Tocar na linha abre o detalhe (pagar, encerramento), como no celular.
+  if (isDesktop) {
+    return (
+      <>
+        <section className="ndf-card ndf-fixed">
+          <div className="ndf-fixed-head">
+            <h2 className="ndf-title">Contas fixas</h2>
+            {/* lançar as pendentes (função do app que o design não desenha) fica no cabeçalho, sem mudar a altura do cartão */}
+            {budgets.length > 0 && (unpaidCount === 0 ? (
+              <span className="ndf-launched">Todas pagas este mês</span>
+            ) : (
+              <button type="button" className="ndf-launch-btn" onClick={handleLaunch} disabled={launching}>
+                {launching
+                  ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> Lançando...</>
+                  : <>Lançar {unpaidCount === budgets.length ? 'todas como pagas' : `${unpaidCount} ${unpaidCount === 1 ? 'pendente' : 'pendentes'}`}</>}
+              </button>
+            ))}
+            {budgets.length > 0 && <span className="ndf-total" aria-label="Total mensal">R$ {totalFixed.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>}
+          </div>
+          <PlanUsageBanner plan={user.plan ?? 'free'} feature="budgets" used={budgets.length} label="contas fixas" />
+          {budgets.length === 0 ? (
+            <div className="ndf-empty">Nenhuma conta fixa cadastrada.</div>
+          ) : (
+            <ul className="ndf-list">
+              {budgets.map(b => {
+                const open = openId === b.id
+                return (
+                  <li key={b.id} className="ndf-item">
+                    <div className="ndf-row">
+                      <button type="button" className="ndf-row-main" onClick={() => setOpenId(open ? null : b.id)} aria-expanded={open}>
+                        <span className="ndf-row-ico"><ProtoIcon name="receipt" size={20} /></span>
+                        <span className="ndf-row-name">{b.name}</span>
+                        <span className="ndf-row-due">
+                          {b.dueDay ? `Vence dia ${b.dueDay}` : 'Sem dia de vencimento'}
+                          {b.paidThisMonth && <> · <span className="fin-paid">paga</span></>}
+                        </span>
+                        <span className="ndf-row-val">R$ {b.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      </button>
+                      <button type="button" className="ndf-del" onClick={() => setDeleteConfirmId(b.id)} aria-label="Remover"><ProtoIcon name="x" size={18} /></button>
+                    </div>
+                    {open && (
+                      <div className="ndf-detail">
+                        {b.paidThisMonth ? (
+                          <span className="ndf-detail-txt">{b.paidDate ? `Paga em ${new Date(b.paidDate).toLocaleDateString('pt-BR')}` : 'Paga este mês'}</span>
+                        ) : (
+                          <button type="button" className="ndf-pay" onClick={() => handlePay(b)} disabled={payingId === b.id}>
+                            {payingId === b.id ? <span className="spinner" style={{ width: 11, height: 11, borderWidth: 2 }} /> : 'Marcar como paga'}
+                          </button>
+                        )}
+                        {b.endDate && (
+                          <span className="ndf-detail-txt" title="Data de encerramento">
+                            Até {new Date(b.endDate).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+          <form onSubmit={handleAdd} className="ndf-form" aria-label="Adicionar conta fixa" noValidate>
+            <div className="ndf-form-row">
+              <input className="ndf-inp" type="text" placeholder="Nome da conta" aria-label="Nome da conta"
+                value={newBudget.name} onChange={e => setNewBudget(p => ({ ...p, name: e.target.value }))} />
+              <CurrencyInput className="ndf-inp" placeholder="Valor" value={newBudget.amount} onChange={v => setNewBudget(p => ({ ...p, amount: v }))} />
+              <input className="ndf-inp" type="number" inputMode="numeric" placeholder="Dia" aria-label="Dia do vencimento" min="1" max="31"
+                value={newBudget.dueDay} onChange={e => { setNewBudget(p => ({ ...p, dueDay: e.target.value })); setDueDayErr('') }} />
+              <button type="submit" className="ndf-btn ndf-add" disabled={submitting}>
+                {submitting ? <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2 }} /> : <ProtoIcon name="plus" size={18} />}
+                {submitting ? 'Adicionando…' : 'Adicionar'}
+              </button>
+            </div>
+            {dueDayErr && <span className="fa-err" role="alert">{dueDayErr}</span>}
+            <div className="ndf-end">{endDateBlock}</div>
+          </form>
+        </section>
+        {deleteModal}
+      </>
+    )
+  }
+
   return (
     <>
     <section className="fin-card fin-card-list">
@@ -257,70 +453,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
           </div>
           {dueDayErr && <span className="fa-err" role="alert">{dueDayErr}</span>}
 
-          <button type="button" className={`fa-date-toggle${newBudget.hasEndDate ? ' on' : ''}`} aria-expanded={newBudget.hasEndDate}
-            title={newBudget.hasEndDate ? 'Remover data de encerramento' : 'Definir data de encerramento'}
-            onClick={() => setNewBudget(p => ({ ...p, hasEndDate: !p.hasEndDate, endDate: { dd: '', mm: '', aaaa: '' } }))}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-            </svg>
-            <span className="fa-date-text">Data de encerramento</span>
-            <span className="fa-date-hint">{newBudget.hasEndDate ? 'Remover' : 'opcional'}</span>
-          </button>
-
-          {newBudget.hasEndDate && (
-            <div className="fa-date-row">
-              <label className="fa-date-label" htmlFor="fa-dd">Encerramento</label>
-              <div className="fa-date-fields">
-                <input
-                  id="fa-dd"
-                  ref={refDD}
-                  className="fa-inp fa-date-part"
-                  type="text" inputMode="numeric" placeholder="DD" maxLength={2}
-                  value={newBudget.endDate.dd}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g,'').slice(0,2)
-                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, dd: v } }))
-                    setEndDateErr('')
-                    if (v.length === 2) refMM.current?.focus()
-                  }}
-                />
-                <span className="fa-date-sep">/</span>
-                <input
-                  ref={refMM}
-                  className="fa-inp fa-date-part"
-                  type="text" inputMode="numeric" placeholder="MM" maxLength={2} aria-label="Mês de encerramento"
-                  value={newBudget.endDate.mm}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g,'').slice(0,2)
-                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: v } }))
-                    if (v.length === 2) refAAAA.current?.focus()
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Backspace' && newBudget.endDate.mm === '') {
-                      e.preventDefault()
-                      refDD.current?.focus()
-                    }
-                  }}
-                />
-                <span className="fa-date-sep">/</span>
-                <input
-                  ref={refAAAA}
-                  className="fa-inp fa-date-part fa-date-year"
-                  type="text" inputMode="numeric" placeholder="AAAA" maxLength={4} aria-label="Ano de encerramento"
-                  value={newBudget.endDate.aaaa}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g,'').slice(0,4)
-                    setNewBudget(p => ({ ...p, endDate: { ...p.endDate, aaaa: v } }))
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Backspace' && newBudget.endDate.aaaa === '')
-                      setNewBudget(p => ({ ...p, endDate: { ...p.endDate, mm: p.endDate.mm.slice(0,-1) } }))
-                  }}
-                />
-              </div>
-              {endDateErr && <span className="fa-err" role="alert">{endDateErr}</span>}
-            </div>
-          )}
+          {endDateBlock}
 
           <button type="submit" className="fin-btn fa-submit" disabled={submitting}>
             {submitting ? (
@@ -336,45 +469,7 @@ export default function FixedExpensesCard({ onMessage, onUpgrade }) {
       </div>
     </section>
 
-    {deleteConfirmId && createPortal(
-      <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
-        <div className="gls-modal" style={{ maxWidth:360 }} role="dialog" aria-modal="true" aria-labelledby="fx-del-title" onClick={e => e.stopPropagation()}>
-          <div className="gls-modal-head">
-            <span id="fx-del-title">Excluir conta fixa</span>
-            <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
-            <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                <path d="M10 11v6"/><path d="M14 11v6"/>
-                <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-              </svg>
-            </div>
-            <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
-            <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
-              {deleting && <div style={{ fontWeight:600, color:'var(--t1)' }}>{deleting.name} · R$ {deleting.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>}
-              <div>Esta conta fixa será removida permanentemente.</div>
-            </div>
-          </div>
-          <div className="gls-modal-foot">
-            <button className="gls-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</button>
-            <button className="gls-btn-save" style={{ background:'#ef4444' }} onClick={confirmDelete}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-              </svg>
-              Sim, excluir
-            </button>
-          </div>
-        </div>
-      </div>,
-      document.body
-    )}
+    {deleteModal}
     </>
   )
 }
