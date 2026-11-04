@@ -87,6 +87,24 @@ const dashboardLimiter = rateLimit({
   message:      { error: 'Muitas requisições. Aguarde um momento.' },
 })
 
+// Metas: 120 por minuto por IP, aplicado ANTES da autenticação (protege também a consulta ao banco que o middleware de auth faz).
+// Teto folgado: o app faz poucas chamadas de metas por minuto, e o apiLimiter global (200 / 15 min) já é bem mais apertado.
+const goalsLimiter = rateLimit({
+  ...opts,
+  windowMs: 60 * 1000,
+  max:      120,
+  message:  { error: 'Muitas requisições. Aguarde um momento.' },
+})
+
+// Páginas e arquivos que o próprio Express serve (a SPA e o sw.js): teto folgado por IP, só para barrar inundação (a Cloudflare absorve o grosso).
+// Um usuário normal faz poucas navegações por minuto; 600 deixa folga mesmo para muitos usuários atrás do mesmo IP.
+const staticLimiter = rateLimit({
+  ...opts,
+  windowMs: 60 * 1000,
+  max:      600,
+  message:  'Muitas requisições. Aguarde um momento.',
+})
+
 // Fechamento mensal: 5 por hora (envia e-mail + gera PDF — operação custosa)
 const reportLimiter = rateLimit({
   ...opts,
@@ -171,6 +189,8 @@ module.exports = {
   forgotPasswordLimiter,
   resetPasswordLimiter,
   dashboardLimiter,
+  goalsLimiter,
+  staticLimiter,
   reportLimiter,
   paymentLimiter,
   webhookLimiter,
