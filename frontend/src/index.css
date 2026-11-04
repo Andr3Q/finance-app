@@ -13396,3 +13396,22 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nrf-pending { color: #B67824; }
 .nrf-err { color: #D6334A; }
 .nrf-wait { display: flex; justify-content: center; padding: 8px 0; }
+
+/* ndd-* — Meus dados no desktop (design "Nancy Desktop", tela 33): Exportar e Excluir conta lado a lado (vão de 16), o de excluir com borda e botão vermelhos */
+.ndd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-family: var(--nd-font); }
+.ndd-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; box-sizing: border-box; }
+.ndd-card.danger { border: 1.5px solid #F5C2CA; }
+.ndd-head { display: flex; align-items: center; gap: 12px; }
+.ndd-ico { width: 40px; height: 40px; flex: none; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); display: flex; align-items: center; justify-content: center; }
+.ndd-ico.danger { background: #FDECEF; color: #D6334A; }
+.ndd-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ndd-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndd-title.danger { color: #D6334A; }
+.ndd-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndd-btns { display: flex; gap: 10px; }
+.ndd-fmt { flex: 1; height: 46px; padding: 0 18px; border-radius: 12px; background: #fff; color: var(--nd-blue); border: 1.5px solid #C9D9FF; font: 600 14px var(--nd-font); cursor: pointer; box-sizing: border-box; }
+.ndd-fmt:hover:not(:disabled) { background: #F4F7FF; }
+.ndd-fmt:disabled, .ndd-json:disabled { opacity: .6; cursor: default; }
+.ndd-delete { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: #D6334A; color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndd-delete:hover { background: #C22B41; }
+.ndd-json { align-self: flex-start; padding: 4px 2px; border: none; background: none; font: 500 12.5px var(--nd-font); color: #5B6785; text-decoration: underline; cursor: pointer; }
