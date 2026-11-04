@@ -93,7 +93,7 @@ describe('barra de cima do desktop — título e subtítulo', () => {
     expect(desktopTitle('/settings/seguranca')).toEqual(['Segurança', 'Senha e duas etapas'])
     expect(desktopTitle('/settings/notificacoes')).toEqual(['Preferências', 'Alertas e lembretes'])
     expect(desktopTitle('/limites')).toEqual(['Limites', 'Teto de gasto por categoria'])
-    expect(desktopTitle('/termos')).toEqual(['Termos de Uso', 'Atualizado em out/2026'])
+    expect(desktopTitle('/termos')).toEqual(['Termos de Uso', 'Atualizado em mai/2026'])
   })
 
   it('rota desconhecida cai no texto da tela 404', () => {

@@ -1,5 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import Navbar from '../layout/Navbar.jsx'
+import SettingsDesktopLayout from '../layout/SettingsDesktopLayout.jsx'
+import { useIsDesktop } from '../../hooks/useIsDesktop.js'
 import { useUser } from '../../hooks/useUser.js'
 import { useForcedLightTheme } from '../../hooks/useTheme.js'
 
@@ -14,10 +16,24 @@ export default function LegalPage({ title, subtitle, footer, children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const loggedIn = !!user?.id
 
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate(loggedIn ? '/settings' : '/'))
+
+  // Desktop logado (design "Nancy Desktop", telas 35 e 36): o texto num cartão branco ao lado do menu da conta; o rodapé vai dentro
+  // do cartão, como o "Dúvidas" do design. Quem chega de fora (cadastro abre os Termos numa aba nova) vê a página como sempre.
+  if (isDesktop && loggedIn) {
+    return (
+      <SettingsDesktopLayout>
+        <article className="ndl-card" aria-label={title}>
+          {children}
+          {footer && <div className="ndl-foot">{footer}</div>}
+        </article>
+      </SettingsDesktopLayout>
+    )
+  }
 
   return (
     <>

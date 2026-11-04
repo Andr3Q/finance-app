@@ -13429,3 +13429,18 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndi-step-n { width: 36px; height: 36px; border-radius: 50%; background: #EEF3FF; color: var(--nd-blue); display: flex; align-items: center; justify-content: center; font: 800 15px var(--nd-font); }
 .ndi-step-text { font: 500 14.5px/1.45 var(--nd-font); color: var(--nd-ink); }
 .ndi-note { margin: 0; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+
+/* ndl-* — Termos de Uso e Política de Privacidade no desktop (design "Nancy Desktop", telas 35 e 36): o texto num cartão branco (886px com borda e padding), títulos 16/700 e parágrafos 15/1,65; o texto jurídico é o mesmo do celular */
+.ndl-card { max-width: 886px; box-sizing: border-box; padding: 32px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; font-family: var(--nd-font); color: var(--nd-ink); }
+.ndl-card .lg-meta { margin: 0 0 20px; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndl-card .lg-h { margin: 20px 0 6px; font: 700 16px/1.4 var(--nd-font); letter-spacing: 0; color: var(--nd-ink); }
+.ndl-card .lg-meta + .lg-p + .lg-h, .ndl-card > .lg-h:first-child { margin-top: 20px; }
+.ndl-card .lg-p { margin: 0 0 10px; font: 400 15px/1.65 var(--nd-font); color: #2A3555; }
+.ndl-card .lg-li { margin-bottom: 4px; font: 400 15px/1.6 var(--nd-font); color: #2A3555; }
+.ndl-card .lg-p strong, .ndl-card .lg-li strong { color: var(--nd-ink); font-weight: 700; }
+.ndl-card .lg-box { border-color: var(--nd-line); border-radius: 14px; background: #F4F7FC; }
+.ndl-card .lg-warn { border-radius: 14px; font: 400 14px/1.6 var(--nd-font); }
+.ndl-card .lg-link { color: var(--nd-blue); }
+.ndl-foot { margin-top: 20px; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndl-foot .lg-foot-line { margin: 0 0 4px; font: 400 13px/1.5 var(--nd-font); color: #5B6785; }
+.ndl-foot .lg-link { color: inherit; text-decoration: underline; }

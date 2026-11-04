@@ -89,7 +89,7 @@ const STATIC_TITLES = {
   indique:       ['Indique e ganhe', 'Convide amigos'],
   dados:         ['Meus dados', 'Exportar ou excluir'],
   instalar:      ['Instalar app', 'Nancy no computador'],
-  termos:        ['Termos de Uso', 'Atualizado em out/2026'],
+  termos:        ['Termos de Uso', 'Atualizado em mai/2026'],
   privacidade:   ['Política de Privacidade', 'Conforme a LGPD'],
 }
 
