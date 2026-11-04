@@ -12940,3 +12940,33 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndf-end .fa-inp { height: 46px; box-sizing: border-box; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
 .ndf-card .fa-err { color: #D6334A; font: 500 13px var(--nd-font); }
 @media (max-width: 1180px) { .ndf-page { grid-template-columns: minmax(0, 1fr); } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndb-* — Contas do mês no desktop (design "Nancy Desktop", tela 16): três números (Pagas em azul, Total e Status) e a lista de contas
+   com círculo de "paga" (28px), vencimento (140px), valor mono (120px) e etiqueta (90px). A página usa .ndx-page (abas do Extrato).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndb-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.ndb-stat { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndb-stat--blue { border: none; background: var(--nd-blue); color: #fff; }
+.ndb-lbl { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndb-stat--blue .ndb-lbl { font: 500 13px var(--nd-font); color: #fff; opacity: .8; } /* o protótipo não dá altura de linha a este rótulo: o cartão azul (sem borda) é o mais alto da fileira */
+.ndb-big { font: 800 34px var(--nd-font); }
+.ndb-mono { font: 700 26px var(--nd-mono); }
+.ndb-status { font: 800 26px var(--nd-font); color: #087A52; }
+.ndb-card { margin: 0; padding: 22px; list-style: none; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndb-item { border-top: 1px solid #EEF2F8; }
+.ndb-row { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndb-row:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; border-radius: 12px; }
+.ndb-check { width: 32px; height: 32px; box-sizing: border-box; flex: none; display: flex; align-items: center; justify-content: center; border: 2px solid #C9D3E8; border-radius: 50%; background: none; color: #fff; }
+.ndb-check.on { border-color: var(--nd-green); background: var(--nd-green); }
+.ndb-name { flex: 1; min-width: 0; font: 600 14.5px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndb-due { width: 140px; flex: none; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndb-amt { width: 120px; flex: none; text-align: right; font: 600 14px var(--nd-mono); }
+.ndb-pill { width: 90px; flex: none; box-sizing: border-box; padding: 4px 0; text-align: center; border-radius: 99px; font: 600 12px var(--nd-font); }
+.ndb-pill.paid { background: #E9FBF2; color: #087A52; }
+.ndb-pill.pending { background: #EEF3FF; color: var(--nd-blue); }
+.ndb-hint { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndb-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndb-empty h2 { margin: 0; font: 700 16px var(--nd-font); }
+.ndb-empty p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndb-btn { margin-top: 6px; height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }

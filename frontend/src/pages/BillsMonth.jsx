@@ -7,6 +7,8 @@ import { invalidateCache } from '../services/cache.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import BillsMonthDesktop from './BillsMonthDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { MONTHS } from '../constants/index.js'
 import { fmt } from '../utils/format.js'
 import { txCacheKey, currentBrasiliaMonthYear } from '../utils/txCache.js'
@@ -31,6 +33,7 @@ const HIDDEN = 'R$ ••••'
 export default function BillsMonth() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const [bills,   setBills]   = useState([])
@@ -97,15 +100,48 @@ export default function BillsMonth() {
     }
   }
 
+  // modal "Marcar como paga?": o mesmo no celular e no desktop
+  const confirmModal = confirm && createPortal(
+    <div className="gls-modal-overlay" onClick={() => !paying && setConfirm(null)}>
+      <div className="gls-modal" role="dialog" aria-label="Marcar como paga" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
+        <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 22 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--t1)', marginBottom: 8 }}>Marcar como paga?</div>
+          <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
+            {confirm.name} · {money(confirm.amount)}<br />Vai entrar no Extrato como uma saída de hoje.
+          </div>
+        </div>
+        <div className="gls-modal-foot">
+          <button className="gls-btn-ghost" onClick={() => setConfirm(null)} disabled={paying}>Cancelar</button>
+          <button className="gls-btn-save" onClick={confirmPay} disabled={paying}>{paying ? 'Marcando…' : 'Marcar como paga'}</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+  const toastEl = toast && (
+    <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
+      {toast.msg}
+    </div>
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        {toastEl}
+        <BillsMonthDesktop ctx={{
+          sorted, paidCount, pendingCount, count: bills.length, empty: loaded && bills.length === 0,
+          money: { total: money(total), of: money }, monthName, onTap, goFinance: () => navigate('/financas'),
+        }} />
+        {confirmModal}
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
 
-      {toast && (
-        <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
-          {toast.msg}
-        </div>
-      )}
+      {toastEl}
 
       <div className="pwnav fin-pwnav fade-in">
         <div className="fin-page">
@@ -167,23 +203,7 @@ export default function BillsMonth() {
         </div>
       </div>
 
-      {confirm && createPortal(
-        <div className="gls-modal-overlay" onClick={() => !paying && setConfirm(null)}>
-          <div className="gls-modal" role="dialog" aria-label="Marcar como paga" style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
-            <div className="gls-modal-body" style={{ textAlign: 'center', paddingTop: 22 }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--t1)', marginBottom: 8 }}>Marcar como paga?</div>
-              <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6 }}>
-                {confirm.name} · {money(confirm.amount)}<br />Vai entrar no Extrato como uma saída de hoje.
-              </div>
-            </div>
-            <div className="gls-modal-foot">
-              <button className="gls-btn-ghost" onClick={() => setConfirm(null)} disabled={paying}>Cancelar</button>
-              <button className="gls-btn-save" onClick={confirmPay} disabled={paying}>{paying ? 'Marcando…' : 'Marcar como paga'}</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      {confirmModal}
     </>
   )
 }
