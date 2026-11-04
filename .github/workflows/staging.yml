@@ -39,6 +39,8 @@ env:
   DATABASE_URL:        postgresql://staging_user:staging_pass_local@localhost:5432/financas_staging
   JWT_SECRET:          ${{ secrets.STAGING_JWT_SECRET }}
   STAGING_SEED_SECRET: ${{ secrets.STAGING_SEED_SECRET }}
+  # banco descartável dentro do runner: senha só desta execução (nunca uma senha fixa num repositório público)
+  STAGING_SEED_PASSWORD: ci-${{ github.run_id }}-${{ github.run_attempt }}-Seed9x
   # Só precisa existir (não-vazio) pra /api/monitor não devolver 503 antes do
   # smoke test chegar a checar autenticação — este ambiente é local/efêmero,
   # nunca exposto, então não precisa do secret real do Secret Manager do GCP.
@@ -187,7 +189,7 @@ jobs:
           CI:           true
           BACKEND_URL:  http://localhost:3099
           STAGING_USER: alice@staging.test
-          STAGING_PASS: Staging123!
+          STAGING_PASS: ${{ env.STAGING_SEED_PASSWORD }}
 
       - name: Upload relatório Playwright
         if: always()
@@ -258,7 +260,7 @@ jobs:
         run: |
           RESP=$(curl -sf -c /tmp/cookies.txt -X POST http://localhost:3099/api/auth/login \
             -H "Content-Type: application/json" \
-            -d '{"email":"alice@staging.test","password":"Staging123!"}')
+            -d "{\"email\":\"alice@staging.test\",\"password\":\"${STAGING_SEED_PASSWORD}\"}")
           echo "$RESP" | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'user' in d, 'user ausente na resposta de login'; print('✅ login OK')"
 
       - name: 🔥 Smoke — Auth protegida sem token (deve retornar 401)

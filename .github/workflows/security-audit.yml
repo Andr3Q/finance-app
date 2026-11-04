@@ -1,0 +1,52 @@
+# ══════════════════════════════════════════════════════════════════
+# Auditoria de dependências — npm audit só do que vai para produção
+#
+# Falha quando uma dependência de PRODUÇÃO (backend ou frontend) tem vulnerabilidade
+# ALTA ou CRÍTICA. Ferramentas só de desenvolvimento (eslint, jest, vitest...) não entram:
+# não vão para a imagem, e as correções delas costumam exigir versão maior (decisão à parte).
+#
+# Roda: em todo PR que mexe em package*.json, todo dia às 9h UTC (uma falha nova divulgada
+# amanhã aparece sozinha, sem ninguém abrir PR) e manualmente.
+# Registro do controle: documento "Nancy — Arquitetura de Segurança" (camada L10).
+# ══════════════════════════════════════════════════════════════════
+name: Segurança — Auditoria de dependências
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '.github/workflows/security-audit.yml'
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  npm-audit:
+    name: 🔐 npm audit (produção) · ${{ matrix.dir }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [backend, frontend]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: npm audit (dependências de produção, nível alto ou crítico)
+        working-directory: ${{ matrix.dir }}
+        run: npm audit --omit=dev --audit-level=high

@@ -4,6 +4,10 @@
 // com o lançamento, ou lançamentos no futuro.
 
 const { VALID_CATEGORIES } = require('../src/utils/constants')
+const bcrypt = require('bcryptjs')
+
+const SENHA_TESTE = 'senha-de-teste-123456'
+const SENHA_ANTIGA_PUBLICA = ['Staging', '123!'].join('') // a que esteve no repositório público: não pode mais abrir conta nenhuma
 
 const created = { users: [], budgets: [], transactions: [], goals: [], limits: [], installments: [] }
 
@@ -31,6 +35,7 @@ jest.mock('@prisma/client', () => {
 let exitSpy
 beforeAll(async () => {
   process.env.STAGING_SEED_SECRET = 'teste'
+  process.env.STAGING_SEED_PASSWORD = SENHA_TESTE
   exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => { throw new Error('o seed chamou process.exit') })
   jest.spyOn(console, 'log').mockImplementation(() => {})
   const finished = new Promise(resolve => { global.__seedDone = resolve })
@@ -44,6 +49,14 @@ const userId = (who) => created.users.find(u => u.email === byEmail[who]).id
 const txsOf = (who) => created.transactions.filter(t => t.userId === userId(who))
 
 describe('seed de homologação', () => {
+  test('a senha das três contas é a do ambiente (STAGING_SEED_PASSWORD) e a antiga, que era pública, não abre nenhuma', () => {
+    for (const who of ['alice', 'bob', 'admin']) {
+      const hash = created.users.find(u => u.email === byEmail[who]).password
+      expect(bcrypt.compareSync(SENHA_TESTE, hash)).toBe(true)
+      expect(bcrypt.compareSync(SENHA_ANTIGA_PUBLICA, hash)).toBe(false)
+    }
+  })
+
   test('cria as 3 contas (Grátis, Pro, Elite) com o salário no campo salary', () => {
     expect(created.users.map(u => [u.email, u.plan, u.salary])).toEqual([
       ['alice@staging.test', 'free', 5000], ['bob@staging.test', 'pro', 8500], ['admin@staging.test', 'elite', 15000],

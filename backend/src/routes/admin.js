@@ -39,11 +39,19 @@ router.post('/seed-staging', async (req, res) => {
     return res.status(401).json({ error: 'Não autorizado.' })
   }
 
+  // A senha das contas de seed vem do chamador (segredo do GitHub no deploy), nunca do código: o repositório é público.
+  const seedPassword = req.headers['x-seed-password']
+  if (typeof seedPassword !== 'string' || seedPassword.length < 12) {
+    return res.status(400).json({ error: 'Senha de seed ausente ou curta demais (mínimo de 12 caracteres).' })
+  }
+
   try {
     const seedPath = path.join(__dirname, '../../prisma/seed.staging.js')
     // Limpa o cache do require para permitir re-execução
     delete require.cache[require.resolve(seedPath)]
-    require(seedPath)
+    // O seed lê a senha na carga do módulo; ela fica no ambiente só durante o require
+    process.env.STAGING_SEED_PASSWORD = seedPassword
+    try { require(seedPath) } finally { delete process.env.STAGING_SEED_PASSWORD }
     res.json({ ok: true, message: 'Seed iniciado em background.' })
   } catch (err) {
     reportError(err, { tag: '[admin] seed-staging error' })
