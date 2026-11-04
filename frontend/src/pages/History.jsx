@@ -5,6 +5,8 @@ import { getCache, setCache } from '../services/cache.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import HistoryDesktop from './HistoryDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { MONTHS } from '../constants/index.js'
 import { fmtK, historyInsight } from '../utils/historyInsight.js'
 
@@ -31,6 +33,7 @@ export default function History() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const isPro   = user?.plan === 'pro' || user?.plan === 'elite'
   const isElite = user?.plan === 'elite'
@@ -74,6 +77,15 @@ export default function History() {
     } catch (err) {
       setReport(err.response?.data?.error || 'Erro ao gerar relatório. Tente novamente.')
     } finally { setReportLoading(false) }
+  }
+
+  if (isDesktop) {
+    return (
+      <HistoryDesktop ctx={{
+        isPro, isElite, loading, failed, retry: () => { setLoading(true); load() }, months, maxAbs, hasData, insight, goPlans: () => navigate('/planos'),
+        report: { month: reportMonth, year: reportYear, setMonth: setReportMonth, setYear: setReportYear, generate: generateReport, loading: reportLoading, text: report },
+      }} />
+    )
   }
 
   return (

@@ -13116,3 +13116,35 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndg-create:disabled { opacity: .5; cursor: default; }
 .ndg-limit { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
 @media (max-width: 1180px) { .ndg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   nhs-* — Histórico no desktop (design "Nancy Desktop", tela 21): cartão "Resultado por mês" com uma barra por mês (até 90px de largura, a mais
+   alta com 230px; a do mês atual em verde), a frase do mês e o relatório da IA (Elite). A página usa .ndx-page (abas de Metas).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.nhs-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.nhs-title { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.nhs-sub { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nhs-chart { height: 300px; display: flex; align-items: flex-end; gap: 22px; padding-top: 12px; }
+.nhs-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.nhs-val { font: 600 13px var(--nd-mono); color: var(--nd-muted); }
+.nhs-bar { width: 100%; max-width: 90px; border-radius: 12px 12px 4px 4px; background: #C9D9FF; }
+.nhs-bar.cur { background: var(--nd-green); }
+.nhs-bar.neg { background: #F4B6BE; }
+.nhs-bar.neg.cur { background: #D6334A; }
+.nhs-bar.off { background: #EEF2F8; }
+.nhs-mon { font: 600 13px var(--nd-font); color: var(--nd-muted); }
+.nhs-insight { flex-direction: row; align-items: center; gap: 14px; }
+.nhs-insight h2 { margin: 0; font: 700 15px var(--nd-font); }
+.nhs-insight p { margin: 2px 0 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nhs-insight-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #E9FBF2; color: #087A52; }
+.nhs-insight-ico.down { background: #FDECEF; color: #C2312B; }
+.nhs-state { align-items: flex-start; }
+.nhs-state h2 { margin: 0; font: 700 16px var(--nd-font); }
+.nhs-state p { margin: 0; max-width: 520px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.nhs-loading { padding: 60px 0; }
+.nhs-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.nhs-btn:disabled { opacity: .7; cursor: progress; }
+.nhs-btn:focus-visible, .nhs-select:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.nhs-controls { display: flex; flex-wrap: wrap; gap: 10px; }
+.nhs-select { height: 46px; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); }
+.nhs-report-text { white-space: pre-wrap; font: 400 14px/1.6 var(--nd-font); color: var(--nd-ink); }
