@@ -22,7 +22,7 @@ test.describe('Política de Privacidade', () => {
     await setup(page)
     await expect(page.getByRole('heading', { level: 1, name: 'Política de Privacidade' })).toBeVisible()
     await expect(page.locator('.fin-hero-sub')).toHaveText('Conforme a LGPD')
-    await expect(page.locator('.lg-h')).toHaveCount(11)
+    await expect(page.locator('.lg-h')).toHaveCount(12)
     await expect(page.locator('.lg-foot-line').first()).toContainText('Dúvidas: privacidade@nancy.com.br')
     await expect(page.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Perfil')
     const m = await page.evaluate(() => {
