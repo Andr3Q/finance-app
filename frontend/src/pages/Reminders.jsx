@@ -6,6 +6,8 @@ import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
 import Navbar from '../components/layout/Navbar.jsx'
+import RemindersDesktop from './RemindersDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { MONTHS } from '../constants/index.js'
 import { readReminders, saveReminders, billSetting, leadLabel, LEAD_OPTIONS, DEFAULT_LEAD } from '../utils/reminders.js'
 
@@ -31,6 +33,7 @@ export default function Reminders() {
   const navigate = useNavigate()
   const location = useLocation()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
   const isElite = user?.plan === 'elite'
 
@@ -91,67 +94,9 @@ export default function Reminders() {
 
   const sheetRow = sheet && rows.find(r => r.kind === sheet.kind && r.id === sheet.id)
 
-  return (
+  // janelas (antecedência, remover, novo lembrete): as mesmas no celular e no desktop
+  const modals = (
     <>
-      <Navbar />
-      <div className="pwnav fin-pwnav fade-in">
-        <div className="fin-page">
-          <header className="fin-hero">
-            <button type="button" className="fin-back" onClick={goBack} aria-label="Voltar"><BackIcon /></button>
-            <div className="fin-hero-text">
-              <h1 className="fin-hero-title">Lembretes</h1>
-              <p className="fin-hero-sub">Avisos de vencimento</p>
-            </div>
-          </header>
-
-          <div className="fin-body">
-            {!isElite ? (
-              <section className="fin-card rm-state">
-                <h2 className="fin-title">Recurso Elite</h2>
-                <p className="fin-sub">Escolha de quantos dias antes a Nancy avisa cada conta e crie lembretes avulsos, como o IPVA.</p>
-                <button type="button" className="fin-btn rm-btn" onClick={() => navigate('/planos')}>Ver planos</button>
-              </section>
-            ) : loading ? (
-              <div className="rm-state"><div className="dsb-loader"><div className="dsb-loader-ring" /></div></div>
-            ) : failed ? (
-              <section className="fin-card rm-state">
-                <h2 className="fin-title">Não foi possível carregar</h2>
-                <p className="fin-sub">Confira sua conexão e tente de novo.</p>
-                <button type="button" className="fin-btn rm-btn" onClick={() => { setLoading(true); load() }}>Tentar de novo</button>
-              </section>
-            ) : (
-              <>
-                <section className="fin-card rm-card">
-                  <h2 className="rm-title">Lembretes de vencimento</h2>
-                  {rows.length === 0 ? (
-                    <p className="rm-empty">Nenhuma conta com dia de vencimento ainda. Cadastre suas contas fixas ou crie um lembrete avulso.</p>
-                  ) : (
-                    <ul className="rm-list">
-                      {rows.map(r => (
-                        <li key={`${r.kind}-${r.id}`} className="rm-item">
-                          <button type="button" className="rm-row" onClick={() => setSheet({ kind: r.kind, id: r.id })} aria-label={`Antecedência do lembrete de ${r.name}`}>
-                            <span className="rm-ico"><ClockGlyph /></span>
-                            <span className="rm-info">
-                              <span className="rm-name">{r.name}</span>
-                              <span className="rm-sub">{r.when} · {leadLabel(r.lead)}</span>
-                            </span>
-                          </button>
-                          <button type="button" role="switch" aria-checked={r.on} aria-label={`Lembrete de ${r.name}`}
-                            className={`sb-switch${r.on ? ' on' : ''}`} onClick={() => toggle(r)}>
-                            <span className="sb-knob" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-                <button type="button" className="rm-add" onClick={() => { setAdding(true); setFormErr('') }}>+ Novo lembrete</button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
       {sheetRow && createPortal(
         <div className="gls-modal-overlay" onClick={() => setSheet(null)}>
           <div className="gls-modal" role="dialog" aria-label={`Lembrete de ${sheetRow.name}`} style={{ maxWidth: 360 }} onClick={e => e.stopPropagation()}>
@@ -224,6 +169,83 @@ export default function Reminders() {
         </div>,
         document.body
       )}
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        <RemindersDesktop ctx={{
+          isElite, loading, failed, retry: () => { setLoading(true); load() }, rows,
+          onOpen: (r) => setSheet({ kind: r.kind, id: r.id }), onToggle: toggle, onAdd: () => { setAdding(true); setFormErr('') }, goPlans: () => navigate('/planos'),
+        }} />
+        {modals}
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Navbar />
+      <div className="pwnav fin-pwnav fade-in">
+        <div className="fin-page">
+          <header className="fin-hero">
+            <button type="button" className="fin-back" onClick={goBack} aria-label="Voltar"><BackIcon /></button>
+            <div className="fin-hero-text">
+              <h1 className="fin-hero-title">Lembretes</h1>
+              <p className="fin-hero-sub">Avisos de vencimento</p>
+            </div>
+          </header>
+
+          <div className="fin-body">
+            {!isElite ? (
+              <section className="fin-card rm-state">
+                <h2 className="fin-title">Recurso Elite</h2>
+                <p className="fin-sub">Escolha de quantos dias antes a Nancy avisa cada conta e crie lembretes avulsos, como o IPVA.</p>
+                <button type="button" className="fin-btn rm-btn" onClick={() => navigate('/planos')}>Ver planos</button>
+              </section>
+            ) : loading ? (
+              <div className="rm-state"><div className="dsb-loader"><div className="dsb-loader-ring" /></div></div>
+            ) : failed ? (
+              <section className="fin-card rm-state">
+                <h2 className="fin-title">Não foi possível carregar</h2>
+                <p className="fin-sub">Confira sua conexão e tente de novo.</p>
+                <button type="button" className="fin-btn rm-btn" onClick={() => { setLoading(true); load() }}>Tentar de novo</button>
+              </section>
+            ) : (
+              <>
+                <section className="fin-card rm-card">
+                  <h2 className="rm-title">Lembretes de vencimento</h2>
+                  {rows.length === 0 ? (
+                    <p className="rm-empty">Nenhuma conta com dia de vencimento ainda. Cadastre suas contas fixas ou crie um lembrete avulso.</p>
+                  ) : (
+                    <ul className="rm-list">
+                      {rows.map(r => (
+                        <li key={`${r.kind}-${r.id}`} className="rm-item">
+                          <button type="button" className="rm-row" onClick={() => setSheet({ kind: r.kind, id: r.id })} aria-label={`Antecedência do lembrete de ${r.name}`}>
+                            <span className="rm-ico"><ClockGlyph /></span>
+                            <span className="rm-info">
+                              <span className="rm-name">{r.name}</span>
+                              <span className="rm-sub">{r.when} · {leadLabel(r.lead)}</span>
+                            </span>
+                          </button>
+                          <button type="button" role="switch" aria-checked={r.on} aria-label={`Lembrete de ${r.name}`}
+                            className={`sb-switch${r.on ? ' on' : ''}`} onClick={() => toggle(r)}>
+                            <span className="sb-knob" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+                <button type="button" className="rm-add" onClick={() => { setAdding(true); setFormErr('') }}>+ Novo lembrete</button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {modals}
     </>
   )
 }
