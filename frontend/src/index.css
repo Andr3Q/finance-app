@@ -13037,3 +13037,51 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .nda-state h2 { margin: 0; font: 700 16px var(--nd-font); }
 .nda-state p { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
 .nda-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndc-* — Calendário no desktop (design "Nancy Desktop", tela 19): mês numa grade de 7 colunas (gap 6; células de 84px com até duas
+   etiquetas) e o painel do dia (340px), vão de 16. Dia escolhido com borda azul; dias que ainda não chegaram em cinza.
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndc-page { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
+.ndc-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndc-head { display: flex; align-items: center; gap: 14px; }
+.ndc-title { margin: 0; font: 800 22px var(--nd-font); letter-spacing: -.02em; }
+.ndc-nav { display: flex; align-items: center; gap: 6px; }
+.ndc-nav-btn { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--nd-line); border-radius: 10px; background: #fff; color: var(--nd-ink); cursor: pointer; }
+.ndc-nav-btn--next svg { transform: scaleX(-1); }
+.ndc-today { height: 30px; padding: 0 12px; border: 1.5px solid #C9D9FF; border-radius: 10px; background: #fff; color: var(--nd-blue); font: 600 12.5px var(--nd-font); cursor: pointer; }
+.ndc-nav-btn:focus-visible, .ndc-today:focus-visible, .ndc-cell:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+.ndc-legend { margin-left: auto; display: flex; gap: 14px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndc-legend span { display: flex; align-items: center; gap: 6px; }
+.ndc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--nd-blue); }
+.ndc-dot.in { background: var(--nd-green); }
+.ndc-dot.goal { background: #E5A00D; }
+.ndc-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.ndc-dow { padding: 4px 0; text-align: center; font: 600 11px var(--nd-mono); color: var(--nd-hint); }
+.ndc-loading { grid-column: 1 / -1; display: flex; justify-content: center; padding: 60px 0; }
+.ndc-cell { height: 84px; box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px; border: 1.5px solid #EEF2F8; border-radius: 12px; background: #fff; text-align: left; font-family: var(--nd-font); cursor: pointer; }
+.ndc-cell.empty { border-color: transparent; background: none; cursor: default; }
+.ndc-cell.today { border-color: #C9D9FF; }
+.ndc-cell.sel { border-color: var(--nd-blue); background: #EEF3FF; }
+.ndc-num { font: 700 13px var(--nd-font); color: var(--nd-ink); }
+.ndc-cell.future .ndc-num { color: var(--nd-hint); }
+.ndc-chip { display: block; padding: 2px 6px; overflow: hidden; border-radius: 6px; text-overflow: ellipsis; white-space: nowrap; font: 600 10.5px var(--nd-font); }
+.ndc-chip.in { background: #E9FBF2; color: #087A52; }
+.ndc-chip.out { background: #EEF3FF; color: var(--nd-blue); }
+.ndc-chip.due { background: #F4F7FC; color: var(--nd-muted); }
+.ndc-chip.goal { background: #FFF4DB; color: #8A5A00; }
+.ndc-day { gap: 0; }
+.ndc-day-title { margin: 0; padding-bottom: 8px; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndc-day-empty { margin: 0; padding: 12px 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndc-ev-list { list-style: none; margin: 0; padding: 0; }
+.ndc-ev { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid #EEF2F8; }
+.ndc-ev-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #EEF3FF; color: var(--nd-blue); }
+.ndc-ev-ico.in { background: #E9FBF2; color: #087A52; }
+.ndc-ev-ico.due { background: #F4F7FC; color: var(--nd-muted); }
+.ndc-ev-ico.goal { background: #FFF4DB; color: #8A5A00; }
+.ndc-ev-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ndc-ev-name { font: 600 14px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ndc-ev-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndc-ev-amt { flex: none; font: 600 14px var(--nd-mono); }
+.ndc-ev-amt.in { color: #087A52; }
+@media (max-width: 1180px) { .ndc-page { grid-template-columns: minmax(0, 1fr); } }
