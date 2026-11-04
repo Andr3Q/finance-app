@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import ProtoIcon from './ProtoIcon.jsx'
 
-// Abas que o design desktop coloca no alto das telas de um mesmo assunto (Extrato · Contas do mês · Parceladas · Análise).
+// Abas que o design desktop coloca no alto das telas de um mesmo assunto (Extrato · Contas do mês · Parceladas · Análise; Metas · Histórico · Assinaturas · Lembretes · Limites).
 // Mesmas rotas do menu do celular; a aba da tela aberta fica azul.
 export const TAB_GROUPS = {
   extrato: [
@@ -9,6 +9,13 @@ export const TAB_GROUPS = {
     { to: '/contas-do-mes', label: 'Contas do mês', icon: 'receipt' },
     { to: '/parcelados',    label: 'Parceladas',    icon: 'layers' },
     { to: '/analise',       label: 'Análise',       icon: 'chart' },
+  ],
+  metas: [
+    { to: '/goals',       label: 'Metas',       icon: 'target' },
+    { to: '/historico',   label: 'Histórico',   icon: 'chart' },
+    { to: '/assinaturas', label: 'Assinaturas', icon: 'repeat' },
+    { to: '/lembretes',   label: 'Lembretes',   icon: 'clock' },
+    { to: '/limites',     label: 'Limites',     icon: 'scale' },
   ],
 }
 

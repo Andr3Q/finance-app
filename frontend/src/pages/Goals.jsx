@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import GoalsDesktop from './GoalsDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import PlanUsageBanner from '../components/ui/PlanUsageBanner.jsx'
 import { analytics } from '../services/analytics.js'
 import { useUser } from '../hooks/useUser.js'
@@ -242,6 +244,7 @@ function GoalForm({ initial, onSave, onCancel, onDelete, saving, escDisabled = f
 export default function Goals() {
   const user     = useUser()
   const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
   const { goals, loading, fetchGoals, createGoal, updateGoal, deleteGoal } = useGoals()
   const [modal,           setModal]           = useState(null)
   const [depositGoal,     setDepositGoal]     = useState(null)
@@ -336,15 +339,104 @@ export default function Goals() {
     }
   }
 
+  const toastEl = toast && (
+    <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
+      {toast.msg}
+    </div>
+  )
+
+  // modais (editar/criar, depositar, remover): os mesmos no celular e no desktop
+  const modals = (
+    <>
+      {modal && (
+        <GoalForm
+          initial={modal}
+          onSave={handleSave}
+          onCancel={() => setModal(null)}
+          onDelete={() => handleDelete(modal.id)} // a edição continua aberta por baixo: desistir da exclusão volta pra ela
+          saving={saving}
+          escDisabled={!!deleteConfirmId}
+        />
+      )}
+
+      {depositGoal && (
+        <DepositModal
+          goal={depositGoal.goal}
+          initialAmount={depositGoal.amount}
+          onConfirm={handleDeposit}
+          onCancel={() => setDepositGoal(null)}
+          saving={saving}
+        />
+      )}
+
+      {deleteConfirmId && (
+        <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
+          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="gl-del-title" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
+            <div className="gls-modal-head">
+              <span id="gl-del-title">Remover meta</span>
+              <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
+                </svg>
+              </div>
+              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
+              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
+                {deletingGoal && (
+                  <div style={{ fontWeight:600, color:'var(--t1)', marginBottom:4 }}>
+                    {deletingGoal.title} · R$ {fmt(Number(deletingGoal.currentAmount) || 0)} guardados
+                  </div>
+                )}
+                Esta meta e todo o progresso acumulado serão removidos permanentemente.
+              </div>
+            </div>
+            <div className="gls-modal-foot">
+              <button className="gls-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</button>
+              <button
+                className="gls-btn-save"
+                style={{ background:'#ef4444' }}
+                onClick={confirmDelete}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+                </svg>
+                Sim, excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        {toastEl}
+        <GoalsDesktop ctx={{
+          goals, loading, plan, onEdit: (g) => setModal({ ...g, deadline: g.deadline ? g.deadline.slice(0, 10) : '' }),
+          onDeposit: (g, quick) => setDepositGoal({ goal: g, amount: String(quick) }),
+          newGoal, setNewGoal, saving, creating, atGoalLimit,
+          onCreate: (e) => { e.preventDefault(); handleSave({ ...newGoal, currentAmount: '', color: '#3DE29F', deadline: '' }).then(ok => { if (ok) setNewGoal({ title: '', targetAmount: '' }) }) },
+        }} />
+        {modals}
+      </>
+    )
+  }
+
   return (
     <>
       <Navbar />
 
-      {toast && (
-        <div className={`toast toast-top ${toast.ok ? 'tok' : 'terr'}`}>
-          {toast.msg}
-        </div>
-      )}
+      {toastEl}
 
       <div className="pwnav goals-pwnav fade-in">
         <div className="ex-page gl-page">
@@ -424,72 +516,7 @@ export default function Goals() {
         </div>
       </div>
 
-      {modal && (
-        <GoalForm
-          initial={modal}
-          onSave={handleSave}
-          onCancel={() => setModal(null)}
-          onDelete={() => handleDelete(modal.id)} // a edição continua aberta por baixo: desistir da exclusão volta pra ela
-          saving={saving}
-          escDisabled={!!deleteConfirmId}
-        />
-      )}
-
-      {depositGoal && (
-        <DepositModal
-          goal={depositGoal.goal}
-          initialAmount={depositGoal.amount}
-          onConfirm={handleDeposit}
-          onCancel={() => setDepositGoal(null)}
-          saving={saving}
-        />
-      )}
-
-      {deleteConfirmId && (
-        <div className="gls-modal-overlay" onClick={() => setDeleteConfirmId(null)}>
-          <div className="gls-modal" role="dialog" aria-modal="true" aria-labelledby="gl-del-title" style={{ maxWidth:360 }} onClick={e => e.stopPropagation()}>
-            <div className="gls-modal-head">
-              <span id="gl-del-title">Remover meta</span>
-              <button className="gls-modal-close" onClick={() => setDeleteConfirmId(null)}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <div className="gls-modal-body" style={{ textAlign:'center', paddingTop:8 }}>
-              <div style={{ width:48, height:48, borderRadius:12, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                  <path d="M10 11v6"/><path d="M14 11v6"/>
-                  <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
-                </svg>
-              </div>
-              <div style={{ fontWeight:700, fontSize:15, color:'var(--t1)', marginBottom:8 }}>Tem certeza?</div>
-              <div style={{ fontSize:13, color:'var(--t2)', lineHeight:1.6 }}>
-                {deletingGoal && (
-                  <div style={{ fontWeight:600, color:'var(--t1)', marginBottom:4 }}>
-                    {deletingGoal.title} · R$ {fmt(Number(deletingGoal.currentAmount) || 0)} guardados
-                  </div>
-                )}
-                Esta meta e todo o progresso acumulado serão removidos permanentemente.
-              </div>
-            </div>
-            <div className="gls-modal-foot">
-              <button className="gls-btn-ghost" onClick={() => setDeleteConfirmId(null)}>Cancelar</button>
-              <button
-                className="gls-btn-save"
-                style={{ background:'#ef4444' }}
-                onClick={confirmDelete}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-                </svg>
-                Sim, excluir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {modals}
     </>
   )
 }

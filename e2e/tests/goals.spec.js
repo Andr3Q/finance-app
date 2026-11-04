@@ -3,6 +3,9 @@ const { test, expect }          = require('../helpers/test')
 const { GOAL_ITEM }             = require('../helpers/mockApi')
 const { injectSession, TEST_USER } = require('../helpers/session')
 
+
+// Metas do celular (cabeçalho azul, atalhos, cartões e formulário). As do desktop estão em GoalsDesktop.test.jsx e desktop-goals.spec.js.
+test.use({ viewport: { width: 393, height: 852 } })
 // ─────────────────────────────────────────────────────────────────
 // Fluxo de Metas Financeiras — E2E
 // Metas (Nancy 2, tela 19): cartão "Nova meta", depósito rápido "+ R$ 500", edição/remoção pelo nome da meta

@@ -13085,3 +13085,34 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndc-ev-amt { flex: none; font: 600 14px var(--nd-mono); }
 .ndc-ev-amt.in { color: #087A52; }
 @media (max-width: 1180px) { .ndc-page { grid-template-columns: minmax(0, 1fr); } }
+
+/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   ndg-* — Metas no desktop (design "Nancy Desktop", tela 20): um cartão por meta em três colunas (vão de 16): ícone verde de 40px, % concluído,
+   nome, prazo, barra de 10px, guardado/alvo em mono e "Depositar R$ X". A página usa .ndx-page (abas de Metas).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.ndg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.ndg-loading { padding: 60px 0; display: flex; justify-content: center; }
+.ndg-card { --gc: #12C985; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndg-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.ndg-ico { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: color-mix(in srgb, var(--gc) 14%, #fff); color: color-mix(in srgb, var(--gc) 70%, #000); }
+.ndg-pct { padding: 4px 10px; border-radius: 99px; background: #EEF3FF; color: var(--nd-blue); font: 700 12px var(--nd-font); }
+.ndg-title { display: flex; flex-direction: column; gap: 3px; padding: 0; border: none; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ndg-title:focus-visible, .ndg-dep:focus-visible, .ndg-create:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; border-radius: 8px; }
+.ndg-name { font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndg-due { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+.ndg-track { height: 10px; overflow: hidden; border-radius: 99px; background: color-mix(in srgb, var(--gc) 14%, #fff); }
+.ndg-fill { height: 100%; border-radius: 99px; background: var(--gc); transition: width .5s; }
+.ndg-amounts { display: flex; justify-content: space-between; font: 600 13px var(--nd-mono); }
+.ndg-amounts span:last-child { color: var(--nd-hint); }
+.ndg-dep { height: 40px; flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border: 1.5px solid #C9D9FF; border-radius: 12px; background: #fff; color: var(--nd-blue); font: 600 14px var(--nd-font); cursor: pointer; }
+.ndg-done { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: #E9FBF2; color: #087A52; font: 600 14px var(--nd-font); }
+.ndg-new { grid-column: 1 / -1; }
+.ndg-new h2 { margin: 0; font: 700 16px var(--nd-font); color: var(--nd-ink); }
+.ndg-new-row { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) auto; gap: 10px; }
+.ndg-inp { width: 100%; min-width: 0; height: 46px; box-sizing: border-box; padding: 0 14px; border: 1.5px solid var(--nd-line-2); border-radius: 12px; background: #F4F7FC; color: var(--nd-ink); font: 500 14px var(--nd-font); outline: none; }
+.ndg-inp:focus { border-color: var(--nd-blue); }
+.ndg-inp::placeholder { color: #757575; }
+.ndg-create { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer; }
+.ndg-create:disabled { opacity: .5; cursor: default; }
+.ndg-limit { margin: 0; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
+@media (max-width: 1180px) { .ndg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
