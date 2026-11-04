@@ -117,6 +117,7 @@ test.describe('Configurações — Alterar senha', () => {
 })
 
 test.describe('Configurações — Cancelar plano', () => {
+  test.use({ viewport: { width: 393, height: 852 } }) // estrutura do celular; o desktop tem o spec desktop-account
   test('botão "Não renovar" visível para usuário Pro pago', async ({ page }) => {
     await setupSettings(page, { ...TEST_USER, isOnTrial: false })
     await page.goto('/settings/pagamentos')
@@ -165,6 +166,7 @@ test.describe('Configurações — Cancelar plano', () => {
 })
 
 test.describe('Configurações — Fechar mês (Balanço mensal)', () => {
+  test.use({ viewport: { width: 393, height: 852 } }) // estrutura do celular; o desktop tem o spec desktop-account
   test('tela "Balanço mensal" com o botão de fechar visível para Pro', async ({ page }) => {
     await setupSettings(page)
     await page.goto('/settings/fechamento')
@@ -199,6 +201,7 @@ test.describe('Configurações — Fechar mês (Balanço mensal)', () => {
 })
 
 test.describe('Configurações — Histórico de pagamentos', () => {
+  test.use({ viewport: { width: 393, height: 852 } }) // estrutura do celular; o desktop tem o spec desktop-account
   const PAYMENTS = [
     { paymentId: 'pay_4', plan: 'elite', period: 'monthly', processedAt: '2026-10-20T15:00:00Z', amount: 34.9, method: 'card', cardLast4: '4021' },
     { paymentId: 'pay_3', plan: 'elite', period: 'monthly', processedAt: '2026-09-20T15:00:00Z', amount: 34.9, method: 'card', cardLast4: '4021' },

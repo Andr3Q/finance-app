@@ -57,7 +57,7 @@ test.describe('Planos — Toggle Anual', () => {
   test('alternar para anual muda o botão para "Mensal"', async ({ page }) => {
     await gotoPlanos(page)
     await page.getByRole('button', { name: /anual/i }).click()
-    await expect(page.getByRole('button', { name: /mensal/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Mensal', exact: true })).toBeVisible()
   })
 })
 
