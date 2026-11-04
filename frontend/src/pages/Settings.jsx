@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/layout/Navbar.jsx'
+import SettingsDesktop from './SettingsDesktop.jsx'
+import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { authAPI } from '../services/api.js'
 import { useUser } from '../hooks/useUser.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
@@ -37,6 +39,7 @@ const PLAN_LABELS = { elite: 'Plano Elite', pro: 'Plano Pro' }
 export default function Settings() {
   const navigate = useNavigate()
   const user = useUser()
+  const isDesktop = useIsDesktop()
   useForcedLightTheme() // tela desenhada só no claro (design Nancy 2)
 
   const rows = [
@@ -61,6 +64,8 @@ export default function Settings() {
     sessionStorage.removeItem('token')
     navigate('/login')
   }
+
+  if (isDesktop) return <SettingsDesktop ctx={{ user, onLogout: handleLogout, go: navigate }} />
 
   const planLabel = PLAN_LABELS[user.plan] || 'Plano Grátis'
   const paid = user.plan === 'elite' || user.plan === 'pro'
