@@ -31,4 +31,17 @@ describe('credenciais de seed fora do repositório público', () => {
     expect(tabela.length).toBe(3)
     tabela.forEach(l => expect(l.split('|').length).toBe(4)) // "| e-mail | plano |" = 2 colunas, nada de coluna de senha
   })
+
+  // Portão da homologação (STAGING_GATE_KEY): a senha mora só no Secret Manager do Google Cloud, no .env (ignorado pelo git) do agente
+  // de QA e no gerenciador de senhas do dono. Decisão do dono: NUNCA no repositório, nem como segredo do GitHub.
+  test('a senha do portão da homologação não é versionada (só o nome da variável, nunca um valor)', () => {
+    const atribuida = /(STAGING_GATE_KEY|QA_GATE_KEY|x-staging-key)\s*[:=]\s*['"]?[0-9a-f]{20,}\b/i
+    expect(tracked.filter(f => atribuida.test(read(f)))).toEqual([])
+  })
+
+  test('o deploy da homologação lê a senha do portão do Secret Manager, e nenhum workflow a pede como segredo do GitHub', () => {
+    expect(read('.github/workflows/deploy-staging.yml')).toMatch(/STAGING_GATE_KEY=STAGING_GATE_KEY:latest/)
+    const workflows = tracked.filter(f => f.startsWith('.github/workflows/'))
+    expect(workflows.filter(f => /secrets\.STAGING_GATE_KEY/.test(read(f)))).toEqual([])
+  })
 })

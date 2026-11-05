@@ -14,8 +14,11 @@ não a definem, então não mudam.
 ## O que fica fora do portão (tem segredo próprio)
 `/health`, `/api/cron/*` (x-cron-secret), `/api/admin/seed-staging` (x-seed-secret + x-seed-password) e `/api/payments/webhook` (HMAC).
 
-## Onde mora a senha
-- Secret Manager do Google Cloud: `STAGING_GATE_KEY` (montada em `deploy-staging.yml`).
-- Segredo do GitHub `STAGING_GATE_KEY` (para scripts da CI que precisem do cabeçalho).
-- `.env` do agente de QA: `QA_GATE_KEY`.
-- Para girar: criar versão nova no Secret Manager, atualizar os outros dois, redeploy da homologação (o cookie antigo deixa de valer).
+## Onde mora a senha (e onde NUNCA pode estar)
+- **Pode:** Secret Manager do Google Cloud (`STAGING_GATE_KEY`, montada em `deploy-staging.yml`), o `.env` do agente de QA
+  (`QA_GATE_KEY`; o `.env` é ignorado pelo git) e o gerenciador de senhas do dono.
+- **Nunca:** no repositório (nenhum arquivo, nenhum commit) e **nem como segredo do GitHub**. Decisão do dono. O teste
+  `noSeedCredentialsInRepo.test.js` barra as duas coisas.
+- Scripts que precisarem da senha (ex.: `scripts/smoke-test.sh`) a recebem pela variável de ambiente `STAGING_GATE_KEY` na máquina de quem roda.
+- Para girar: criar versão nova no Secret Manager, atualizar o `.env` do agente de QA e o gerenciador de senhas, e redeploy da
+  homologação (o cookie antigo deixa de valer).
