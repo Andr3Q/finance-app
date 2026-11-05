@@ -105,6 +105,14 @@ const staticLimiter = rateLimit({
   message:  'Muitas requisições. Aguarde um momento.',
 })
 
+// Portão da homologação (POST /__gate): 10 tentativas de senha a cada 15 min por IP. Conta todas, é força bruta.
+const gateLimiter = rateLimit({
+  ...opts,
+  windowMs: 15 * 60 * 1000,
+  max:      10,
+  message:  'Muitas tentativas. Tente novamente em 15 minutos.',
+})
+
 // Fechamento mensal: 5 por hora (envia e-mail + gera PDF — operação custosa)
 const reportLimiter = rateLimit({
   ...opts,
@@ -192,6 +200,7 @@ module.exports = {
   dashboardLimiter,
   goalsLimiter,
   staticLimiter,
+  gateLimiter,
   reportLimiter,
   paymentLimiter,
   webhookLimiter,
