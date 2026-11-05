@@ -14,7 +14,7 @@ jest.mock('../src/services/emailService', () => {
   }
 })
 const app = require('../src/server')
-const { safeNext } = require('../src/middleware/stagingGate')
+const { gateDeniedLimiter } = require('../src/middleware/stagingGate')
 
 // Portão da homologação: só age com STAGING_GATE_KEY definida; produção/CI/desenvolvimento não definem, então nada muda lá.
 const KEY  = 'chave-de-teste-do-portao-1234'
@@ -71,10 +71,10 @@ describe('portão da homologação LIGADO', () => {
     expect(cookieOf(res)).toBeUndefined()
   })
 
-  it('senha certa: 303 para o destino, cookie HttpOnly + SameSite=Lax de 30 dias, e o cookie abre as rotas', async () => {
-    const res = await request(app).post('/__gate').type('form').send({ password: KEY, next: '/extrato?mes=11' })
+  it('senha certa: 303 para a página inicial, cookie HttpOnly + SameSite=Lax de 30 dias, e o cookie abre as rotas', async () => {
+    const res = await request(app).post('/__gate').type('form').send({ password: KEY })
     expect(res.status).toBe(303)
-    expect(res.headers.location).toBe('/extrato?mes=11')
+    expect(res.headers.location).toBe('/')
     const raw = res.headers['set-cookie'].find((c) => c.startsWith('staging_gate='))
     expect(raw).toMatch(/HttpOnly/i)
     expect(raw).toMatch(/SameSite=Lax/i)
@@ -86,19 +86,34 @@ describe('portão da homologação LIGADO', () => {
     expect((await request(app).get('/api/auth/me').set('Cookie', 'staging_gate=qualquer')).body.error).toBe(GATE)
   })
 
-  it('o destino pós-login só pode ser caminho do próprio site (sem redirecionamento aberto)', async () => {
-    for (const bad of ['//evil.example', 'https://evil.example', '/\\evil.example', 'javascript:alert(1)', '']) {
+  it('nenhum destino vem do usuário: o login sempre volta para a página inicial (sem redirecionamento aberto)', async () => {
+    for (const bad of ['//evil.example', 'https://evil.example', '/\\evil.example', 'javascript:alert(1)', '/planos', '']) {
       const res = await request(app).post('/__gate').type('form').send({ password: KEY, next: bad })
       expect(res.status).toBe(303)
       expect(res.headers.location).toBe('/')
     }
-    expect(safeNext('/planos')).toBe('/planos')
-    expect(safeNext(undefined)).toBe('/')
   })
 
   it('o endereço pedido não vira HTML cru na tela de senha (sem XSS)', async () => {
     const res = await request(app).get('/"><script>alert(1)</script>').set(HTML)
     expect(res.status).toBe(401)
     expect(res.text).not.toMatch(/<script>alert\(1\)<\/script>/)
+  })
+
+  it('limite das requisições NEGADAS: 60 por minuto por IP viram 429; quem está autorizado não gasta do limite', async () => {
+    const antes = process.env.NODE_ENV
+    process.env.NODE_ENV = 'production'   // o limitador se desliga em 'test', como os outros do app
+    try {
+      for (let i = 0; i < 20; i++) await request(app).get('/api/auth/me').set('x-staging-key', KEY)  // autorizadas: não contam
+      let ultimo
+      for (let i = 0; i < 60; i++) ultimo = await request(app).get('/api/transactions')
+      expect(ultimo.status).toBe(401)                                   // a 60ª ainda é o portão normal
+      const estourou = await request(app).get('/api/transactions')
+      expect(estourou.status).toBe(429)                                 // a 61ª negada é barrada
+      expect((await request(app).get('/api/auth/me').set('x-staging-key', KEY)).status).not.toBe(429) // autorizado segue passando
+    } finally {
+      process.env.NODE_ENV = antes
+      await gateDeniedLimiter.resetKey('::ffff:127.0.0.1'); await gateDeniedLimiter.resetKey('::1'); await gateDeniedLimiter.resetKey('127.0.0.1')
+    }
   })
 })

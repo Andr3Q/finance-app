@@ -36,7 +36,7 @@ const crypto       = require('crypto')
 
 const { apiLimiter, staticLimiter } = require('./middleware/rateLimiter')
 const { clientIpMiddleware } = require('./middleware/clientIp')
-const { stagingGate } = require('./middleware/stagingGate')
+const { stagingGate, gateDeniedLimiter } = require('./middleware/stagingGate')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -137,7 +137,7 @@ app.use((req, res, next) => {
 })
 
 // Portão da homologação: só age com STAGING_GATE_KEY definida (nunca em produção). Antes de TUDO que serve conteúdo.
-app.use(stagingGate())
+app.use(gateDeniedLimiter, stagingGate())
 
 // Sitemap dinâmico — ANTES do express.static (arquivo estático removido do frontend/public)
 app.get('/sitemap.xml', (req, res) => {

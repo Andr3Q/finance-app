@@ -1,7 +1,8 @@
 'use strict'
 const crypto  = require('crypto')
 const express = require('express')
-const { gateLimiter } = require('./rateLimiter')
+const rateLimit = require('express-rate-limit')
+const { gateLimiter, keyGenerator } = require('./rateLimiter')
 
 // Portão da HOMOLOGAÇÃO: com STAGING_GATE_KEY definida, só entra quem digitar a senha (cookie de 30 dias) ou mandar o cabeçalho
 // x-staging-key (agente de QA, scripts). Sem a variável (produção, CI, desenvolvimento) é um no-op: a variável é lida a cada
@@ -31,11 +32,9 @@ const authorized = (req, key) => {
   const cookie = readCookie(req, COOKIE)
   return Boolean(cookie) && safeEqual(cookie, sign(key))
 }
-// só caminhos do próprio site: nada de //evil.com, https://evil.com ou barra invertida
-const safeNext = (n) => (typeof n === 'string' && /^\/(?![/\\])[^\r\n]*$/.test(n) ? n : '/')
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
-function page({ next = '/', error = '' } = {}) {
+function page({ error = '' } = {}) {
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Nancy — Homologação</title>
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1C48FF;font-family:system-ui,-apple-system,Segoe UI,sans-serif}
@@ -45,9 +44,23 @@ input[type=password]{width:100%;box-sizing:border-box;padding:13px 14px;border:1
 button{margin-top:14px;width:100%;padding:13px;border:0;border-radius:12px;background:#1C48FF;color:#fff;font-size:16px;font-weight:600}
 .err{color:#c0262d;font-size:13px;margin:10px 0 0}</style></head><body>
 <form method="post" action="/__gate"><h1>Homologação do Nancy</h1><p>Acesso restrito. Digite a senha da homologação.</p>
-<input type="hidden" name="next" value="${esc(next)}"><input type="password" name="password" autocomplete="current-password" autofocus required>
+<input type="password" name="password" autocomplete="current-password" autofocus required>
 ${error ? `<div class="err">${esc(error)}</div>` : ''}<button type="submit">Entrar</button></form></body></html>`
 }
+
+// Libera sem contar: portão desligado, rotas abertas, quem já está autorizado e o próprio POST /__gate (que tem o seu limite).
+const allows = (req) => {
+  const key = gateKey()
+  return !key || (req.method === 'POST' && req.path === '/__gate') || OPEN.some((re) => re.test(req.path)) || authorized(req, key)
+}
+
+// Só as requisições NEGADAS gastam deste limite (60 por minuto por IP): freia quem tenta adivinhar o cabeçalho x-staging-key ou o
+// cookie sem atrapalhar quem já entrou (as páginas e a API da homologação não passam por aqui).
+const gateDeniedLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false, keyGenerator,
+  skip: (req) => process.env.NODE_ENV === 'test' || allows(req),
+  message: { error: 'Muitas tentativas. Aguarde um minuto.' },
+})
 
 function stagingGate() {
   // O Router só atende POST /__gate. A checagem de TODAS as requisições é uma função simples: um Router montado na raiz
@@ -55,13 +68,12 @@ function stagingGate() {
   const login = express.Router()
   login.post('/__gate', gateLimiter, express.urlencoded({ extended: false, limit: '2kb' }), (req, res) => {
     const key  = gateKey()
-    const next = safeNext(req.body && req.body.next)
     if (!safeEqual((req.body && req.body.password) || '', key)) {
       res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' })
-      return res.status(401).type('html').send(page({ next, error: 'Senha incorreta.' }))
+      return res.status(401).type('html').send(page({ error: 'Senha incorreta.' }))
     }
     res.cookie(COOKIE, sign(key), { httpOnly: true, secure: req.secure, sameSite: 'lax', maxAge: MAX_AGE_S * 1000, path: '/' })
-    res.redirect(303, next)
+    res.redirect(303, '/')   // sempre a página inicial: nenhum destino vem do usuário (sem redirecionamento aberto)
   })
 
   return function gate(req, res, next) {
@@ -71,10 +83,10 @@ function stagingGate() {
     if (OPEN.some((re) => re.test(req.path)) || authorized(req, key)) return next()
     res.set({ 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' })
     if (req.method === 'GET' && String(req.headers.accept || '').includes('text/html')) {
-      return res.status(401).type('html').send(page({ next: safeNext(req.originalUrl) }))
+      return res.status(401).type('html').send(page())
     }
     return res.status(401).json({ error: 'Acesso restrito à homologação.' })
   }
 }
 
-module.exports = { stagingGate, safeNext }
+module.exports = { stagingGate, gateDeniedLimiter }
