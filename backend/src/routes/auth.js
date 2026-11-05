@@ -247,7 +247,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim()
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
-    const ip        = req.ip || req.headers['x-forwarded-for'] || null
+    const ip        = req.clientIp || req.ip || null
     const userAgent = (req.headers['user-agent'] || '').slice(0, 200) || null
 
     // Conta bloqueada: bcrypt roda com hash dummy para manter timing consistente

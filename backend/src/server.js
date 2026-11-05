@@ -35,6 +35,7 @@ const cookieParser = require('cookie-parser')
 const crypto       = require('crypto')
 
 const { apiLimiter, staticLimiter } = require('./middleware/rateLimiter')
+const { clientIpMiddleware } = require('./middleware/clientIp')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
 const budgetRoutes        = require('./routes/budget')
@@ -64,6 +65,9 @@ const publicPath = path.join(__dirname, '../public')
 // Cloud Run senta atrás de um proxy — necessário para o rate-limit
 // identificar IPs corretamente pelo X-Forwarded-For
 app.set('trust proxy', 1)
+
+// IP real do visitante (req.clientIp): vem do Worker do Cloudflare com segredo; senão cai em req.ip. Antes dos limitadores.
+app.use(clientIpMiddleware)
 
 // ── Request ID — rastreamento de logs por requisição ───
 // Cada request recebe um UUID único. Retornado no header X-Request-Id

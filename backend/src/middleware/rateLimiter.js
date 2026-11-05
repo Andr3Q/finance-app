@@ -2,11 +2,11 @@ const rateLimit = require('express-rate-limit')
 
 const skip = () => process.env.NODE_ENV === 'test'
 
-// req.ip já retorna o IP real do visitante quando Express tem trust proxy ativo
-// (Cloud Run seta X-Forwarded-For e o proxy da Cloudflare está na cadeia de confiança).
-// Não usar CF-Connecting-IP diretamente: qualquer cliente pode forjar esse header,
-// permitindo bypass total do rate limiting.
-const keyGenerator = (req) => req.userId || req.ip
+// Chave do limite: o usuário logado, senão o IP REAL do visitante. Pelo domínio (que passa por um Worker do Cloudflare),
+// req.ip é o IP de saída do Worker e muda a cada requisição; req.clientIp (middleware/clientIp.js) traz o IP verdadeiro
+// quando o Worker o envia com o segredo compartilhado, e senão cai em req.ip. Não ler CF-Connecting-IP direto:
+// qualquer cliente pode forjar esse cabeçalho se o pedido não passar pelo Cloudflare.
+const keyGenerator = (req) => req.userId || req.clientIp || req.ip
 
 const opts = { standardHeaders: true, legacyHeaders: false, skip, keyGenerator }
 
@@ -181,6 +181,7 @@ const reportDownloadLimiter = rateLimit({
 })
 
 module.exports = {
+  keyGenerator,
   apiLimiter,
   loginLimiter,
   registerLimiter,
