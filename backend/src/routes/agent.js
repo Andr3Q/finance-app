@@ -27,10 +27,15 @@ router.use(authMiddleware)
 router.use(agentLimiter)
 
 // ── Modelos ─────────────────────────────────────────────
-// Modelo rápido (8B): previsão curta de 1 frase — velocidade importa
+// Modelo rápido (20B): frase curta (dica da semana, previsão) — velocidade importa
 // Modelo qualidade (120B): chat + relatório — raciocínio importa
-const MODEL_FAST    = 'llama-3.1-8b-instant'
+// O llama-3.1-8b-instant foi desligado pelo Groq em 16/08/2026 (https://console.groq.com/docs/deprecations; o substituto
+// indicado é o gpt-oss-20b): a dica caía calada no texto por regra e o Groq não registrava uso dele em outubro/novembro.
+const MODEL_FAST    = 'openai/gpt-oss-20b'
 const MODEL_QUALITY = 'openai/gpt-oss-120b'
+// O gpt-oss RACIOCINA antes de responder e os tokens do raciocínio entram no limite de saída: com os 80/120 de antes a resposta
+// podia vir vazia. effort baixo + sem devolver o raciocínio + folga de tokens (as frases já são limitadas por prompt e sanitize).
+const FAST_OPTS = { reasoning_effort: 'low', include_reasoning: false, max_tokens: 400 }
 
 // ── Singleton do cliente Groq ────────────────────────────
 // Criado uma única vez ao carregar o módulo (não a cada requisição).
@@ -956,11 +961,13 @@ Escreva UMA frase curta e direta prevendo como o usuário vai terminar o mês fi
         { role: 'system', content: 'Consultor financeiro pessoal. Responda em português, máximo 1 frase, sem formatação.' },
         { role: 'user',   content: prompt },
       ],
-      max_tokens:  120,
+      ...FAST_OPTS,
       temperature: 0.6,
     }))
 
-    res.json({ prediction: response.choices[0].message.content.trim() })
+    // resposta vazia (modelo de raciocínio que estourou o limite) não pode virar erro 500
+    const prediction = (response.choices[0]?.message?.content || '').trim()
+    res.json({ prediction: prediction || null })
   } catch (err) {
     handleGroqError(err, res)
   }
@@ -989,7 +996,7 @@ async function getWeeklyAdvice(userId, stats, now) {
     const response = await withRetry(() => groq.chat.completions.create({
       model:       MODEL_FAST,
       messages:    [{ role: 'system', content: system }, { role: 'user', content: user }],
-      max_tokens:  80,
+      ...FAST_OPTS,
       temperature: 0.7,
     }, { timeout: 8_000 }), 0)
     const advice = sanitizeAdvice(response.choices[0]?.message?.content)
