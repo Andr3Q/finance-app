@@ -1394,6 +1394,41 @@ describe('POST /api/agent/monthly-report — gate de plano', () => {
     expect(promptSent).toContain('Saldo R$21800.00')
     expect(promptSent).not.toContain('230000.00')
   })
+
+  // Bug da homologação: o relatório vinha VAZIO (200 com report ""), 3 de 3 chamadas. O 120B raciocina antes de responder e os
+  // tokens do raciocínio entram no limite de saída; com 450 o limite acabava antes do texto. A tela de Histórico ficava em branco.
+  describe('relatório vazio (modelo de raciocínio que estourou o limite)', () => {
+    const withTxs = () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+      prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: 100, category: 'food', description: 'Mercado' }])
+      prisma.budget.findMany.mockResolvedValue([])
+    }
+
+    test('pede raciocínio baixo, sem devolvê-lo, e folga de tokens para o texto caber', async () => {
+      withTxs()
+      mockCreate.mockResolvedValueOnce(simpleReply('Seu mês foi equilibrado.'))
+
+      const res = await request(app).post('/api/agent/monthly-report').set(authHeader()).send({})
+
+      expect(res.status).toBe(200)
+      expect(res.body.report).toBe('Seu mês foi equilibrado.')
+      const body = mockCreate.mock.calls[0][0]
+      expect(body.model).toBe('openai/gpt-oss-120b')
+      expect(body).toMatchObject({ reasoning_effort: 'low', include_reasoning: false })
+      expect(body.max_tokens).toBeGreaterThanOrEqual(900)
+    })
+
+    test.each([[null], [''], ['   \n ']])('conteúdo %j do modelo vira erro claro (502), nunca 200 com relatório vazio', async (content) => {
+      withTxs()
+      mockCreate.mockResolvedValueOnce({ choices: [{ message: { content }, finish_reason: 'length' }] })
+
+      const res = await request(app).post('/api/agent/monthly-report').set(authHeader()).send({})
+
+      expect(res.status).toBe(502)
+      expect(res.body.error).toMatch(/não consegui gerar o relatório/i)
+      expect(res.body.report).toBeUndefined()
+    })
+  })
 })
 
 // ══════════════════════════════════════════════════════════
