@@ -1339,6 +1339,30 @@ describe('POST /api/agent/predict — gate de plano', () => {
     expect(promptSent).toContain('Disponível: R$ 23000.00')
     expect(promptSent).not.toContain('230000.00')
   })
+
+  test('usa o modelo rápido ATUAL com raciocínio baixo e folga de tokens', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: new Prisma.Decimal('500.00'), category: 'food' }])
+    mockCreate.mockResolvedValueOnce(simpleReply('Você deve fechar o mês no azul.'))
+
+    await request(app).post('/api/agent/predict').set(authHeader())
+
+    const body = mockCreate.mock.calls[0][0]
+    expect(body.model).toBe('openai/gpt-oss-20b')
+    expect(body).toMatchObject({ reasoning_effort: 'low', include_reasoning: false })
+    expect(body.max_tokens).toBeGreaterThanOrEqual(300)
+  })
+
+  test('resposta vazia do modelo (raciocínio que estourou o limite) não vira erro 500: prediction null', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: new Prisma.Decimal('500.00'), category: 'food' }])
+    mockCreate.mockResolvedValueOnce({ choices: [{ message: { content: null }, finish_reason: 'length' }] })
+
+    const res = await request(app).post('/api/agent/predict').set(authHeader())
+
+    expect(res.status).toBe(200)
+    expect(res.body.prediction).toBeNull()
+  })
 })
 
 // ══════════════════════════════════════════════════════════
@@ -1566,7 +1590,11 @@ describe('GET /api/agent/weekly-tip', () => {
     expect(res.body.source).toBe('ai')
     expect(res.body.tip).toBe('Planeje as refeições da semana e leve marmita. Voltar à média poupa cerca de R$ 90 por mês.')
     const [body, options] = mockCreate.mock.calls[0]
-    expect(body.model).toBe('llama-3.1-8b-instant')
+    // o llama-3.1-8b-instant foi desligado pelo Groq em 16/08/2026; o gpt-oss raciocina antes de responder, então:
+    // raciocínio baixo, sem devolvê-lo e folga de tokens (com 80 a resposta podia vir vazia)
+    expect(body.model).toBe('openai/gpt-oss-20b')
+    expect(body).toMatchObject({ reasoning_effort: 'low', include_reasoning: false })
+    expect(body.max_tokens).toBeGreaterThanOrEqual(300)
     expect(body.messages[1].content).toContain('Alimentação')
     // só a categoria vai pro modelo — nem as estatísticas nem texto do usuário
     for (const n of ['18', '90', '590', '500']) expect(body.messages[1].content).not.toContain(n)
