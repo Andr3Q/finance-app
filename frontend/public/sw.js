@@ -2,6 +2,11 @@ const CACHE_VERSION = '__BUILD_TS__'
 const CACHE_NAME = `finance-${CACHE_VERSION}`
 const STATIC_ASSETS = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png', '/logo-icon.png']
 
+// HTML nunca é "arquivo do app" (JS/CSS/fonte). Se um arquivo faltava no servidor (troca de versão), ele devolvia a página
+// inicial com status 200; guardá-la aqui no lugar do arquivo travava o app em "Algo deu errado", e o botão Recarregar não
+// resolvia porque a cópia errada vinha do cache. Por isso HTML não entra no cache de /assets e, se já houver um lá, é descartado.
+const isHtml = res => /text\/html/i.test(res.headers.get('content-type') || '')
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
@@ -66,9 +71,10 @@ self.addEventListener('fetch', e => {
   if (url.pathname.startsWith('/assets/')) {
     e.respondWith(
       caches.match(e.request).then(cached => {
-        if (cached) return cached
+        if (cached && !isHtml(cached)) return cached
+        if (cached) caches.open(CACHE_NAME).then(cache => cache.delete(e.request)) // cópia ruim já guardada: some e vem de novo da rede
         return fetch(e.request).then(res => {
-          if (res && res.status === 200) {
+          if (res && res.status === 200 && !isHtml(res)) {
             const clone = res.clone()
             caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone))
           }

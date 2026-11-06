@@ -36,6 +36,7 @@ const crypto       = require('crypto')
 
 const { apiLimiter, staticLimiter } = require('./middleware/rateLimiter')
 const { clientIpMiddleware } = require('./middleware/clientIp')
+const { staticAssets } = require('./middleware/staticAssets')
 const { stagingGate, gateDeniedLimiter } = require('./middleware/stagingGate')
 const authRoutes          = require('./routes/auth')
 const transactionRoutes   = require('./routes/transactions')
@@ -165,12 +166,9 @@ app.get('/favicon.ico', (req, res) => {
 // ── Arquivos estáticos com CORS aberto ──────────────────
 // Vite gera <script type="module" crossorigin> — o browser exige
 // Access-Control-Allow-Origin mesmo em same-origin. Solução: cors(*)
-// nos assets (são arquivos públicos, sem credenciais).
+// nos assets (são arquivos públicos, sem credenciais). Arquivo inexistente = 404 (middleware/staticAssets.js).
 if (isProd) {
-  app.use('/assets',
-    cors({ origin: '*' }),
-    express.static(path.join(publicPath, 'assets'), { maxAge: '1y', immutable: true })
-  )
+  app.use('/assets', staticAssets(path.join(publicPath, 'assets')))
 
   app.get('/sw.js', staticLimiter, (req, res) => {
     res.setHeader('Content-Type', 'application/javascript')
