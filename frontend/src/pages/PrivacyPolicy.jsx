@@ -6,7 +6,7 @@ import LegalPage from '../components/ui/LegalPage.jsx'
 // Trocar o texto é decisão jurídica, não de tela.
 const footer = (
   <>
-    <p className="lg-foot-line">Dúvidas: <a href="mailto:privacidade@nancy.com.br" className="lg-link">privacidade@nancy.com.br</a></p>
+    <p className="lg-foot-line">Dúvidas: <a href="mailto:privacidade@myfinancepro.com.br" className="lg-link">privacidade@myfinancepro.com.br</a></p>
     <p className="lg-foot-line"><Link to="/termos" className="lg-link">Termos de Uso</Link></p>
   </>
 )
@@ -142,8 +142,8 @@ export default function PrivacyPolicy() {
         <p className="lg-p"><strong>Responsável e Encarregado de Dados:</strong> André Pereira de Almeida</p>
         <p className="lg-p">
           <strong>E-mail:</strong>{' '}
-          <a href="mailto:privacidade@nancy.com.br" className="lg-link">
-            privacidade@nancy.com.br
+          <a href="mailto:privacidade@myfinancepro.com.br" className="lg-link">
+            privacidade@myfinancepro.com.br
           </a>
         </p>
         <p className="lg-p">

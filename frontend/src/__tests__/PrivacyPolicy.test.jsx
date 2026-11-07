@@ -72,6 +72,9 @@ describe('Política de Privacidade', () => {
     }
     // o CPF do responsável nunca entra no texto público
     expect(text).not.toMatch(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/)
+    // o nancy.com.br pertence a outra pessoa (registro.br, desde 2010): nenhum contato do app pode apontar para ele
+    expect(text).not.toContain('nancy.com.br')
+    expect(document.body.innerHTML).not.toContain('nancy.com.br')
   })
 
   it('os caminhos dos direitos do titular existem no app (Perfil → …); não há tela chamada "Configurações"', () => {
@@ -85,9 +88,9 @@ describe('Política de Privacidade', () => {
 
   it('o contato do Encarregado e o rodapé levam ao e-mail de privacidade e aos Termos', () => {
     renderPage()
-    const mails = screen.getAllByRole('link', { name: 'privacidade@nancy.com.br' })
+    const mails = screen.getAllByRole('link', { name: 'privacidade@myfinancepro.com.br' })
     expect(mails).toHaveLength(2) // contato do DPO dentro do texto + rodapé
-    mails.forEach(a => expect(a).toHaveAttribute('href', 'mailto:privacidade@nancy.com.br'))
+    mails.forEach(a => expect(a).toHaveAttribute('href', 'mailto:privacidade@myfinancepro.com.br'))
     expect(within(document.querySelector('.lg-foot')).getByRole('link', { name: 'Termos de Uso' })).toHaveAttribute('href', '/termos')
   })
 
