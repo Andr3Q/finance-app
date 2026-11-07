@@ -140,6 +140,19 @@ describe('convites de compra somem no app Android', () => {
     expect(screen.queryByRole('button', { name: 'Renovar' })).not.toBeInTheDocument()
   })
 
+  it('PlanExpiryBanner com o plano já vencido: no site pede para renovar; no app só informa, sem "renove"', () => {
+    setUser({ plan: 'pro', planExpiresAt: new Date(Date.now() - 2 * DAY).toISOString() })
+    const a = render(<MemoryRouter><PlanExpiryBanner /></MemoryRouter>)
+    expect(screen.getByTestId('plan-expiry-banner-msg')).toHaveTextContent('Seu plano Pro expirou. Renove para manter o acesso aos recursos premium.')
+    a.unmount()
+    setApp(true)
+    render(<MemoryRouter><PlanExpiryBanner /></MemoryRouter>)
+    const banner = screen.getByTestId('plan-expiry-banner')
+    expect(screen.getByTestId('plan-expiry-banner-msg')).toHaveTextContent('Seu plano Pro expirou. Os recursos dele ficam indisponíveis.')
+    expect(banner.textContent).not.toMatch(/renov|assin|upgrade|planos|R\$/i)
+    expect(screen.queryByRole('button', { name: 'Renovar' })).not.toBeInTheDocument()
+  })
+
   it('aviso de fim do teste não diz "Assine agora" no app', () => {
     const user = { isOnTrial: true, trialEndsAt: new Date(Date.now() + 0.5 * DAY).toISOString() }
     expect(getTrialNotif(user).msg).toMatch(/Assine agora/)

@@ -165,8 +165,11 @@ export default function PlanExpiryBanner() {
 
   const expired   = daysLeft <= 0
   const planLabel = user.plan === 'elite' ? 'Elite' : 'Pro'
+  // app Android da Play Store: só a informação, sem pedir para renovar (ver utils/androidApp.js)
   const msg = expired
-    ? `Seu plano ${planLabel} expirou. Renove para manter o acesso aos recursos premium.`
+    ? (isAndroidApp()
+        ? `Seu plano ${planLabel} expirou. Os recursos dele ficam indisponíveis.`
+        : `Seu plano ${planLabel} expirou. Renove para manter o acesso aos recursos premium.`)
     : daysLeft === 1
       ? `Seu plano ${planLabel} expira hoje!`
       : `Seu plano ${planLabel} expira em ${daysLeft} dias.`

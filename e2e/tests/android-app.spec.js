@@ -49,9 +49,24 @@ test.describe('App Android — sem compra', () => {
     await expect(page.getByRole('heading', { name: 'Plano Grátis' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Ver planos' })).toHaveCount(0)
   })
+
+  test('plano vencido no app: o aviso só informa, sem "Renovar" e sem pedir para renovar', async ({ page }) => {
+    await open(page, { ...TEST_USER, plan: 'pro', planExpiresAt: '2020-01-01T12:00:00Z' }, '/dashboard')
+    const banner = page.getByTestId('plan-expiry-banner')
+    await expect(banner).toBeVisible()
+    await expect(page.getByTestId('plan-expiry-banner-msg')).toHaveText('Seu plano Pro expirou. Os recursos dele ficam indisponíveis.')
+    expect(await banner.innerText()).not.toMatch(/renov|assin|upgrade|planos/i)
+    await expect(banner.getByRole('button', { name: 'Renovar' })).toHaveCount(0)
+  })
 })
 
 test.describe('Site comum — nada muda', () => {
+  test('plano vencido no site continua pedindo para renovar', async ({ page }) => {
+    await open(page, { ...TEST_USER, plan: 'pro', planExpiresAt: '2020-01-01T12:00:00Z' }, '/dashboard', { app: false })
+    await expect(page.getByTestId('plan-expiry-banner-msg')).toHaveText('Seu plano Pro expirou. Renove para manter o acesso aos recursos premium.')
+    await expect(page.getByTestId('plan-expiry-banner').getByRole('button', { name: 'Renovar' })).toBeVisible()
+  })
+
   test('/planos continua com preços, comparativo e botões de plano', async ({ page }) => {
     await open(page, FREE_USER, '/planos', { app: false })
     await expect(page.locator('.pl-card.pl-free, .pl-card.pl-pro, .pl-card.pl-elite')).toHaveCount(3)
