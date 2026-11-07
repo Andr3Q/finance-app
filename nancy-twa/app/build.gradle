@@ -55,7 +55,7 @@ android {
     namespace "br.com.myfinancepro.app"
     defaultConfig {
         applicationId "br.com.myfinancepro.app"
-        minSdkVersion 21
+        minSdkVersion 24
         targetSdkVersion 36
         versionCode 1
         versionName "1.0.0"
