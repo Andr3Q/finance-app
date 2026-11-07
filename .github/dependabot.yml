@@ -9,6 +9,10 @@ updates:
     labels: ["dependencies", "github-actions"]
     commit-message:
       prefix: "chore(ci)"
+    # As ações são fixadas por SHA (cadeia de entrega); o Dependabot propõe o SHA novo, um PR por semana para todas.
+    groups:
+      github-actions:
+        patterns: ["*"]
 
   # ── npm raiz (Playwright, configs) ──────────────────────────────
   - package-ecosystem: "npm"

@@ -2,11 +2,11 @@ const rateLimit = require('express-rate-limit')
 
 const skip = () => process.env.NODE_ENV === 'test'
 
-// req.ip já retorna o IP real do visitante quando Express tem trust proxy ativo
-// (Cloud Run seta X-Forwarded-For e o proxy da Cloudflare está na cadeia de confiança).
-// Não usar CF-Connecting-IP diretamente: qualquer cliente pode forjar esse header,
-// permitindo bypass total do rate limiting.
-const keyGenerator = (req) => req.userId || req.ip
+// Chave do limite: o usuário logado, senão o IP REAL do visitante. Pelo domínio (que passa por um Worker do Cloudflare),
+// req.ip é o IP de saída do Worker e muda a cada requisição; req.clientIp (middleware/clientIp.js) traz o IP verdadeiro
+// quando o Worker o envia com o segredo compartilhado, e senão cai em req.ip. Não ler CF-Connecting-IP direto:
+// qualquer cliente pode forjar esse cabeçalho se o pedido não passar pelo Cloudflare.
+const keyGenerator = (req) => req.userId || req.clientIp || req.ip
 
 const opts = { standardHeaders: true, legacyHeaders: false, skip, keyGenerator }
 
@@ -87,6 +87,32 @@ const dashboardLimiter = rateLimit({
   message:      { error: 'Muitas requisições. Aguarde um momento.' },
 })
 
+// Metas: 120 por minuto por IP, aplicado ANTES da autenticação (protege também a consulta ao banco que o middleware de auth faz).
+// Teto folgado: o app faz poucas chamadas de metas por minuto, e o apiLimiter global (200 / 15 min) já é bem mais apertado.
+const goalsLimiter = rateLimit({
+  ...opts,
+  windowMs: 60 * 1000,
+  max:      120,
+  message:  { error: 'Muitas requisições. Aguarde um momento.' },
+})
+
+// Páginas e arquivos que o próprio Express serve (a SPA e o sw.js): teto folgado por IP, só para barrar inundação (a Cloudflare absorve o grosso).
+// Um usuário normal faz poucas navegações por minuto; 600 deixa folga mesmo para muitos usuários atrás do mesmo IP.
+const staticLimiter = rateLimit({
+  ...opts,
+  windowMs: 60 * 1000,
+  max:      600,
+  message:  'Muitas requisições. Aguarde um momento.',
+})
+
+// Portão da homologação (POST /__gate): 10 tentativas de senha a cada 15 min por IP. Conta todas, é força bruta.
+const gateLimiter = rateLimit({
+  ...opts,
+  windowMs: 15 * 60 * 1000,
+  max:      10,
+  message:  'Muitas tentativas. Tente novamente em 15 minutos.',
+})
+
 // Fechamento mensal: 5 por hora (envia e-mail + gera PDF — operação custosa)
 const reportLimiter = rateLimit({
   ...opts,
@@ -163,6 +189,7 @@ const reportDownloadLimiter = rateLimit({
 })
 
 module.exports = {
+  keyGenerator,
   apiLimiter,
   loginLimiter,
   registerLimiter,
@@ -171,6 +198,9 @@ module.exports = {
   forgotPasswordLimiter,
   resetPasswordLimiter,
   dashboardLimiter,
+  goalsLimiter,
+  staticLimiter,
+  gateLimiter,
   reportLimiter,
   paymentLimiter,
   webhookLimiter,

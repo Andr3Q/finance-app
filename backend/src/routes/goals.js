@@ -2,9 +2,10 @@ const express        = require('express')
 const prisma         = require('../lib/prisma')
 const authMiddleware = require('../middleware/auth')
 const { sendPushToUser } = require('../services/pushService')
+const { goalsLimiter } = require('../middleware/rateLimiter')
 
 const router = express.Router()
-router.use(authMiddleware)
+router.use(goalsLimiter, authMiddleware)
 
 const { UUID_REGEX, HEX_COLOR } = require('../utils/constants')
 const { parseDateInput } = require('../utils/helpers')
