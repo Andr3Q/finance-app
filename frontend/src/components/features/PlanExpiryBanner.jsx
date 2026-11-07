@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser.js'
 import { analytics } from '../../services/analytics.js'
 import EliteConversionModal from './EliteConversionModal.jsx'
+import { isAndroidApp } from '../../utils/androidApp.js'
 
 const DISMISS_KEY       = 'expiry-banner-dismissed'
 const TRIAL_DISMISS_KEY = 'trial-banner-dismissed'
@@ -185,9 +186,11 @@ export default function PlanExpiryBanner() {
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <span data-testid="plan-expiry-banner-msg" className="expiry-banner-msg">{msg}</span>
-        <button className="expiry-banner-cta" onClick={() => navigate('/planos')}>
-          Renovar
-        </button>
+        {!isAndroidApp() && (
+          <button className="expiry-banner-cta" onClick={() => navigate('/planos')}>
+            Renovar
+          </button>
+        )}
         <button className="expiry-banner-close" onClick={dismiss} aria-label="Fechar">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

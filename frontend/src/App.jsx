@@ -49,7 +49,7 @@ const SettingsReferral      = lazyWithReload(() => import('./pages/SettingsRefer
 const SettingsPayments      = lazyWithReload(() => import('./pages/SettingsPayments.jsx'))
 const SettingsData          = lazyWithReload(() => import('./pages/SettingsData.jsx'))
 const SettingsInstall       = lazyWithReload(() => import('./pages/SettingsInstall.jsx'))
-const Planos         = lazyWithReload(() => import('./pages/Planos.jsx'))
+const Planos         = lazyWithReload(() => import('./pages/PlanosRoute.jsx')) // site: Planos; app Android: só o plano atual
 const Calendar       = lazyWithReload(() => import('./pages/Calendar.jsx'))
 const Finance        = lazyWithReload(() => import('./pages/Finance.jsx'))
 const PrivacyPolicy  = lazyWithReload(() => import('./pages/PrivacyPolicy.jsx'))

@@ -1,3 +1,4 @@
+import { isAndroidApp } from './androidApp.js'
 export function playSoftChime() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)()
@@ -23,7 +24,7 @@ export function getTrialNotif(user) {
   if (!user.isOnTrial || !user.trialEndsAt) return null
   const daysLeft = Math.ceil((new Date(user.trialEndsAt) - Date.now()) / (1000 * 60 * 60 * 24))
   if (daysLeft <= 0) return { msg: 'Seu período de trial Pro encerrou.' }
-  if (daysLeft === 1) return { msg: 'Último dia do trial Pro! Assine agora.' }
+  if (daysLeft === 1) return { msg: isAndroidApp() ? 'Último dia do trial Pro.' : 'Último dia do trial Pro! Assine agora.' }
   return { msg: `Trial Pro — ${daysLeft} dias restantes.` }
 }
 

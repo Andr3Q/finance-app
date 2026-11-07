@@ -20,7 +20,7 @@ export default function RemindersDesktop({ ctx }) {
             <section className="nrm-card nrm-state">
               <h2>Recurso Elite</h2>
               <p>Escolha de quantos dias antes a Nancy avisa cada conta e crie lembretes avulsos, como o IPVA.</p>
-              <button type="button" className="nrm-btn" onClick={goPlans}>Ver planos</button>
+              {goPlans && <button type="button" className="nrm-btn" onClick={goPlans}>Ver planos</button>}
             </section>
           ) : loading ? (
             <div className="nrm-loading"><div className="dsb-loader-ring" style={{ margin: '0 auto' }} /></div>

@@ -10,6 +10,7 @@ import RemindersDesktop from './RemindersDesktop.jsx'
 import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { MONTHS } from '../constants/index.js'
 import { readReminders, saveReminders, billSetting, leadLabel, LEAD_OPTIONS, DEFAULT_LEAD } from '../utils/reminders.js'
+import { isAndroidApp } from '../utils/androidApp.js'
 
 const BackIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -177,7 +178,7 @@ export default function Reminders() {
       <>
         <RemindersDesktop ctx={{
           isElite, loading, failed, retry: () => { setLoading(true); load() }, rows,
-          onOpen: (r) => setSheet({ kind: r.kind, id: r.id }), onToggle: toggle, onAdd: () => { setAdding(true); setFormErr('') }, goPlans: () => navigate('/planos'),
+          onOpen: (r) => setSheet({ kind: r.kind, id: r.id }), onToggle: toggle, onAdd: () => { setAdding(true); setFormErr('') }, goPlans: isAndroidApp() ? null : () => navigate('/planos'),
         }} />
         {modals}
       </>
@@ -202,7 +203,7 @@ export default function Reminders() {
               <section className="fin-card rm-state">
                 <h2 className="fin-title">Recurso Elite</h2>
                 <p className="fin-sub">Escolha de quantos dias antes a Nancy avisa cada conta e crie lembretes avulsos, como o IPVA.</p>
-                <button type="button" className="fin-btn rm-btn" onClick={() => navigate('/planos')}>Ver planos</button>
+                {!isAndroidApp() && <button type="button" className="fin-btn rm-btn" onClick={() => navigate('/planos')}>Ver planos</button>}
               </section>
             ) : loading ? (
               <div className="rm-state"><div className="dsb-loader"><div className="dsb-loader-ring" /></div></div>

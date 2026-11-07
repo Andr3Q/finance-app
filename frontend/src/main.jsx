@@ -8,6 +8,7 @@ import { hasConsent } from './components/features/CookieBanner.jsx'
 import { SPLASH_MIN_MS } from './splashConfig.js'
 import { reloadOnceForNewVersion } from './utils/lazyWithReload.js'
 import { startStoriesEarly } from './services/storiesData.js'
+import './utils/androidApp.js' // detecta o app Android da Play Store já na primeira carga (ver o arquivo)
 import './index.css'
 
 // ── Sentry — rastreamento de erros JavaScript no browser ────────────
