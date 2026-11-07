@@ -144,6 +144,30 @@ test.describe('Início desktop — o que mostra e o que faz', () => {
   })
 })
 
+// Bug visto pelo André na produção (notebook 1366×768): os 4 atalhos do saldo (Nova transação, Planilha IA, Analisador, Nancy IA) não cabem ao
+// lado do saldo e o cartão (overflow: hidden) cortava o último. Abaixo do tamanho do desenho (1440) eles descem para uma 2ª linha.
+for (const [w, h] of [[1366, 768], [1280, 720]]) {
+  test.describe(`Início desktop — telas menores que o desenho (${w}×${h})`, () => {
+    test.use({ viewport: { width: w, height: h } })
+    test(`os 4 atalhos do saldo ficam inteiros dentro do cartão, sem corte nem rolagem horizontal`, async ({ page }) => {
+      await open(page)
+      const r = await page.evaluate(() => {
+        const hero = document.querySelector('.ndh-hero').getBoundingClientRect()
+        const btns = [...document.querySelectorAll('.ndh-quick-btn')].map(b => { const x = b.getBoundingClientRect(); return { l: x.left, r: x.right, t: x.top, b: x.bottom } })
+        return { hero: { l: hero.left, r: hero.right, t: hero.top, b: hero.bottom }, btns, scroll: document.documentElement.scrollWidth, view: window.innerWidth }
+      })
+      expect(r.btns).toHaveLength(4)
+      for (const b of r.btns) {
+        expect(b.l).toBeGreaterThanOrEqual(r.hero.l)
+        expect(b.r).toBeLessThanOrEqual(r.hero.r) // não passa da borda do cartão (era o que o overflow: hidden cortava)
+        expect(b.b).toBeLessThanOrEqual(r.hero.b)
+      }
+      expect(r.scroll).toBe(r.view)
+      await expect(page.locator('.ndh-quick-btn', { hasText: 'Nancy IA' })).toBeVisible()
+    })
+  })
+}
+
 test.describe('Início desktop — no celular não aparece', () => {
   test.use({ viewport: { width: 393, height: 852 } })
   test('continua o Início do celular', async ({ page }) => {
