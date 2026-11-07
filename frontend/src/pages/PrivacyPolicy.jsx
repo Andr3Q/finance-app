@@ -14,7 +14,7 @@ const footer = (
 export default function PrivacyPolicy() {
   return (
     <LegalPage title="Política de Privacidade" subtitle="Conforme a LGPD" footer={footer}>
-      <p className="lg-meta">LGPD · Lei 13.709/2018 · Última atualização: 4 de novembro de 2026 · Versão 1.1</p>
+      <p className="lg-meta">LGPD · Lei 13.709/2018 · Última atualização: 7 de novembro de 2026 · Versão 1.1</p>
       <p className="lg-p">
         Esta Política de Privacidade descreve como o <strong>Nancy</strong> coleta, usa,
         armazena e protege os dados pessoais dos usuários, em conformidade com a
@@ -24,8 +24,9 @@ export default function PrivacyPolicy() {
       <h2 className="lg-h">1. Quem somos</h2>
       <p className="lg-p">
         O Nancy é um aplicativo de controle financeiro pessoal. O controlador
-        responsável pelo tratamento dos seus dados pode ser contatado pelo e-mail
-        abaixo. Ao usar o app, você concorda com esta política.
+        responsável pelo tratamento dos seus dados é <strong>André Pereira de Almeida</strong>,
+        que pode ser contatado pelo e-mail ao final desta página. Ao usar o app,
+        você concorda com esta política.
       </p>
 
       <h2 className="lg-h">2. Dados que coletamos</h2>
@@ -33,6 +34,7 @@ export default function PrivacyPolicy() {
         <li className="lg-li"><strong>Dados de cadastro:</strong> nome, e-mail e senha (armazenada como hash bcrypt — nunca em texto claro)</li>
         <li className="lg-li"><strong>Dados financeiros:</strong> transações, categorias, valores, datas, contas fixas e metas que você cadastra</li>
         <li className="lg-li"><strong>Dados de uso:</strong> salário informado, preferências do app</li>
+        <li className="lg-li"><strong>Análise de uso (só se você aceitar os cookies analíticos):</strong> eventos de uso do app, como telas abertas e ações, ligados ao identificador da sua conta, para melhorarmos o produto</li>
         <li className="lg-li"><strong>Dados técnicos:</strong> endereço IP e tipo de dispositivo registrados nos logs de acesso (para segurança)</li>
         <li className="lg-li"><strong>Nancy IA (plano Elite):</strong> as mensagens e os áudios que você envia ao assistente. O áudio serve só para transcrição e não é guardado por nós</li>
         <li className="lg-li"><strong>Notificações (opcional):</strong> o identificador do seu navegador, para enviar os avisos que você ativar</li>
@@ -56,7 +58,7 @@ export default function PrivacyPolicy() {
       <h2 className="lg-h">4. Base legal (LGPD)</h2>
       <ul className="lg-ul">
         <li className="lg-li"><strong>Execução de contrato</strong> (Art. 7º, V): para prestar o serviço contratado</li>
-        <li className="lg-li"><strong>Consentimento</strong> (Art. 7º, I): para envio de notificações e e-mails opcionais</li>
+        <li className="lg-li"><strong>Consentimento</strong> (Art. 7º, I): para a análise de uso (cookies analíticos) e para o envio de notificações e e-mails opcionais</li>
         <li className="lg-li"><strong>Legítimo interesse</strong> (Art. 7º, IX): para segurança e prevenção de fraudes</li>
         <li className="lg-li"><strong>Cumprimento de obrigação legal</strong> (Art. 7º, II): quando exigido por lei</li>
       </ul>
@@ -67,6 +69,7 @@ export default function PrivacyPolicy() {
         <li className="lg-li">Aplicação hospedada no Google Cloud Run (southamerica-east1 — São Paulo)</li>
         <li className="lg-li">Senhas protegidas com bcrypt (12 rounds) — irreversível</li>
         <li className="lg-li">Comunicação protegida com HTTPS + HSTS</li>
+        <li className="lg-li">Cópias de segurança do banco, criptografadas, guardadas em um repositório privado do GitHub; a chave que as abre fica só com o responsável pelo Nancy</li>
         <li className="lg-li">Bloqueio temporário da conta após tentativas de acesso erradas e verificação em duas etapas (2FA) opcional nos planos Pro e Elite</li>
       </ul>
 
@@ -75,6 +78,9 @@ export default function PrivacyPolicy() {
       <ul className="lg-ul">
         <li className="lg-li"><strong>Supabase</strong> — banco de dados (Estados Unidos)</li>
         <li className="lg-li"><strong>Google Cloud</strong> — hospedagem da aplicação (São Paulo)</li>
+        <li className="lg-li"><strong>Cloudflare</strong> — rede e proteção do endereço do app: todo o tráfego passa por ela, e ela vê o seu endereço IP</li>
+        <li className="lg-li"><strong>GitHub</strong> — guarda as cópias de segurança do banco, que ficam criptografadas: ele não consegue ler o conteúdo</li>
+        <li className="lg-li"><strong>PostHog</strong> — análise de uso do app (Estados Unidos), só depois que você aceita os cookies analíticos</li>
         <li className="lg-li"><strong>Mercado Pago</strong> — processamento de pagamentos</li>
         <li className="lg-li"><strong>Groq</strong> — assistente de IA (Nancy IA, plano Elite): recebe a sua mensagem ou o áudio e os dados financeiros necessários para responder, como descrições, valores, categorias e datas das suas transações. Não enviamos seu nome nem seu e-mail de cadastro, e não guardamos o áudio</li>
         <li className="lg-li"><strong>Resend</strong> — envio de e-mails do serviço (usa seu nome e e-mail; o relatório mensal em PDF, quando você pede, leva o resumo das suas finanças)</li>
@@ -84,7 +90,9 @@ export default function PrivacyPolicy() {
       <h2 className="lg-h">7. Transferência internacional de dados</h2>
       <p className="lg-p">
         Alguns dos fornecedores acima processam dados fora do Brasil, principalmente nos Estados Unidos:
-        o banco de dados (Supabase, Califórnia), o assistente de IA (Groq) e o envio de e-mails (Resend).
+        o banco de dados (Supabase, Califórnia), o assistente de IA (Groq), o envio de e-mails (Resend),
+        as cópias de segurança criptografadas (GitHub) e a análise de uso (PostHog), esta só com o seu consentimento.
+        A Cloudflare atua em vários países para entregar o app com segurança.
       </p>
       <p className="lg-p">
         Essa transferência é necessária para executar o serviço que você contratou (LGPD, Art. 33, IX,
@@ -107,7 +115,8 @@ export default function PrivacyPolicy() {
       <h2 className="lg-h">9. Retenção de dados</h2>
       <ul className="lg-ul">
         <li className="lg-li">Dados da conta: mantidos enquanto a conta estiver ativa</li>
-        <li className="lg-li">Após exclusão da conta: todos os dados são removidos permanentemente em até 30 dias</li>
+        <li className="lg-li">Após exclusão da conta: os seus dados são removidos do banco no momento da exclusão</li>
+        <li className="lg-li">Cópias de segurança: os seus dados podem continuar nas cópias criptografadas por até cerca de 12 meses, e elas são apagadas automaticamente depois disso (guardamos as 14 mais recentes e uma por mês)</li>
         <li className="lg-li">Logs de segurança (IPs): mantidos por 90 dias para investigação de incidentes</li>
       </ul>
 
@@ -115,9 +124,10 @@ export default function PrivacyPolicy() {
       <ul className="lg-ul">
         <li className="lg-li"><strong>Cookie de sessão (HttpOnly):</strong> necessário para autenticação — não pode ser lido por JavaScript</li>
         <li className="lg-li"><strong>sessionStorage:</strong> dados do usuário em memória temporária — apagado ao fechar o navegador</li>
-        <li className="lg-li"><strong>localStorage:</strong> preferências de tema (claro/escuro)</li>
+        <li className="lg-li"><strong>localStorage:</strong> preferências de tema (claro/escuro) e a sua escolha sobre os cookies</li>
+        <li className="lg-li"><strong>Cookies analíticos (PostHog):</strong> só são ativados depois que você toca em &quot;Aceitar&quot; no aviso de cookies. Se você tocar em &quot;Recusar&quot;, o app funciona normalmente e nada é enviado para análise</li>
       </ul>
-      <p className="lg-p">Não usamos cookies de rastreamento, analytics ou publicidade. Se isso mudar, pediremos o seu consentimento antes.</p>
+      <p className="lg-p">Não usamos cookies de publicidade nem vendemos dados de navegação.</p>
 
       <h2 className="lg-h">11. Alterações nesta política</h2>
       <p className="lg-p">
@@ -129,6 +139,7 @@ export default function PrivacyPolicy() {
       <h2 className="lg-h">Contato e Encarregado de Dados (DPO)</h2>
       <div className="lg-box">
         <p className="lg-p">Para exercer seus direitos ou tirar dúvidas:</p>
+        <p className="lg-p"><strong>Responsável e Encarregado de Dados:</strong> André Pereira de Almeida</p>
         <p className="lg-p">
           <strong>E-mail:</strong>{' '}
           <a href="mailto:privacidade@nancy.com.br" className="lg-link">
