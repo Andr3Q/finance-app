@@ -107,7 +107,6 @@ finance-app/
 │       ├── deploy.yml                # CD: deploy automatizado para Cloud Run no merge em main
 │       ├── deploy-staging.yml        # CD: deploy automatizado para staging no merge em develop
 │       ├── build-android.yml         # Build manual do AAB assinado (TWA) para a Play Store
-│       ├── dependabot-automerge.yml  # Auto-aprova e mescla PRs de patch do Dependabot
 │       ├── keepalive.yml             # Cron diário (09h Brasília): mantém Supabase free acordado
 │       └── staging.yml               # Validação de upgrades major (branches upgrade/*)
 │
@@ -242,8 +241,8 @@ Dispara no merge em `develop`. Mesmo fluxo do deploy de produção (testes → m
 ### Build Android (`build-android.yml`)
 Disparo manual. Gera o AAB assinado (TWA) para upload na Play Store.
 
-### Auto-merge do Dependabot (`dependabot-automerge.yml`)
-Aprova e mescla automaticamente PRs de atualização de patch (`semver-patch`) abertas pelo Dependabot, desde que a CI passe.
+### Atualizações do Dependabot (sem merge automático)
+Não existe merge automático: **merge na `main` publica em produção**, então todo PR do Dependabot é revisado e mesclado por uma pessoa, depois de passar na CI e na homologação. As atualizações de ações do GitHub vêm agrupadas em 1 PR por semana. Todas as ações de terceiros dos workflows são **fixadas pelo SHA do commit** (a versão fica no comentário ao lado); o teste `backend/__tests__/workflowsPinned.test.js` barra tag solta (`@v4`), qualquer aprovação ou merge automático de PR e workflow sem `permissions` mínimas.
 
 ### Keep-Alive (`keepalive.yml`)
 Cron diário às 09h (Brasília). Pinga o `/health` para evitar que o Supabase free entre em modo de pausa após 7 dias sem acesso.

@@ -35,7 +35,7 @@ describe('Termos de Uso no desktop (design "Nancy Desktop", tela 35)', () => {
     expect(card).toHaveClass('ndl-card')
     expect(within(card).getAllByRole('heading', { level: 2 })).toHaveLength(12)
     expect(within(card).getByText('1. O que é o Nancy')).toBeInTheDocument()
-    expect(card.querySelector('.ndl-foot')).toHaveTextContent('Dúvidas: contato@nancy.com.br')
+    expect(card.querySelector('.ndl-foot')).toHaveTextContent('Dúvidas: contato@myfinancepro.com.br')
     expect(document.querySelector('.fin-hero')).toBeNull()
   })
 

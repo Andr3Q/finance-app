@@ -18,13 +18,16 @@ MODE="${2:-staging}"
 if [ -z "$BASE" ]; then echo "uso: $0 <URL base, sem barra no fim> [production]"; exit 2; fi
 BASE="${BASE%/}"
 
+# Homologação com portão (STAGING_GATE_KEY): manda o cabeçalho de acesso em todas as chamadas. Sem a variável, nada muda.
+AUTH=(); [ -n "${STAGING_GATE_KEY:-}" ] && AUTH=(-H "x-staging-key: ${STAGING_GATE_KEY}")
+
 FAIL=0; WARN=0
 ok()   { echo "  ✅ $1"; }
 bad()  { echo "  ❌ $1"; FAIL=$((FAIL + 1)); }
 warn() { echo "  ⚠️  $1"; WARN=$((WARN + 1)); }
 
-status() { curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$1"; }
-header() { curl -sI --max-time 20 "$1" | tr -d '\r' | grep -i "^$2:" | head -1 | cut -d: -f2- | sed 's/^ *//'; }
+status() { curl -s -o /dev/null -w "%{http_code}" --max-time 20 ${AUTH[@]+"${AUTH[@]}"} "$1"; }
+header() { curl -sI --max-time 20 ${AUTH[@]+"${AUTH[@]}"} "$1" | tr -d '\r' | grep -i "^$2:" | head -1 | cut -d: -f2- | sed 's/^ *//'; }
 
 expect_status() { # nome url esperado
   local s; s=$(status "$2")
@@ -34,7 +37,7 @@ expect_status() { # nome url esperado
 echo "🔥 Smoke test: $BASE"
 echo
 echo "1) Saúde"
-HEALTH=$(curl -s --max-time 20 "$BASE/health")
+HEALTH=$(curl -s --max-time 20 ${AUTH[@]+"${AUTH[@]}"} "$BASE/health")
 if echo "$HEALTH" | grep -q '"status":"ok"'; then ok "/health ok"; else bad "/health não está ok: ${HEALTH:0:120}"; fi
 DB_MS=$(echo "$HEALTH" | sed -n 's/.*"db_ms":\([0-9]*\).*/\1/p')
 if [ -n "$DB_MS" ]; then
@@ -46,7 +49,7 @@ expect_status "/ping" "$BASE/ping" 200
 
 echo
 echo "2) App (SPA) e arquivos que o index.html aponta"
-INDEX=$(curl -s --max-time 20 "$BASE/")
+INDEX=$(curl -s --max-time 20 ${AUTH[@]+"${AUTH[@]}"} "$BASE/")
 if echo "$INDEX" | grep -q 'id="root"'; then ok "index.html traz o #root"; else bad "index.html sem #root"; fi
 ASSETS=$(echo "$INDEX" | grep -oE '(src|href)="/assets/[^"]+"' | sed -E 's/^(src|href)="//; s/"$//' | sort -u)
 if [ -z "$ASSETS" ]; then bad "index.html não referencia nada em /assets/"; fi
@@ -64,7 +67,7 @@ done
 
 echo
 echo "3) PWA"
-MANIFEST=$(curl -s --max-time 20 "$BASE/manifest.json")
+MANIFEST=$(curl -s --max-time 20 ${AUTH[@]+"${AUTH[@]}"} "$BASE/manifest.json")
 if echo "$MANIFEST" | python3 -c 'import json,sys; m=json.load(sys.stdin); assert m["name"] and m["icons"]' 2>/dev/null; then ok "manifest.json válido"; else bad "manifest.json inválido"; fi
 for p in /icon-192.png /icon-512.png /logo-icon.png; do
   s=$(status "$BASE$p"); t=$(header "$BASE$p" content-type)

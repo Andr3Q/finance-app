@@ -14,6 +14,7 @@ const { HISTORY_DAYS, DAY_MS, computeWeeklyTipStats, composeTip, buildAdviceProm
 const { signPendingAction, verifyPendingAction, CONFIRM_TTL_MS } = require('../services/agentConfirm')
 const { brl, dateBR, sanitizeReply } = require('../services/agentReply')
 const { withResponseTimeout } = require('../lib/responseTimeout')
+const { createBreakers, isProviderDown, retryAfterSeconds } = require('../lib/aiBreakers')
 
 const router = express.Router()
 router.use(authMiddleware)
@@ -27,10 +28,19 @@ router.use(authMiddleware)
 router.use(agentLimiter)
 
 // ── Modelos ─────────────────────────────────────────────
-// Modelo rápido (8B): previsão curta de 1 frase — velocidade importa
+// Modelo rápido (20B): frase curta (dica da semana, previsão) — velocidade importa
 // Modelo qualidade (120B): chat + relatório — raciocínio importa
-const MODEL_FAST    = 'llama-3.1-8b-instant'
+// O llama-3.1-8b-instant foi desligado pelo Groq em 16/08/2026 (https://console.groq.com/docs/deprecations; o substituto
+// indicado é o gpt-oss-20b): a dica caía calada no texto por regra e o Groq não registrava uso dele em outubro/novembro.
+const MODEL_FAST    = 'openai/gpt-oss-20b'
 const MODEL_QUALITY = 'openai/gpt-oss-120b'
+const MODEL_STT     = 'whisper-large-v3-turbo' // voz → texto
+// O gpt-oss RACIOCINA antes de responder e os tokens do raciocínio entram no limite de saída: com os 80/120 de antes a resposta
+// podia vir vazia. effort baixo + sem devolver o raciocínio + folga de tokens (as frases já são limitadas por prompt e sanitize).
+const FAST_OPTS = { reasoning_effort: 'low', include_reasoning: false, max_tokens: 400 }
+// Relatório mensal (120B): quatro parágrafos em português (~300 a 500 tokens) + o raciocínio. Com o limite de 450 de antes e o
+// raciocínio padrão o limite acabava ANTES do texto e a rota respondia 200 com o relatório vazio (tela em branco no Histórico).
+const REPORT_OPTS = { reasoning_effort: 'low', include_reasoning: false, max_tokens: 1200 }
 
 // ── Singleton do cliente Groq ────────────────────────────
 // Criado uma única vez ao carregar o módulo (não a cada requisição).
@@ -70,59 +80,49 @@ function requirePlan(req, res, minimum) {
   return true
 }
 
-// ── Circuit breaker ──────────────────────────────────────
-// Sem isso, cada request nova tenta o Groq do zero mesmo se ele já falhou
-// nas últimas N tentativas — cada uma delas paga o custo cheio de
-// timeout+retry contra um serviço que já sabemos que está fora. Depois de
-// CIRCUIT_FAILURE_THRESHOLD falhas seguidas, recusa rápido por
-// CIRCUIT_OPEN_MS, sem nem tentar chamar o Groq.
-// Estado em memória — reseta em cold start do Cloud Run (min-instances: 0);
-// aceitável, pior caso é 1 tentativa extra logo após reiniciar, não é uma
-// questão de correção.
-const CIRCUIT_FAILURE_THRESHOLD = 5
-const CIRCUIT_OPEN_MS = 30_000
-let circuitFailures  = 0
-let circuitOpenedAt  = null
+// ── Circuit breaker (um por modelo) ─────────────────────
+// Regras e motivos em lib/aiBreakers.js. Resumo: 5 quedas seguidas do provedor (5xx, timeout, rede, 401/403/404) abrem o
+// disjuntor DAQUELE modelo por 30 s; passado o tempo, uma chamada de teste decide. 429 (limite) NÃO é queda: antes, um limite
+// parcial do Groq abria o disjuntor único e a IA toda recusava pedido que o Groq ainda aceitaria, inclusive modelos saudáveis.
+const breakers = createBreakers({ failureThreshold: 5, openMs: 30_000 })
 
-function circuitIsOpen() {
-  if (circuitOpenedAt === null) return false
-  if (Date.now() - circuitOpenedAt > CIRCUIT_OPEN_MS) {
-    // Meia-abertura: deixa a próxima chamada passar pra testar se o Groq voltou.
-    circuitOpenedAt = null
-    circuitFailures  = 0
-    return false
-  }
-  return true
-}
+// 429 com espera maior que isto (limite por hora ou por dia) não se resolve esperando segundos: não adianta tentar de novo.
+const RETRY_AFTER_CAP_S = 30
 
 // ── Retry para erros transitórios ───────────────────────
 // 429 = rate limit, 529 = Groq overloaded, 503 = servidor indisponível.
-// Backoff crescente: 1s, 2s, 4s. 429 espera o dobro (2s, 4s, 8s).
-async function withRetry(fn, retries = 2) {
-  if (circuitIsOpen()) {
-    const err = new Error('Circuito aberto — Groq com falhas consecutivas recentes.')
+// Backoff crescente: 1s, 2s, 4s. 429 espera o dobro (2s, 4s, 8s), ou o que o Groq pediu em retry-after, se for maior.
+// `key` = o modelo chamado (cada um tem o seu disjuntor).
+async function withRetry(fn, retries = 2, key = 'groq') {
+  if (!breakers.acquire(key)) {
+    const err = new Error(`Circuito aberto — ${key} com falhas consecutivas recentes.`)
     err.circuitOpen = true
     throw err
   }
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const result = await fn()
-      circuitFailures = 0
+      breakers.answered(key)
       return result
     } catch (err) {
       const isRateLimit   = err.status === 429
       const isOverloaded  = err.status === 529 || err.status === 503
       const retryable     = isRateLimit || isOverloaded
+      const hinted        = isRateLimit ? retryAfterSeconds(err) : null
+      if (isRateLimit && hinted !== null && hinted > RETRY_AFTER_CAP_S) {
+        // Limite por hora/dia: o Groq está de pé, só não aceita mais. Recusa já, sem gastar tentativas e sem abrir o disjuntor.
+        breakers.answered(key)
+        err.quotaWaitSeconds = hinted
+        throw err
+      }
       if (retryable && attempt < retries) {
         const base   = isRateLimit ? 2000 : 1000
         const jitter = Math.floor(Math.random() * 500)
-        await new Promise(r => setTimeout(r, base * Math.pow(2, attempt) + jitter))
+        await new Promise(r => setTimeout(r, Math.max(base * Math.pow(2, attempt) + jitter, (hinted || 0) * 1000)))
         continue
       }
-      circuitFailures++
-      if (circuitFailures >= CIRCUIT_FAILURE_THRESHOLD && circuitOpenedAt === null) {
-        circuitOpenedAt = Date.now()
-      }
+      if (isProviderDown(err)) breakers.failed(key)
+      else breakers.answered(key) // 429/400/413: o provedor respondeu, não está fora
       throw err
     }
   }
@@ -578,6 +578,13 @@ function handleGroqError(err, res) {
     return res.status(503).json({ error: 'Serviço de IA temporariamente indisponível. Tente novamente em instantes.' })
   }
   reportError(err, { tag: '[AGENT]', groqStatus: err.status })
+  if (err.status === 429 && err.quotaWaitSeconds > RETRY_AFTER_CAP_S) {
+    // limite por minuto longo, por hora ou por dia (o Groq pediu uma espera longa): "aguarde alguns segundos" enganaria, a IA não
+    // volta em segundos. Até 5 minutos diz quanto esperar; acima disso, "mais tarde".
+    const min  = Math.ceil(err.quotaWaitSeconds / 60)
+    const when = min <= 5 ? `em cerca de ${min} minuto${min > 1 ? 's' : ''}` : 'mais tarde'
+    return res.status(429).json({ error: `O limite de uso da IA foi atingido por enquanto. Tente novamente ${when}.` })
+  }
   if (err.status === 429 || err.status === 529) {
     return res.status(429).json({ error: 'Serviço de IA sobrecarregado. Aguarde alguns segundos e tente novamente.' })
   }
@@ -711,10 +718,10 @@ router.post('/transcribe',
       const file = await toFile(req.file.buffer, req.file.originalname || 'audio.webm')
       const transcription = await withRetry(() => groq.audio.transcriptions.create({
         file,
-        model:            'whisper-large-v3-turbo',
+        model:            MODEL_STT,
         language:         'pt',
         response_format:  'json',
-      }))
+      }), 2, MODEL_STT)
 
       const text = (transcription.text || '').trim()
       if (!text) {
@@ -793,7 +800,7 @@ router.post('/chat', withResponseTimeout(90_000), async (req, res) => {
       tools:      TOOLS,
       tool_choice: 'auto',
       max_tokens: 1024,
-    }))
+    }), 2, MODEL_QUALITY)
 
     let msg        = response.choices[0].message
     let iterations = 0
@@ -862,7 +869,7 @@ router.post('/chat', withResponseTimeout(90_000), async (req, res) => {
         tools:      TOOLS,
         tool_choice: 'auto',
         max_tokens: 1024,
-      }))
+      }), 2, MODEL_QUALITY)
 
       msg = response.choices[0].message
     }
@@ -956,11 +963,13 @@ Escreva UMA frase curta e direta prevendo como o usuário vai terminar o mês fi
         { role: 'system', content: 'Consultor financeiro pessoal. Responda em português, máximo 1 frase, sem formatação.' },
         { role: 'user',   content: prompt },
       ],
-      max_tokens:  120,
+      ...FAST_OPTS,
       temperature: 0.6,
-    }))
+    }), 2, MODEL_FAST)
 
-    res.json({ prediction: response.choices[0].message.content.trim() })
+    // resposta vazia (modelo de raciocínio que estourou o limite) não pode virar erro 500
+    const prediction = (response.choices[0]?.message?.content || '').trim()
+    res.json({ prediction: prediction || null })
   } catch (err) {
     handleGroqError(err, res)
   }
@@ -989,9 +998,9 @@ async function getWeeklyAdvice(userId, stats, now) {
     const response = await withRetry(() => groq.chat.completions.create({
       model:       MODEL_FAST,
       messages:    [{ role: 'system', content: system }, { role: 'user', content: user }],
-      max_tokens:  80,
+      ...FAST_OPTS,
       temperature: 0.7,
-    }, { timeout: 8_000 }), 0)
+    }, { timeout: 8_000 }), 0, MODEL_FAST)
     const advice = sanitizeAdvice(response.choices[0]?.message?.content)
     if (advice) {
       if (weeklyTipCache.size >= WEEKLY_TIP_CACHE_MAX) weeklyTipCache.delete(weeklyTipCache.keys().next().value)
@@ -1080,14 +1089,21 @@ Sem títulos, sem marcadores, parágrafos separados por linha em branco. Tom dir
         { role: 'system', content: 'Consultor financeiro pessoal. Responda em português, estruturado e direto.' },
         { role: 'user',   content: prompt },
       ],
-      max_tokens:  450,
+      ...REPORT_OPTS,
       temperature: 0.65,
-    }))
+    }), 2, MODEL_QUALITY)
 
-    res.json({ report: response.choices[0].message.content.trim(), month, year })
+    const report = (response.choices[0]?.message?.content || '').trim()
+    if (!report) {
+      // o modelo não escreveu nada (limite de tokens esgotado no raciocínio): erro claro, nunca 200 com texto vazio
+      res.locals.aiProviderFailed = true // a falha foi do provedor: devolve a mensagem à cota por hora
+      return res.status(502).json({ error: 'Não consegui gerar o relatório agora. Tente novamente.' })
+    }
+    res.json({ report, month, year })
   } catch (err) {
     handleGroqError(err, res)
   }
 })
 
+router.breakers = breakers // só para os testes zerarem o estado entre casos
 module.exports = router

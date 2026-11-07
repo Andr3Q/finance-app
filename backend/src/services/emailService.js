@@ -476,7 +476,7 @@ async function sendEmailChangeAlert(toEmail, userName, newEmail) {
         <div style="background:#fff5f5;border-radius:10px;padding:16px;margin-bottom:24px;border-left:3px solid #ef4444;">
           <p style="margin:0;color:#333;font-size:13px;line-height:1.6;">
             <strong>Não foi você?</strong> Como o e-mail de login mudou, "Esqueci minha senha" com este endereço antigo não vai mais funcionar. Responda este e-mail ou escreva pra
-            <a href="mailto:contato@nancy.com.br" style="color:#ef4444;font-weight:700;">contato@nancy.com.br</a>
+            <a href="mailto:contato@myfinancepro.com.br" style="color:#ef4444;font-weight:700;">contato@myfinancepro.com.br</a>
             imediatamente pra recuperarmos sua conta.
           </p>
         </div>

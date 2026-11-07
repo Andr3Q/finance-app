@@ -5,13 +5,14 @@
 // Cria usuários de teste com dados financeiros consistentes
 // para validar os 91 testes Playwright em ambiente isolado.
 //
-// Usuários criados:
-//   • alice@staging.test / Staging123!  (plano free, sem 2FA)
-//   • bob@staging.test   / Staging123!  (plano pro, expirado em 30 dias)
-//   • admin@staging.test / Staging123!  (plano elite)
+// Usuários criados (a senha das três contas vem de STAGING_SEED_PASSWORD e NUNCA fica no código:
+// este repositório é público, e a homologação é acessível pela internet):
+//   • alice@staging.test  (plano free, sem 2FA)
+//   • bob@staging.test    (plano pro, expirado em 30 dias)
+//   • admin@staging.test  (plano elite)
 //
-// Executar:
-//   node prisma/seed.staging.js
+// Executar (a senha é obrigatória, mínimo de 12 caracteres):
+//   STAGING_SEED_PASSWORD='...' STAGING_SEED_SECRET='...' node prisma/seed.staging.js
 // ═══════════════════════════════════════════════════════
 
 const { PrismaClient } = require('@prisma/client')
@@ -21,11 +22,17 @@ const { nowBrasilia, parseDateInput } = require('../src/utils/helpers')
 const prisma = new PrismaClient()
 
 const HASH = (pwd) => bcrypt.hashSync(pwd, 10)
-const STAGING_PASS = 'Staging123!'
+// lida na carga do módulo: a rota administrativa a entrega pelo ambiente só durante a chamada e a apaga em seguida
+const STAGING_PASS = process.env.STAGING_SEED_PASSWORD
 
 async function main() {
   if (!process.env.STAGING_SEED_SECRET) {
     console.error('❌ seed.staging.js requer STAGING_SEED_SECRET configurado. Abortando.')
+    process.exit(1)
+  }
+  // falha fechada: sem senha própria o seed NÃO cria contas (antes havia uma senha fixa, pública no repositório)
+  if (!STAGING_PASS || STAGING_PASS.length < 12) {
+    console.error('❌ seed.staging.js requer STAGING_SEED_PASSWORD com no mínimo 12 caracteres. Abortando.')
     process.exit(1)
   }
 
@@ -233,9 +240,10 @@ async function main() {
   })
 
   console.log('\n✅ Seed concluído!')
-  console.log('   alice@staging.test  / Staging123!  (free)')
-  console.log('   bob@staging.test    / Staging123!  (pro, expira em 30d)')
-  console.log('   admin@staging.test  / Staging123!  (elite)')
+  console.log('   alice@staging.test  (free)')
+  console.log('   bob@staging.test    (pro, expira em 30d)')
+  console.log('   admin@staging.test  (elite)')
+  console.log('   senha: a do segredo STAGING_SEED_PASSWORD')
 }
 
 main()

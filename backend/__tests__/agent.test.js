@@ -1339,6 +1339,30 @@ describe('POST /api/agent/predict — gate de plano', () => {
     expect(promptSent).toContain('Disponível: R$ 23000.00')
     expect(promptSent).not.toContain('230000.00')
   })
+
+  test('usa o modelo rápido ATUAL com raciocínio baixo e folga de tokens', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: new Prisma.Decimal('500.00'), category: 'food' }])
+    mockCreate.mockResolvedValueOnce(simpleReply('Você deve fechar o mês no azul.'))
+
+    await request(app).post('/api/agent/predict').set(authHeader())
+
+    const body = mockCreate.mock.calls[0][0]
+    expect(body.model).toBe('openai/gpt-oss-20b')
+    expect(body).toMatchObject({ reasoning_effort: 'low', include_reasoning: false })
+    expect(body.max_tokens).toBeGreaterThanOrEqual(300)
+  })
+
+  test('resposta vazia do modelo (raciocínio que estourou o limite) não vira erro 500: prediction null', async () => {
+    prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'pro' }))
+    prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: new Prisma.Decimal('500.00'), category: 'food' }])
+    mockCreate.mockResolvedValueOnce({ choices: [{ message: { content: null }, finish_reason: 'length' }] })
+
+    const res = await request(app).post('/api/agent/predict').set(authHeader())
+
+    expect(res.status).toBe(200)
+    expect(res.body.prediction).toBeNull()
+  })
 })
 
 // ══════════════════════════════════════════════════════════
@@ -1369,6 +1393,41 @@ describe('POST /api/agent/monthly-report — gate de plano', () => {
     expect(promptSent).toContain('Salário R$23000.00')
     expect(promptSent).toContain('Saldo R$21800.00')
     expect(promptSent).not.toContain('230000.00')
+  })
+
+  // Bug da homologação: o relatório vinha VAZIO (200 com report ""), 3 de 3 chamadas. O 120B raciocina antes de responder e os
+  // tokens do raciocínio entram no limite de saída; com 450 o limite acabava antes do texto. A tela de Histórico ficava em branco.
+  describe('relatório vazio (modelo de raciocínio que estourou o limite)', () => {
+    const withTxs = () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' }))
+      prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: 100, category: 'food', description: 'Mercado' }])
+      prisma.budget.findMany.mockResolvedValue([])
+    }
+
+    test('pede raciocínio baixo, sem devolvê-lo, e folga de tokens para o texto caber', async () => {
+      withTxs()
+      mockCreate.mockResolvedValueOnce(simpleReply('Seu mês foi equilibrado.'))
+
+      const res = await request(app).post('/api/agent/monthly-report').set(authHeader()).send({})
+
+      expect(res.status).toBe(200)
+      expect(res.body.report).toBe('Seu mês foi equilibrado.')
+      const body = mockCreate.mock.calls[0][0]
+      expect(body.model).toBe('openai/gpt-oss-120b')
+      expect(body).toMatchObject({ reasoning_effort: 'low', include_reasoning: false })
+      expect(body.max_tokens).toBeGreaterThanOrEqual(900)
+    })
+
+    test.each([[null], [''], ['   \n ']])('conteúdo %j do modelo vira erro claro (502), nunca 200 com relatório vazio', async (content) => {
+      withTxs()
+      mockCreate.mockResolvedValueOnce({ choices: [{ message: { content }, finish_reason: 'length' }] })
+
+      const res = await request(app).post('/api/agent/monthly-report').set(authHeader()).send({})
+
+      expect(res.status).toBe(502)
+      expect(res.body.error).toMatch(/não consegui gerar o relatório/i)
+      expect(res.body.report).toBeUndefined()
+    })
   })
 })
 
@@ -1566,7 +1625,11 @@ describe('GET /api/agent/weekly-tip', () => {
     expect(res.body.source).toBe('ai')
     expect(res.body.tip).toBe('Planeje as refeições da semana e leve marmita. Voltar à média poupa cerca de R$ 90 por mês.')
     const [body, options] = mockCreate.mock.calls[0]
-    expect(body.model).toBe('llama-3.1-8b-instant')
+    // o llama-3.1-8b-instant foi desligado pelo Groq em 16/08/2026; o gpt-oss raciocina antes de responder, então:
+    // raciocínio baixo, sem devolvê-lo e folga de tokens (com 80 a resposta podia vir vazia)
+    expect(body.model).toBe('openai/gpt-oss-20b')
+    expect(body).toMatchObject({ reasoning_effort: 'low', include_reasoning: false })
+    expect(body.max_tokens).toBeGreaterThanOrEqual(300)
     expect(body.messages[1].content).toContain('Alimentação')
     // só a categoria vai pro modelo — nem as estatísticas nem texto do usuário
     for (const n of ['18', '90', '590', '500']) expect(body.messages[1].content).not.toContain(n)
@@ -1637,10 +1700,91 @@ describe('GET /api/agent/weekly-tip', () => {
 })
 
 // ══════════════════════════════════════════════════════════
-// Circuit breaker do Groq — TEM que ficar por último no arquivo: o estado
-// (circuitFailures/circuitOpenedAt) é módulo-level, compartilhado entre
-// TODAS as rotas de IA, e este teste deliberadamente deixa o circuito
-// aberto no final (testes depois deste veriam 503 mesmo com Groq saudável).
+// Disjuntor POR MODELO e limite longo do Groq (lib/aiBreakers.js).
+// O teste de estresse mostrou: um limite parcial do Groq (429) abria o disjuntor único e a IA inteira recusava pedidos que o
+// Groq ainda aceitaria, inclusive os de modelos saudáveis. O estado é zerado antes e depois de cada caso.
+// ══════════════════════════════════════════════════════════
+describe('Disjuntor por modelo e limite longo do Groq', () => {
+  const breakers = require('../src/routes/agent').breakers
+  const quota429 = (seconds) => Object.assign(new Error('rate limit'), { status: 429, headers: { 'retry-after': String(seconds) } })
+  const failChat = async (n) => {
+    mockCreate.mockRejectedValue(Object.assign(new Error('erro genérico'), { status: 500 }))
+    for (let i = 0; i < n; i++) await request(app).post('/api/agent/chat').set(authHeader()).send({ message: `falha ${i}` })
+  }
+  beforeEach(() => { breakers.reset(); prisma.user.findUnique.mockResolvedValue(mockUser({ plan: 'elite' })) })
+  afterEach(() => breakers.reset())
+
+  test('429 com espera longa (limite por hora/dia): resposta na hora, mensagem honesta, sem tentar de novo e sem abrir o disjuntor', async () => {
+    mockCreate.mockRejectedValue(quota429(3600))
+    const t0 = Date.now()
+    for (let i = 0; i < 6; i++) {
+      const res = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: `limite ${i}` })
+      expect(res.status).toBe(429)
+      expect(res.body.error).toMatch(/limite de uso da IA/i)
+      expect(res.body.error).not.toMatch(/alguns segundos/i) // a IA não volta em segundos: não pode prometer isso
+    }
+    // 1 tentativa por pedido (sem backoff) e o 6º pedido ainda chegou ao Groq: o disjuntor continua fechado
+    expect(mockCreate).toHaveBeenCalledTimes(6)
+    expect(Date.now() - t0).toBeLessThan(5000)
+
+    // o Groq voltou: o pedido seguinte funciona
+    mockCreate.mockReset()
+    mockCreate.mockResolvedValueOnce(simpleReply('voltei'))
+    const ok = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'e agora?' })
+    expect(ok.status).toBe(200)
+  })
+
+  test('429 com espera de ~1 minuto diz quanto esperar; com espera de horas diz "mais tarde"', async () => {
+    mockCreate.mockRejectedValueOnce(quota429(45))
+    const curto = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'a' })
+    expect(curto.status).toBe(429)
+    expect(curto.body.error).toMatch(/em cerca de 1 minuto\./)
+
+    mockCreate.mockRejectedValueOnce(quota429(7200))
+    const longo = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'b' })
+    expect(longo.body.error).toMatch(/mais tarde\./)
+  })
+
+  test('quedas reais do modelo de chat (500) abrem o disjuntor DELE, mas a previsão (outro modelo) continua funcionando', async () => {
+    await failChat(5)
+    const refused = await request(app).post('/api/agent/chat').set(authHeader()).send({ message: 'agora recusa' })
+    expect(refused.status).toBe(503)
+    expect(refused.body.error).toMatch(/temporariamente indisponível/i)
+
+    prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: 100, category: 'food' }])
+    mockCreate.mockReset()
+    mockCreate.mockResolvedValueOnce(simpleReply('Você deve fechar o mês no azul.'))
+    const predict = await request(app).post('/api/agent/predict').set(authHeader())
+    expect(predict.status).toBe(200)
+    expect(predict.body.prediction).toMatch(/azul/)
+    expect(mockCreate.mock.calls[0][0].model).toBe('openai/gpt-oss-20b')
+  })
+
+  test('a voz (outro modelo) também não é recusada quando o disjuntor do chat está aberto', async () => {
+    await failChat(5)
+    mockGetAudioDuration.mockResolvedValue(5)
+    mockTranscribe.mockResolvedValueOnce({ text: 'gastei vinte reais' })
+    const res = await request(app).post('/api/agent/transcribe').set(authHeader()).attach('audio', Buffer.from('x'.repeat(2000)), { filename: 'a.webm', contentType: 'audio/webm' })
+    expect(res.status).toBe(200)
+    expect(res.body.text).toBe('gastei vinte reais')
+  })
+
+  test('relatório mensal usa o mesmo modelo do chat: dividem o disjuntor (e a cota do Groq)', async () => {
+    await failChat(5)
+    mockCreate.mockReset()
+    // com transações no mês (sem elas a rota responde "Nenhuma transação" antes de chegar ao modelo)
+    prisma.transaction.findMany.mockResolvedValue([{ type: 'expense', amount: 100, category: 'food', description: 'Mercado' }])
+    prisma.budget.findMany.mockResolvedValue([])
+    const res = await request(app).post('/api/agent/monthly-report').set(authHeader()).send({})
+    expect(res.status).toBe(503)
+    expect(res.body.error).toMatch(/temporariamente indisponível/i)
+    expect(mockCreate).not.toHaveBeenCalled()
+  })
+})
+
+// ══════════════════════════════════════════════════════════
+// Circuit breaker do Groq — fica por último só por precaução: este teste deliberadamente deixa o circuito do modelo de chat
+// aberto no final (um teste depois dele veria 503 mesmo com o Groq saudável). O estado agora é por modelo e zerável.
 // ══════════════════════════════════════════════════════════
 describe('Circuit breaker do Groq', () => {
   test('abre depois de falhas consecutivas e recusa rápido sem chamar o Groq de novo', async () => {
