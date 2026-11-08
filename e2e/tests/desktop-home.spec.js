@@ -146,7 +146,7 @@ test.describe('Início desktop — o que mostra e o que faz', () => {
 
 // Bug visto pelo André na produção (notebook 1366×768): os 4 atalhos do saldo (Nova transação, Planilha IA, Analisador, Nancy IA) não cabem ao
 // lado do saldo e o cartão (overflow: hidden) cortava o último. Abaixo do tamanho do desenho (1440) eles descem para uma 2ª linha.
-for (const [w, h] of [[1366, 768], [1280, 720]]) {
+for (const [w, h] of [[1366, 768], [1299, 768], [1280, 720]]) { // 1299 = janela útil do Chrome do André no notebook (o dock do Ubuntu ocupa 67 px)
   test.describe(`Início desktop — telas menores que o desenho (${w}×${h})`, () => {
     test.use({ viewport: { width: w, height: h } })
     test(`os 4 atalhos do saldo ficam inteiros dentro do cartão, sem corte nem rolagem horizontal`, async ({ page }) => {

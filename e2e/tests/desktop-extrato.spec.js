@@ -147,3 +147,43 @@ test.describe('Extrato desktop — medidas e visual do design', () => {
     await expect(page.locator('.ndx-row')).toHaveCount(2) // Mercado e Supermercado
   })
 })
+
+// Bug visto pelo André na produção (Chrome em notebook, janela útil de ~1299 px): no Extrato o mês e os totais (Entradas R$ 10.000,00…) ficam ao lado das
+// abas e as espremiam: "Contas do mês" quebrava em duas linhas e a barra inteira ficava mais alta (62 px, abas de 50 px) que nas outras telas (46 e 34 px).
+for (const w of [1299, 1280]) {
+  test.describe(`Extrato desktop — janela de ${w} px`, () => {
+    test.use({ viewport: { width: w, height: 768 } })
+
+    const abas = (page) => page.evaluate(() => ({
+      barra: Math.round(document.querySelector('.nds-tabs').getBoundingClientRect().height),
+      abas: [...document.querySelectorAll('.nds-tab')].map(e => Math.round(e.getBoundingClientRect().height)),
+      rotulos: [...document.querySelectorAll('.nds-tab')].map(e => e.innerText.trim()),
+    }))
+
+    test('as abas não são espremidas: cada uma numa linha só (34 px) e a barra de 46 px, igual às outras telas, ao ir e voltar', async ({ page }) => {
+      await open(page)
+      await expect(page.locator('.ndx-row')).toHaveCount(14)
+      const direto = await abas(page)
+      expect(direto).toEqual({ barra: 46, abas: [34, 34, 34, 34], rotulos: ['Extrato', 'Contas do mês', 'Parceladas', 'Análise'] })
+      await page.getByRole('button', { name: 'Contas do mês' }).click()
+      await expect(page).toHaveURL(/\/contas-do-mes$/)
+      expect(await abas(page)).toEqual(direto)
+      await page.getByRole('button', { name: 'Extrato', exact: true }).first().click()
+      await expect(page).toHaveURL(/\/transactions$/)
+      await expect(page.locator('.ndx-card')).toBeVisible()
+      expect(await abas(page)).toEqual(direto) // voltar ao Extrato não deixa a barra maior
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(w) // e nada vaza para o lado
+    })
+
+    test('o mês e os totais continuam visíveis ao lado das abas (empilham, não somem nem passam da tela)', async ({ page }) => {
+      await open(page)
+      for (const sel of ['.ndx-month', '.ndx-sum']) {
+        const b = await page.evaluate((s) => { const r = document.querySelector(s).getBoundingClientRect(); return { l: r.left, r: r.right } }, sel)
+        expect(b.l).toBeGreaterThanOrEqual(0)
+        expect(b.r).toBeLessThanOrEqual(w)
+      }
+      await expect(page.locator('.ndx-sum')).toContainText('Entradas')
+      await expect(page.locator('.ndx-sum')).toContainText('Saídas')
+    })
+  })
+}
