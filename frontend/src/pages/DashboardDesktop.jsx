@@ -154,7 +154,7 @@ export default function DashboardDesktop({ ctx }) {
                 {stats.map(x => (
                   <div key={x.label} className="ndh-stat">
                     <span className="ndh-stat-lbl"><span className="ndh-stat-dot" style={{ background: x.dot }} />{x.label}</span>
-                    <span className="ndh-stat-val">{x.val}</span>
+                    <span className="ndh-stat-val" style={{ '--val-chars': String(x.val).length }}>{x.val}</span>
                     <span className="ndh-stat-note" style={{ color: x.ink }}>{x.note}</span>
                   </div>
                 ))}

@@ -150,7 +150,8 @@ test.describe('Início desktop — o que mostra e o que faz', () => {
 const hero = (page) => page.evaluate(() => {
   const h = document.querySelector('.ndh-hero').getBoundingClientRect()
   const btns = [...document.querySelectorAll('.ndh-quick-btn')].map(b => { const x = b.getBoundingClientRect(); return { l: x.left, r: x.right, t: Math.round(x.top) } })
-  return { altura: Math.round(h.height), btns, folgaD: Math.round(h.right - btns[btns.length - 1].r), folgaE: Math.round(document.querySelector('.ndh-hero-lbl').getBoundingClientRect().left - h.left),
+  const ico = [...document.querySelectorAll('.ndh-quick-ico')].pop().getBoundingClientRect() // o respiro vale até o ÍCONE (a caixa do botão é mais larga)
+  return { altura: Math.round(h.height), btns, folgaD: Math.round(h.right - ico.right), folgaE: Math.round(document.querySelector('.ndh-hero-lbl').getBoundingClientRect().left - h.left),
     fonte: parseFloat(getComputedStyle(document.querySelector('.ndh-hero-val')).fontSize), scroll: document.documentElement.scrollWidth, view: window.innerWidth, main: Math.round(document.querySelector('.ndh-main').getBoundingClientRect().width) }
 })
 for (const [w, h] of [[901, 768], [1024, 768], [1180, 768], [1280, 720], [1299, 768], [1366, 768], [1920, 1000]]) {
@@ -167,6 +168,10 @@ for (const [w, h] of [[901, 768], [1024, 768], [1180, 768], [1280, 720], [1299, 
       expect(r.folgaE).toBe(28)
       expect(r.scroll).toBe(r.view)
       expect(r.main).toBeGreaterThanOrEqual(500) // a coluna da direita desce abaixo de 1181 px em vez de esmagar o conteúdo
+      const nums = await page.evaluate(() => [...document.querySelectorAll('.ndh-stat-val')].map(e => ({ h: Math.round(e.getBoundingClientRect().height), corta: e.scrollWidth > e.clientWidth + 1 })))
+      expect(nums).toHaveLength(3)
+      for (const n of nums) { expect(n.h).toBeLessThanOrEqual(36); expect(n.corta).toBe(false) } // Entradas, Saídas e Contas fixas numa linha só (não "R$" em cima e o valor embaixo)
+      expect(await page.evaluate(() => { const t = document.querySelector('.nds-topbar-title'); return t.scrollWidth <= t.clientWidth })).toBe(true) // "Início" inteiro na barra de cima
       await expect(page.locator('.ndh-quick-btn', { hasText: 'Nancy IA' })).toBeVisible()
     })
     test('saldo de sete dígitos (R$ 1.234.567,89) também fica numa linha: a fonte encolhe em vez de o cartão crescer', async ({ page }) => {
