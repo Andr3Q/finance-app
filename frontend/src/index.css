@@ -12500,7 +12500,8 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
    ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
 .ndh-pwnav { background: var(--nd-bg); }
 .ndh-page { flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 26px 32px 40px; font-family: var(--nd-font); color: var(--nd-ink); background: var(--nd-bg); }
-.ndh-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+.ndh-grid { display: grid; grid-template-columns: minmax(0, 1fr) clamp(240px, calc(320px - (1440px - 100vw) * .28), 320px); gap: 20px; }
+/* A coluna da direita (Saúde financeira…) tem 320px no desenho (1440). Em janelas menores ela encolhe um pouco (≈280px em 1299, ≈250px em 1181) para o cartão do saldo ganhar espaço. */
 .ndh-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .ndh-side { display: flex; flex-direction: column; gap: 20px; }
 /* Janelas estreitas (como as outras telas do desktop): a coluna da direita desce para baixo do conteúdo, em vez de esmagá-lo em 217–416px. */
