@@ -14,6 +14,7 @@ import { fmt, fmtDate } from '../utils/format.js'
 import { scrollChipsBy } from '../utils/chipScroll.js'
 import { useChipEdges } from '../hooks/useChipEdges.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
+import { isAndroidApp } from '../utils/androidApp.js'
 const amountBucket = (v) => {
   const n = Number(v)
   if (!n || n <= 0)      return '0'
@@ -292,8 +293,13 @@ export default function Goals() {
       if (err.response?.data?.limitReached) {
         analytics.track('limit_reached', { feature: 'goals' })
         setModal(null)
-        showToast('Você atingiu o limite de metas do seu plano. Faça upgrade para criar mais!', false)
-        setTimeout(() => navigate('/planos'), 2500)
+        // app Android da Play Store: só o aviso, sem empurrar para a tela de planos (ver utils/androidApp.js)
+        if (isAndroidApp()) {
+          showToast('Você atingiu o limite de metas do seu plano.', false)
+        } else {
+          showToast('Você atingiu o limite de metas do seu plano. Faça upgrade para criar mais!', false)
+          setTimeout(() => navigate('/planos'), 2500)
+        }
         return false
       }
       showToast(err.response?.data?.error || 'Erro ao salvar meta.', false)

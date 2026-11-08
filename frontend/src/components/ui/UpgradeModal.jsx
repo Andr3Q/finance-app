@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser.js'
 import { useEscapeKey } from '../../hooks/useEscapeKey.js'
+import { isAndroidApp } from '../../utils/androidApp.js'
 
 const PRO_HIGHLIGHTS = [
   '35 transações por mês',
@@ -38,6 +39,20 @@ export default function UpgradeModal({ onClose, reason }) {
     }
     setClosing(true)
     setTimeout(() => { setClosing(false); onClose(); navigate('/planos') }, 200)
+  }
+
+  // app Android da Play Store: sem compra, preço nem caminho para pagar (política de pagamentos do Google; ver utils/androidApp.js)
+  if (isAndroidApp()) {
+    return (
+      <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) handleClose() }}
+        style={{ animation: closing ? 'fadeOut .2s forwards' : 'fadeIn .2s forwards' }}>
+        <div className="modal-box" role="dialog" aria-label="Recurso de outro plano" style={{ maxWidth: 420, padding: '28px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', fontFamily: 'var(--fd)' }}>Recurso de outro plano</div>
+          <div style={{ fontSize: 13, color: 'var(--t2)', marginTop: 8, lineHeight: 1.5 }}>{(reason || '').replace(/\s*Fa[çc]a upgrade[^.!]*[.!]?/i, '').trim() || 'Este recurso não faz parte do plano da sua conta.'}</div>
+          <button type="button" className="btn btn-primary" style={{ marginTop: 20, width: '100%' }} onClick={handleClose}>Entendi</button>
+        </div>
+      </div>
+    )
   }
 
   return (

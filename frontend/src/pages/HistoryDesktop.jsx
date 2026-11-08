@@ -26,7 +26,7 @@ export default function HistoryDesktop({ ctx }) {
             <section className="nhs-card nhs-state">
               <h2>Recurso Pro</h2>
               <p>Veja o resultado de cada mês e como o mês atual se compara aos anteriores.</p>
-              <button type="button" className="nhs-btn" onClick={goPlans}>Ver planos</button>
+              {goPlans && <button type="button" className="nhs-btn" onClick={goPlans}>Ver planos</button>}
             </section>
           ) : loading ? (
             <div className="nhs-loading"><div className="dsb-loader-ring" style={{ margin: '0 auto' }} /></div>

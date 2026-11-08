@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { isAndroidApp } from '../../utils/androidApp.js'
 
 export default function EliteConversionModal({ onClose }) {
   const navigate  = useNavigate()
@@ -18,6 +19,8 @@ export default function EliteConversionModal({ onClose }) {
     navigate(`/planos?destaque=${plan}`)
     close()
   }
+
+  if (isAndroidApp()) return null // app Android da Play Store: sem convite de compra (ver utils/androidApp.js)
 
   return (
     <div

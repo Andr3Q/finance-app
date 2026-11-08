@@ -4,6 +4,7 @@ import { useUser, saveUser } from '../../../hooks/useUser.js'
 import { useEscapeKey } from '../../../hooks/useEscapeKey.js'
 import { authAPI } from '../../../services/api.js'
 import { analytics } from '../../../services/analytics.js'
+import { isAndroidApp } from '../../../utils/androidApp.js'
 
 // variant="desktop" (design "Nancy Desktop", tela 31): o botão vazado "Cancelar assinatura" vai dentro do cartão do plano e, com o cancelamento já
 // registrado, não aparece (a frase do cartão já diz até quando vai o acesso). O fluxo (aviso + senha) é o mesmo.
@@ -98,7 +99,7 @@ export default function CancelPlanCard({ onMessage, variant }) {
               </div>
 
               <div style={{ background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:12, color:'var(--t2)', lineHeight:1.6 }}>
-                Seus dados ficam salvos. Você pode assinar de novo a qualquer momento em <strong style={{ color:'var(--c)' }}>Planos</strong>.
+                Seus dados ficam salvos.{!isAndroidApp() && <> Você pode assinar de novo a qualquer momento em <strong style={{ color:'var(--c)' }}>Planos</strong>.</>}
               </div>
 
               <div>
