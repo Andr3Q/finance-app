@@ -152,7 +152,7 @@ const hero = (page) => page.evaluate(() => {
   const btns = [...document.querySelectorAll('.ndh-quick-btn')].map(b => { const x = b.getBoundingClientRect(); return { l: x.left, r: x.right, t: Math.round(x.top) } })
   const ico = [...document.querySelectorAll('.ndh-quick-ico')].pop().getBoundingClientRect() // o respiro vale até o ÍCONE (a caixa do botão é mais larga)
   return { altura: Math.round(h.height), btns, folgaD: Math.round(h.right - ico.right), folgaE: Math.round(document.querySelector('.ndh-hero-lbl').getBoundingClientRect().left - h.left),
-    fonte: parseFloat(getComputedStyle(document.querySelector('.ndh-hero-val')).fontSize), scroll: document.documentElement.scrollWidth, view: window.innerWidth, main: Math.round(document.querySelector('.ndh-main').getBoundingClientRect().width) }
+    fonte: parseFloat(getComputedStyle(document.querySelector('.ndh-hero-val')).fontSize), lateral: Math.round(document.querySelector('.ndh-side').getBoundingClientRect().width), scroll: document.documentElement.scrollWidth, view: window.innerWidth, main: Math.round(document.querySelector('.ndh-main').getBoundingClientRect().width) }
 })
 for (const [w, h] of [[901, 768], [1024, 768], [1180, 768], [1280, 720], [1299, 768], [1366, 768], [1920, 1000]]) {
   test.describe(`Início desktop — janela de ${w} px`, () => {
@@ -168,6 +168,8 @@ for (const [w, h] of [[901, 768], [1024, 768], [1180, 768], [1280, 720], [1299, 
       expect(r.folgaE).toBe(28)
       expect(r.scroll).toBe(r.view)
       expect(r.main).toBeGreaterThanOrEqual(500) // a coluna da direita desce abaixo de 1181 px em vez de esmagar o conteúdo
+      if (w >= 1440) expect(r.lateral).toBe(320) // o desenho
+      else if (w >= 1181) { expect(r.lateral).toBeGreaterThanOrEqual(240); expect(r.lateral).toBeLessThanOrEqual(300); expect(r.main).toBeGreaterThanOrEqual(600) } // a coluna da direita cede espaço ao saldo
       const nums = await page.evaluate(() => [...document.querySelectorAll('.ndh-stat-val')].map(e => ({ h: Math.round(e.getBoundingClientRect().height), corta: e.scrollWidth > e.clientWidth + 1 })))
       expect(nums).toHaveLength(3)
       for (const n of nums) { expect(n.h).toBeLessThanOrEqual(36); expect(n.corta).toBe(false) } // Entradas, Saídas e Contas fixas numa linha só (não "R$" em cima e o valor embaixo)
