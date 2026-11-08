@@ -12300,11 +12300,11 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
     display: flex; align-items: center; gap: 16px; padding: 0 32px;
     background: var(--nd-bg); border-bottom: 1px solid var(--nd-line); font-family: var(--nd-font); color: var(--nd-ink);
   }
-  .nds-topbar-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .nds-topbar-text { flex: 1 0 180px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .nds-topbar-title { font: 800 24px var(--nd-font); letter-spacing: -.03em; color: var(--nd-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nds-topbar-sub { font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nds-search {
-    flex: none; width: 330px; height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+    flex: 0 1 330px; min-width: 120px; height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
     border: 1px solid var(--nd-line-2); border-radius: 12px; background: #fff; color: var(--nd-hint);
   }
   .nds-search:focus-within { border-color: var(--nd-blue); }
@@ -12324,6 +12324,12 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
     border: none; border-radius: 12px; background: var(--nd-blue); color: #fff; font: 700 14px var(--nd-font); cursor: pointer;
   }
   .nds-iconbtn:focus-visible, .nds-newtx:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
+  /* Janelas estreitas (901–1000 px): a barra de cima ganha folga para o título ("Início") e a saudação não serem cortados. */
+  @media (max-width: 1000px) {
+    .nds-topbar { gap: 12px; padding: 0 20px; }
+    .nds-topbar-text { flex-basis: 120px; }
+    .nds-search { min-width: 100px; }
+  }
 
   /* O design não tem o botão flutuante do chat: a Nancy IA abre pelo menu lateral. */
   .agent-fab { display: none; }
@@ -12497,20 +12503,25 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndh-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
 .ndh-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .ndh-side { display: flex; flex-direction: column; gap: 20px; }
+/* Janelas estreitas (como as outras telas do desktop): a coluna da direita desce para baixo do conteúdo, em vez de esmagá-lo em 217–416px. */
+@media (max-width: 1180px) { .ndh-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* saldo */
-.ndh-hero { position: relative; overflow: hidden; display: flex; align-items: flex-end; gap: 24px; padding: 26px 28px; border-radius: 24px; background: var(--nd-blue); color: #fff; }
+/* O cartão é um "container": saldo e atalhos escalam com a largura DELE (cqi; 100cqi = 700px = o cartão de 756px do desenho em 1440). De 1440 para cima
+   ficam nos tamanhos do desenho; abaixo encolhem juntos e continuam numa linha só, com o mesmo respiro de 28px dos dois lados. O flex-wrap só é a rede de
+   segurança para saldos enormes (R$ 1.234.567,89): melhor o cartão crescer do que cortar o último atalho (overflow: hidden). */
+.ndh-hero { position: relative; overflow: hidden; container-type: inline-size; display: flex; flex-wrap: wrap; align-items: flex-end; padding: 26px 28px; border-radius: 24px; background: var(--nd-blue); color: #fff; }
 .ndh-hero-glow { position: absolute; width: 500px; height: 500px; border-radius: 50%; right: -160px; top: -240px; pointer-events: none; background: radial-gradient(circle, rgba(59,227,160,.4) 0%, rgba(59,227,160,0) 65%); }
-.ndh-hero-bal { position: relative; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.ndh-hero-bal { position: relative; flex: 1; display: flex; flex-direction: column; gap: 8px; margin-right: min(20px, 2.86cqi); }
 .ndh-hero-lbl { font: 500 14px var(--nd-font); opacity: .8; }
-.ndh-hero-val { font: 800 48px var(--nd-font); letter-spacing: -.04em; white-space: nowrap; }
+.ndh-hero-val { font: 800 min(48px, calc(6.8572cqi * 12 / max(12, var(--bal-chars, 12)))) var(--nd-font); letter-spacing: -.04em; white-space: nowrap; }
 .ndh-hero-badge { align-self: flex-start; padding: 5px 12px; border-radius: 99px; background: var(--nd-mint); color: #06392A; font: 700 12.5px var(--nd-font); }
 .ndh-hero-badge.neg { background: #FFD9DE; color: #8A1426; }
-.ndh-quick { position: relative; display: flex; gap: 10px; }
-.ndh-quick-btn { width: 92px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; background: none; border: none; color: inherit; cursor: pointer; font-family: var(--nd-font); }
-.ndh-quick-ico { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: rgba(255,255,255,.16); color: #fff; }
+.ndh-quick { position: relative; display: flex; gap: min(6px, .86cqi); margin-left: auto; margin-right: calc(-1 * min(17px, 2.43cqi)); } /* a caixa do botão é mais larga que o ícone: o respiro de 28px conta até o ícone */
+.ndh-quick-btn { width: min(86px, 12.29cqi); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; background: none; border: none; color: inherit; cursor: pointer; font-family: var(--nd-font); }
+.ndh-quick-ico { width: min(52px, 7.43cqi); height: min(52px, 7.43cqi); display: flex; align-items: center; justify-content: center; border-radius: min(16px, 2.29cqi); background: rgba(255,255,255,.16); color: #fff; }
 .ndh-quick-ico.white { background: #fff; color: var(--nd-blue); }
-.ndh-quick-lbl { font: 600 12.5px var(--nd-font); }
+.ndh-quick-lbl { font: 600 clamp(10.5px, 1.79cqi, 12.5px) var(--nd-font); text-align: center; }
 .ndh-quick-btn:focus-visible .ndh-quick-ico { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* carrossel de resumos (230px) */
@@ -12535,11 +12546,11 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 
 /* números */
 .ndh-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.ndh-stat { min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
+.ndh-stat { container-type: inline-size; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
 .ndh-stat-lbl { display: flex; align-items: center; gap: 8px; font: 400 13px/1.5 var(--nd-font); color: var(--nd-muted); }
 .ndh-stat-dot { width: 8px; height: 8px; border-radius: 50%; }
-.ndh-stat-val { font: 700 24px var(--nd-mono); letter-spacing: -.02em; }
-.ndh-stat-note { font: 500 12px var(--nd-font); white-space: pre; }
+.ndh-stat-val { font: 700 min(24px, calc(12.3cqi * 12 / max(12, var(--val-chars, 12)))) var(--nd-mono); letter-spacing: -.02em; white-space: nowrap; } /* 24px no desenho; encolhe com o cartão e com valores longos, em vez de quebrar em duas linhas */
+.ndh-stat-note { font: 500 12px var(--nd-font); white-space: pre-wrap; }
 
 /* cartões brancos */
 .ndh-card { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border: 1px solid var(--nd-line); border-radius: 20px; background: #fff; }
@@ -12625,8 +12636,8 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
    ndx-* — Extrato no desktop (design "Nancy Desktop", tela 10): cartão com pílulas, busca e tabela de 5 colunas (as linhas
    usam as classes ndh-row-* do Início). O padding do protótipo é content-box: a barra de abas mede 46 (5+34+5 + 2 de borda).
    ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
-.nds-tabs { display: flex; gap: 6px; padding: 5px; align-self: flex-start; border-radius: 14px; background: #fff; border: 1px solid var(--nd-line); font-family: var(--nd-font); }
-.nds-tab { display: flex; align-items: center; gap: 7px; padding: 9px 14px; border: none; border-radius: 10px; background: transparent; color: var(--nd-muted); font: 600 13px var(--nd-font); cursor: pointer; }
+.nds-tabs { display: flex; flex-shrink: 0; gap: 6px; padding: 5px; align-self: flex-start; border-radius: 14px; background: #fff; border: 1px solid var(--nd-line); font-family: var(--nd-font); }
+.nds-tab { display: flex; align-items: center; gap: 7px; white-space: nowrap; padding: 9px 14px; border: none; border-radius: 10px; background: transparent; color: var(--nd-muted); font: 600 13px var(--nd-font); cursor: pointer; }
 .nds-tab.on { background: var(--nd-blue); color: #fff; cursor: default; }
 .nds-tab:focus-visible { outline: 2px solid var(--nd-blue); outline-offset: 2px; }
 
