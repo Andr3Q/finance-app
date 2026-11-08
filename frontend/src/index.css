@@ -12497,23 +12497,25 @@ button.ad-back:disabled { cursor: not-allowed; opacity: .6; }
 .ndh-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
 .ndh-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 .ndh-side { display: flex; flex-direction: column; gap: 20px; }
+/* Janelas estreitas (como as outras telas do desktop): a coluna da direita desce para baixo do conteúdo, em vez de esmagá-lo em 217–416px. */
+@media (max-width: 1180px) { .ndh-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* saldo */
-.ndh-hero { position: relative; overflow: hidden; display: flex; align-items: flex-end; gap: 24px; padding: 26px 28px; border-radius: 24px; background: var(--nd-blue); color: #fff; }
-/* Telas menores que o desenho (1440; ex.: notebook 1366 e 1280): os atalhos não cabem ao lado do saldo e o cartão (overflow: hidden) cortava o
-   4º. Só abaixo de 1440 eles descem para uma 2ª linha, alinhados à direita: de 1440 para cima nada muda (o desenho mede o cartão em 173px). */
-@media (max-width: 1439px) { .ndh-hero { flex-wrap: wrap; } .ndh-quick { margin-left: auto; } }
+/* O cartão é um "container": saldo e atalhos escalam com a largura DELE (cqi; 100cqi = 700px = o cartão de 756px do desenho em 1440). De 1440 para cima
+   ficam nos tamanhos do desenho; abaixo encolhem juntos e continuam numa linha só, com o mesmo respiro de 28px dos dois lados. O flex-wrap só é a rede de
+   segurança para saldos enormes (R$ 1.234.567,89): melhor o cartão crescer do que cortar o último atalho (overflow: hidden). */
+.ndh-hero { position: relative; overflow: hidden; container-type: inline-size; display: flex; flex-wrap: wrap; align-items: flex-end; padding: 26px 28px; border-radius: 24px; background: var(--nd-blue); color: #fff; }
 .ndh-hero-glow { position: absolute; width: 500px; height: 500px; border-radius: 50%; right: -160px; top: -240px; pointer-events: none; background: radial-gradient(circle, rgba(59,227,160,.4) 0%, rgba(59,227,160,0) 65%); }
-.ndh-hero-bal { position: relative; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.ndh-hero-bal { position: relative; flex: 1; display: flex; flex-direction: column; gap: 8px; margin-right: min(20px, 2.86cqi); }
 .ndh-hero-lbl { font: 500 14px var(--nd-font); opacity: .8; }
-.ndh-hero-val { font: 800 48px var(--nd-font); letter-spacing: -.04em; white-space: nowrap; }
+.ndh-hero-val { font: 800 min(48px, calc(6.8572cqi * 12 / max(12, var(--bal-chars, 12)))) var(--nd-font); letter-spacing: -.04em; white-space: nowrap; }
 .ndh-hero-badge { align-self: flex-start; padding: 5px 12px; border-radius: 99px; background: var(--nd-mint); color: #06392A; font: 700 12.5px var(--nd-font); }
 .ndh-hero-badge.neg { background: #FFD9DE; color: #8A1426; }
-.ndh-quick { position: relative; display: flex; gap: 10px; }
-.ndh-quick-btn { width: 92px; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; background: none; border: none; color: inherit; cursor: pointer; font-family: var(--nd-font); }
-.ndh-quick-ico { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: 16px; background: rgba(255,255,255,.16); color: #fff; }
+.ndh-quick { position: relative; display: flex; gap: min(6px, .86cqi); margin-left: auto; }
+.ndh-quick-btn { width: min(86px, 12.29cqi); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; background: none; border: none; color: inherit; cursor: pointer; font-family: var(--nd-font); }
+.ndh-quick-ico { width: min(52px, 7.43cqi); height: min(52px, 7.43cqi); display: flex; align-items: center; justify-content: center; border-radius: min(16px, 2.29cqi); background: rgba(255,255,255,.16); color: #fff; }
 .ndh-quick-ico.white { background: #fff; color: var(--nd-blue); }
-.ndh-quick-lbl { font: 600 12.5px var(--nd-font); }
+.ndh-quick-lbl { font: 600 clamp(10.5px, 1.79cqi, 12.5px) var(--nd-font); text-align: center; }
 .ndh-quick-btn:focus-visible .ndh-quick-ico { outline: 2px solid #fff; outline-offset: 2px; }
 
 /* carrossel de resumos (230px) */

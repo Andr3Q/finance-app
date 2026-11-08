@@ -144,26 +144,39 @@ test.describe('Início desktop — o que mostra e o que faz', () => {
   })
 })
 
-// Bug visto pelo André na produção (notebook 1366×768): os 4 atalhos do saldo (Nova transação, Planilha IA, Analisador, Nancy IA) não cabem ao
-// lado do saldo e o cartão (overflow: hidden) cortava o último. Abaixo do tamanho do desenho (1440) eles descem para uma 2ª linha.
-for (const [w, h] of [[1366, 768], [1299, 768], [1280, 720]]) { // 1299 = janela útil do Chrome do André no notebook (o dock do Ubuntu ocupa 67 px)
-  test.describe(`Início desktop — telas menores que o desenho (${w}×${h})`, () => {
+// Bug visto pelo André na produção (Chrome de notebook, janela útil de ~1299 px): os 4 atalhos do saldo (Nova transação, Planilha IA, Analisador, Nancy IA)
+// não cabiam ao lado do saldo e o cartão (overflow: hidden) cortava o último. O desenho (1440) tem tudo numa linha só e o André pediu que fique assim em
+// QUALQUER largura: o saldo e os atalhos encolhem juntos com o cartão, sem quebrar linha, com o mesmo respiro (28 px) dos dois lados.
+const hero = (page) => page.evaluate(() => {
+  const h = document.querySelector('.ndh-hero').getBoundingClientRect()
+  const btns = [...document.querySelectorAll('.ndh-quick-btn')].map(b => { const x = b.getBoundingClientRect(); return { l: x.left, r: x.right, t: Math.round(x.top) } })
+  return { altura: Math.round(h.height), btns, folgaD: Math.round(h.right - btns[btns.length - 1].r), folgaE: Math.round(document.querySelector('.ndh-hero-lbl').getBoundingClientRect().left - h.left),
+    fonte: parseFloat(getComputedStyle(document.querySelector('.ndh-hero-val')).fontSize), scroll: document.documentElement.scrollWidth, view: window.innerWidth, main: Math.round(document.querySelector('.ndh-main').getBoundingClientRect().width) }
+})
+for (const [w, h] of [[901, 768], [1024, 768], [1180, 768], [1280, 720], [1299, 768], [1366, 768], [1920, 1000]]) {
+  test.describe(`Início desktop — janela de ${w} px`, () => {
     test.use({ viewport: { width: w, height: h } })
-    test(`os 4 atalhos do saldo ficam inteiros dentro do cartão, sem corte nem rolagem horizontal`, async ({ page }) => {
+    test('saldo e os 4 atalhos numa linha só, inteiros, com 28 px de respiro dos dois lados e sem rolagem lateral', async ({ page }) => {
       await open(page)
-      const r = await page.evaluate(() => {
-        const hero = document.querySelector('.ndh-hero').getBoundingClientRect()
-        const btns = [...document.querySelectorAll('.ndh-quick-btn')].map(b => { const x = b.getBoundingClientRect(); return { l: x.left, r: x.right, t: x.top, b: x.bottom } })
-        return { hero: { l: hero.left, r: hero.right, t: hero.top, b: hero.bottom }, btns, scroll: document.documentElement.scrollWidth, view: window.innerWidth }
-      })
+      const r = await hero(page)
       expect(r.btns).toHaveLength(4)
-      for (const b of r.btns) {
-        expect(b.l).toBeGreaterThanOrEqual(r.hero.l)
-        expect(b.r).toBeLessThanOrEqual(r.hero.r) // não passa da borda do cartão (era o que o overflow: hidden cortava)
-        expect(b.b).toBeLessThanOrEqual(r.hero.b)
-      }
+      expect(new Set(r.btns.map(b => b.t)).size).toBe(1) // todos na mesma linha (o desenho não quebra)
+      expect(r.altura).toBeGreaterThanOrEqual(140) // não vira o cartão "gordo" de duas linhas
+      expect(r.altura).toBeLessThanOrEqual(173)
+      expect(Math.abs(r.folgaD - 28)).toBeLessThanOrEqual(1) // o Nancy IA não encosta na borda: mesmo respiro da esquerda
+      expect(r.folgaE).toBe(28)
       expect(r.scroll).toBe(r.view)
+      expect(r.main).toBeGreaterThanOrEqual(500) // a coluna da direita desce abaixo de 1181 px em vez de esmagar o conteúdo
       await expect(page.locator('.ndh-quick-btn', { hasText: 'Nancy IA' })).toBeVisible()
+    })
+    test('saldo de sete dígitos (R$ 1.234.567,89) também fica numa linha: a fonte encolhe em vez de o cartão crescer', async ({ page }) => {
+      await open(page, { ...DASH, summary: { ...DASH.summary, currentBalance: 1234567.89, totalAvailable: 1234567.89 } })
+      await expect(page.getByTestId('balance')).toHaveText('R$ 1.234.567,89')
+      const r = await hero(page)
+      expect(new Set(r.btns.map(b => b.t)).size).toBe(1)
+      expect(r.altura).toBeLessThanOrEqual(173)
+      if (w <= 1440) expect(r.fonte).toBeLessThan(48) // em janelas largas o cartão comporta os 48 px do desenho
+      expect(r.scroll).toBe(r.view)
     })
   })
 }

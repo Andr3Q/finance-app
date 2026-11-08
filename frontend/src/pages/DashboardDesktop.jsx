@@ -112,6 +112,7 @@ export default function DashboardDesktop({ ctx }) {
     detail: { message: projected >= 0 ? 'Como posso sobrar ainda mais este mês?' : 'Como posso fechar este mês no azul?' },
   }))
   const circ = 2 * Math.PI * 62
+  const balText = hidden ? 'R$ ••••••' : `R$ ${brl(summary?.currentBalance)}` // o CSS encolhe a fonte quando o saldo tem mais de 12 caracteres (ex.: R$ 1.234.567,89)
 
   return (
     <div className="ndh-page">
@@ -130,7 +131,7 @@ export default function DashboardDesktop({ ctx }) {
                 <div className="ndh-hero-glow" aria-hidden="true" />
                 <div className="ndh-hero-bal">
                   <span className="ndh-hero-lbl">Saldo disponível · {monthName}</span>
-                  <span className="ndh-hero-val" data-testid="balance">{hidden ? 'R$ ••••••' : `R$ ${brl(summary?.currentBalance)}`}</span>
+                  <span className="ndh-hero-val" data-testid="balance" style={{ '--bal-chars': balText.length }}>{balText}</span>
                   {monthGrowth !== null && (
                     <span className={`ndh-hero-badge${monthGrowth < 0 ? ' neg' : ''}`}>
                       {monthGrowth > 0 ? '+' : monthGrowth < 0 ? '−' : ''}{Math.min(999, Math.abs(monthGrowth)).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% no mês
