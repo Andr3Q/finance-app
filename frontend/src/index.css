@@ -12248,12 +12248,14 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
   /* ── menu lateral ── */
   .nds-sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; width: var(--dsb-sidebar-w); z-index: 40;
-    display: flex; flex-direction: column; gap: 4px; padding: 24px 16px 18px; overflow: hidden;
+    display: flex; flex-direction: column; gap: 4px; padding: 24px 16px 18px; overflow-x: hidden; overflow-y: auto; scrollbar-width: none;
     background: var(--nd-blue); color: #fff; font-family: var(--nd-font);
   }
+  .nds-sidebar::-webkit-scrollbar { display: none; }
   .nds-sidebar button { font-family: var(--nd-font); }
-  .nds-glow {
-    position: absolute; width: 420px; height: 420px; border-radius: 50%; left: -200px; bottom: -220px; pointer-events: none;
+  .nds-glow { position: absolute; inset: 0; overflow: hidden; pointer-events: none; } /* recorta o brilho: sem isso ele criava 220px de rolagem à toa */
+  .nds-glow::after {
+    content: ''; position: absolute; width: 420px; height: 420px; border-radius: 50%; left: -200px; bottom: -220px;
     background: radial-gradient(circle, rgba(59,227,160,.35) 0%, rgba(59,227,160,0) 65%);
   }
   .nds-logo {
@@ -12293,6 +12295,16 @@ html[data-ck-open] .ib-wrap { display: none; } /* o aviso de instalar o app espe
   .nds-user-name { font: 700 13.5px var(--nd-font); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .nds-user-sub { font: 400 12px var(--nd-font); opacity: .75; }
   .nds-sidebar button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  /* Telas baixas (notebook: ~616 px de altura útil com a barra do navegador): o menu inteiro precisa de ~686 px e não cabia; o perfil/"Configurações" ficava
+     escondido e sem como rolar. Abaixo de 700 px o menu compacta (cabe em ~575 px) e, se ainda faltar altura, a barra rola. */
+  @media (max-height: 699px) {
+    .nds-sidebar { padding: 16px 16px 12px; gap: 2px; }
+    .nds-logo { padding-bottom: 12px; }
+    .nds-nav { gap: 2px; }
+    .nds-item { height: 38px; }
+    .nds-plan { margin-bottom: 6px; padding: 10px 12px; gap: 4px; }
+    .nds-user { padding: 8px 10px; }
+  }
 
   /* ── barra de cima ── */
   .nds-topbar {

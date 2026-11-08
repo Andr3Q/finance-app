@@ -220,3 +220,33 @@ test.describe('Casca desktop — no celular não aparece', () => {
     await expect(page.locator('.dsb-mobile-nav')).toBeVisible()
   })
 })
+
+// Bug visto pelo André na produção (Chrome de notebook: ~616 px de altura útil com a barra do navegador): o menu inteiro precisa de ~686 px, o CSS cortava o
+// que não coubesse (overflow: hidden) e o perfil/"Configurações" ficava escondido, sem como rolar. Abaixo de 700 px o menu compacta e, sem altura nem assim, rola.
+for (const h of [900, 768, 690, 616, 575]) {
+  test.describe(`Casca desktop — janela de ${h} px de altura`, () => {
+    test.use({ viewport: { width: 1299, height: h } })
+    test('o menu inteiro aparece, com o perfil ("Configurações") à vista e sem rolagem à toa', async ({ page }) => {
+      await setup(page)
+      const r = await page.evaluate(() => { const sb = document.querySelector('.nds-sidebar'); const u = document.querySelector('.nds-user').getBoundingClientRect()
+        return { perfilDentro: u.top >= 0 && u.bottom <= innerHeight + 0.5, sobra: sb.scrollHeight - sb.clientHeight, itens: document.querySelectorAll('.nds-nav .nds-item').length } })
+      expect(r.itens).toBe(9)
+      expect(r.perfilDentro).toBe(true)
+      expect(r.sobra).toBeLessThanOrEqual(1) // o brilho decorativo não cria rolagem
+      await expect(page.locator('.nds-user')).toContainText('Configurações')
+    })
+  })
+}
+test.describe('Casca desktop — janela muito baixa (480 px)', () => {
+  test.use({ viewport: { width: 1299, height: 480 } })
+  test('o menu rola com o mouse e chega no perfil, que continua clicável', async ({ page }) => {
+    await setup(page)
+    const dentro = () => page.evaluate(() => { const u = document.querySelector('.nds-user').getBoundingClientRect(); return u.top >= 0 && u.bottom <= innerHeight + 0.5 })
+    expect(await dentro()).toBe(false) // não cabe nem compacto
+    await page.mouse.move(140, 300)
+    await page.mouse.wheel(0, 600)
+    await expect.poll(dentro).toBe(true)
+    await page.locator('.nds-user').click()
+    await expect(page).toHaveURL(/\/settings/)
+  })
+})
