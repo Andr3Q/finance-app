@@ -23,7 +23,7 @@ test.describe('Termos de Uso', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Termos de Uso' })).toBeVisible()
     await expect(page.locator('.fin-hero-sub')).toHaveText('Atualizado em mai/2026')
     await expect(page.locator('.lg-h')).toHaveCount(12)
-    await expect(page.locator('.lg-foot-line').first()).toContainText('Dúvidas: contato@nancy.com.br')
+    await expect(page.locator('.lg-foot-line').first()).toContainText('Dúvidas: contato@myfinancepro.com.br')
     await expect(page.locator('.dsb-mn-item.active .dsb-mn-lbl')).toHaveText('Perfil')
     const m = await page.evaluate(() => {
       const b = document.querySelector('.lg-card').getBoundingClientRect()

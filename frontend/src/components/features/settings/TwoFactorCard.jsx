@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useUser, saveUser } from '../../../hooks/useUser.js'
 import { authAPI } from '../../../services/api.js'
+import { isAndroidApp } from '../../../utils/androidApp.js'
 
 function BackupCodesModal({ codes, onClose }) {
   const [copied,    setCopied]    = useState(false)
@@ -194,10 +195,10 @@ export default function TwoFactorCard({ onMessage, onUpgrade }) {
         </div>
 
         {!isPro && !enabled && (
-          <p className="sc-2fa-note">Disponível nos planos Pro e Elite. <button type="button" className="sc-link" onClick={() => onUpgrade('A autenticação de dois fatores é exclusiva do plano Pro.')}>Fazer upgrade</button></p>
+          <p className="sc-2fa-note">Disponível nos planos Pro e Elite.{!isAndroidApp() && <> <button type="button" className="sc-link" onClick={() => onUpgrade('A autenticação de dois fatores é exclusiva do plano Pro.')}>Fazer upgrade</button></>}</p>
         )}
         {!isPro && enabled && (
-          <p className="sc-2fa-note warn">Seu plano mudou para Grátis. Desative o 2FA ou faça upgrade para continuar usando.</p>
+          <p className="sc-2fa-note warn">Seu plano mudou para Grátis. {isAndroidApp() ? 'Desative o 2FA para continuar.' : 'Desative o 2FA ou faça upgrade para continuar usando.'}</p>
         )}
         {enabled && (
           <div className="sc-2fa-extra">

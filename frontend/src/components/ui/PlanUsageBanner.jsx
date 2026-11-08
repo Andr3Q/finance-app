@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { getLimit, nextPlan, nextPlanLabel } from '../../config/planLimits.js'
+import { isAndroidApp } from '../../utils/androidApp.js'
 
 export default function PlanUsageBanner({ plan, feature, used, label }) {
   const navigate  = useNavigate()
@@ -12,6 +13,7 @@ export default function PlanUsageBanner({ plan, feature, used, label }) {
   const atLimit  = used >= limit
   const barColor = atLimit ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#4ae2ac'
   const isEliteUp = nextLabel === 'Elite'
+  const inApp     = isAndroidApp() // app Android da Play Store: sem promoção nem botão de upgrade (ver utils/androidApp.js)
 
   return (
     <div className={`pub-wrap ${atLimit ? 'pub-wrap-alert' : ''}`}>
@@ -32,7 +34,7 @@ export default function PlanUsageBanner({ plan, feature, used, label }) {
             <span className="pub-label" style={{ color: atLimit ? barColor : 'var(--t1)' }}>
               {atLimit ? `Limite de ${label} atingido` : `${used} de ${limit} ${label}`}
             </span>
-            {!atLimit && (
+            {!atLimit && !inApp && (
               <span className="pub-sublabel">
                 Upgrade para {nextLabel} e tenha {nextLabel === 'Elite' ? 'ilimitados' : `até ${getLimit(nextPlan(plan), feature)}`}
               </span>
@@ -40,7 +42,7 @@ export default function PlanUsageBanner({ plan, feature, used, label }) {
           </div>
         </div>
 
-        <button
+        {!inApp && <button
           className={`pub-btn ${isEliteUp ? 'pub-btn-elite' : 'pub-btn-pro'}`}
           onClick={() => navigate('/planos')}
         >
@@ -48,7 +50,7 @@ export default function PlanUsageBanner({ plan, feature, used, label }) {
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
           </svg>
           Upgrade {nextLabel}
-        </button>
+        </button>}
       </div>
 
       <div className="pub-bar">
@@ -57,7 +59,7 @@ export default function PlanUsageBanner({ plan, feature, used, label }) {
 
       {atLimit && (
         <div className="pub-limit-msg">
-          Você atingiu o limite do plano {plan === 'free' ? 'Gratuito' : 'Pro'}. Faça upgrade para continuar adicionando.
+          Você atingiu o limite do plano {plan === 'free' ? 'Gratuito' : 'Pro'}.{inApp ? '' : ' Faça upgrade para continuar adicionando.'}
         </div>
       )}
     </div>

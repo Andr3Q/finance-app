@@ -9,6 +9,7 @@ import HistoryDesktop from './HistoryDesktop.jsx'
 import { useIsDesktop } from '../hooks/useIsDesktop.js'
 import { MONTHS } from '../constants/index.js'
 import { fmtK, historyInsight } from '../utils/historyInsight.js'
+import { isAndroidApp } from '../utils/androidApp.js'
 
 const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 const CACHE_KEY = 'history:6'
@@ -82,7 +83,7 @@ export default function History() {
   if (isDesktop) {
     return (
       <HistoryDesktop ctx={{
-        isPro, isElite, loading, failed, retry: () => { setLoading(true); load() }, months, maxAbs, hasData, insight, goPlans: () => navigate('/planos'),
+        isPro, isElite, loading, failed, retry: () => { setLoading(true); load() }, months, maxAbs, hasData, insight, goPlans: isAndroidApp() ? null : () => navigate('/planos'),
         report: { month: reportMonth, year: reportYear, setMonth: setReportMonth, setYear: setReportYear, generate: generateReport, loading: reportLoading, text: report },
       }} />
     )
@@ -106,7 +107,7 @@ export default function History() {
               <section className="fin-card hs-state">
                 <h2 className="fin-title">Recurso Pro</h2>
                 <p className="fin-sub">Veja o resultado de cada mês e como o mês atual se compara aos anteriores.</p>
-                <button type="button" className="fin-btn hs-btn" onClick={() => navigate('/planos')}>Ver planos</button>
+                {!isAndroidApp() && <button type="button" className="fin-btn hs-btn" onClick={() => navigate('/planos')}>Ver planos</button>}
               </section>
             ) : loading ? (
               <div className="hs-state"><div className="dsb-loader"><div className="dsb-loader-ring" /></div></div>

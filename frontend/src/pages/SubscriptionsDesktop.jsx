@@ -18,7 +18,7 @@ export default function SubscriptionsDesktop({ ctx }) {
             <section className="nsb-card nsb-state">
               <h2>Recurso Elite</h2>
               <p>A Nancy detecta sozinha as assinaturas e gastos recorrentes e lembra você de cancelar as que não usa.</p>
-              <button type="button" className="nsb-btn" onClick={goPlans}>Ver planos</button>
+              {goPlans && <button type="button" className="nsb-btn" onClick={goPlans}>Ver planos</button>}
             </section>
           ) : loading ? (
             <div className="nsb-loading"><div className="dsb-loader-ring" style={{ margin: '0 auto' }} /></div>

@@ -5,7 +5,7 @@ import LegalPage from '../components/ui/LegalPage.jsx'
 // (versão 1.0, 22/05/2026) no visual novo. Trocar o texto é decisão jurídica, não de tela.
 const footer = (
   <>
-    <p className="lg-foot-line">Dúvidas: <a href="mailto:contato@nancy.com.br" className="lg-link">contato@nancy.com.br</a></p>
+    <p className="lg-foot-line">Dúvidas: <a href="mailto:contato@myfinancepro.com.br" className="lg-link">contato@myfinancepro.com.br</a></p>
     <p className="lg-foot-line"><Link to="/privacidade" className="lg-link">Política de Privacidade</Link></p>
   </>
 )

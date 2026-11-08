@@ -64,7 +64,7 @@ describe('Termos de Uso', () => {
 
   it('rodapé: e-mail de contato e link pra Política de Privacidade', () => {
     renderPage()
-    expect(screen.getByRole('link', { name: 'contato@nancy.com.br' })).toHaveAttribute('href', 'mailto:contato@nancy.com.br')
+    expect(screen.getByRole('link', { name: 'contato@myfinancepro.com.br' })).toHaveAttribute('href', 'mailto:contato@myfinancepro.com.br')
     expect(within(document.querySelector('.lg-foot')).getByRole('link', { name: 'Política de Privacidade' })).toHaveAttribute('href', '/privacidade')
   })
 
