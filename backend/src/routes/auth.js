@@ -25,6 +25,10 @@ const APP_URL = process.env.APP_URL || 'https://myfinancepro.com.br'
 // quais e-mails estão cadastrados (email enumeration via response time).
 const DUMMY_HASH = bcrypt.hashSync('__timing_guard__', 12)
 
+// Id que nenhum usuário tem (o id é um UUID v4 gerado pela aplicação; o nulo nunca é gerado): usado em gravações que não devem casar com linha nenhuma,
+// só para igualar o número de idas ao banco entre "e-mail existe" e "não existe" (forgot-password).
+const NO_USER_ID = '00000000-0000-0000-0000-000000000000'
+
 // Verificação de e-mail por código (6 dígitos, 1 em 1M) tem entropia baixa
 // demais pra confiar só no rate limit por IP — invalida o código depois de
 // poucas tentativas erradas, forçando reenvio em vez de permitir brute-force
@@ -502,7 +506,13 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
     const user = await prisma.user.findUnique({ where: { email: normalizedEmail } })
 
     // Resposta idêntica independente de existir ou não — evita email enumeration
-    if (!user) return res.json({ message: 'Se este e-mail existir, você receberá o link em breve.' })
+    if (!user) {
+      // O TEMPO também não pode revelar: com conta, a rota faz 2 idas ao banco (busca + gravação do token); sem conta fazia só 1, e com ~190 ms por ida
+      // (banco em us-west-1) a diferença aparece de fora. Aqui vai uma gravação que não casa com linha nenhuma (id inexistente, sem token), só para
+      // gastar a mesma ida. Se o banco falhar, cai no catch e responde 500 como o caminho com conta.
+      await prisma.user.updateMany({ where: { id: NO_USER_ID }, data: { resetToken: null, resetTokenExpiry: null } })
+      return res.json({ message: 'Se este e-mail existir, você receberá o link em breve.' })
+    }
 
     const rawToken  = crypto.randomBytes(32).toString('hex')
     const hash      = crypto.createHash('sha256').update(rawToken).digest('hex')
