@@ -102,15 +102,3 @@ test.describe('Analisador desktop — fluxo', () => {
     await expect(page.locator('.nds-badge')).toHaveText(['novo', 'IA'])
   })
 })
-
-test.describe('Analisador — celular', () => {
-  test.use({ viewport: { width: 393, height: 852 } })
-  test('no celular a rota volta ao Início', async ({ page }) => {
-    await page.addInitScript(() => { window.__nancySplashGone = false })
-    await injectSession(page, U)
-    await page.route('**/api/**', r => r.fulfill(json([])))
-    await page.route('**/api/auth/me**', r => r.fulfill(json(U)))
-    await page.goto('/analisador')
-    await expect(page).toHaveURL(/\/dashboard$/)
-  })
-})

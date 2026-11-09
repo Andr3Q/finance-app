@@ -6,7 +6,7 @@ const { injectSession, TEST_USER } = require('../helpers/session')
 // ─────────────────────────────────────────────────────────────────
 // Menu do "+" e folha "Nova transação" (Nancy 2, tela 11) — celular
 // O "+" da barra de baixo abre bolhas (Receita, Compra Parcelada, Falar com IA, Despesa,
-// Metas) por cima da tela desfocada; Receita/Despesa abrem a folha por cima do Extrato.
+// Analisar compra, Metas) por cima da tela desfocada; Receita/Despesa abrem a folha por cima do Extrato.
 // ─────────────────────────────────────────────────────────────────
 
 test.use({ viewport: { width: 393, height: 852 } })
@@ -32,11 +32,11 @@ const sheet = (page) => page.getByRole('dialog', { name: 'Nova transação' })
 const inSheet = (page, name) => sheet(page).getByRole('button', { name, exact: true })
 
 test.describe('Menu do "+"', () => {
-  test('abre as 5 bolhas por cima da tela desfocada e o "+" vira "×"', async ({ page }) => {
+  test('abre as 6 bolhas por cima da tela desfocada e o "+" vira "×"', async ({ page }) => {
     await setup(page)
     await expect(page.locator('.dsb-qm-bubble')).toHaveCount(0)
     await fab(page).click()
-    await expect(page.locator('.dsb-qm-lbl')).toHaveText(['Receita', 'Compra Parcelada', 'Falar com IA', 'Despesa', 'Metas'])
+    await expect(page.locator('.dsb-qm-lbl')).toHaveText(['Receita', 'Compra Parcelada', 'Falar com IA', 'Despesa', 'Analisar compra', 'Metas']) // o Analisador entrou; nenhuma saiu
     await expect(fab(page)).toHaveClass(/active/)
     // véu azul-marinho desfocado (design): a tela de trás continua lá, só escurecida
     const veil = await page.evaluate(() => {
@@ -45,6 +45,30 @@ test.describe('Menu do "+"', () => {
     })
     expect(veil.bg).toBe('rgba(18, 26, 51, 0.43)')
     expect(veil.blur).toContain('blur')
+  })
+
+  // Design da tela 37: 3 linhas de 2 bolhas (antes eram 2 + 2 + 1 centralizada). As 4 primeiras ficam onde estavam; "Analisar compra" e "Metas" fecham a última linha.
+  test('as 6 bolhas formam 3 linhas de 2, todas dentro da tela e sem se sobrepor', async ({ page }) => {
+    await setup(page)
+    await fab(page).click()
+    await expect(page.locator('.dsb-qm-bubble')).toHaveCount(6)
+    await page.waitForTimeout(700) // a animação de entrada
+    const b = await page.evaluate(() => [...document.querySelectorAll('.dsb-qm-bubble')].map(e => { const r = e.getBoundingClientRect(); return { l: Math.round(r.left), r: Math.round(r.right), t: Math.round(r.top), b: Math.round(r.bottom) } }))
+    expect(new Set(b.map(x => x.l)).size).toBe(2)                         // duas colunas
+    expect(new Set(b.map(x => x.t)).size).toBe(3)                         // três linhas
+    expect([b[0].l, b[2].l, b[4].l].every(x => x === b[0].l)).toBe(true)  // Receita, Falar com IA e Analisar compra na esquerda
+    expect([b[1].l, b[3].l, b[5].l].every(x => x === b[1].l)).toBe(true)  // Compra Parcelada, Despesa e Metas na direita
+    for (const x of b) { expect(x.l).toBeGreaterThanOrEqual(0); expect(x.r).toBeLessThanOrEqual(393); expect(x.t).toBeGreaterThanOrEqual(0) }
+    for (let i = 0; i < 4; i += 2) expect(b[i].b).toBeLessThanOrEqual(b[i + 2].t) // uma linha não invade a de baixo
+  })
+
+  test('"Analisar compra" abre o Analisador de compras', async ({ page }) => {
+    await setup(page)
+    await fab(page).click()
+    await page.locator('.dsb-qm-bubble', { hasText: 'Analisar compra' }).click()
+    await expect(page).toHaveURL(/\/analisador$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Analisador de compras' })).toBeVisible()
+    await expect(page.locator('.dsb-qm-bubble')).toHaveCount(0)            // e o menu fechou
   })
 
   test('tocar no fundo fecha o menu', async ({ page }) => {
