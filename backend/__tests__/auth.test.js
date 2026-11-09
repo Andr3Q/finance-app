@@ -562,6 +562,69 @@ describe('POST /api/auth/forgot-password', () => {
     expect(res.status).toBe(200)
     expect(res.body.message).toBe('Se este e-mail existir, você receberá o link em breve.')
   })
+
+  // Anti-enumeração por TEMPO (achado da auditoria). Com e-mail existente a rota faz 2 idas ao banco (busca + gravação do token) e com e-mail
+  // inexistente fazia só 1: no banco de produção (~190 ms por ida) a diferença aparece de fora e revela quais e-mails têm conta. Os dois caminhos
+  // precisam gastar o mesmo número de idas; no inexistente a gravação é um updateMany num id que não existe (0 linhas) e sem token nenhum.
+  describe('anti-enumeração por tempo', () => {
+    const NIL_UUID = '00000000-0000-0000-0000-000000000000'
+    const METODOS = ['findUnique', 'findFirst', 'findMany', 'update', 'updateMany', 'create', 'upsert', 'delete', 'deleteMany', 'count']
+    const zera = () => METODOS.forEach(m => prisma.user[m].mockClear())
+    const idasAoBanco = () => METODOS.reduce((n, m) => n + prisma.user[m].mock.calls.length, 0)
+    const pedir = (email) => request(app).post('/api/auth/forgot-password').send({ email })
+
+    test('e-mail inexistente gasta as mesmas idas ao banco que o existente (o tempo de resposta não revela quem tem conta)', async () => {
+      zera()
+      prisma.user.findUnique.mockResolvedValue(mockUser()); prisma.user.update.mockResolvedValue({})
+      expect((await pedir('test@example.com')).status).toBe(200)
+      const existente = idasAoBanco()
+
+      zera()
+      prisma.user.findUnique.mockResolvedValue(null); prisma.user.updateMany.mockResolvedValue({ count: 0 })
+      expect((await pedir('naoexiste@example.com')).status).toBe(200)
+
+      expect(existente).toBe(2) // busca + gravação do token
+      expect(idasAoBanco()).toBe(existente)
+    })
+
+    test('e-mail inexistente: a gravação extra não grava token nem altera conta nenhuma (id que não existe, 0 linhas)', async () => {
+      zera()
+      prisma.user.findUnique.mockResolvedValue(null); prisma.user.updateMany.mockResolvedValue({ count: 0 })
+      await pedir('naoexiste@example.com')
+
+      expect(prisma.user.update).not.toHaveBeenCalled()
+      expect(prisma.user.updateMany).toHaveBeenCalledTimes(1)
+      const arg = prisma.user.updateMany.mock.calls[0][0]
+      expect(arg.where).toEqual({ id: NIL_UUID })
+      expect(arg.data).toEqual({ resetToken: null, resetTokenExpiry: null })
+    })
+
+    test('e-mail existente: continua gravando o hash do token na conta e não usa o updateMany do caminho inexistente', async () => {
+      zera()
+      prisma.user.findUnique.mockResolvedValue(mockUser()); prisma.user.update.mockResolvedValue({})
+      await pedir('test@example.com')
+
+      expect(prisma.user.updateMany).not.toHaveBeenCalled()
+      const arg = prisma.user.update.mock.calls[0][0]
+      expect(arg.where).toEqual({ id: 'user-123' })
+      expect(arg.data.resetToken).toMatch(/^[0-9a-f]{64}$/)
+      expect(arg.data.resetTokenExpiry).toBeInstanceOf(Date)
+    })
+
+    test('falha do banco na gravação dá a mesma resposta (500) nos dois caminhos, sem revelar nada', async () => {
+      zera()
+      prisma.user.findUnique.mockResolvedValue(mockUser()); prisma.user.update.mockRejectedValueOnce(new Error('db fora'))
+      const existente = await pedir('test@example.com')
+
+      zera()
+      prisma.user.findUnique.mockResolvedValue(null); prisma.user.updateMany.mockRejectedValueOnce(new Error('db fora'))
+      const inexistente = await pedir('naoexiste@example.com')
+
+      expect(existente.status).toBe(500)
+      expect(inexistente.status).toBe(existente.status)
+      expect(inexistente.body).toEqual(existente.body)
+    })
+  })
 })
 
 // ══════════════════════════════════════════════════════════
