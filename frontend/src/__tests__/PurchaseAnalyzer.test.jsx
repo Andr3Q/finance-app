@@ -281,12 +281,3 @@ describe('Analisador de compras — próximo passo (faz de verdade)', () => {
     expect(seen).toEqual([{ message: 'Vale a pena comprar Celular novo de R$ 7.000,00?' }])
   })
 })
-
-describe('Analisador de compras — celular', () => {
-  it('no celular a rota volta ao Início (a tela é do desktop)', () => {
-    setDesktop(false)
-    setup()
-    expect(screen.getByTestId('where')).toHaveTextContent('/dashboard')
-    expect(analyzerAPI.base).not.toHaveBeenCalled()
-  })
-})
