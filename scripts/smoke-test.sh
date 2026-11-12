@@ -61,7 +61,7 @@ for a in $ASSETS; do
     *)     if [ "$s" = "200" ]; then ok "$a ($s)"; else bad "$a → $s"; fi ;;
   esac
 done
-for r in /login /register /forgot-password /planos /termos /privacidade /dashboard /transactions /goals /settings /financas /rota-que-nao-existe; do
+for r in /login /register /forgot-password /planos /termos /privacidade /excluir-conta /dashboard /transactions /goals /settings /financas /rota-que-nao-existe; do
   expect_status "SPA $r" "$BASE$r" 200
 done
 

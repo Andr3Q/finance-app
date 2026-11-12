@@ -27,7 +27,7 @@ export default function Navbar() {
 
   // "/settings" fica ativo em qualquer subtela dele (ex: /settings/seguranca)
   const isActive  = (path) => path === '/settings'
-    ? location.pathname.startsWith('/settings') || ['/termos', '/privacidade'].includes(location.pathname) // Termos/Privacidade abrem pelo Perfil
+    ? location.pathname.startsWith('/settings') || ['/termos', '/privacidade', '/excluir-conta'].includes(location.pathname) // Termos/Privacidade/Excluir conta abrem pelo Perfil
     : location.pathname === path
   // No design, Notificações e Finanças (aberta pelo "Contas do mês" do Extrato) aparecem com
   // "Extrato" aceso na barra de baixo (mobile).

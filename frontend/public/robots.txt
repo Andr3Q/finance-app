@@ -3,6 +3,7 @@ Allow: /
 Allow: /planos
 Allow: /privacidade
 Allow: /termos
+Allow: /excluir-conta
 
 # Rotas privadas — autenticadas, sem conteúdo indexável
 Disallow: /dashboard
