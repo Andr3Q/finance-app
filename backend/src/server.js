@@ -140,6 +140,14 @@ app.use((req, res, next) => {
 // Portão da homologação: só age com STAGING_GATE_KEY definida (nunca em produção). Antes de TUDO que serve conteúdo.
 app.use(gateDeniedLimiter, stagingGate())
 
+// Logo do cabeçalho dos e-mails (services/emailLayout.js). O helmet manda Cross-Origin-Resource-Policy: same-origin em tudo, e com isso o
+// navegador e alguns leitores de e-mail recusam a imagem quando ela é aberta de fora do site (a logo aparece quebrada). A exceção é só
+// para este arquivo, que é público (a logo do app, sem dado de ninguém); o resto continua same-origin. Protegido em security.test.js.
+app.use('/logo-icon.png', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin')
+  next()
+})
+
 // Sitemap dinâmico — ANTES do express.static (arquivo estático removido do frontend/public)
 app.get('/sitemap.xml', (req, res) => {
   const BASE = process.env.APP_URL || 'https://myfinancepro.com.br'
