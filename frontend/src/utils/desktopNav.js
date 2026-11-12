@@ -27,7 +27,7 @@ const SCREEN_BY_PATH = {
   '/settings': 'perfil', '/settings/perfil': 'dadosPessoais', '/settings/seguranca': 'seguranca',
   '/settings/notificacoes': 'notificacoes', '/settings/fechamento': 'fechamento', '/planos': 'planos',
   '/settings/pagamentos': 'pagamentos', '/settings/indique': 'indique', '/settings/dados': 'dados',
-  '/settings/instalar': 'instalar', '/termos': 'termos', '/privacidade': 'privacidade',
+  '/settings/instalar': 'instalar', '/termos': 'termos', '/privacidade': 'privacidade', '/excluir-conta': 'excluirConta',
 }
 
 // sub-telas acendem o item "pai" do menu
@@ -38,7 +38,7 @@ const PARENT = {
 }
 
 // telas do grupo "Configurações": o cartão do usuário (rodapé do menu) fica aceso
-const SETTINGS_SCREENS = ['perfil', 'dadosPessoais', 'seguranca', 'notificacoes', 'fechamento', 'planos', 'pagamentos', 'indique', 'dados', 'instalar', 'termos', 'privacidade']
+const SETTINGS_SCREENS = ['perfil', 'dadosPessoais', 'seguranca', 'notificacoes', 'fechamento', 'planos', 'pagamentos', 'indique', 'dados', 'instalar', 'termos', 'privacidade', 'excluirConta']
 
 const normalize = (p) => (p && p.length > 1 ? p.replace(/\/+$/, '') : p)
 
@@ -91,6 +91,7 @@ const STATIC_TITLES = {
   instalar:      ['Instalar app', 'Nancy no computador'],
   termos:        ['Termos de Uso', 'Atualizado em mai/2026'],
   privacidade:   ['Política de Privacidade', 'Conforme a LGPD'],
+  excluirConta:  ['Excluir conta e dados', 'Como apagar sua conta do Nancy'],
 }
 
 // opts: { now: Date, firstName: string }. A tela pode trocar só o subtítulo (usePageSubtitle) quando ele depende dos dados dela.

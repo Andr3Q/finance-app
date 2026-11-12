@@ -54,6 +54,7 @@ const Calendar       = lazyWithReload(() => import('./pages/Calendar.jsx'))
 const Finance        = lazyWithReload(() => import('./pages/Finance.jsx'))
 const PrivacyPolicy  = lazyWithReload(() => import('./pages/PrivacyPolicy.jsx'))
 const TermsOfUse     = lazyWithReload(() => import('./pages/TermsOfUse.jsx'))
+const DeleteAccount  = lazyWithReload(() => import('./pages/DeleteAccount.jsx'))
 const NotFound       = lazyWithReload(() => import('./pages/NotFound.jsx'))
 
 function isLoggedIn() {
@@ -242,6 +243,7 @@ export default function App() {
             <Route path="/planos"       element={<Planos />} />
             <Route path="/privacidade"  element={<PrivacyPolicy />} />
             <Route path="/termos"       element={<TermsOfUse />} />
+            <Route path="/excluir-conta" element={<DeleteAccount />} />
             <Route path="*"             element={<NotFound />} />
           </Routes>
         </Suspense>
