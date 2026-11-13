@@ -3,23 +3,25 @@
 // ═══════════════════════════════════════════════════════
 // 📧 src/services/emailLayout.js — Visual dos e-mails (Nancy 2)
 //
-// Casca única dos e-mails transacionais: cabeçalho azul com a logo, cartão branco
-// de cantos arredondados, botão azul, avisos coloridos e versão escura. Cada e-mail
+// Casca única dos e-mails transacionais: cabeçalho azul (imagem, ver emailBanners.js), cartão
+// branco de cantos arredondados, botão azul, avisos coloridos e versão escura. Cada e-mail
 // em emailService.js só monta o miolo (texto, link, números) com os ajudantes daqui.
 //
 // Regras de e-mail (por isso tudo é tabela com estilo na própria tag):
 // - cliente de e-mail não entende variável de CSS, flex nem fonte da web: cores
 //   fixas e pilha de fontes do sistema;
-// - o que o Gmail do iPhone escurece sozinho (fundo branco vira cinza escuro)
-//   continua legível; quem aceita `prefers-color-scheme` (Apple Mail, Outlook)
-//   recebe a paleta escura abaixo;
+// - o Gmail do celular, no modo escuro, recolore o e-mail sozinho e não dá para desligar
+//   (fundo branco vira cinza escuro, texto escuro vira claro e o branco sobre azul vira preto).
+//   Por isso o cabeçalho é IMAGEM, que ele não recolore; o resto é texto e o Gmail adapta.
+//   Quem aceita `prefers-color-scheme` (Apple Mail, Outlook) recebe a paleta escura abaixo;
 // - tudo que vem do usuário (nome etc.) precisa passar por esc() antes de entrar
-//   no miolo; título, subtítulo e prévia daqui já são escapados.
+//   no miolo; título e prévia daqui já são escapados.
 // ═══════════════════════════════════════════════════════
 
+const { bannerUrl } = require('./emailBanners')
+
+// Sempre o endereço de produção: na homologação o portão barraria as imagens e os links.
 const SITE_URL = 'https://myfinancepro.com.br'
-// Sempre o endereço de produção: na homologação o portão barraria a imagem.
-const LOGO_URL = `${SITE_URL}/logo-icon.png`
 
 const C = {
   brand: '#1C48FF',
@@ -139,13 +141,33 @@ const MOBILE_CSS = `
   .nx-title { font-size:24px !important; }
 }`
 
+const HEADER_GRADIENT = 'linear-gradient(135deg,#3A62FF 0%,#1C48FF 55%,#1636D4 100%)'
+
+// Cabeçalho em IMAGEM (logo + "nancy" + título, desenhado por scripts/gerar-banners-email.cjs). O azul em volta só aparece se a
+// imagem não carregar (Outlook bloqueia imagem por padrão): o título fica no texto alternativo, em branco. O fundo é duplo de
+// propósito: `bgcolor` para o Outlook (não entende degradê) e o degradê para os demais.
+function headerImage(title, url) {
+  return `<tr><td class="nx-hero" bgcolor="${C.brand}" style="background:${C.brand};background-image:${HEADER_GRADIENT};border-radius:24px;">
+<img src="${url}" width="520" alt="${esc(title)}" style="display:block;width:100%;max-width:520px;height:auto;border:0;border-radius:24px;font-family:${FONT};font-size:26px;font-weight:800;line-height:1.2;color:#FFFFFF;">
+</td></tr>`
+}
+
+// Reserva para um título que ainda não tem imagem em emailBanners.js (o e-mail sai igual, só que com o título em texto).
+// O teste emailTemplates.test.js garante que os 15 e-mails têm imagem; isto existe para um e-mail novo nunca deixar de ser enviado.
+function headerText(title) {
+  return `<tr><td class="nx-head" bgcolor="${C.brand}" style="background:${C.brand};background-image:${HEADER_GRADIENT};border-radius:24px;padding:28px 28px 30px;">
+<p style="margin:0 0 22px;font-family:${FONT};font-size:22px;font-weight:800;line-height:1;letter-spacing:-0.4px;color:#FFFFFF;">nancy</p>
+<h1 class="nx-title" style="margin:0;font-family:${FONT};font-size:26px;font-weight:800;line-height:1.2;letter-spacing:-0.4px;color:#FFFFFF;">${esc(title)}</h1>
+</td></tr>`
+}
+
 // Monta o e-mail completo.
-//   title      — título grande do cabeçalho (texto puro)
-//   subtitle   — linha opcional abaixo do título (texto puro)
+//   title      — título do cabeçalho (texto puro); se estiver em emailBanners.js, vira a imagem
 //   preheader  — texto de prévia que aparece na lista da caixa de entrada (texto puro)
 //   body       — HTML do miolo (já escapado), montado com os ajudantes acima
-function emailLayout({ title, subtitle = '', preheader = '', body }) {
+function emailLayout({ title, preheader = '', body }) {
   const hidden = esc(preheader)
+  const url = bannerUrl(title)
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -162,14 +184,7 @@ ${hidden ? `<div style="display:none;max-height:0;max-width:0;overflow:hidden;op
 <tr><td align="center" class="nx-wrap" style="padding:28px 14px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
 
-<tr><td class="nx-head" bgcolor="${C.brand}" style="background:${C.brand};background-image:linear-gradient(135deg,#3A62FF 0%,#1C48FF 55%,#1636D4 100%);border-radius:24px;padding:28px 28px 30px;">
-<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px;"><tr>
-<td valign="middle" style="padding:0 12px 0 0;"><img src="${LOGO_URL}" width="40" height="40" alt="" style="display:block;width:40px;height:40px;border:0;border-radius:12px;"></td>
-<td valign="middle" style="font-family:${FONT};font-size:22px;font-weight:800;line-height:1;letter-spacing:-0.4px;color:#FFFFFF;">nancy</td>
-</tr></table>
-<h1 class="nx-title" style="margin:0;font-family:${FONT};font-size:26px;font-weight:800;line-height:1.2;letter-spacing:-0.4px;color:#FFFFFF;">${esc(title)}</h1>
-${subtitle ? `<p style="margin:8px 0 0;font-family:${FONT};font-size:14px;line-height:1.5;color:#D6E0FF;">${esc(subtitle)}</p>` : ''}
-</td></tr>
+${url ? headerImage(title, url) : headerText(title)}
 
 <tr><td height="12" style="height:12px;font-size:0;line-height:0;">&nbsp;</td></tr>
 
@@ -191,4 +206,4 @@ ${body}
 </html>`
 }
 
-module.exports = { esc, emailLayout, emailP, emailSmall, emailGreeting, emailNote, emailButton, emailCode, emailDivider, emailRows, C, SITE_URL, LOGO_URL }
+module.exports = { esc, emailLayout, emailP, emailSmall, emailGreeting, emailNote, emailButton, emailCode, emailDivider, emailRows, C, SITE_URL }

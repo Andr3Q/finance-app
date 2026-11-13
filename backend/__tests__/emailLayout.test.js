@@ -1,30 +1,44 @@
 'use strict'
 
 const {
-  esc, emailLayout, emailP, emailSmall, emailGreeting, emailNote, emailButton, emailCode, emailDivider, emailRows, C, LOGO_URL,
+  esc, emailLayout, emailP, emailSmall, emailGreeting, emailNote, emailButton, emailCode, emailDivider, emailRows, C,
 } = require('../src/services/emailLayout')
+const { bannerUrl } = require('../src/services/emailBanners')
 
 describe('emailLayout — casca dos e-mails', () => {
-  test('título, subtítulo e prévia são texto puro: tudo escapado', () => {
-    const h = emailLayout({ title: '<b>T</b>', subtitle: '<i>S</i>', preheader: '<u>P</u>', body: '' })
-    for (const cru of ['<b>T</b>', '<i>S</i>', '<u>P</u>']) expect(h).not.toContain(cru)
+  test('título e prévia são texto puro: tudo escapado (título sem imagem usa o cabeçalho em texto)', () => {
+    const h = emailLayout({ title: '<b>T</b>', preheader: '<u>P</u>', body: '' })
+    for (const cru of ['<b>T</b>', '<u>P</u>']) expect(h).not.toContain(cru)
     expect(h).toContain('&lt;b&gt;T&lt;/b&gt;')
-    expect(h).toContain('&lt;i&gt;S&lt;/i&gt;')
     expect(h).toContain('&lt;u&gt;P&lt;/u&gt;')
   })
 
-  test('sem prévia não cria a linha escondida; sem subtítulo não cria o parágrafo', () => {
+  test('sem prévia não cria a linha escondida', () => {
     const h = emailLayout({ title: 'Oi', body: '<p>corpo</p>' })
     expect(h).not.toContain('display:none')
-    expect(h).not.toContain('#D6E0FF')
     expect(h).toContain('<p>corpo</p>')
   })
 
-  test('a logo vem da produção e é decorativa (o "nancy" ao lado já diz o nome)', () => {
-    const h = emailLayout({ title: 'Oi', body: '' })
-    expect(LOGO_URL).toBe('https://myfinancepro.com.br/logo-icon.png')
-    expect(h).toContain(`<img src="${LOGO_URL}" width="40" height="40" alt=""`)
-    expect(h).toContain('>nancy</td>')
+  test('título com imagem: cabeçalho é a imagem, com o título no texto alternativo e azul de reserva', () => {
+    const h = emailLayout({ title: 'Resumo semanal', body: '' })
+    expect(h).toContain(`<img src="${bannerUrl('Resumo semanal')}" width="520" alt="Resumo semanal"`)
+    expect(h).toContain('class="nx-hero"')
+    expect(h).toContain('bgcolor="#1C48FF"')                 // reserva para o Outlook (sem degradê, sem imagem)
+    expect(h).toContain('linear-gradient(135deg,#3A62FF')    // reserva para os demais enquanto a imagem não carrega
+    expect(h).not.toContain('<h1')                           // o título não é texto: o Gmail escuro viraria o branco em preto
+  })
+
+  test('texto alternativo da imagem é escapado', () => {
+    const h = emailLayout({ title: 'Resumo semanal', body: '' })
+    expect(h).not.toMatch(/alt="[^"]*[<>][^"]*"/)
+  })
+
+  test('título sem imagem: o e-mail sai igual, com o título em texto e sem imagem nenhuma', () => {
+    const h = emailLayout({ title: 'Título novo sem imagem', body: '' })
+    expect(h).toContain('<h1 class="nx-title"')
+    expect(h).toContain('>Título novo sem imagem</h1>')
+    expect(h).toContain('>nancy</p>')
+    expect(h).not.toContain('<img')
   })
 
   test('cabe no celular: largura máxima 520 e regra para telas estreitas', () => {

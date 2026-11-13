@@ -10,6 +10,8 @@ jest.mock('resend', () => ({
 }))
 
 const svc = require('../src/services/emailService')
+const { esc } = require('../src/services/emailLayout')
+const { bannerUrl } = require('../src/services/emailBanners')
 
 const TO = 'maria@exemplo.com'
 const NOME = 'Maria Silva'
@@ -20,110 +22,128 @@ const montarCasos = (NOME) => ({
   verificacao: {
     enviar: () => svc.sendVerificationEmail(TO, NOME, 'https://myfinancepro.com.br/verify-email?token=abc123', '434812'),
     assunto: 'Confirme seu e-mail — Nancy',
+    titulo: 'Confirme seu e-mail',
     links: ['https://myfinancepro.com.br/verify-email?token=abc123'],
-    frases: ['Confirme seu e-mail', 'Confirmar meu e-mail', 'expira em 24 horas', 'Ou digite este código no app:', '434812', 'expira em 15 minutos'],
+    frases: ['Confirmar meu e-mail', 'expira em 24 horas', 'Ou digite este código no app:', '434812', 'expira em 15 minutos'],
   },
   boasVindas: {
     enviar: () => svc.sendWelcomeEmail(TO, NOME, '2026-11-22T15:00:00Z'),
     assunto: 'Bem-vindo(a) ao Nancy! Seu trial Pro começa agora',
+    titulo: 'Seja bem-vindo(a)!',
     links: [APP],
-    frases: ['Seja bem-vindo(a)!', 'Plano Pro', '7 dias grátis', 'Assistente financeiro com IA', 'Autenticação em dois fatores (2FA)', '22 de novembro de 2026', 'Acessar minha conta'],
+    frases: ['Plano Pro', '7 dias grátis', 'Assistente financeiro com IA', 'Autenticação em dois fatores (2FA)', '22 de novembro de 2026', 'Acessar minha conta'],
   },
   redefinirSenha: {
     enviar: () => svc.sendResetEmail(TO, NOME, 'https://myfinancepro.com.br/reset-password?token=zzz999'),
     assunto: 'Redefinição de senha — Nancy',
+    titulo: 'Redefinição de senha',
     links: ['https://myfinancepro.com.br/reset-password?token=zzz999'],
-    frases: ['Redefinição de senha', 'Redefinir minha senha', 'expira em 1 hora', 'sua senha permanece a mesma'],
+    frases: ['Redefinir minha senha', 'expira em 1 hora', 'sua senha permanece a mesma'],
   },
   senhaAlterada: {
     enviar: () => svc.sendPasswordChangedAlert(TO, NOME),
     assunto: 'Sua senha foi alterada — Nancy',
+    titulo: 'Senha alterada',
     links: ['https://myfinancepro.com.br/login'],
-    frases: ['Senha alterada', 'A senha da sua conta foi alterada em', 'Não foi você?', 'Esqueci minha senha', 'Acessar minha conta'],
+    frases: ['A senha da sua conta foi alterada em', 'Não foi você?', 'Esqueci minha senha', 'Acessar minha conta'],
   },
   novoIp: {
     enviar: () => svc.sendNewIpLoginAlert(TO, NOME, '203.0.113.7'),
     assunto: 'Acesso de novo local detectado — Nancy',
+    titulo: 'Acesso de novo local detectado',
     links: ['https://myfinancepro.com.br/settings'],
-    frases: ['Acesso de novo local detectado', 'Detalhes do acesso:', '203.0.113.7', 'nos últimos 30 dias', 'Proteger minha conta'],
+    frases: ['Detalhes do acesso:', '203.0.113.7', 'nos últimos 30 dias', 'Proteger minha conta'],
   },
   contaBloqueada: {
     enviar: () => svc.sendAccountUnlockEmail(TO, NOME, 'https://myfinancepro.com.br/unlock?token=u1u1'),
     assunto: 'Desbloqueie sua conta Nancy',
+    titulo: 'Conta bloqueada temporariamente',
     links: ['https://myfinancepro.com.br/unlock?token=u1u1'],
-    frases: ['Conta bloqueada temporariamente', '10 tentativas de login incorretas', 'Desbloquear minha conta', 'expira em 1 hora e só pode ser usado uma vez'],
+    frases: ['10 tentativas de login incorretas', 'Desbloquear minha conta', 'expira em 1 hora e só pode ser usado uma vez'],
   },
   novoEmailConfirma: {
     enviar: () => svc.sendEmailChangeVerification(TO, NOME, 'https://myfinancepro.com.br/confirm-email?token=c1c1'),
     assunto: 'Confirme seu novo e-mail — Nancy',
+    titulo: 'Confirme seu novo e-mail',
     links: ['https://myfinancepro.com.br/confirm-email?token=c1c1'],
-    frases: ['Confirme seu novo e-mail', 'Confirmar novo e-mail', 'expira em 24 horas', 'nada será alterado'],
+    frases: ['Confirmar novo e-mail', 'expira em 24 horas', 'nada será alterado'],
   },
   emailAlterado: {
     enviar: () => svc.sendEmailChangeAlert(TO, NOME, 'novo@exemplo.com'),
     assunto: 'Seu e-mail de login foi alterado — Nancy',
+    titulo: 'E-mail de login alterado',
     links: ['mailto:contato@myfinancepro.com.br'],
-    frases: ['E-mail de login alterado', 'novo@exemplo.com', 'Não foi você?', 'contato@myfinancepro.com.br'],
+    frases: ['novo@exemplo.com', 'Não foi você?', 'contato@myfinancepro.com.br'],
   },
   planoAtivadoPro: {
     enviar: () => svc.sendPlanActivationEmail(TO, NOME, 'pro', '2026-12-12T15:00:00Z'),
     assunto: 'Plano Pro ativado com sucesso! — Nancy',
+    titulo: 'Plano Pro ativado',
     links: [APP],
-    frases: ['Plano Pro ativado', 'Seu pagamento foi confirmado', '12 de dezembro de 2026', 'Acessar minha conta'],
+    frases: ['Seu pagamento foi confirmado', '12 de dezembro de 2026', 'Acessar minha conta'],
   },
   planoAtivadoElite: {
     enviar: () => svc.sendPlanActivationEmail(TO, NOME, 'elite', '2026-12-12T15:00:00Z'),
     assunto: 'Plano Elite ativado com sucesso! — Nancy',
+    titulo: 'Plano Elite ativado',
     links: [APP],
-    frases: ['Plano Elite ativado', 'Plano Elite'],
+    frases: ['Plano Elite'],
   },
   renovacao: {
     enviar: () => svc.sendRenewalReminderEmail(TO, NOME, 'pro', 3),
     assunto: 'Seu plano Pro expira em 3 dias — Nancy',
+    titulo: 'Aviso de renovação',
     links: [`${APP}/planos`],
-    frases: ['Aviso de renovação', 'expira em 3 dias', 'Renovar plano Pro', 'Se já renovou, ignore este e-mail.'],
+    frases: ['expira em 3 dias', 'Renovar plano Pro', 'Se já renovou, ignore este e-mail.'],
   },
   renovacaoHoje: {
     enviar: () => svc.sendRenewalReminderEmail(TO, NOME, 'elite', 1),
     assunto: 'Seu plano Elite expira hoje — Nancy',
+    titulo: 'Aviso de renovação',
     links: [`${APP}/planos`],
     frases: ['expira hoje', 'Renovar plano Elite'],
   },
   trialAcabando: {
     enviar: () => svc.sendTrialExpiryEmail(TO, NOME, 2),
     assunto: 'Seu trial Pro expira em 2 dias — Nancy',
+    titulo: 'Seu trial está acabando',
     links: [`${APP}/planos`],
-    frases: ['Seu trial está acabando', 'expira em 2 dias', 'Assinar Pro — R$ 9,90/mês', 'Cancele quando quiser. Sem fidelidade.'],
+    frases: ['expira em 2 dias', 'Assinar Pro — R$ 9,90/mês', 'Cancele quando quiser. Sem fidelidade.'],
   },
   trialEncerrou: {
     enviar: () => svc.sendPlanExpiredEmail(TO, NOME, 'trial'),
     assunto: 'Seu trial Pro encerrou — Nancy',
+    titulo: 'Seu trial de 7 dias encerrou',
     links: [`${APP}/planos`],
-    frases: ['Seu trial de 7 dias encerrou', 'plano Grátis', 'Seus dados continuam salvos', 'Ver planos — a partir de R$ 9,90/mês'],
+    frases: ['plano Grátis', 'Seus dados continuam salvos', 'Ver planos — a partir de R$ 9,90/mês'],
   },
   planoExpirou: {
     enviar: () => svc.sendPlanExpiredEmail(TO, NOME, 'paid'),
     assunto: 'Seu plano expirou — Nancy',
+    titulo: 'Seu plano expirou',
     links: [`${APP}/planos`],
-    frases: ['Seu plano expirou', 'falta de renovação'],
+    frases: ['falta de renovação'],
   },
   indicacao: {
     enviar: () => svc.sendReferralRewardEmail(TO, NOME, 'João Souza'),
     assunto: 'João Souza entrou usando seu código — você ganhou +10 dias!',
+    titulo: 'Sua indicação funcionou!',
     links: [`${APP}/settings`],
-    frases: ['Sua indicação funcionou!', 'João Souza', '+10 dias', 'Ver meu código de indicação', 'mais 30 dias grátis'],
+    frases: ['João Souza', '+10 dias', 'Ver meu código de indicação', 'mais 30 dias grátis'],
   },
   resumoSemanal: {
     enviar: () => svc.sendWeeklyDigest(TO, NOME, { totalExpenses: 1234.5, totalIncome: 5000, topCategory: 'Alimentação', transactionCount: 23, balance: 3765.5 }),
     assunto: 'Seu resumo semanal — Nancy',
+    titulo: 'Resumo semanal',
     links: [APP],
-    frases: ['Resumo semanal', 'últimos 7 dias', 'R$ 5.000,00', '- R$ 1.234,50', 'Categoria que mais gastou', 'Alimentação', 'Saldo do período', 'R$ 3.765,50', 'Ver detalhes no app'],
+    frases: ['últimos 7 dias', 'R$ 5.000,00', '- R$ 1.234,50', 'Categoria que mais gastou', 'Alimentação', 'Saldo do período', 'R$ 3.765,50', 'Ver detalhes no app'],
   },
   relatorioMensal: {
     enviar: () => svc.sendMonthlyReport(TO, NOME, 10, 2026, { salary: 5000, unpaidFixedCosts: 450.9, totalExpenses: 3120.4, currentBalance: 1428.7 }, Buffer.from('%PDF-fake')),
     assunto: 'Relatório de Outubro/2026 — Nancy',
+    titulo: 'Relatório mensal',
     links: [],
-    frases: ['Relatório de Outubro/2026', 'R$ 5.000,00', 'Contas Fixas (pendentes)', '- R$ 450,90', '- R$ 3.120,40', 'Saldo Final', 'R$ 1.428,70', 'O detalhamento completo está no PDF em anexo.'],
+    frases: ['Outubro/2026', 'R$ 5.000,00', 'Contas Fixas (pendentes)', '- R$ 450,90', '- R$ 3.120,40', 'Saldo Final', 'R$ 1.428,70', 'O detalhamento completo está no PDF em anexo.'],
   },
 })
 const CASOS = montarCasos(NOME)
@@ -165,12 +185,19 @@ describe('e-mails no visual do Nancy 2', () => {
       for (const l of caso.links) expect(payload.html).toContain(`href="${l}"`)
     })
 
-    test('casca nova: cabeçalho azul, logo, rodapé, prévia e versão escura', () => {
+    test('cabeçalho é a imagem do título (o Gmail escuro do celular não recolore imagem)', () => {
+      const url = bannerUrl(caso.titulo)
+      expect(url).toMatch(/^https:\/\/myfinancepro\.com\.br\/email\/banner-[a-z0-9-]+-[0-9a-f]{8}\.jpg$/)
+      expect(payload.html).toContain(`<img src="${url}" width="520" alt="${esc(caso.titulo)}"`)
+      expect(payload.html).not.toContain('<h1')                          // título não é mais texto branco sobre azul
+      expect(payload.html).not.toContain('logo-icon.png')               // nada depende da logo (que não é liberada para outros sites)
+    })
+
+    test('casca nova: azul de reserva, rodapé, prévia e versão escura', () => {
       const h = payload.html
       expect(h.startsWith('<!DOCTYPE html>')).toBe(true)
       expect(h).toContain('<html lang="pt-BR">')
-      expect(h).toContain('#1C48FF')                                         // azul do Nancy 2
-      expect(h).toContain('https://myfinancepro.com.br/logo-icon.png')       // logo nova (produção)
+      expect(h).toContain('#1C48FF')                                         // azul do Nancy 2 (reserva atrás da imagem e botão)
       expect(h).toContain('https://myfinancepro.com.br/privacidade')
       expect(h).toContain('https://myfinancepro.com.br/termos')
       expect(h).toContain('Nancy — Seu controle financeiro pessoal')
@@ -251,7 +278,8 @@ describe('e-mails no visual do Nancy 2', () => {
       const p = await capturar(() => svc.sendMonthlyReport(TO, NOME, 11, 2026, { salary: 5000, unpaidFixedCosts: 0, totalExpenses: 6200, currentBalance: -1200 }, Buffer.from('x')))
       const t = visivel(p.html)
       expect(t).not.toContain('Contas Fixas (pendentes)')
-      expect(t).toContain('Relatório de Novembro/2026')
+      expect(t).toContain('mês de Novembro/2026')                   // o mês fica no corpo (o cabeçalho é a imagem "Relatório mensal")
+      expect(p.subject).toBe('Relatório de Novembro/2026 — Nancy')  // e no assunto
       expect(t).toContain('- R$ 1.200,00')
       expect(t).not.toContain('R$ -1')
     })

@@ -56,7 +56,7 @@ async function sendMonthlyReport(toEmail, userName, month, year, summary, pdfBuf
   rows.push({ label: 'Saldo Final', value: `${summary.currentBalance < 0 ? '- ' : ''}${brl(summary.currentBalance)}`, tone: summary.currentBalance >= 0 ? 'green' : 'red', big: true })
 
   const html = emailLayout({
-    title: `Relatório de ${monthName}/${year}`,
+    title: 'Relatório mensal',
     preheader: `O resumo financeiro do seu mês de ${monthName}/${year}, com o detalhamento completo em PDF.`,
     body: [
       emailGreeting(userName),
