@@ -134,7 +134,8 @@ const visivel = (html) => html
   .replace(/<head>[\s\S]*?<\/head>/, '')
   .replace(/<div style="display:none[\s\S]*?<\/div>/, '')
   .replace(/<[^>]+>/g, ' ')
-  .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&nbsp;/g, ' ')
+  // "&amp;" por último: se viesse antes, "&amp;lt;" viraria "&lt;" e depois "<" (desescape duplo).
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
   .replace(/\s+/g, ' ')
 
 async function capturar(fn) {
