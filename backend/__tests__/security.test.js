@@ -177,18 +177,17 @@ describe('Cabeçalhos de segurança HTTP', () => {
     expect(res.headers['permissions-policy']).toBe('camera=(), microphone=(self), geolocation=()')
   })
 
-  // A logo do cabeçalho dos e-mails é aberta por leitores de e-mail fora do site. O helmet manda
-  // Cross-Origin-Resource-Policy: same-origin em tudo e, sem a exceção, a logo aparece quebrada.
-  // A exceção vale só para este arquivo público: o resto (API e os outros ícones) segue same-origin.
-  test('a logo dos e-mails (/logo-icon.png) pode ser aberta por outros sites; o resto continua same-origin', async () => {
-    const logo = await request(app).get('/logo-icon.png')
-    expect(logo.headers['cross-origin-resource-policy']).toBe('cross-origin')
+  // As imagens do cabeçalho dos e-mails (/email/banner-*.jpg) são abertas por leitores de e-mail fora do site. O helmet manda
+  // Cross-Origin-Resource-Policy: same-origin em tudo e, sem a exceção, o cabeçalho aparece quebrado.
+  // A exceção vale só para essa pasta pública: o resto (API, a logo e os outros ícones) segue same-origin.
+  test('as imagens dos e-mails (/email/) podem ser abertas por outros sites; o resto continua same-origin', async () => {
+    const banner = await request(app).get('/email/banner-teste.jpg')
+    expect(banner.headers['cross-origin-resource-policy']).toBe('cross-origin')
 
-    const api = await request(app).get('/api/auth/me')
-    expect(api.headers['cross-origin-resource-policy']).toBe('same-origin')
-
-    const outroIcone = await request(app).get('/icon-192.png')
-    expect(outroIcone.headers['cross-origin-resource-policy']).toBe('same-origin')
+    for (const caminho of ['/api/auth/me', '/logo-icon.png', '/icon-192.png', '/emailer/x.png']) {
+      const res = await request(app).get(caminho)
+      expect(res.headers['cross-origin-resource-policy']).toBe('same-origin')
+    }
   })
 
   test('endpoint de dados financeiros inclui Cache-Control: no-store', async () => {
