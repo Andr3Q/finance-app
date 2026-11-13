@@ -177,6 +177,19 @@ describe('Cabeçalhos de segurança HTTP', () => {
     expect(res.headers['permissions-policy']).toBe('camera=(), microphone=(self), geolocation=()')
   })
 
+  // As imagens do cabeçalho dos e-mails (/email/banner-*.jpg) são abertas por leitores de e-mail fora do site. O helmet manda
+  // Cross-Origin-Resource-Policy: same-origin em tudo e, sem a exceção, o cabeçalho aparece quebrado.
+  // A exceção vale só para essa pasta pública: o resto (API, a logo e os outros ícones) segue same-origin.
+  test('as imagens dos e-mails (/email/) podem ser abertas por outros sites; o resto continua same-origin', async () => {
+    const banner = await request(app).get('/email/banner-teste.jpg')
+    expect(banner.headers['cross-origin-resource-policy']).toBe('cross-origin')
+
+    for (const caminho of ['/api/auth/me', '/logo-icon.png', '/icon-192.png', '/emailer/x.png']) {
+      const res = await request(app).get(caminho)
+      expect(res.headers['cross-origin-resource-policy']).toBe('same-origin')
+    }
+  })
+
   test('endpoint de dados financeiros inclui Cache-Control: no-store', async () => {
     prisma.user.findUnique.mockResolvedValue(mockUser())
 
