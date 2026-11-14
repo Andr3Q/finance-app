@@ -169,3 +169,130 @@ test.describe('Folha "Nova transação"', () => {
     await expect(sheet(page)).toHaveCount(0)
   })
 })
+
+// ─────────────────────────────────────────────────────────────────
+// Teclado aberto (celular). No iPhone e no Chrome do Android o teclado NÃO encolhe a tela do app: ele cobre a parte de
+// baixo e o navegador rola a página. A folha tem que acompanhar só a parte visível (window.visualViewport), caber nela e
+// manter o Salvar à vista — antes o título subia para baixo do relógio e o Salvar ficava atrás do teclado (2026-11-13).
+// O navegador de teste não tem teclado de verdade: o visualViewport é simulado (altura, deslocamento e zoom).
+// ─────────────────────────────────────────────────────────────────
+test.describe('Folha "Nova transação" com o teclado aberto', () => {
+  async function setupComTeclado(page) {
+    await page.addInitScript(() => {
+      const vv = new EventTarget()
+      const st = { h: null, top: 0, scale: 1 }
+      Object.defineProperties(vv, {
+        height:    { get: () => st.h ?? window.innerHeight },
+        offsetTop: { get: () => st.top },
+        scale:     { get: () => st.scale },
+      })
+      Object.defineProperty(window, 'visualViewport', { value: vv, configurable: true })
+      window.__teclado = {
+        abre: (h, top = 0) => { st.h = h; st.top = top; vv.dispatchEvent(new Event('resize')) },
+        fecha: () => { st.h = null; st.top = 0; vv.dispatchEvent(new Event('resize')) },
+        zoom: (h, scale) => { st.h = h; st.scale = scale; vv.dispatchEvent(new Event('resize')) },
+      }
+    })
+    await setup(page)
+    await fab(page).click()
+    await page.locator('.dsb-qm-bubble', { hasText: 'Despesa' }).click()
+    await expect(sheet(page)).toBeVisible()
+    const altura = page.viewportSize().height
+    await expect.poll(async () => { const b = await page.locator('.ntx-sheet').boundingBox(); return Math.round(b.y + b.height) }).toBe(altura) // subida terminou
+  }
+  const abre = (page, h, top = 0) => page.evaluate(([a, b]) => window.__teclado.abre(a, b), [h, top])
+  const caixas = (page) => page.evaluate(() => {
+    const r = (sel) => { const b = document.querySelector(sel)?.getBoundingClientRect(); return b && { t: Math.round(b.top), b: Math.round(b.bottom) } }
+    const sh = document.querySelector('.ntx-sheet')
+    return {
+      sheet: r('.ntx-sheet'), title: r('.ntx-title'), amount: r('.ntx-amount'), save: r('.ntx-save'),
+      chips: [...document.querySelectorAll('.ntx-chip')].map(c => { const b = c.getBoundingClientRect(); return { t: Math.round(b.top), b: Math.round(b.bottom) } }),
+      sobra: sh.scrollHeight - sh.clientHeight,                      // quanto o conteúdo passa da altura da folha (≤ 1 = cabe)
+      rola: sh.scrollHeight > sh.clientHeight + 1,
+      kb: document.querySelector('.ntx-overlay').hasAttribute('data-kb'),
+    }
+  })
+  const shot = async (page, nome) => { if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/${nome}.png` }) }
+
+  test('sem teclado a folha é a do design (nada de compacto)', async ({ page }) => {
+    await setupComTeclado(page)
+    const c = await caixas(page)
+    expect(c.kb).toBe(false)
+    expect(c.sheet.b).toBe(852)
+    await shot(page, 'sem-teclado')
+  })
+
+  // iPhone 14 (390x844) do André, medido no print dele: teclado + barra "OK" deixam 464px visíveis; o relógio ocupa os 47 de cima → 417 de folha.
+  test('teclado aberto: o formulário INTEIRO cabe acima do teclado, sem rolar, e o Salvar fica à vista', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await setupComTeclado(page)
+    await abre(page, 417)
+    await expect(page.locator('.ntx-overlay')).toHaveAttribute('data-kb', '')
+    await expect.poll(async () => (await caixas(page)).sheet.b).toBe(417)   // ancorada logo acima do teclado
+    const c = await caixas(page)
+    expect(c.sheet.t).toBeGreaterThanOrEqual(0)
+    expect(c.sobra).toBeLessThanOrEqual(1)                                   // cabe sem rolar
+    expect(c.title.t).toBeGreaterThanOrEqual(c.sheet.t)                       // o título não sumiu por cima
+    expect(c.save.b).toBeLessThanOrEqual(417)                                // Salvar acima do teclado
+    expect(c.chips).toHaveLength(9)
+    for (const ch of c.chips) { expect(ch.t).toBeGreaterThanOrEqual(c.sheet.t); expect(ch.b).toBeLessThanOrEqual(c.save.t) }
+    // alvos de toque continuam confortáveis
+    expect(c.chips[0].b - c.chips[0].t).toBeGreaterThanOrEqual(32)
+    expect(c.save.b - c.save.t).toBeGreaterThanOrEqual(44)   // 44px é o mínimo confortável para o toque
+    await shot(page, 'teclado-iphone')
+  })
+
+  test('a tela do iPhone rolada pelo teclado (deslocamento de 300px): a folha segue a parte visível, não a tela inteira', async ({ page }) => {
+    await setupComTeclado(page)
+    await abre(page, 470, 300)
+    await expect.poll(async () => (await caixas(page)).sheet.b).toBe(770)   // 300 (topo visível) + 470
+    const c = await caixas(page)
+    expect(c.sheet.t).toBeGreaterThanOrEqual(300)
+    expect(c.save.b).toBeLessThanOrEqual(770)
+  })
+
+  test('celular pequeno (375x667, ~330px visíveis): rola por dentro, mas valor e Salvar continuam à vista', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 })
+    await setupComTeclado(page)
+    await abre(page, 330)
+    await expect.poll(async () => (await caixas(page)).sheet.b).toBe(330)
+    let c = await caixas(page)
+    expect(c.rola).toBe(true)                                                // não cabe: rola por dentro
+    expect(c.save.b).toBeLessThanOrEqual(330)                                // mas o Salvar não some atrás do teclado
+    expect(c.save.t).toBeGreaterThanOrEqual(c.sheet.t)
+    await page.evaluate(() => { document.querySelector('.ntx-sheet').scrollTop = 0 })
+    c = await caixas(page)
+    expect(c.title.t).toBeGreaterThanOrEqual(0)                              // no topo: título e valor visíveis
+    expect(c.amount.b).toBeLessThanOrEqual(330)
+    expect(c.save.b).toBeLessThanOrEqual(330)                                // com a folha no topo, o Salvar fica grudado embaixo
+    await shot(page, 'teclado-pequeno-topo')
+    await page.evaluate(() => { const s = document.querySelector('.ntx-sheet'); s.scrollTop = s.scrollHeight })
+    c = await caixas(page)
+    expect(c.save.b).toBeLessThanOrEqual(330)
+    await shot(page, 'teclado-pequeno-fim')
+  })
+
+  test('fechar o teclado devolve a folha do design; zoom da página não conta como teclado', async ({ page }) => {
+    await setupComTeclado(page)
+    await abre(page, 417)
+    await expect(page.locator('.ntx-overlay')).toHaveAttribute('data-kb', '')
+    await page.evaluate(() => window.__teclado.fecha())
+    await expect(page.locator('.ntx-overlay')).not.toHaveAttribute('data-kb', '')
+    await expect.poll(async () => (await caixas(page)).sheet.b).toBe(852)
+    await page.evaluate(() => window.__teclado.zoom(400, 2))                  // zoom 2x: parte visível menor, mas não é teclado
+    await expect(page.locator('.ntx-overlay')).not.toHaveAttribute('data-kb', '')
+  })
+
+  test('com o teclado aberto dá para escolher a categoria e salvar', async ({ page }) => {
+    await setupComTeclado(page)
+    await abre(page, 417)
+    await page.getByPlaceholder('0,00').fill('42')
+    await page.getByPlaceholder('Descrição (ex.: Mercado)').fill('Padaria')
+    await inSheet(page, 'Lazer').click()
+    const [req] = await Promise.all([
+      page.waitForRequest(r => r.method() === 'POST' && /\/api\/transactions$/.test(r.url())),
+      page.getByRole('button', { name: /^salvar$/i }).click(),
+    ])
+    expect(req.postDataJSON()).toEqual({ description: 'Padaria', amount: 42, type: 'expense', category: 'leisure' })
+  })
+})
