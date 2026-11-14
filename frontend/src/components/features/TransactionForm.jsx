@@ -7,6 +7,7 @@ import { CategoryIcon } from '../ui/icons.jsx'
 import ProtoCategoryIcon from '../layout/ProtoCategoryIcon.jsx'
 import { useIsDesktop } from '../../hooks/useIsDesktop.js'
 import { useEscapeKey } from '../../hooks/useEscapeKey.js'
+import { useKeyboardViewport } from '../../hooks/useKeyboardViewport.js'
 
 // Ordem do design (Alimentação, Transporte, Shopping, Saúde, Contas fixas) e, depois,
 // as categorias que o app tem e o design não mostra — nenhuma delas pode sumir da
@@ -34,8 +35,11 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
   const isEdit = !!editingId
   // No desktop a folha é um cartão centralizado (design "Nancy Desktop", tela 11): mesma lógica, rótulos e traço do desktop.
   const isDesktop = useIsDesktop()
+  // Celular: com o teclado aberto a folha acompanha a parte visível da tela e fica compacta (ver .ntx-overlay[data-kb]).
+  const overlayRef = useRef(null)
+  useKeyboardViewport(overlayRef, !isDesktop)
 
-  const [type,    setType]    = useState(initialData?.type || 'expense')
+  const [type,   setType]    = useState(initialData?.type || 'expense')
   const [form,    setForm]    = useState({
     description: initialData?.description || '',
     amount:      initialData?.amount      || '',
@@ -110,6 +114,7 @@ export default function TransactionForm({ onClose, onSuccess, initialData, editi
   return (
     <>
     <div
+      ref={overlayRef}
       className={`modal-overlay movl ntx-overlay${isDesktop ? ' ntx-d' : ''}`}
       style={{ display: 'flex' }}
       onClick={e => e.target === e.currentTarget && handleClose()}

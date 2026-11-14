@@ -11072,6 +11072,32 @@ html[data-theme="light"] { background: #f0f2f5 !important; }
 }
 .ntx-save:disabled { opacity: .7; cursor: default; }
 
+/* Teclado aberto (celular). O teclado cobre a parte de baixo da tela sem encolhê-la; useKeyboardViewport mede a parte
+   visível e marca o véu com data-kb + --vv-top/--vv-h. Aí a folha: (1) acompanha só a parte visível, abaixo do relógio;
+   (2) fica compacta para o formulário inteiro caber acima do teclado (em telas menores rola por dentro); (3) mantém o
+   Salvar sempre à vista. Sem teclado nada disso vale e a folha é a do design. */
+.modal-overlay.movl.ntx-overlay[data-kb] {
+  inset: auto; left: 0; right: 0; top: var(--vv-top, 0px); height: var(--vv-h, 100dvh);
+  box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px);
+}
+.ntx-overlay[data-kb] .modal.ntx-sheet { max-height: 100%; padding: 8px 20px 8px; overscroll-behavior: contain; }
+.ntx-overlay[data-kb] .ntx-handle { display: none; }
+.ntx-overlay[data-kb] .ntx-head { margin-bottom: 6px; }
+.ntx-overlay[data-kb] .ntx-title { font-size: 19px; }
+.ntx-overlay[data-kb] .ntx-seg { margin-bottom: 8px; }
+.ntx-overlay[data-kb] .ntx-seg-btn { height: 38px; }
+.ntx-overlay[data-kb] .ntx-amount-row { padding-bottom: 6px; margin-bottom: 8px; }
+.ntx-overlay[data-kb] .ntx-currency { font-size: 20px; }
+.ntx-overlay[data-kb] .ntx-amount { font-size: 32px; }
+.ntx-overlay[data-kb] .ntx-field { height: 44px; margin-bottom: 8px; }
+.ntx-overlay[data-kb] .ntx-chips { gap: 5px; margin-bottom: 10px; }
+.ntx-overlay[data-kb] .ntx-chip { height: 32px; padding: 0 12px; }
+.ntx-overlay[data-kb] .ntx-error { margin-bottom: 8px; }
+.ntx-overlay[data-kb] .ntx-save {
+  height: 46px; border-radius: 16px; font-size: 16px;
+  position: sticky; bottom: 8px; box-shadow: 0 8px 0 #fff, 0 -8px 8px -2px rgba(255,255,255,.95); /* cobre o que rola por baixo */
+}
+
 /* O véu do menu do "+" cobre também a bolha do chat (z-index 300) — o design não tem ela por cima */
 .dsb-qm-backdrop { z-index: 310; }
 .dsb-qm-grid { z-index: 311; }
