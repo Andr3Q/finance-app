@@ -113,9 +113,14 @@ router.post('/create-preference', authMiddleware, paymentLimiter, (req, res, nex
   try {
     const user = await prisma.user.findUnique({
       where:  { id: req.userId },
-      select: { email: true, name: true },
+      select: { email: true, name: true, planSource: true, planExpiresAt: true },
     })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado.' })
+
+    // Quem já assina pela Google Play não paga de novo pelo site: seriam duas cobranças pelo mesmo plano.
+    if (user.planSource === 'google_play' && user.planExpiresAt && user.planExpiresAt > new Date()) {
+      return res.status(409).json({ error: 'Você já assina pela Google Play. Para mudar de plano, cancele lá primeiro e volte quando a assinatura vencer.', code: 'already_subscribed_play' })
+    }
 
     const response = await new Preference(client).create({
       body: {
@@ -221,7 +226,7 @@ router.post('/webhook', webhookLimiter, async (req, res) => {
 
           const claim = await tx.user.updateMany({
             where: { id: userId, planExpiresAt: cur?.planExpiresAt ?? null },
-            data:  { plan, planExpiresAt, planPeriod: period, renewalReminderSent: false, trialEndsAt: null },
+            data:  { plan, planExpiresAt, planPeriod: period, planSource: 'mercadopago', renewalReminderSent: false, trialEndsAt: null },
           })
           if (claim.count === 1) {
             return tx.user.findUnique({ where: { id: userId }, select: { email: true, name: true, planExpiresAt: true } })

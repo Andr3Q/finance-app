@@ -225,6 +225,24 @@ async create(req, res, next) {
 
 ---
 
+## Compra de plano: site (Mercado Pago) e lojas (Google Play; Apple depois)
+
+- **Uma só fonte de verdade do plano:** `computeEffectivePlan(user)` (`plan` + `planExpiresAt`). Quem vende só ESCREVE esses campos e
+  `User.planSource` (`'mercadopago'` | `'google_play'` | no futuro `'apple'`). O resto do app não sabe de loja nenhuma.
+- **Site:** `routes/payments.js` (Mercado Pago Checkout Pro + webhook que soma dias). Não mudou.
+- **Google Play (app Android):** `routes/billing.js` + `services/storeBilling/*`. Os 4 produtos (`nancy_pro` e `nancy_elite`, planos base
+  `mensal` e `anual`) estão em `catalog.js` e precisam existir no Play Console. O servidor SEMPRE consulta o Google (nunca confia no app
+  nem no conteúdo do aviso): `POST /api/billing/google/verify` (o app entrega o token da compra; o servidor confere, confirma e ativa) e
+  `POST /api/billing/google/rtdn` (avisos do Pub/Sub; o token OIDC é verificado: assinatura, emissor, audience e e-mail da conta de serviço).
+  Compras ficam em `store_purchases` (RLS ligado, guarda multi-tenant).
+- **Desligado por padrão:** sem `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` tudo responde 503 e nada chama o Google. Variáveis: `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`
+  (segredo), `GOOGLE_PLAY_RTDN_AUDIENCE`, `GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT`, `GOOGLE_PLAY_PACKAGE_NAME` (opcional).
+- **Travas (cada uma com teste):** plano válido de outra fonte nunca é sobrescrito; o site não cobra quem assina pela Play (409); cancelar
+  ("downgrade") assinatura da Play devolve "cancele na Play Store" (o Nancy não cancela cobrança do Google).
+- **Apple (próximo):** entra como outro provedor em `services/storeBilling` gravando na mesma tabela (`provider = 'apple'`), sem tocar no resto.
+
+---
+
 ## Migração dos domínios legados
 
 | Domínio | Arquivo atual | Status |

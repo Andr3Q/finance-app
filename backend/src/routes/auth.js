@@ -42,7 +42,7 @@ const MAX_EMAIL_CODE_ATTEMPTS = 5
 // tanto por /me quanto por /login, pra nunca mais divergir os dois (foi
 // assim que o onboarding passou a aparecer à toa depois de um login normal:
 // /login não mandava onboardingComplete, só /me mandava).
-const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, avatarUpdatedAt: true, planPeriod: true, notifBudgetAlert: true, notifBudgetReminder: true, notifSalary: true, notifStories: true, notifTips: true, notifWeeklyEmail: true, budgetReminderSentAt: true, pendingEmail: true }
+const ME_SELECT = { id: true, name: true, email: true, salary: true, reportEmail: true, plan: true, planExpiresAt: true, trialEndsAt: true, referralCode: true, twoFactorEnabled: true, autoLaunchMonth: true, autoLaunchYear: true, onboardingComplete: true, renewalReminderSent: true, trialReminderSent: true, weeklyDigestSentAt: true, emailVerified: true, avatarUpdatedAt: true, planPeriod: true, planSource: true, notifBudgetAlert: true, notifBudgetReminder: true, notifSalary: true, notifStories: true, notifTips: true, notifWeeklyEmail: true, budgetReminderSentAt: true, pendingEmail: true }
 
 // user já carregado (com ou sem `select`) → objeto raso só com os campos de
 // ME_SELECT, prontos pra ir na resposta. Number(salary) porque Prisma.Decimal
@@ -876,7 +876,7 @@ router.post('/downgrade', authMiddleware, async (req, res) => {
 
     const current = await prisma.user.findUnique({
       where:  { id: req.userId },
-      select: { password: true, planExpiresAt: true, trialEndsAt: true },
+      select: { password: true, planExpiresAt: true, trialEndsAt: true, planSource: true },
     })
     if (!current) return res.status(404).json({ error: 'Usuário não encontrado.' })
 
@@ -884,6 +884,15 @@ router.post('/downgrade', authMiddleware, async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Senha incorreta.' })
 
     const now = new Date()
+
+    // Assinatura da Play Store: quem cobra é o Google, o Nancy não consegue cancelar daqui. Rebaixar só no papel deixaria a pessoa
+    // sendo cobrada sem plano; ela precisa cancelar na Play Store (a renovação para e o plano vence na data paga).
+    if (current.planSource === 'google_play' && current.planExpiresAt && current.planExpiresAt > now) {
+      return res.status(409).json({
+        error: 'Sua assinatura é pela Google Play. Para cancelar, abra a Play Store > Pagamentos e assinaturas > Assinaturas > Nancy. Você mantém o plano até ' + current.planExpiresAt.toLocaleDateString('pt-BR') + '.',
+        code:  'cancel_in_play_store',
+      })
+    }
 
     // A-02: respeita dias pagos restantes — mantém acesso até planExpiresAt
     // C-02: sempre limpa trialEndsAt para evitar estado inconsistente

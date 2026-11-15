@@ -74,6 +74,10 @@ model User {
   pendingEmailToken    String?
   pendingEmailExpiry   DateTime?
   planPeriod           String?   @default("monthly")
+  // Quem está cobrando o plano pago de agora: 'mercadopago' (site), 'google_play' (app da Play) ou, no futuro, 'apple'.
+  // null = conta antiga ou plano sem compra (grátis, teste): trata-se como Mercado Pago. Serve para a tela de cancelar dizer
+  // ONDE cancelar e para não cobrar duas vezes quem já assina por uma loja.
+  planSource           String?
   notifBudgetAlert     Boolean   @default(true)
   notifBudgetReminder  Boolean   @default(true)
   // Preferências da tela "Preferências" (Nancy 2). notifSalary/Stories/Tips mandam nos avisos dentro do app;
@@ -98,6 +102,7 @@ model User {
   goals                Goal[]
   installmentPlans     InstallmentPlan[]
   accountUnlockTokens  AccountUnlockToken[]
+  storePurchases       StorePurchase[]
 
   @@index([resetToken])        // busca de reset-password usa findFirst por hash — sem índice = full scan
   @@index([emailVerifyToken])  // busca de verify-email usa findFirst por hash — padrão idêntico ao resetToken
@@ -275,6 +280,33 @@ model AccountUnlockToken {
 
   @@index([userId])
   @@map("account_unlock_tokens")
+}
+
+// ── Tabela: store_purchases ─────────────────────────────
+// Assinaturas compradas nas lojas (Google Play agora; Apple depois). O estado real é SEMPRE o da loja: o servidor
+// consulta a API da loja na compra e a cada aviso (RTDN) e só então grava aqui e ajusta o plano do usuário
+// (plan / planExpiresAt / planPeriod / planSource). O Mercado Pago (site) continua em processed_payments.
+model StorePurchase {
+  id            String    @id @default(uuid())
+  provider      String                       // 'google_play' | 'apple'
+  purchaseToken String                       // Google: purchaseToken · Apple: originalTransactionId
+  productId     String                       // ex.: 'nancy_pro'
+  plan          String                       // 'pro' | 'elite'
+  period        String                       // 'monthly' | 'annual'
+  // 'active' | 'canceled' (cancelou, vale até expiresAt) | 'grace' | 'on_hold' | 'paused' | 'expired' | 'pending' | 'revoked'
+  state         String
+  autoRenewing  Boolean   @default(false)
+  expiresAt     DateTime?
+  acknowledged  Boolean   @default(false)    // o Google devolve a compra se ela não for confirmada em 3 dias
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, purchaseToken])
+  @@index([userId])
+  @@map("store_purchases")
 }
 
 // ── Tabela: login_audits ────────────────────────────────
