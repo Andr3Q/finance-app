@@ -47,7 +47,7 @@ const inDays   = (n) => new Date(Date.now() + n * DAY)
 const sub = (over = {}) => ({
   subscriptionState: 'SUBSCRIPTION_STATE_ACTIVE',
   acknowledgementState: 'ACKNOWLEDGEMENT_STATE_PENDING',
-  lineItems: [{ productId: 'nancy_pro', offerDetails: { basePlanId: 'mensal' }, expiryTime: inDays(30).toISOString(), autoRenewingPlan: { autoRenewEnabled: true } }],
+  lineItems: [{ productId: 'nancy_pro_mensal', expiryTime: inDays(30).toISOString(), autoRenewingPlan: { autoRenewEnabled: true } }],
   ...over,
 })
 const apiError = (status) => Object.assign(new Error(`HTTP ${status}`), { name: 'GoogleApiError', status })
@@ -115,19 +115,19 @@ describe('POST /api/billing/google/verify', () => {
   })
 
   it('compra válida: confere com o Google, CONFIRMA a compra, grava e ativa o plano', async () => {
-    const res = await post({ purchaseToken: TOKEN, productId: 'nancy_pro' })
+    const res = await post({ purchaseToken: TOKEN, productId: 'nancy_pro_mensal' })
     expect(res.status).toBe(200)
     expect(res.body).toMatchObject({ applied: true, plan: 'pro', state: 'active' })
     expect(new Date(res.body.planExpiresAt).getTime()).toBeGreaterThan(Date.now() + 29 * DAY)
 
     expect(google.getSubscription).toHaveBeenCalledWith(TOKEN)
-    expect(google.acknowledge).toHaveBeenCalledWith('nancy_pro', TOKEN)
+    expect(google.acknowledge).toHaveBeenCalledWith('nancy_pro_mensal', TOKEN)
     expect(prisma.storePurchase.upsert.mock.calls[0][0].create).toMatchObject({ userId: USER_ID, purchaseToken: TOKEN, acknowledged: true, state: 'active' })
     expect(prisma.user.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: USER_ID }, data: expect.objectContaining({ plan: 'pro', planPeriod: 'monthly', planSource: 'google_play', trialEndsAt: null }) }))
   })
 
   it('o que o app diz do produto não vale: o plano vem do que o GOOGLE informa', async () => {
-    const res = await post({ purchaseToken: TOKEN, productId: 'nancy_elite' }) // o Google diz nancy_pro
+    const res = await post({ purchaseToken: TOKEN, productId: 'nancy_elite_mensal' }) // o Google diz nancy_pro_mensal
     expect(res.status).toBe(200)
     expect(res.body.plan).toBe('pro')
   })
@@ -168,7 +168,7 @@ describe('POST /api/billing/google/verify', () => {
   })
 
   it('produto que o Nancy não vende: 422', async () => {
-    google.getSubscription.mockResolvedValue(sub({ lineItems: [{ productId: 'outro_app', offerDetails: { basePlanId: 'mensal' }, expiryTime: inDays(30).toISOString() }] }))
+    google.getSubscription.mockResolvedValue(sub({ lineItems: [{ productId: 'outro_app', expiryTime: inDays(30).toISOString() }] }))
     expect((await post({ purchaseToken: TOKEN })).status).toBe(422)
   })
 
@@ -202,7 +202,7 @@ describe('POST /api/billing/google/verify', () => {
 describe('POST /api/billing/google/rtdn', () => {
   const note = (n) => ({ message: { data: Buffer.from(JSON.stringify({ packageName: 'br.com.myfinancepro.app', eventTimeMillis: '1', ...n })).toString('base64'), messageId: '1' }, subscription: 's' })
   const post = (body) => request(app).post('/api/billing/google/rtdn').send(body)
-  const renewal = { subscriptionNotification: { version: '1.0', notificationType: 2, purchaseToken: TOKEN, subscriptionId: 'nancy_pro' } }
+  const renewal = { subscriptionNotification: { version: '1.0', notificationType: 2, purchaseToken: TOKEN, subscriptionId: 'nancy_pro_mensal' } }
 
   it('credencial do Pub/Sub inválida: devolve o status da verificação e não faz nada', async () => {
     verifyPubSubPush.mockResolvedValue({ ok: false, status: 401, reason: 'Credencial inválida.' })
@@ -248,7 +248,7 @@ describe('POST /api/billing/google/rtdn', () => {
   it('assinatura suspensa/vencida: a validade para de andar', async () => {
     prisma.storePurchase.findUnique.mockResolvedValue({ id: 'p1', userId: USER_ID })
     mockUser({ plan: 'pro', planExpiresAt: inDays(1), planSource: 'google_play' })
-    google.getSubscription.mockResolvedValue(sub({ subscriptionState: 'SUBSCRIPTION_STATE_EXPIRED', lineItems: [{ productId: 'nancy_pro', offerDetails: { basePlanId: 'mensal' }, expiryTime: inDays(-1).toISOString() }] }))
+    google.getSubscription.mockResolvedValue(sub({ subscriptionState: 'SUBSCRIPTION_STATE_EXPIRED', lineItems: [{ productId: 'nancy_pro_mensal', expiryTime: inDays(-1).toISOString() }] }))
     expect((await post(note({ subscriptionNotification: { ...renewal.subscriptionNotification, notificationType: 13 } }))).status).toBe(200)
     expect(prisma.user.update.mock.calls[0][0].data.planExpiresAt.getTime()).toBeLessThan(Date.now())
   })

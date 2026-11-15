@@ -15,36 +15,42 @@ const iso = (ms) => new Date(NOW.getTime() + ms).toISOString()
 const google = (over = {}) => ({
   subscriptionState: 'SUBSCRIPTION_STATE_ACTIVE',
   acknowledgementState: 'ACKNOWLEDGEMENT_STATE_PENDING',
-  lineItems: [{ productId: 'nancy_pro', offerDetails: { basePlanId: 'mensal' }, expiryTime: iso(30 * DAY), autoRenewingPlan: { autoRenewEnabled: true } }],
+  lineItems: [{ productId: 'nancy_pro_mensal', expiryTime: iso(30 * DAY), autoRenewingPlan: { autoRenewEnabled: true } }],
   ...over,
 })
 
 describe('catálogo da Google Play', () => {
-  it('traduz produto + plano base em plano e período do Nancy', () => {
-    expect(resolvePlayProduct('nancy_pro', 'mensal')).toEqual({ plan: 'pro', period: 'monthly' })
-    expect(resolvePlayProduct('nancy_pro', 'anual')).toEqual({ plan: 'pro', period: 'annual' })
-    expect(resolvePlayProduct('nancy_elite', 'mensal')).toEqual({ plan: 'elite', period: 'monthly' })
-    expect(resolvePlayProduct('nancy_elite', 'anual')).toEqual({ plan: 'elite', period: 'annual' })
+  it('cada produto já diz o plano e o período do Nancy', () => {
+    expect(resolvePlayProduct('nancy_pro_mensal')).toEqual({ plan: 'pro', period: 'monthly' })
+    expect(resolvePlayProduct('nancy_pro_anual')).toEqual({ plan: 'pro', period: 'annual' })
+    expect(resolvePlayProduct('nancy_elite_mensal')).toEqual({ plan: 'elite', period: 'monthly' })
+    expect(resolvePlayProduct('nancy_elite_anual')).toEqual({ plan: 'elite', period: 'annual' })
   })
 
-  it('recusa produto ou plano base desconhecido, inclusive nomes herdados do Object', () => {
-    expect(resolvePlayProduct('outro_app', 'mensal')).toBeNull()
-    expect(resolvePlayProduct('nancy_pro', 'semanal')).toBeNull()
-    expect(resolvePlayProduct('__proto__', 'mensal')).toBeNull()
-    expect(resolvePlayProduct('nancy_pro', 'constructor')).toBeNull()
-    expect(resolvePlayProduct(undefined, undefined)).toBeNull()
+  it('recusa produto desconhecido, inclusive nomes herdados do Object e valores que não são texto', () => {
+    expect(resolvePlayProduct('outro_app')).toBeNull()
+    expect(resolvePlayProduct('nancy_pro')).toBeNull()          // sem o período não é um produto que o Nancy vende
+    expect(resolvePlayProduct('nancy_pro_semanal')).toBeNull()
+    expect(resolvePlayProduct('__proto__')).toBeNull()
+    expect(resolvePlayProduct('constructor')).toBeNull()
+    expect(resolvePlayProduct(undefined)).toBeNull()
+    expect(resolvePlayProduct(['nancy_pro_mensal'])).toBeNull()
+  })
+
+  it('a resposta não deixa mexer no catálogo', () => {
+    const r = resolvePlayProduct('nancy_pro_mensal'); r.plan = 'elite'
+    expect(resolvePlayProduct('nancy_pro_mensal').plan).toBe('pro')
   })
 
   it('lista os 4 produtos que precisam existir no Play Console', () => {
-    expect(listPlayProducts().map((p) => `${p.productId}/${p.basePlanId}`).sort()).toEqual(
-      ['nancy_elite/anual', 'nancy_elite/mensal', 'nancy_pro/anual', 'nancy_pro/mensal'])
+    expect(listPlayProducts().map((p) => p.productId).sort()).toEqual(['nancy_elite_anual', 'nancy_elite_mensal', 'nancy_pro_anual', 'nancy_pro_mensal'])
   })
 })
 
 describe('parseGoogleSubscription', () => {
   it('lê plano, período, validade, renovação automática e confirmação', () => {
     const p = parseGoogleSubscription(google())
-    expect(p).toMatchObject({ ok: true, productId: 'nancy_pro', plan: 'pro', period: 'monthly', state: 'active', autoRenewing: true, acknowledged: false, testPurchase: false })
+    expect(p).toMatchObject({ ok: true, productId: 'nancy_pro_mensal', plan: 'pro', period: 'monthly', state: 'active', autoRenewing: true, acknowledged: false, testPurchase: false })
     expect(p.expiresAt.toISOString()).toBe(iso(30 * DAY))
     expect(parseGoogleSubscription(google({ acknowledgementState: 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED' })).acknowledged).toBe(true)
     expect(parseGoogleSubscription(google({ testPurchase: {} })).testPurchase).toBe(true)
@@ -60,17 +66,22 @@ describe('parseGoogleSubscription', () => {
 
   it('não reconhece estado novo, produto desconhecido, data ruim nem resposta vazia', () => {
     expect(parseGoogleSubscription(google({ subscriptionState: 'SUBSCRIPTION_STATE_NOVO' }))).toMatchObject({ ok: false })
-    expect(parseGoogleSubscription(google({ lineItems: [{ productId: 'x', offerDetails: { basePlanId: 'mensal' } }] }))).toMatchObject({ ok: false })
+    expect(parseGoogleSubscription(google({ lineItems: [{ productId: 'x' }] }))).toMatchObject({ ok: false })
     expect(parseGoogleSubscription(google({ lineItems: [] }))).toMatchObject({ ok: false })
-    expect(parseGoogleSubscription(google({ lineItems: [{ productId: 'nancy_pro', offerDetails: { basePlanId: 'mensal' }, expiryTime: 'ontem' }] }))).toMatchObject({ ok: false })
+    expect(parseGoogleSubscription(google({ lineItems: [{ productId: 'nancy_pro_mensal', expiryTime: 'ontem' }] }))).toMatchObject({ ok: false })
     expect(parseGoogleSubscription(null)).toMatchObject({ ok: false })
+  })
+
+  it('o plano base que o Google informa não decide nada: só o produto manda', () => {
+    const p = parseGoogleSubscription(google({ lineItems: [{ productId: 'nancy_elite_mensal', offerDetails: { basePlanId: 'qualquer-coisa' }, expiryTime: iso(DAY) }] }))
+    expect(p).toMatchObject({ ok: true, plan: 'elite', period: 'monthly' })
   })
 
   it('escolhe a linha que o Nancy conhece quando há mais de uma', () => {
     const p = parseGoogleSubscription(google({
       lineItems: [
-        { productId: 'outro', offerDetails: { basePlanId: 'mensal' }, expiryTime: iso(DAY) },
-        { productId: 'nancy_elite', offerDetails: { basePlanId: 'anual' }, expiryTime: iso(300 * DAY) },
+        { productId: 'outro', expiryTime: iso(DAY) },
+        { productId: 'nancy_elite_anual', expiryTime: iso(300 * DAY) },
       ],
     }))
     expect(p).toMatchObject({ ok: true, plan: 'elite', period: 'annual' })
@@ -150,7 +161,7 @@ describe('applyGoogleState', () => {
 
   it('suspensão da Play (sem acesso) faz a validade parar, se ESTE era o plano da Play', async () => {
     prisma.user.findUnique.mockResolvedValue({ plan: 'pro', planExpiresAt: new Date(NOW.getTime() + 2 * DAY), planSource: 'google_play' })
-    const parsed = parseGoogleSubscription(google({ subscriptionState: 'SUBSCRIPTION_STATE_ON_HOLD', lineItems: [{ productId: 'nancy_pro', offerDetails: { basePlanId: 'mensal' }, expiryTime: iso(-DAY) }] }))
+    const parsed = parseGoogleSubscription(google({ subscriptionState: 'SUBSCRIPTION_STATE_ON_HOLD', lineItems: [{ productId: 'nancy_pro_mensal', expiryTime: iso(-DAY) }] }))
     const r = await applyGoogleState({ userId: 'u1', purchaseToken: TOKEN, parsed, now: NOW })
     expect(r).toMatchObject({ applied: true, ended: true })
     expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 'u1' }, data: { planExpiresAt: new Date(NOW.getTime() - DAY) } })

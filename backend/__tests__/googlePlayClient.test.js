@@ -94,9 +94,9 @@ describe('getSubscription', () => {
 describe('acknowledge', () => {
   it('confirma a compra pelo endereço da assinatura (produto + token) com POST', async () => {
     fetchMock.mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(ok({}, 204))
-    await expect(client.acknowledge('nancy_pro', 'tok-123')).resolves.toEqual({})
+    await expect(client.acknowledge('nancy_pro_mensal', 'tok-123')).resolves.toEqual({})
     const [url, opts] = fetchMock.mock.calls[1]
-    expect(url).toBe('https://androidpublisher.googleapis.com/androidpublisher/v3/applications/br.com.myfinancepro.app/purchases/subscriptions/nancy_pro/tokens/tok-123:acknowledge')
+    expect(url).toBe('https://androidpublisher.googleapis.com/androidpublisher/v3/applications/br.com.myfinancepro.app/purchases/subscriptions/nancy_pro_mensal/tokens/tok-123:acknowledge')
     expect(opts.method).toBe('POST')
   })
 })

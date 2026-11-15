@@ -230,8 +230,8 @@ async create(req, res, next) {
 - **Uma só fonte de verdade do plano:** `computeEffectivePlan(user)` (`plan` + `planExpiresAt`). Quem vende só ESCREVE esses campos e
   `User.planSource` (`'mercadopago'` | `'google_play'` | no futuro `'apple'`). O resto do app não sabe de loja nenhuma.
 - **Site:** `routes/payments.js` (Mercado Pago Checkout Pro + webhook que soma dias). Não mudou.
-- **Google Play (app Android):** `routes/billing.js` + `services/storeBilling/*`. Os 4 produtos (`nancy_pro` e `nancy_elite`, planos base
-  `mensal` e `anual`) estão em `catalog.js` e precisam existir no Play Console. O servidor SEMPRE consulta o Google (nunca confia no app
+- **Google Play (app Android):** `routes/billing.js` + `services/storeBilling/*`. Os 4 produtos (`nancy_pro_mensal`, `nancy_pro_anual`, `nancy_elite_mensal`, `nancy_elite_anual`, cada um com um único
+  plano base) estão em `catalog.js` e precisam existir no Play Console. O servidor SEMPRE consulta o Google (nunca confia no app
   nem no conteúdo do aviso): `POST /api/billing/google/verify` (o app entrega o token da compra; o servidor confere, confirma e ativa) e
   `POST /api/billing/google/rtdn` (avisos do Pub/Sub; o token OIDC é verificado: assinatura, emissor, audience e e-mail da conta de serviço).
   Compras ficam em `store_purchases` (RLS ligado, guarda multi-tenant).

@@ -30,9 +30,9 @@ function parseGoogleSubscription(resource) {
   if (!state) return { ok: false, reason: `estado desconhecido: ${resource.subscriptionState}` }
 
   const items = Array.isArray(resource.lineItems) ? resource.lineItems : []
-  const item = items.find((i) => resolvePlayProduct(i?.productId, i?.offerDetails?.basePlanId))
+  const item = items.find((i) => resolvePlayProduct(i?.productId))
   if (!item) return { ok: false, reason: 'produto desconhecido' }
-  const { plan, period } = resolvePlayProduct(item.productId, item.offerDetails.basePlanId)
+  const { plan, period } = resolvePlayProduct(item.productId)
 
   const expiresAt = item.expiryTime ? new Date(item.expiryTime) : null
   if (expiresAt && Number.isNaN(expiresAt.getTime())) return { ok: false, reason: 'data de expiração inválida' }
