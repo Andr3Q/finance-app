@@ -27,7 +27,11 @@
   "generatorApp": "bubblewrap-cli",
   "webManifestUrl": "https://myfinancepro.com.br/manifest.json",
   "fallbackType": "customtabs",
-  "features": {},
+  "features": {
+    "playBilling": {
+      "enabled": true
+    }
+  },
   "alphaDependencies": {
     "enabled": false
   },
