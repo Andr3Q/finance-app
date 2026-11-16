@@ -24,7 +24,7 @@ const FREE_FEATS = [
   'Exportação CSV',
 ]
 
-const PRO_FEATS = [
+export const PRO_FEATS = [
   { text: 'Transações', hi: '35 por mês' },
   { text: 'Contas fixas', hi: 'Até 35' },
   { text: 'Limites por categoria' },
@@ -33,7 +33,7 @@ const PRO_FEATS = [
   { text: 'Suporte prioritário' },
 ]
 
-const ELITE_FEATS = [
+export const ELITE_FEATS = [
   { text: 'Tudo do Pro', hi: 'incluído' },
   { text: 'Previsão IA mensal' },
   { text: 'Relatório IA detalhado' },
@@ -85,13 +85,13 @@ const COMPARE_GROUPS = [
   },
 ]
 
-const Check = () => (
+export const Check = () => (
   <svg className="pl-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
 )
-const BackIcon = () => (
+export const BackIcon = () => (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
 )
-const BoltIcon = () => (
+export const BoltIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
 )
 const Cell = ({ v }) => (v === true ? <Check /> : v === false ? <span className="pl-no" aria-label="não">—</span> : <span className="pl-cell-val">{v}</span>)

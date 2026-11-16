@@ -203,3 +203,44 @@ describe('CancelPlanCard — assinatura já cancelada', () => {
   })
 })
 
+
+// ── Assinatura pela Google Play ───────────────────────────────────
+// Quem cobra é o Google: o Nancy não consegue cancelar a cobrança. Em vez do fluxo "Não renovar + senha" (que o servidor recusaria),
+// o cartão leva à lista de assinaturas da Play Store.
+describe('CancelPlanCard — assinatura da Google Play', () => {
+  it('em vez de "Não renovar", mostra o caminho para cancelar na Play Store (mensal)', () => {
+    setup({ plan: 'pro', planSource: 'google_play', planPeriod: 'monthly' })
+    expect(screen.queryByRole('button', { name: /não renovar/i })).not.toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /Play Store/i })
+    expect(link).toHaveAttribute('href', 'https://play.google.com/store/account/subscriptions?package=br.com.myfinancepro.app&sku=nancy_pro_mensal')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link.getAttribute('rel')).toContain('noopener')
+  })
+
+  it('plano anual do Elite aponta para o produto anual', () => {
+    setup({ plan: 'elite', planSource: 'google_play', planPeriod: 'annual' })
+    expect(screen.getByRole('link', { name: /Play Store/i })).toHaveAttribute('href', expect.stringContaining('sku=nancy_elite_anual'))
+  })
+
+  it('na versão do desktop também leva à Play Store', () => {
+    setUser({ plan: 'pro', planSource: 'google_play', planPeriod: 'monthly' })
+    render(<CancelPlanCard onMessage={vi.fn()} variant="desktop" />)
+    expect(screen.getByRole('link', { name: /Gerenciar na Play Store/i })).toBeInTheDocument()
+  })
+
+  it('nunca chama o cancelamento do site para esse plano', () => {
+    setup({ plan: 'pro', planSource: 'google_play' })
+    expect(authAPI.downgradeFree).not.toHaveBeenCalled()
+  })
+
+  it('plano do site (Mercado Pago) segue com o fluxo de sempre', () => {
+    setup({ plan: 'pro', planSource: 'mercadopago' })
+    expect(screen.getByRole('button', { name: /não renovar/i })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Play Store/i })).not.toBeInTheDocument()
+  })
+
+  it('quem está só no teste grátis não vê nada (mesmo com planSource antigo)', () => {
+    const { container } = setup({ plan: 'pro', isOnTrial: true, planSource: 'google_play' })
+    expect(container.firstChild).toBeNull()
+  })
+})

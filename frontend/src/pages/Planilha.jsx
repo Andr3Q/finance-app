@@ -8,7 +8,7 @@ import { useHideBalance } from '../hooks/useHideBalance.js'
 import { useForcedLightTheme } from '../hooks/useTheme.js'
 import { invalidateCache } from '../services/cache.js'
 import { invalidateStories } from '../services/storiesData.js'
-import { isAndroidApp } from '../utils/androidApp.js'
+import { hidePurchaseUI } from '../utils/purchaseUi.js'
 
 const FORECAST_KEY = 'nancy-sheet-forecast'
 const HIDDEN = '••••'
@@ -192,7 +192,7 @@ export default function Planilha() {
               <span className="ndp-lock-ico"><ProtoIcon name="grid" size={26} /></span>
               <h2>A Planilha IA faz parte do plano Elite</h2>
               <p>Ela monta sozinha uma planilha com as suas contas, parcelas e gastos, e prevê os próximos meses. Também está no Elite a Nancy IA ilimitada, com texto e áudio.</p>
-              {!isAndroidApp() && <button type="button" className="ndp-btn" onClick={() => navigate('/planos')}>Ver planos</button>}
+              {!hidePurchaseUI() && <button type="button" className="ndp-btn" onClick={() => navigate('/planos')}>Ver planos</button>}
             </div>
           )}
 

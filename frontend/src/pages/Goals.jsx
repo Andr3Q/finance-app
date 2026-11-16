@@ -14,7 +14,7 @@ import { fmt, fmtDate } from '../utils/format.js'
 import { scrollChipsBy } from '../utils/chipScroll.js'
 import { useChipEdges } from '../hooks/useChipEdges.js'
 import { useEscapeKey } from '../hooks/useEscapeKey.js'
-import { isAndroidApp } from '../utils/androidApp.js'
+import { hidePurchaseUI } from '../utils/purchaseUi.js'
 const amountBucket = (v) => {
   const n = Number(v)
   if (!n || n <= 0)      return '0'
@@ -294,7 +294,7 @@ export default function Goals() {
         analytics.track('limit_reached', { feature: 'goals' })
         setModal(null)
         // app Android da Play Store: só o aviso, sem empurrar para a tela de planos (ver utils/androidApp.js)
-        if (isAndroidApp()) {
+        if (hidePurchaseUI()) {
           showToast('Você atingiu o limite de metas do seu plano.', false)
         } else {
           showToast('Você atingiu o limite de metas do seu plano. Faça upgrade para criar mais!', false)

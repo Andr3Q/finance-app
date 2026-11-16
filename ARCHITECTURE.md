@@ -239,6 +239,14 @@ async create(req, res, next) {
   (segredo), `GOOGLE_PLAY_RTDN_AUDIENCE`, `GOOGLE_PLAY_RTDN_SERVICE_ACCOUNT`, `GOOGLE_PLAY_PACKAGE_NAME` (opcional).
 - **Travas (cada uma com teste):** plano válido de outra fonte nunca é sobrescrito; o site não cobra quem assina pela Play (409); cancelar
   ("downgrade") assinatura da Play devolve "cancele na Play Store" (o Nancy não cancela cobrança do Google).
+- **No app Android (frontend):** `services/playBilling.js` fala com a Digital Goods API e a Payment Request API do Chrome (só dentro do app
+  instalado pela Play) e entrega ao servidor só o token da compra. `PlayBillingBoot` (montado no `App`, depois da validação da sessão) descobre
+  se dá para vender: aparelho com a API + recurso ligado no servidor + os 4 produtos com preço no Google; qualquer falta = o app segue "sem
+  compra". **Regra:** todo lugar que esconde preço/convite no app usa `hidePurchaseUI()` (`utils/purchaseUi.js`), nunca `isAndroidApp()` direto:
+  ela esconde só enquanto a cobrança do Google não está pronta. `PlanosRoute` escolhe entre `Planos` (site, Mercado Pago), `PlanosPlay`
+  (app com cobrança pronta) e `PlanoAtual` (app sem cobrança). Quem já assina pela Play não compra outro plano (evita cobrança dupla) e o
+  cartão de cancelar vira "Gerenciar na Play Store". Testes: `playBilling.test.js`, `PlanosPlay.test.jsx`, `PlanosRouteBilling.test.jsx`,
+  `PlayBillingBoot.test.jsx` e `e2e/tests/android-compra.spec.js` (com a API do Google simulada).
 - **Apple (próximo):** entra como outro provedor em `services/storeBilling` gravando na mesma tabela (`provider = 'apple'`), sem tocar no resto.
 
 ---

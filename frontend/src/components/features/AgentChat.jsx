@@ -15,7 +15,7 @@ import ProtoIcon from '../layout/ProtoIcon.jsx'
 import AiMessage from './AiMessage.jsx'
 import { useIsDesktop } from '../../hooks/useIsDesktop.js'
 import { useNiaSlot } from '../../hooks/useNiaSlot.js'
-import { isAndroidApp } from '../../utils/androidApp.js'
+import { hidePurchaseUI } from '../../utils/purchaseUi.js'
 
 // Sugestões da conversa vazia (design Nancy 2, tela 12). A do meio usa o mês atual.
 function buildSuggestions(now = new Date()) {
@@ -430,7 +430,7 @@ export default function AgentChat() {
               Oi{firstName ? `, ${firstName}` : ''}! A Nancy IA analisa seus gastos, tira dúvidas e registra transações por texto ou áudio. Ela está disponível no plano Elite.
             </div>
           </div>
-          {!isAndroidApp() && (
+          {!hidePurchaseUI() && (
             <button type="button" className="nia-upgrade" onClick={() => { setOpen(false); navigate('/planos') }}>
               Ver planos →
             </button>

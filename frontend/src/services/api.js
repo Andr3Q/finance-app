@@ -182,4 +182,10 @@ export const paymentsAPI = {
   history:          ()             => api.get('/payments/history'),
 }
 
+// Compra de plano pelas lojas (hoje a Google Play, no app Android). O site segue pelo Mercado Pago (paymentsAPI).
+export const billingAPI = {
+  config:       ()                         => api.get('/billing/config'),
+  verifyGoogle: (purchaseToken, productId) => api.post('/billing/google/verify', { purchaseToken, productId }),
+}
+
 export default api

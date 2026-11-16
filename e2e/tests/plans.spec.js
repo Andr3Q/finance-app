@@ -85,6 +85,10 @@ test.describe('Planos — Checkout', () => {
       checkoutUrl: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=abc123',
     })
 
+    // A janela de checkout abre o site REAL do Mercado Pago: dependia da rede da máquina e às vezes demorava além do prazo (instável).
+    // Agora o endereço é respondido aqui mesmo; o que o teste confere é que o app abriu a janela no endereço certo.
+    await context.route('https://www.mercadopago.com.br/**', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>checkout</body></html>' }))
+
     await injectSession(page, { ...FREE_USER, emailVerified: true })
     await page.goto('/planos')
 

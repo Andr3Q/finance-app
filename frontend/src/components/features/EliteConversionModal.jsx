@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { isAndroidApp } from '../../utils/androidApp.js'
+import { hidePurchaseUI } from '../../utils/purchaseUi.js'
 
 export default function EliteConversionModal({ onClose }) {
   const navigate  = useNavigate()
@@ -20,7 +20,7 @@ export default function EliteConversionModal({ onClose }) {
     close()
   }
 
-  if (isAndroidApp()) return null // app Android da Play Store: sem convite de compra (ver utils/androidApp.js)
+  if (hidePurchaseUI()) return null // app Android da Play Store: sem convite de compra (ver utils/androidApp.js)
 
   return (
     <div

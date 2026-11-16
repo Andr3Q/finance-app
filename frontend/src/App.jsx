@@ -6,6 +6,8 @@ import AgentChat from './components/features/AgentChat.jsx'
 import NewTransactionSheet from './components/features/NewTransactionSheet.jsx'
 import OnboardingModal from './components/features/OnboardingModal.jsx'
 import PlanExpiryBanner from './components/features/PlanExpiryBanner.jsx'
+import PlayBillingBoot from './components/features/PlayBillingBoot.jsx'
+import { usePlayBilling } from './hooks/usePlayBilling.js'
 import CookieBanner from './components/features/CookieBanner.jsx'
 import { setInstallPrompt, markInstalled, clearInstalled } from './services/installPrompt.js'
 import { authAPI } from './services/api.js'
@@ -121,6 +123,7 @@ function PageLoader() {
 
 export default function App() {
   useDialogFocus() // foco dos diálogos modais: fica dentro deles e volta a quem abriu ao fechar
+  usePlayBilling() // no app Android, quando a cobrança do Google fica pronta o app todo se redesenha (hidePurchaseUI() muda de resposta)
   // isValidating: true enquanto /auth/me não respondeu — PrivateRoute/HomeRoute
   // bloqueiam a decisão de rota nesse período para evitar tanto o flash de
   // dados quanto o bug oposto: mandar pro /login só porque o sessionStorage
@@ -197,6 +200,9 @@ export default function App() {
     <AuthValidContext.Provider value={isValidating}>
       <BrowserRouter>
         <ScrollToTop />
+        {/* no app Android, liga a cobrança do Google em QUALQUER tela (inclusive /planos aberta direto, que é uma rota pública), mas só
+            depois de a sessão ser validada: a configuração do servidor exige login */}
+        {!isValidating && <PlayBillingBoot />}
         <CookieBanner />
         <InstallBanner />
         <Suspense fallback={<PageLoader />}>

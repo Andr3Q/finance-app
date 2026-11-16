@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser.js'
 import { analytics } from '../../services/analytics.js'
 import EliteConversionModal from './EliteConversionModal.jsx'
-import { isAndroidApp } from '../../utils/androidApp.js'
+import { hidePurchaseUI } from '../../utils/purchaseUi.js'
 
 const DISMISS_KEY       = 'expiry-banner-dismissed'
 const TRIAL_DISMISS_KEY = 'trial-banner-dismissed'
@@ -167,7 +167,7 @@ export default function PlanExpiryBanner() {
   const planLabel = user.plan === 'elite' ? 'Elite' : 'Pro'
   // app Android da Play Store: só a informação, sem pedir para renovar (ver utils/androidApp.js)
   const msg = expired
-    ? (isAndroidApp()
+    ? (hidePurchaseUI()
         ? `Seu plano ${planLabel} expirou. Os recursos dele ficam indisponíveis.`
         : `Seu plano ${planLabel} expirou. Renove para manter o acesso aos recursos premium.`)
     : daysLeft === 1
@@ -189,7 +189,7 @@ export default function PlanExpiryBanner() {
           <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <span data-testid="plan-expiry-banner-msg" className="expiry-banner-msg">{msg}</span>
-        {!isAndroidApp() && (
+        {!hidePurchaseUI() && (
           <button className="expiry-banner-cta" onClick={() => navigate('/planos')}>
             Renovar
           </button>

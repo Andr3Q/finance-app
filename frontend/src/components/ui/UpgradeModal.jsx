@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser.js'
 import { useEscapeKey } from '../../hooks/useEscapeKey.js'
-import { isAndroidApp } from '../../utils/androidApp.js'
+import { hidePurchaseUI } from '../../utils/purchaseUi.js'
 
 const PRO_HIGHLIGHTS = [
   '35 transações por mês',
@@ -42,7 +42,7 @@ export default function UpgradeModal({ onClose, reason }) {
   }
 
   // app Android da Play Store: sem compra, preço nem caminho para pagar (política de pagamentos do Google; ver utils/androidApp.js)
-  if (isAndroidApp()) {
+  if (hidePurchaseUI()) {
     return (
       <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) handleClose() }}
         style={{ animation: closing ? 'fadeOut .2s forwards' : 'fadeIn .2s forwards' }}>

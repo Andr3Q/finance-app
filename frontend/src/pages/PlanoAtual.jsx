@@ -15,13 +15,8 @@ const dateShort = (d) => {
 
 // "Seu plano" (só no app Android da Play Store): mostra o plano da conta e até quando vale. Sem preços, sem comparativo, sem botão de compra
 // e sem apontar para onde assinar: a política de pagamentos do Google não deixa o app vender plano por fora da Play (ver utils/androidApp.js).
-export default function PlanoAtual() {
-  const user = useUser()
-  const navigate = useNavigate()
-  const location = useLocation()
-  const isDesktop = useIsDesktop()
-  useForcedLightTheme()
-
+// Nome e frase do plano da conta ("Plano Pro" / "Válido até 20 dez 2026"). Compartilhado com a tela de planos do app (PlanosPlay).
+export function planSummary(user) {
   const plan = user.plan || 'free'
   const paid = plan === 'pro' || plan === 'elite'
   const trial = paid && !!user.isOnTrial
@@ -33,6 +28,17 @@ export default function PlanoAtual() {
           ? `Não será renovado · acesso até ${user.planExpiresAt ? dateShort(user.planExpiresAt) : 'o fim do período pago'}`
           : user.planExpiresAt ? `Válido até ${dateShort(user.planExpiresAt)}` : 'Plano ativo')
       : 'Sem cobrança'
+  return { plan, paid, trial, name, sub }
+}
+
+export default function PlanoAtual() {
+  const user = useUser()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isDesktop = useIsDesktop()
+  useForcedLightTheme()
+
+  const { paid, name, sub } = planSummary(user)
 
   const card = (
     <section className={isDesktop ? 'pgd-plan' : 'fin-card pg-plan'} aria-label="Seu plano">

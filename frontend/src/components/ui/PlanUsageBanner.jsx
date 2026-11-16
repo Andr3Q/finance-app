@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { getLimit, nextPlan, nextPlanLabel } from '../../config/planLimits.js'
-import { isAndroidApp } from '../../utils/androidApp.js'
+import { hidePurchaseUI } from '../../utils/purchaseUi.js'
 
 export default function PlanUsageBanner({ plan, feature, used, label }) {
   const navigate  = useNavigate()
@@ -13,7 +13,7 @@ export default function PlanUsageBanner({ plan, feature, used, label }) {
   const atLimit  = used >= limit
   const barColor = atLimit ? '#ef4444' : pct >= 80 ? '#f59e0b' : '#4ae2ac'
   const isEliteUp = nextLabel === 'Elite'
-  const inApp     = isAndroidApp() // app Android da Play Store: sem promoção nem botão de upgrade (ver utils/androidApp.js)
+  const inApp     = hidePurchaseUI() // app Android da Play Store: sem promoção nem botão de upgrade (ver utils/androidApp.js)
 
   return (
     <div className={`pub-wrap ${atLimit ? 'pub-wrap-alert' : ''}`}>
